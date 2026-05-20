@@ -80,4 +80,13 @@ describe('SyncInventoryToShopify', () => {
       10
     );
   });
+
+  it('should skip if no active Shopify connections exist for tenant', async () => {
+    integrationRepo.findAllByTenant.mockResolvedValue([]);
+    
+    await useCase.execute('T1', 'L1', 'V1');
+
+    expect(ledgerRepo.currentQuantity).not.toHaveBeenCalled();
+    expect(shopifyClient.setInventory).not.toHaveBeenCalled();
+  });
 });

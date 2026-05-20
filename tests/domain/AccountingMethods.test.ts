@@ -97,7 +97,16 @@ describe('Accounting Methods (Cost Layers)', () => {
     it('should correctly report if fully consumed', () => {
       const layer = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date());
       expect(layer.isFullyConsumed()).toBe(false);
-      layer.consume(10);
+      
+      const consumed = layer.consume(5);
+      expect(consumed).toBe(5);
+      expect(layer.consumedQuantity).toBe(5);
+      expect(layer.remainingQuantity()).toBe(5);
+      expect(layer.remainingCostCents()).toBe(500);
+      expect(layer.isFullyConsumed()).toBe(false);
+
+      const consumed2 = layer.consume(10); // Attempt to consume more than remaining
+      expect(consumed2).toBe(5);
       expect(layer.isFullyConsumed()).toBe(true);
     });
   });

@@ -69,4 +69,53 @@ describe('ProcessShopifyOrder', () => {
       expect.objectContaining({ value: 'shopify-integration' })
     );
   });
+
+  it('should throw error if integration connection is inactive', async () => {
+    const connection = new IntegrationConnection(new IntegrationId('I1'), new TenantId('T1'), IntegrationPlatform.Shopify, 'test.myshopify.com', 'token', false);
+    integrationRepo.findById.mockResolvedValue(connection);
+
+    await expect(useCase.execute({
+      integrationId: 'I1',
+      shopifyOrderId: '1001',
+      shopifyLocationId: 'ext-loc',
+      lineItems: []
+    })).rejects.toThrow('inactive');
+  });
+
+  it('should throw error if location mapping is missing', async () => {
+    const connection = new IntegrationConnection(new IntegrationId('I1'), new TenantId('T1'), IntegrationPlatform.Shopify, 'test.myshopify.com', 'token');
+    integrationRepo.findById.mockResolvedValue(connection);
+    mappingRepo.findByExternalId.mockResolvedValue(null);
+
+    await expect(useCase.execute({
+      integrationId: 'I1',
+      shopifyOrderId: '1001',
+      shopifyLocationId: 'ext-loc',
+      lineItems: []
+    })).rejects.toThrow('No mapping found for Shopify location');
+  });
+
+  it('should warn and skip if variant mapping is missing', async () => {
+    const connection = new IntegrationConnection(new IntegrationId('I1'), new TenantId('T1'), IntegrationPlatform.Shopify, 'test.myshopify.com', 'token');
+    integrationRepo.findById.mockResolvedValue(connection);
+    
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    mappingRepo.findByExternalId.mockImplementation(async (id, externalId, type) => {
+      if (type === ExternalEntityType.Location) return new ExternalMapping(new TenantId('T1'), id, type, 'int-l', externalId);
+      return null; // Missing variant mapping
+    });
+
+    await useCase.execute({
+      integrationId: 'I1',
+      shopifyOrderId: '1001',
+      shopifyLocationId: 'ext-loc',
+      lineItems: [{ shopifyVariantId: 'missing-v', quantity: 1 }]
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No mapping found for Shopify variant'));
+    expect(inventoryService.decrementForSale).not.toHaveBeenCalled();
+    
+    consoleSpy.mockRestore();
+  });
 });

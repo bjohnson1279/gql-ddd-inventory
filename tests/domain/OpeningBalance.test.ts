@@ -74,6 +74,29 @@ describe('Opening Balance', () => {
     expect(() => onboarding.removeItem(new ProductVariantId('V-1'))).toThrow(OnboardingAlreadySubmittedError);
   });
 
+  it('should correctly report status and allow item removal', () => {
+    const onboarding = new StockOnboarding(
+      new StockOnboardingId('ob-1'),
+      tenantId,
+      locationId,
+      asOfDate
+    );
+    const vId = new ProductVariantId('V-1');
+    onboarding.setItem(vId, 10, 1000);
+    
+    expect(onboarding.status).toBe(StockOnboardingStatus.Draft);
+    expect(onboarding.isSubmitted).toBe(false);
+    expect(onboarding.items).toHaveLength(1);
+
+    onboarding.removeItem(vId);
+    expect(onboarding.items).toHaveLength(0);
+
+    onboarding.setItem(vId, 10, 1000);
+    onboarding.submit();
+    expect(onboarding.isSubmitted).toBe(true);
+    expect(onboarding.status).toBe(StockOnboardingStatus.Submitted);
+  });
+
   it('should throw error if opening balance already exists for a SKU', async () => {
     // Arrange
     const vId1 = new ProductVariantId('V-1');

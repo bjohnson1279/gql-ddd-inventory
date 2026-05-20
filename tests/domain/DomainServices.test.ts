@@ -54,6 +54,19 @@ describe('Domain Services Gaps', () => {
       expect(set.all[0].barcode.value).toBe('B1');
     });
 
+    it('should throw error when revoking the primary barcode while others exist', () => {
+      const { VariantBarcodeSet } = require('../../src/domain/entities/VariantBarcodeSet');
+      const { Barcode } = require('../../src/domain/valueObjects/Barcode');
+      const { BarcodeSymbology, BarcodeSource } = require('../../src/domain/enums/BarcodeEnums');
+      const { Sku } = require('../../src/domain/valueObjects/Sku');
+      
+      const set = new VariantBarcodeSet(new Sku('SKU1'));
+      const a1 = set.assign(new Barcode(BarcodeSymbology.CODE_128, 'B1'), BarcodeSource.Internal);
+      set.assign(new Barcode(BarcodeSymbology.CODE_128, 'B2'), BarcodeSource.Internal);
+      
+      expect(() => set.revoke(a1.id)).toThrow('Cannot revoke the primary barcode while other assignments exist');
+    });
+
     it('should throw error when revoking non-existent assignment', () => {
       const { VariantBarcodeSet } = require('../../src/domain/entities/VariantBarcodeSet');
       const { Sku } = require('../../src/domain/valueObjects/Sku');

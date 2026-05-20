@@ -60,4 +60,29 @@ describe('Serial Number Tracking', () => {
     await expect(serialService.sell(sn, tenantId, 'S1', actorId))
       .rejects.toThrow('Invalid status transition');
   });
+
+  it('should correctly report availability and track history', async () => {
+    const sn = new SerialNumber('SN-HISTORY');
+    await serialService.register(sn, variantId, tenantId, locationId, actorId);
+    const item = (await serialRepo.findBySerial(sn, tenantId))!;
+
+    expect(item.isAvailable).toBe(false);
+    
+    await serialService.receive(sn, tenantId, locationId, 'PO1', 1000, actorId);
+    expect(item.isAvailable).toBe(true);
+    expect(item.locationId.equals(locationId)).toBe(true);
+
+    expect(item.history).toHaveLength(1);
+    expect(item.history[0].to).toBe(SerializedItemStatus.InStock);
+    
+    await serialService.sell(sn, tenantId, 'S1', actorId);
+    expect(item.isAvailable).toBe(false);
+    expect(item.history).toHaveLength(2);
+  });
+
+  it('should throw error if serial number not found for receive/sell', async () => {
+    const sn = new SerialNumber('MISSING');
+    await expect(serialService.receive(sn, tenantId, locationId, 'PO1', 1000, actorId)).rejects.toThrow('not found');
+    await expect(serialService.sell(sn, tenantId, 'S1', actorId)).rejects.toThrow('not found');
+  });
 });

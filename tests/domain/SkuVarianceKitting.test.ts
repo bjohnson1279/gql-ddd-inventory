@@ -4,6 +4,7 @@ import { Sku } from '../../src/domain/valueObjects/Sku';
 import { VariantAttribute } from '../../src/domain/valueObjects/VariantAttribute';
 import { Kit } from '../../src/domain/entities/Kit';
 import { KitId } from '../../src/domain/valueObjects/KitId';
+import { ProductVariantId } from '../../src/domain/valueObjects/ProductVariantId';
 import { InventoryService } from '../../src/domain/services/InventoryService';
 import { InMemoryLedgerRepository } from '../../src/infrastructure/persistence/InMemoryLedgerRepository';
 import { TenantId } from '../../src/domain/valueObjects/TenantId';
@@ -83,5 +84,24 @@ describe('SKU Variance & Kitting', () => {
 
     // Verify no stock was decremented (atomic validation)
     expect(await ledger.currentQuantity(v1.id, locationId)).toBe(5);
+  });
+
+  it('should increment quantity when adding the same component to a kit', () => {
+    const kit = new Kit(new KitId('K1'), new Sku('KIT1'), 'Pack');
+    const vId = new ProductVariantId('V1');
+    kit.addComponent(vId, 1);
+    kit.addComponent(vId, 2);
+    
+    expect(kit.components).toHaveLength(1);
+    expect(kit.components[0].quantity).toBe(3);
+  });
+
+  it('should throw error when selling an empty kit', async () => {
+    const ledger = new InMemoryLedgerRepository();
+    const inventoryService = new InventoryService(ledger);
+    const kit = new Kit(new KitId('K1'), new Sku('KIT1'), 'Empty');
+    
+    await expect(inventoryService.decrementForKitSale(tenantId, locationId, kit, 1, 'S1', actorId))
+      .rejects.toThrow('Cannot sell a kit with no components');
   });
 });
