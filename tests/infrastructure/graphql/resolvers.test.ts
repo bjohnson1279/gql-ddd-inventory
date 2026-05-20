@@ -1,0 +1,74 @@
+import { resolvers } from '../../../src/infrastructure/graphql/resolvers';
+import { InMemoryInventoryRepository } from '../../../src/infrastructure/persistence/InMemoryInventoryRepository';
+
+// Note: The resolvers currently use a static instance of the repository.
+// For testing, we can clear it or rely on its behavior.
+// Ideally, we would refactor the resolvers to use Dependency Injection.
+
+describe('GraphQL Resolvers', () => {
+  it('should receive stock through mutation', async () => {
+    const result = await (resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', amount: 10 });
+    
+    expect(result.sku).toBe('SKU1');
+    expect(result.quantity).toBe(10);
+  });
+
+  it('should query inventory items', async () => {
+    // We just added SKU1 in the previous test
+    const result = await (resolvers.Query as any).inventoryItems();
+    
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.find((item: any) => item.sku === 'SKU1')).toBeDefined();
+  });
+
+  it('should dispatch stock through mutation', async () => {
+    const result = await (resolvers.Mutation as any).dispatchStock(null, { sku: 'SKU1', amount: 5 });
+    
+    expect(result.quantity).toBe(5);
+  });
+
+  it('should query inventory item by SKU', async () => {
+    const result = await (resolvers.Query as any).inventoryItemBySku(null, { sku: 'SKU1' });
+    
+    expect(result.sku).toBe('SKU1');
+    expect(result.quantity).toBe(5);
+  });
+
+  it('should query inventory item by SKU (null case)', async () => {
+    const result = await (resolvers.Query as any).inventoryItemBySku(null, { sku: 'NON-EXISTENT' });
+    expect(result).toBeNull();
+  });
+
+  it('should handle errors in mutations (dispatchStock)', async () => {
+    // Attempt to dispatch more than available
+    await expect((resolvers.Mutation as any).dispatchStock(null, { sku: 'SKU1', amount: 100 }))
+      .rejects.toThrow();
+  });
+
+  it('should handle errors in mutations (receiveStock)', async () => {
+    // Attempt to receive negative amount
+    await expect((resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', amount: -10 }))
+      .rejects.toThrow();
+  });
+
+  it('should submit inventory count', async () => {
+    const counts = [
+      { sku: 'SKU1', actualQuantity: 20 },
+      { sku: 'SKU2', actualQuantity: 15 },
+    ];
+    const result = await (resolvers.Mutation as any).submitInventoryCount(null, { counts });
+    
+    expect(result).toHaveLength(2);
+    expect(result[0].sku).toBe('SKU1');
+    expect(result[0].actual).toBe(20);
+    expect(result[1].sku).toBe('SKU2');
+    expect(result[1].actual).toBe(15);
+  });
+
+  it('should handle errors in mutations (submitInventoryCount)', async () => {
+    // Attempt to submit negative actual quantity
+    const counts = [{ sku: 'SKU1', actualQuantity: -5 }];
+    await expect((resolvers.Mutation as any).submitInventoryCount(null, { counts }))
+      .rejects.toThrow();
+  });
+});

@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "4000:4000"
+    # For development, mount the source so changes are reflected and use the dev command
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
