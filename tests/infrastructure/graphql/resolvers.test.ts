@@ -71,4 +71,18 @@ describe('GraphQL Resolvers', () => {
     await expect((resolvers.Mutation as any).submitInventoryCount(null, { counts }))
       .rejects.toThrow();
   });
+
+  it('should submit opening balance', async () => {
+    const input = {
+      tenantId: 'T1',
+      locationId: 'L1',
+      asOfDate: '2024-01-01',
+      actorId: 'A1',
+      items: [
+        { variantId: 'V1', quantity: 10, unitCostCents: 1000 }
+      ]
+    };
+    const result = await (resolvers.Mutation as any).submitOpeningBalance(null, { input });
+    expect(result).toBe(true);
+  });
 });

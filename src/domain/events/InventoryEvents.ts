@@ -4,6 +4,8 @@ import { ProductVariantId } from '../valueObjects/ProductVariantId';
 export class InventoryDecremented implements DomainEvent {
   readonly occurredAt: Date;
   constructor(
+    public readonly tenantId: string,
+    public readonly locationId: string,
     public readonly variantId: ProductVariantId,
     public readonly quantity: number,
     public readonly referenceId: string

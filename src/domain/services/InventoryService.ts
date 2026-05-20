@@ -38,7 +38,7 @@ export class InventoryService {
     );
 
     await this.ledgerRepository.append(entry);
-    this.eventDispatcher(new InventoryDecremented(variantId, quantity, saleId));
+    this.eventDispatcher(new InventoryDecremented(tenantId.value, locationId.value, variantId, quantity, saleId));
   }
 
   async decrementForKitSale(
@@ -75,7 +75,7 @@ export class InventoryService {
       );
 
       await this.ledgerRepository.append(entry);
-      this.eventDispatcher(new InventoryDecremented(component.variantId, needed, saleId));
+      this.eventDispatcher(new InventoryDecremented(tenantId.value, locationId.value, component.variantId, needed, saleId));
     }
   }
 

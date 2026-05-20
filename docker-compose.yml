@@ -1,14 +1,36 @@
 version: "3.8"
 
 services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_password
+      POSTGRES_DB: inventory_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
   api:
     build: .
     ports:
       - "4000:4000"
-    # For development, mount the source so changes are reflected and use the dev command
+    depends_on:
+      - db
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
     command: npm run dev
     environment:
       - NODE_ENV=development
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=inventory_user
+      - DB_PASSWORD=inventory_password
+      - DB_NAME=inventory_db
+
+volumes:
+  postgres_data:
