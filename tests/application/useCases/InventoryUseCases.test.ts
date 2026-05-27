@@ -7,9 +7,11 @@ import { SubmitInventoryCountUseCase } from '../../../src/application/useCases/S
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
+import { DomainEventDispatcher } from '../../../src/application/services/DomainEventDispatcher';
 
 describe('Inventory Use Cases', () => {
   let mockRepo: jest.Mocked<IInventoryRepository>;
+  let mockEventDispatcher: jest.Mocked<DomainEventDispatcher>;
   
   beforeEach(() => {
     mockRepo = {
@@ -18,6 +20,10 @@ describe('Inventory Use Cases', () => {
       findBySkuAndLocation: jest.fn(),
       save: jest.fn(),
       findAll: jest.fn(),
+    } as any;
+
+    mockEventDispatcher = {
+      dispatch: jest.fn(),
     } as any;
   });
 
@@ -50,17 +56,18 @@ describe('Inventory Use Cases', () => {
       const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
       mockRepo.findBySkuAndLocation.mockResolvedValue(item);
       
-      const useCase = new DispatchStockUseCase(mockRepo);
+      const useCase = new DispatchStockUseCase(mockRepo, mockEventDispatcher);
       const result = await useCase.execute('SKU1', 'LOC1', 5);
 
       expect(result.quantity).toBe(5);
       expect(mockRepo.save).toHaveBeenCalledWith(item);
+      expect(mockEventDispatcher.dispatch).toHaveBeenCalled();
     });
 
     it('should throw error if SKU not found', async () => {
       mockRepo.findBySkuAndLocation.mockResolvedValue(null);
       
-      const useCase = new DispatchStockUseCase(mockRepo);
+      const useCase = new DispatchStockUseCase(mockRepo, mockEventDispatcher);
       await expect(useCase.execute('SKU1', 'LOC1', 5)).rejects.toThrow('Item with SKU SKU1 at location LOC1 not found.');
     });
   });
@@ -108,7 +115,7 @@ describe('Inventory Use Cases', () => {
       const item1 = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
       mockRepo.findBySkuAndLocation.mockResolvedValueOnce(item1).mockResolvedValueOnce(null);
       
-      const useCase = new SubmitInventoryCountUseCase(mockRepo);
+      const useCase = new SubmitInventoryCountUseCase(mockRepo, mockEventDispatcher);
       const result = await useCase.execute([
         { sku: 'SKU1', locationId: 'LOC1', actualQuantity: 8 },
         { sku: 'SKU2', locationId: 'LOC2', actualQuantity: 5 },
@@ -120,6 +127,7 @@ describe('Inventory Use Cases', () => {
       expect(result[1].sku).toBe('SKU2');
       expect(result[1].variance).toBe(5); // New item, so 5 - 0 = 5
       expect(mockRepo.save).toHaveBeenCalledTimes(2);
+      expect(mockEventDispatcher.dispatch).toHaveBeenCalledTimes(2);
     });
   });
 });
