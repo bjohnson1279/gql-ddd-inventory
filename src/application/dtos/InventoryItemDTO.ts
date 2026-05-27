@@ -3,4 +3,5 @@ export interface InventoryItemDTO {
   sku: string;
   locationId: string;
   quantity: number;
+  version: number;
 }

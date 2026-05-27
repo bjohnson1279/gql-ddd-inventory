@@ -4,6 +4,7 @@ export const typeDefs = `#graphql
     sku: String!
     locationId: String!
     quantity: Int!
+    version: Int!
   }
 
   type Query {

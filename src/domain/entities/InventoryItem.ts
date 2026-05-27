@@ -10,13 +10,15 @@ export class InventoryItem {
   private readonly _sku: Sku;
   private readonly _locationId: LocationId;
   private _quantity: Quantity;
+  private _version: number;
   private _domainEvents: DomainEvent[] = [];
 
-  constructor(id: string, sku: Sku, locationId: LocationId, initialQuantity: Quantity) {
+  constructor(id: string, sku: Sku, locationId: LocationId, initialQuantity: Quantity, initialVersion: number = 1) {
     this._id = id;
     this._sku = sku;
     this._locationId = locationId;
     this._quantity = initialQuantity;
+    this._version = initialVersion;
   }
 
   get id(): string {
@@ -35,9 +37,18 @@ export class InventoryItem {
     return this._quantity;
   }
 
+  get version(): number {
+    return this._version;
+  }
+
+  private incrementVersion(): void {
+    this._version += 1;
+  }
+
   // Domain behaviors
   receiveStock(amount: Quantity): void {
     this._quantity = this._quantity.add(amount);
+    this.incrementVersion();
   }
 
   dispatchStock(amount: Quantity): void {
@@ -45,6 +56,7 @@ export class InventoryItem {
       throw new InsufficientStockError(this._sku.value, amount.value, this._quantity.value);
     }
     this._quantity = this._quantity.subtract(amount);
+    this.incrementVersion();
 
     if (this._quantity.value < 10) {
       this._domainEvents.push(
@@ -59,6 +71,7 @@ export class InventoryItem {
     const variance = actual - expected;
     
     this._quantity = actualQuantity;
+    this.incrementVersion();
     
     this._domainEvents.push(
       new InventoryReconciledEvent(this._sku.value, this._locationId.value, expected, actual, variance)
@@ -75,6 +88,6 @@ export class InventoryItem {
 
   // Factory method for creating a new item
   static createNew(id: string, sku: string, locationId: string): InventoryItem {
-    return new InventoryItem(id, new Sku(sku), new LocationId(locationId), new Quantity(0));
+    return new InventoryItem(id, new Sku(sku), new LocationId(locationId), new Quantity(0), 1);
   }
 }

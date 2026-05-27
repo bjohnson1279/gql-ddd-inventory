@@ -8,6 +8,7 @@ export class InventoryItemMapper {
       sku: item.sku.value,
       locationId: item.locationId.value,
       quantity: item.quantity.value,
+      version: item.version
     };
   }
 }

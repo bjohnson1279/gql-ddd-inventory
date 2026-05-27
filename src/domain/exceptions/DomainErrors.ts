@@ -25,3 +25,10 @@ export class OpeningBalanceConflictError extends Error {
     this.name = 'OpeningBalanceConflictError';
   }
 }
+
+export class ConcurrencyError extends Error {
+  constructor(sku: string, locationId: string) {
+    super(`Concurrency error: Item with SKU ${sku} at location ${locationId} was modified by another process.`);
+    this.name = 'ConcurrencyError';
+  }
+}

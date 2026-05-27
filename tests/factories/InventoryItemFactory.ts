@@ -8,6 +8,7 @@ export class InventoryItemFactory {
   private sku: string = 'TEST-SKU';
   private locationId: string = 'LOC-1';
   private quantity: number = 0;
+  private version: number = 1;
 
   withId(id: string): this {
     this.id = id;
@@ -29,12 +30,18 @@ export class InventoryItemFactory {
     return this;
   }
 
+  withVersion(version: number): this {
+    this.version = version;
+    return this;
+  }
+
   build(): InventoryItem {
     return new InventoryItem(
       this.id,
       new Sku(this.sku),
       new LocationId(this.locationId),
-      new Quantity(this.quantity)
+      new Quantity(this.quantity),
+      this.version
     );
   }
 

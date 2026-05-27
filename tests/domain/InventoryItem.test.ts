@@ -1,30 +1,35 @@
 import { InventoryItemFactory } from '../factories/InventoryItemFactory';
 import { Quantity } from '../../src/domain/valueObjects/Quantity';
 import { InsufficientStockError } from '../../src/domain/exceptions/DomainErrors';
+import { InventoryItem } from '../../src/domain/entities/InventoryItem';
+import { Sku } from '../../src/domain/valueObjects/Sku';
+import { LocationId } from '../../src/domain/valueObjects/LocationId';
 
 describe('InventoryItem', () => {
   it('should successfully receive stock', () => {
     // Arrange: Create an item with 10 stock using the factory
-    const item = new InventoryItemFactory().withQuantity(10).build();
-    const newStock = new Quantity(5);
+    const item = new InventoryItemFactory().withQuantity(10).withVersion(1).build();
+    const stockToReceive = new Quantity(5);
 
     // Act
-    item.receiveStock(newStock);
+    item.receiveStock(stockToReceive);
 
     // Assert
     expect(item.quantity.value).toBe(15);
+    expect(item.version).toBe(2);
   });
 
-  it('should successfully dispatch stock when enough is available', () => {
+  it('should successfully dispatch stock and increment version', () => {
     // Arrange
-    const item = new InventoryItemFactory().withQuantity(20).build();
-    const stockToDispatch = new Quantity(5);
+    const item = new InventoryItemFactory().withQuantity(10).withVersion(1).build();
+    const stockToDispatch = new Quantity(3);
 
     // Act
     item.dispatchStock(stockToDispatch);
 
     // Assert
-    expect(item.quantity.value).toBe(15);
+    expect(item.quantity.value).toBe(7);
+    expect(item.version).toBe(2);
   });
 
   it('should throw an InsufficientStockError when dispatching more than available', () => {
@@ -81,5 +86,34 @@ describe('InventoryItem', () => {
     // Assert
     expect(events1.length).toBe(1);
     expect(events2.length).toBe(0);
+  });
+
+  it('should initialize with correct default values and version 1', () => {
+    // Arrange
+    const sku = new Sku('MACBOOK-PRO');
+    const locationId = new LocationId('LOC-1');
+    const quantity = new Quantity(10);
+    const id = '123';
+
+    // Act
+    const item = new InventoryItem(id, sku, locationId, quantity);
+
+    // Assert
+    expect(item.id).toBe('123');
+    expect(item.sku.value).toBe('MACBOOK-PRO');
+    expect(item.quantity.value).toBe(10);
+    expect(item.version).toBe(1);
+  });
+
+  it('should increment version when receiving stock', () => {
+    // Arrange
+    const item = new InventoryItemFactory().withQuantity(10).withVersion(1).build();
+
+    // Act
+    item.receiveStock(new Quantity(5));
+
+    // Assert
+    expect(item.quantity.value).toBe(15);
+    expect(item.version).toBe(2);
   });
 });
