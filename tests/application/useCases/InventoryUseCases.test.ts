@@ -2,10 +2,11 @@ import { IInventoryRepository } from '../../../src/domain/repositories/IInventor
 import { InventoryItem } from '../../../src/domain/entities/InventoryItem';
 import { ReceiveStockUseCase } from '../../../src/application/useCases/ReceiveStock';
 import { DispatchStockUseCase } from '../../../src/application/useCases/DispatchStock';
-import { GetStockLevelsUseCase, GetStockLevelBySkuUseCase } from '../../../src/application/useCases/GetStockLevels';
+import { GetStockLevelsUseCase, GetStockLevelsBySkuUseCase } from '../../../src/application/useCases/GetStockLevels';
 import { SubmitInventoryCountUseCase } from '../../../src/application/useCases/SubmitInventoryCount';
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
+import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 
 describe('Inventory Use Cases', () => {
   let mockRepo: jest.Mocked<IInventoryRepository>;
@@ -14,6 +15,7 @@ describe('Inventory Use Cases', () => {
     mockRepo = {
       findById: jest.fn(),
       findBySku: jest.fn(),
+      findBySkuAndLocation: jest.fn(),
       save: jest.fn(),
       findAll: jest.fn(),
     } as any;
@@ -21,21 +23,21 @@ describe('Inventory Use Cases', () => {
 
   describe('ReceiveStockUseCase', () => {
     it('should add stock to existing item', async () => {
-      const item = new InventoryItem('1', new Sku('SKU1'), new Quantity(10));
-      mockRepo.findBySku.mockResolvedValue(item);
+      const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
+      mockRepo.findBySkuAndLocation.mockResolvedValue(item);
       
       const useCase = new ReceiveStockUseCase(mockRepo);
-      const result = await useCase.execute('SKU1', 5);
+      const result = await useCase.execute('SKU1', 'LOC1', 5);
 
       expect(result.quantity).toBe(15);
       expect(mockRepo.save).toHaveBeenCalledWith(item);
     });
 
     it('should create new item if SKU not found', async () => {
-      mockRepo.findBySku.mockResolvedValue(null);
+      mockRepo.findBySkuAndLocation.mockResolvedValue(null);
       
       const useCase = new ReceiveStockUseCase(mockRepo);
-      const result = await useCase.execute('NEW-SKU', 10);
+      const result = await useCase.execute('NEW-SKU', 'LOC1', 10);
 
       expect(result.sku).toBe('NEW-SKU');
       expect(result.quantity).toBe(10);
@@ -45,29 +47,29 @@ describe('Inventory Use Cases', () => {
 
   describe('DispatchStockUseCase', () => {
     it('should remove stock from existing item', async () => {
-      const item = new InventoryItem('1', new Sku('SKU1'), new Quantity(10));
-      mockRepo.findBySku.mockResolvedValue(item);
+      const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
+      mockRepo.findBySkuAndLocation.mockResolvedValue(item);
       
       const useCase = new DispatchStockUseCase(mockRepo);
-      const result = await useCase.execute('SKU1', 5);
+      const result = await useCase.execute('SKU1', 'LOC1', 5);
 
       expect(result.quantity).toBe(5);
       expect(mockRepo.save).toHaveBeenCalledWith(item);
     });
 
     it('should throw error if SKU not found', async () => {
-      mockRepo.findBySku.mockResolvedValue(null);
+      mockRepo.findBySkuAndLocation.mockResolvedValue(null);
       
       const useCase = new DispatchStockUseCase(mockRepo);
-      await expect(useCase.execute('SKU1', 5)).rejects.toThrow('Item with SKU SKU1 not found.');
+      await expect(useCase.execute('SKU1', 'LOC1', 5)).rejects.toThrow('Item with SKU SKU1 at location LOC1 not found.');
     });
   });
 
   describe('GetStockLevelsUseCase', () => {
     it('should return all stock levels', async () => {
       const items = [
-        new InventoryItem('1', new Sku('SKU1'), new Quantity(10)),
-        new InventoryItem('2', new Sku('SKU2'), new Quantity(20)),
+        new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10)),
+        new InventoryItem('2', new Sku('SKU2'), new LocationId('LOC2'), new Quantity(20)),
       ];
       mockRepo.findAll.mockResolvedValue(items);
       
@@ -80,36 +82,36 @@ describe('Inventory Use Cases', () => {
     });
   });
 
-  describe('GetStockLevelBySkuUseCase', () => {
-    it('should return DTO if item found', async () => {
-      const item = new InventoryItem('1', new Sku('SKU1'), new Quantity(10));
-      mockRepo.findBySku.mockResolvedValue(item);
+  describe('GetStockLevelsBySkuUseCase', () => {
+    it('should return DTO array if item found', async () => {
+      const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
+      mockRepo.findBySku.mockResolvedValue([item]);
       
-      const useCase = new GetStockLevelBySkuUseCase(mockRepo);
+      const useCase = new GetStockLevelsBySkuUseCase(mockRepo);
       const result = await useCase.execute('SKU1');
 
-      expect(result?.sku).toBe('SKU1');
+      expect(result[0]?.sku).toBe('SKU1');
     });
 
-    it('should return null if item not found', async () => {
-      mockRepo.findBySku.mockResolvedValue(null);
+    it('should return empty array if item not found', async () => {
+      mockRepo.findBySku.mockResolvedValue([]);
       
-      const useCase = new GetStockLevelBySkuUseCase(mockRepo);
+      const useCase = new GetStockLevelsBySkuUseCase(mockRepo);
       const result = await useCase.execute('SKU1');
 
-      expect(result).toBeNull();
+      expect(result).toEqual([]);
     });
   });
 
   describe('SubmitInventoryCountUseCase', () => {
     it('should reconcile stock for multiple items', async () => {
-      const item1 = new InventoryItem('1', new Sku('SKU1'), new Quantity(10));
-      mockRepo.findBySku.mockResolvedValueOnce(item1).mockResolvedValueOnce(null);
+      const item1 = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
+      mockRepo.findBySkuAndLocation.mockResolvedValueOnce(item1).mockResolvedValueOnce(null);
       
       const useCase = new SubmitInventoryCountUseCase(mockRepo);
       const result = await useCase.execute([
-        { sku: 'SKU1', actualQuantity: 8 },
-        { sku: 'SKU2', actualQuantity: 5 },
+        { sku: 'SKU1', locationId: 'LOC1', actualQuantity: 8 },
+        { sku: 'SKU2', locationId: 'LOC2', actualQuantity: 5 },
       ]);
 
       expect(result).toHaveLength(2);

@@ -1,8 +1,11 @@
 export class LocationId {
-  constructor(public readonly value: string) {
+  public readonly value: string;
+
+  constructor(value: string) {
     if (!value || value.trim().length === 0) {
       throw new Error("LocationId cannot be empty.");
     }
+    this.value = value;
   }
 
   equals(other: LocationId): boolean {

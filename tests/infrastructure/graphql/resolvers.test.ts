@@ -7,7 +7,7 @@ import { InMemoryInventoryRepository } from '../../../src/infrastructure/persist
 
 describe('GraphQL Resolvers', () => {
   it('should receive stock through mutation', async () => {
-    const result = await (resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', amount: 10 });
+    const result = await (resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', locationId: 'LOC1', amount: 10 });
     
     expect(result.sku).toBe('SKU1');
     expect(result.quantity).toBe(10);
@@ -22,7 +22,7 @@ describe('GraphQL Resolvers', () => {
   });
 
   it('should dispatch stock through mutation', async () => {
-    const result = await (resolvers.Mutation as any).dispatchStock(null, { sku: 'SKU1', amount: 5 });
+    const result = await (resolvers.Mutation as any).dispatchStock(null, { sku: 'SKU1', locationId: 'LOC1', amount: 5 });
     
     expect(result.quantity).toBe(5);
   });
@@ -30,31 +30,31 @@ describe('GraphQL Resolvers', () => {
   it('should query inventory item by SKU', async () => {
     const result = await (resolvers.Query as any).inventoryItemBySku(null, { sku: 'SKU1' });
     
-    expect(result.sku).toBe('SKU1');
-    expect(result.quantity).toBe(5);
+    expect(result[0].sku).toBe('SKU1');
+    expect(result[0].quantity).toBe(5);
   });
 
   it('should query inventory item by SKU (null case)', async () => {
     const result = await (resolvers.Query as any).inventoryItemBySku(null, { sku: 'NON-EXISTENT' });
-    expect(result).toBeNull();
+    expect(result).toEqual([]);
   });
 
   it('should handle errors in mutations (dispatchStock)', async () => {
     // Attempt to dispatch more than available
-    await expect((resolvers.Mutation as any).dispatchStock(null, { sku: 'SKU1', amount: 100 }))
+    await expect((resolvers.Mutation as any).dispatchStock(null, { sku: 'SKU1', locationId: 'LOC1', amount: 100 }))
       .rejects.toThrow();
   });
 
   it('should handle errors in mutations (receiveStock)', async () => {
     // Attempt to receive negative amount
-    await expect((resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', amount: -10 }))
+    await expect((resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', locationId: 'LOC1', amount: -10 }))
       .rejects.toThrow();
   });
 
   it('should submit inventory count', async () => {
     const counts = [
-      { sku: 'SKU1', actualQuantity: 20 },
-      { sku: 'SKU2', actualQuantity: 15 },
+      { sku: 'SKU1', locationId: 'LOC1', actualQuantity: 20 },
+      { sku: 'SKU2', locationId: 'LOC2', actualQuantity: 15 },
     ];
     const result = await (resolvers.Mutation as any).submitInventoryCount(null, { counts });
     
@@ -67,7 +67,7 @@ describe('GraphQL Resolvers', () => {
 
   it('should handle errors in mutations (submitInventoryCount)', async () => {
     // Attempt to submit negative actual quantity
-    const counts = [{ sku: 'SKU1', actualQuantity: -5 }];
+    const counts = [{ sku: 'SKU1', locationId: 'LOC1', actualQuantity: -5 }];
     await expect((resolvers.Mutation as any).submitInventoryCount(null, { counts }))
       .rejects.toThrow();
   });

@@ -8,9 +8,19 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
     return this.items.get(id) || null;
   }
 
-  async findBySku(sku: string): Promise<InventoryItem | null> {
+  async findBySku(sku: string): Promise<InventoryItem[]> {
+    const results: InventoryItem[] = [];
     for (const item of this.items.values()) {
       if (item.sku.value === sku) {
+        results.push(item);
+      }
+    }
+    return results;
+  }
+
+  async findBySkuAndLocation(sku: string, locationId: string): Promise<InventoryItem | null> {
+    for (const item of this.items.values()) {
+      if (item.sku.value === sku && item.locationId.value === locationId) {
         return item;
       }
     }

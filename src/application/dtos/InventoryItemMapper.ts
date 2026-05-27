@@ -6,6 +6,7 @@ export class InventoryItemMapper {
     return {
       id: item.id,
       sku: item.sku.value,
+      locationId: item.locationId.value,
       quantity: item.quantity.value,
     };
   }

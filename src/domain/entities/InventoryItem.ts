@@ -1,15 +1,21 @@
 import { Sku } from '../valueObjects/Sku';
 import { Quantity } from '../valueObjects/Quantity';
+import { LocationId } from '../valueObjects/LocationId';
 import { InsufficientStockError } from '../exceptions/DomainErrors';
+import { DomainEvent } from '../events/OnboardingEvents';
+import { LowStockAlertEvent, InventoryReconciledEvent } from '../events/InventoryEvents';
 
 export class InventoryItem {
   private readonly _id: string; // The aggregate root ID
   private readonly _sku: Sku;
+  private readonly _locationId: LocationId;
   private _quantity: Quantity;
+  private _domainEvents: DomainEvent[] = [];
 
-  constructor(id: string, sku: Sku, initialQuantity: Quantity) {
+  constructor(id: string, sku: Sku, locationId: LocationId, initialQuantity: Quantity) {
     this._id = id;
     this._sku = sku;
+    this._locationId = locationId;
     this._quantity = initialQuantity;
   }
 
@@ -19,6 +25,10 @@ export class InventoryItem {
 
   get sku(): Sku {
     return this._sku;
+  }
+
+  get locationId(): LocationId {
+    return this._locationId;
   }
 
   get quantity(): Quantity {
@@ -35,6 +45,12 @@ export class InventoryItem {
       throw new InsufficientStockError(this._sku.value, amount.value, this._quantity.value);
     }
     this._quantity = this._quantity.subtract(amount);
+
+    if (this._quantity.value < 10) {
+      this._domainEvents.push(
+        new LowStockAlertEvent(this._sku.value, this._locationId.value, this._quantity.value)
+      );
+    }
   }
 
   reconcileStock(actualQuantity: Quantity): { expected: number; actual: number; variance: number } {
@@ -44,12 +60,21 @@ export class InventoryItem {
     
     this._quantity = actualQuantity;
     
-    // In a real event-driven system, we might publish an InventoryReconciledEvent here
+    this._domainEvents.push(
+      new InventoryReconciledEvent(this._sku.value, this._locationId.value, expected, actual, variance)
+    );
+    
     return { expected, actual, variance };
   }
 
+  pullDomainEvents(): DomainEvent[] {
+    const events = this._domainEvents;
+    this._domainEvents = [];
+    return events;
+  }
+
   // Factory method for creating a new item
-  static createNew(id: string, sku: string): InventoryItem {
-    return new InventoryItem(id, new Sku(sku), new Quantity(0));
+  static createNew(id: string, sku: string, locationId: string): InventoryItem {
+    return new InventoryItem(id, new Sku(sku), new LocationId(locationId), new Quantity(0));
   }
 }
