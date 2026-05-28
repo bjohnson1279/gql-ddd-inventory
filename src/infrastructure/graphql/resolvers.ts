@@ -3,17 +3,38 @@ import { DispatchStockUseCase } from '../../application/useCases/DispatchStock';
 import { GetStockLevelsUseCase, GetStockLevelsBySkuUseCase, GetStockLevelBySkuAndLocationUseCase } from '../../application/useCases/GetStockLevels';
 import { SubmitInventoryCountUseCase } from '../../application/useCases/SubmitInventoryCount';
 import { SubmitOpeningBalanceUseCase } from '../../application/useCases/SubmitOpeningBalance';
-import { InMemoryInventoryRepository } from '../persistence/InMemoryInventoryRepository';
+import { PostgresInventoryRepository } from '../persistence/PostgresInventoryRepository';
+import { PrismaClient } from '@prisma/client';
 import { InMemoryLedgerRepository } from '../persistence/InMemoryLedgerRepository';
 import { OpeningBalanceService } from '../../domain/services/OpeningBalanceService';
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
+import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
+import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
+import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
 
-// We initialize our dependencies here (or you could use a DI container like TSyringe)
-const inventoryRepository = new InMemoryInventoryRepository();
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const connectionString = `${process.env.DATABASE_URL}`;
+export const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+export const prisma = new PrismaClient({ adapter } as any);
+const inventoryRepository = new PostgresInventoryRepository(prisma);
 const ledgerRepository = new InMemoryLedgerRepository();
 
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
-const eventDispatcher = new DomainEventDispatcher();
+
+const eventBus = new InMemoryEventBus();
+const lowStockHandler = new LowStockAlertHandler();
+const reconciledHandler = new InventoryReconciledHandler();
+
+eventBus.subscribe('LowStockAlertEvent', lowStockHandler.handle.bind(lowStockHandler));
+eventBus.subscribe('InventoryReconciledEvent', reconciledHandler.handle.bind(reconciledHandler));
+
+const eventDispatcher = new DomainEventDispatcher(eventBus);
 
 const receiveStockUseCase = new ReceiveStockUseCase(inventoryRepository);
 const dispatchStockUseCase = new DispatchStockUseCase(inventoryRepository, eventDispatcher);

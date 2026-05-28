@@ -1,0 +1,22 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model InventoryItem {
+  id         String   @id
+  sku        String
+  locationId String
+  quantity   Int
+  version    Int
+
+  @@unique([sku, locationId])
+}

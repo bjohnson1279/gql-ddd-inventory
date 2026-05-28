@@ -1,11 +1,15 @@
-import { resolvers } from '../../../src/infrastructure/graphql/resolvers';
-import { InMemoryInventoryRepository } from '../../../src/infrastructure/persistence/InMemoryInventoryRepository';
-
-// Note: The resolvers currently use a static instance of the repository.
-// For testing, we can clear it or rely on its behavior.
-// Ideally, we would refactor the resolvers to use Dependency Injection.
+import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
 
 describe('GraphQL Resolvers', () => {
+  beforeAll(async () => {
+    // Clear the DB using the resolvers' Prisma client
+    await prisma.inventoryItem.deleteMany({});
+  }, 30000);
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+    await pool.end();
+  });
   it('should receive stock through mutation', async () => {
     const result = await (resolvers.Mutation as any).receiveStock(null, { sku: 'SKU1', locationId: 'LOC1', amount: 10 });
     
