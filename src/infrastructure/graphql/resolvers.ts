@@ -74,19 +74,19 @@ export const prisma = new PrismaClient({ adapter } as any);
 
 // DB Repositories
 const inventoryRepository = new PostgresInventoryRepository(prisma);
-const productRepository = new PostgresProductRepository(prisma);
+export const productRepository = new PostgresProductRepository(prisma);
 const ledgerRepository = new PostgresLedgerRepository(prisma);
 const serializedItemRepository = new PostgresSerializedItemRepository(prisma);
 const costLayerRepository = new PostgresInventoryCostLayerRepository(prisma);
-const integrationRepository = new PostgresIntegrationRepository(prisma);
-const externalMappingRepository = new PostgresExternalMappingRepository(prisma);
+export const integrationRepository = new PostgresIntegrationRepository(prisma);
+export const externalMappingRepository = new PostgresExternalMappingRepository(prisma);
 const uomRepository = new PostgresProductUomConfigurationRepository(prisma);
 const journalRepository = new PostgresJournalRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
 const serializedInventoryService = new SerializedInventoryService(serializedItemRepository, ledgerRepository);
-const inventoryService = new InventoryService(ledgerRepository);
+export const inventoryService = new InventoryService(ledgerRepository);
 
 // Messaging & Event Bus
 const eventBus = new InMemoryEventBus();

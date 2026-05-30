@@ -12,6 +12,7 @@ import jwt from 'jsonwebtoken';
 
 import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
+import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-999';
 
@@ -71,6 +72,9 @@ async function startApolloServer() {
   });
 
   await server.start();
+
+  // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
+  app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
   app.use(

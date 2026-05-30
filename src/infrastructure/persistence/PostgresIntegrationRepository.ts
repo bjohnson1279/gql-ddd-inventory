@@ -67,4 +67,19 @@ export class PostgresIntegrationRepository implements IIntegrationRepository {
         )
     );
   }
+
+  async findByStoreDomain(storeDomain: string): Promise<IntegrationConnection | null> {
+    const model = await this.prisma.integrationConnection.findFirst({
+      where: { storeDomain },
+    });
+    if (!model) return null;
+    return new IntegrationConnection(
+      new IntegrationId(model.id),
+      new TenantId(model.tenantId),
+      model.platform as IntegrationPlatform,
+      model.storeDomain,
+      model.accessToken,
+      model.isActive ?? true
+    );
+  }
 }
