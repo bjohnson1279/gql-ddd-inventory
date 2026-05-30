@@ -11,7 +11,7 @@ import { SubmitInventoryCountUseCase } from '../../application/useCases/SubmitIn
 import { SubmitOpeningBalanceUseCase } from '../../application/useCases/SubmitOpeningBalance';
 
 import { CreateProductUseCase, AddProductVariantUseCase, GetProductsUseCase, GetProductByIdUseCase } from '../../application/useCases/ManageProducts';
-import { SellKitUseCase } from '../../application/useCases/ManageKits';
+import { SellKitUseCase, AssembleKitUseCase, DisassembleKitUseCase } from '../../application/useCases/ManageKits';
 import { ReceiveSerializedItemUseCase, GetSerializedItemBySerialUseCase } from '../../application/useCases/ManageSerializedItems';
 import { ConnectShopifyStoreUseCase, GetShopifyConnectionsUseCase } from '../../application/useCases/ManageShopifyConnections';
 import { ConfigureProductUomUseCase, GetProductUomConfigurationUseCase } from '../../application/useCases/ManageUoms';
@@ -54,6 +54,10 @@ import { PostgresIntegrationRepository } from '../persistence/PostgresIntegratio
 import { PostgresExternalMappingRepository } from '../persistence/PostgresExternalMappingRepository';
 import { PostgresProductUomConfigurationRepository } from '../persistence/PostgresProductUomConfigurationRepository';
 import { PostgresJournalRepository } from '../persistence/PostgresJournalRepository';
+import { PostgresKitRepository } from '../persistence/PostgresKitRepository';
+import { Kit } from '../../domain/entities/Kit';
+import { KitId } from '../../domain/valueObjects/KitId';
+import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
@@ -82,6 +86,7 @@ export const integrationRepository = new PostgresIntegrationRepository(prisma);
 export const externalMappingRepository = new PostgresExternalMappingRepository(prisma);
 const uomRepository = new PostgresProductUomConfigurationRepository(prisma);
 const journalRepository = new PostgresJournalRepository(prisma);
+const kitRepository = new PostgresKitRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
@@ -112,6 +117,20 @@ const addProductVariantUseCase = new AddProductVariantUseCase(productRepository)
 const getProductsUseCase = new GetProductsUseCase(productRepository);
 const getProductByIdUseCase = new GetProductByIdUseCase(productRepository);
 const sellKitUseCase = new SellKitUseCase(inventoryService);
+const assembleKitUseCase = new AssembleKitUseCase(
+  kitRepository,
+  productRepository,
+  ledgerRepository,
+  costLayerRepository,
+  journalRepository
+);
+const disassembleKitUseCase = new DisassembleKitUseCase(
+  kitRepository,
+  productRepository,
+  ledgerRepository,
+  costLayerRepository,
+  journalRepository
+);
 const receiveSerializedItemUseCase = new ReceiveSerializedItemUseCase(serializedInventoryService, serializedItemRepository);
 const getSerializedItemBySerialUseCase = new GetSerializedItemBySerialUseCase(serializedItemRepository);
 const connectShopifyStoreUseCase = new ConnectShopifyStoreUseCase(integrationRepository);
@@ -406,6 +425,11 @@ export const resolvers = {
     },
     createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }) => {
       try {
+        const kit = new Kit(new KitId(id), new Sku(sku), name);
+        for (const comp of components) {
+          kit.addComponent(new ProductVariantId(comp.variantId), comp.quantity);
+        }
+        await kitRepository.save(kit);
         return true;
       } catch (error: any) {
         throw new Error(error.message);
@@ -414,6 +438,30 @@ export const resolvers = {
     sellKit: async (_: any, { input }: { input: any }) => {
       try {
         return await sellKitUseCase.execute(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    assembleKit: async (_: any, { input }: { input: any }, context: any) => {
+      try {
+        const auth = getTenantAndActor(context, input.tenantId, input.actorId);
+        return await assembleKitUseCase.execute({
+          ...input,
+          tenantId: auth.tenantId,
+          actorId: auth.actorId
+        });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    disassembleKit: async (_: any, { input }: { input: any }, context: any) => {
+      try {
+        const auth = getTenantAndActor(context, input.tenantId, input.actorId);
+        return await disassembleKitUseCase.execute({
+          ...input,
+          tenantId: auth.tenantId,
+          actorId: auth.actorId
+        });
       } catch (error: any) {
         throw new Error(error.message);
       }

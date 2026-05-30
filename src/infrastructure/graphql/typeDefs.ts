@@ -312,6 +312,24 @@ export const typeDefs = `#graphql
     components: [KitComponentInput!]!
   }
 
+  input AssembleKitInput {
+    tenantId: ID!
+    locationId: String!
+    kitSku: String!
+    quantity: Int!
+    actorId: ID!
+    referenceId: String!
+  }
+
+  input DisassembleKitInput {
+    tenantId: ID!
+    locationId: String!
+    kitSku: String!
+    quantity: Int!
+    actorId: ID!
+    referenceId: String!
+  }
+
   input ReceiveSerializedInput {
     variantId: ID!
     serialNumber: String!
@@ -350,6 +368,8 @@ export const typeDefs = `#graphql
     addProductVariant(productId: ID!, sku: String!, attributes: [AttributeInput!]!, trackingMode: TrackingMode!): Boolean!
     createKit(id: ID!, sku: String!, name: String!, components: [KitComponentInput!]!): Boolean!
     sellKit(input: SellKitInput!): Boolean!
+    assembleKit(input: AssembleKitInput!): Boolean!
+    disassembleKit(input: DisassembleKitInput!): Boolean!
     
     receiveSerializedItem(input: ReceiveSerializedInput!): Boolean!
     connectShopifyStore(input: ConnectShopifyInput!): Boolean!

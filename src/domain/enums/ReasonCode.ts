@@ -9,4 +9,6 @@ export enum ReasonCode {
   WriteOff = 'write_off',
   Shrinkage = 'shrinkage',
   OpeningBalance = 'opening_balance',
+  KitAssembly = 'kit_assembly',
+  KitDisassembly = 'kit_disassembly',
 }

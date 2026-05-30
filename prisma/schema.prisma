@@ -233,5 +233,26 @@ model StockOnboardingItem {
   @@map("stock_onboarding_items")
 }
 
+model Kit {
+  id         String         @id @db.Uuid
+  sku        String         @unique
+  name       String
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  components KitComponent[]
+
+  @@map("kits")
+}
+
+model KitComponent {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kitId     String @map("kit_id") @db.Uuid
+  variantId String @map("variant_id") @db.Uuid
+  quantity  Int
+  kit       Kit    @relation(fields: [kitId], references: [id], onDelete: Cascade)
+
+  @@unique([kitId, variantId])
+  @@map("kit_components")
+}
+
 
 

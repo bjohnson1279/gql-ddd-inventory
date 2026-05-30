@@ -9,6 +9,9 @@ import { PostgresProductUomConfigurationRepository } from '../../../src/infrastr
 import { PostgresJournalRepository } from '../../../src/infrastructure/persistence/PostgresJournalRepository';
 import { PostgresBarcodeRepository } from '../../../src/infrastructure/persistence/PostgresBarcodeRepository';
 import { PostgresStockOnboardingRepository } from '../../../src/infrastructure/persistence/PostgresStockOnboardingRepository';
+import { PostgresKitRepository } from '../../../src/infrastructure/persistence/PostgresKitRepository';
+import { Kit } from '../../../src/domain/entities/Kit';
+import { KitId } from '../../../src/domain/valueObjects/KitId';
 import { StockOnboarding } from '../../../src/domain/entities/StockOnboarding';
 import { StockOnboardingId } from '../../../src/domain/valueObjects/StockOnboardingId';
 import { VariantBarcodeSet } from '../../../src/domain/entities/VariantBarcodeSet';
@@ -127,6 +130,15 @@ describe('Postgres Repositories', () => {
         findMany: jest.fn(),
       },
       journalLine: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
+      },
+      kit: {
+        upsert: jest.fn(),
+        findUnique: jest.fn(),
+        delete: jest.fn(),
+      },
+      kitComponent: {
         deleteMany: jest.fn(),
         createMany: jest.fn(),
       },
@@ -504,6 +516,64 @@ describe('Postgres Repositories', () => {
       const list = await repo.findAllByTenant(new TenantId('t-1'));
       expect(list).toHaveLength(1);
       expect(list[0].id.value).toBe('o-1');
+    });
+  });
+
+  describe('PostgresKitRepository', () => {
+    it('should save a kit and its components in a transaction', async () => {
+      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
+      const kit = new Kit(new KitId('k-1'), new Sku('KIT-1'), 'Test Kit');
+      kit.addComponent(new ProductVariantId('v-1'), 2);
+
+      await repo.save(kit);
+
+      expect(prismaMock.$transaction).toHaveBeenCalled();
+      expect(prismaMock.kit.upsert).toHaveBeenCalled();
+      expect(prismaMock.kitComponent.deleteMany).toHaveBeenCalled();
+      expect(prismaMock.kitComponent.createMany).toHaveBeenCalled();
+    });
+
+    it('should find kit by ID', async () => {
+      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.kit.findUnique.mockResolvedValue({
+        id: 'k-1',
+        sku: 'KIT-1',
+        name: 'Test Kit',
+        components: [
+          {
+            variantId: 'v-1',
+            quantity: 2
+          }
+        ]
+      });
+
+      const kit = await repo.findById(new KitId('k-1'));
+      expect(kit).not.toBeNull();
+      expect(kit?.sku.value).toBe('KIT-1');
+      expect(kit?.components).toHaveLength(1);
+      expect(kit?.components[0].quantity).toBe(2);
+    });
+
+    it('should find kit by SKU', async () => {
+      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.kit.findUnique.mockResolvedValue({
+        id: 'k-1',
+        sku: 'KIT-1',
+        name: 'Test Kit',
+        components: []
+      });
+
+      const kit = await repo.findBySku(new Sku('KIT-1'));
+      expect(kit).not.toBeNull();
+      expect(kit?.id.value).toBe('k-1');
+    });
+
+    it('should delete a kit by ID', async () => {
+      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.kit.delete.mockResolvedValue({ id: 'k-1' });
+
+      await repo.delete(new KitId('k-1'));
+      expect(prismaMock.kit.delete).toHaveBeenCalled();
     });
   });
 });
