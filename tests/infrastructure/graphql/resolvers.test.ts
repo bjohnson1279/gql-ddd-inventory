@@ -1,4 +1,16 @@
+jest.mock('../../../src/infrastructure/persistence/PostgresInventoryRepository', () => {
+  const { InMemoryInventoryRepository } = require('../../../src/infrastructure/persistence/InMemoryInventoryRepository');
+  return {
+    PostgresInventoryRepository: InMemoryInventoryRepository
+  };
+});
+
 import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
+
+// Mock the Prisma/Pool calls to prevent database connection attempts during test lifecycle
+jest.spyOn(prisma.inventoryItem, 'deleteMany').mockImplementation(() => Promise.resolve({ count: 0 }) as any);
+jest.spyOn(prisma, '$disconnect').mockImplementation(() => Promise.resolve());
+jest.spyOn(pool, 'end').mockImplementation(() => Promise.resolve());
 
 describe('GraphQL Resolvers', () => {
   beforeAll(async () => {
@@ -7,6 +19,10 @@ describe('GraphQL Resolvers', () => {
   }, 30000);
 
   afterAll(async () => {
+    // Wait for any pending event bus tasks to complete before tearing down
+    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     await prisma.$disconnect();
     await pool.end();
   });
