@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: CI Pipeline
 
 on:
   push:
@@ -7,23 +7,62 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: inventory_user
+          POSTGRES_PASSWORD: inventory_password
+          POSTGRES_DB: inventory_db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://inventory_user:inventory_password@127.0.0.1:5433/inventory_db?schema=public"
+      JWT_SECRET: "ci-secret-token-key-999"
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install Root Dependencies
+        run: npm ci
 
-    - name: Run tests
-      run: npm test -- --coverage
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
-    - name: Build
-      run: npm run build --if-present
+      - name: Push Prisma DB Schema
+        run: npx prisma db push --accept-data-loss
+
+      - name: Run Backend Jest Tests
+        run: npm run test
+
+      - name: Install Frontend Dependencies
+        working-directory: ./web
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Frontend Assets
+        working-directory: ./web
+        run: npm run build
+
+      - name: Install Playwright Browsers
+        working-directory: ./web
+        run: npx playwright install chromium
+
+      - name: Run Playwright E2E Tests
+        working-directory: ./web
+        run: npm run test:e2e

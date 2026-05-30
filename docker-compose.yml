@@ -32,5 +32,15 @@ services:
       - DB_PASSWORD=inventory_password
       - DB_NAME=inventory_db
 
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
 volumes:
   postgres_data:
+
