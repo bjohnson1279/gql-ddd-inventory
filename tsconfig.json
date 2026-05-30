@@ -5,9 +5,9 @@
     "rootDir": "./",
     "outDir": "./dist",
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
+    "moduleResolution": "bundler",
     "types": ["node", "jest"]
   },
   "include": ["src/**/*", "tests/**/*"]

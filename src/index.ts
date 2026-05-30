@@ -1,6 +1,6 @@
 import { createServer } from 'http';
 import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
+import { expressMiddleware } from '@as-integrations/express5';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import express from 'express';
 import cors from 'cors';
@@ -78,7 +78,7 @@ async function startApolloServer() {
     cors<cors.CorsRequest>(),
     bodyParser.json(),
     expressMiddleware(server, {
-      context: async ({ req }) => {
+      context: async ({ req }: { req: express.Request }) => {
         const authHeader = req.headers.authorization || '';
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
