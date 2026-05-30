@@ -408,4 +408,38 @@ describe('GraphQL Resolvers', () => {
     const submittedOnboarding = await (resolvers.Query as any).stockOnboarding(null, { id: 'onb-123' });
     expect(submittedOnboarding.status).toBe('submitted');
   });
+
+  it('should enforce role-based access control (RBAC) in resolvers', async () => {
+    // 1. Authenticate with a viewer role using context
+    const mockViewerContext = {
+      auth: {
+        tenantId: 'tenant-1',
+        actorId: 'viewer-user',
+        role: 'viewer'
+      }
+    };
+
+    // 2. Querying catalog items as viewer should succeed
+    const products = await (resolvers.Query as any).products(null, {}, mockViewerContext);
+    expect(Array.isArray(products)).toBe(true);
+
+    // 3. Performing administrative actions (e.g., createProduct) as a viewer should throw an authorization error
+    await expect(
+      (resolvers.Mutation as any).createProduct(null, { id: 'prod-fail', name: 'Failed Product' }, mockViewerContext)
+    ).rejects.toThrow(/Forbidden: You do not have permission/);
+
+    // 4. Performing accountant actions (e.g., createJournalEntry) as a viewer should throw an authorization error
+    await expect(
+      (resolvers.Mutation as any).createJournalEntry(null, {
+        input: {
+          id: 'j-fail',
+          tenantId: 'tenant-1',
+          date: '2026-05-30',
+          description: 'Fail',
+          method: 'accrual',
+          lines: []
+        }
+      }, mockViewerContext)
+    ).rejects.toThrow(/Forbidden: You do not have permission/);
+  });
 });

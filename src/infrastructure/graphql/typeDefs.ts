@@ -383,7 +383,7 @@ export const typeDefs = `#graphql
     createStockOnboarding(input: CreateStockOnboardingInput!): Boolean!
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
-    login(tenantId: ID!, actorId: ID!): String!
+    login(tenantId: ID!, actorId: ID!, role: String): String!
   }
 
   type Subscription {

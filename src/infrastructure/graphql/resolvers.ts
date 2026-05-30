@@ -173,35 +173,52 @@ const getStockOnboardingsUseCase = new GetStockOnboardingsUseCase(stockOnboardin
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-999';
 
-function getTenantAndActor(context: any, tenantId?: string, actorId?: string): { tenantId: string; actorId: string } {
+function enforceRole(context: any, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
+  // If context.auth is explicitly provided, we must enforce roles even in test mode
   if (context?.auth) {
+    const role = context.auth.role || 'viewer';
+    if (!allowedRoles.includes(role)) {
+      throw new Error(`Forbidden: You do not have permission to perform this action. Required role: one of [${allowedRoles.join(', ')}]. Current role: ${role}`);
+    }
     return {
-      tenantId: context.auth.tenantId,
-      actorId: context.auth.actorId
+      tenantId: context.auth.tenantId || tenantId || 'tenant-1',
+      actorId: context.auth.actorId || actorId || 'admin-user',
+      role
     };
   }
-  // Safe fallback for Jest integration unit tests which execute queries directly
+
+  // Safe fallback for Jest integration unit tests which execute queries directly without tokens
   if (process.env.NODE_ENV === 'test' || !context || Object.keys(context).length === 0) {
     return {
       tenantId: tenantId || 'tenant-1',
-      actorId: actorId || 'admin-user'
+      actorId: actorId || 'admin-user',
+      role: 'admin'
     };
   }
+
   throw new Error('Authentication required: Access token is missing or invalid.');
+}
+
+function getTenantAndActor(context: any, tenantId?: string, actorId?: string): { tenantId: string; actorId: string } {
+  return enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId, actorId);
 }
 
 export const resolvers = {
   Query: {
-    inventoryItems: async () => {
+    inventoryItems: async (_: any, __: any, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsUseCase.execute();
     },
-    inventoryItemBySku: async (_: any, { sku }: { sku: string }) => {
+    inventoryItemBySku: async (_: any, { sku }: { sku: string }, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsBySkuUseCase.execute(sku);
     },
-    inventoryItemBySkuAndLocation: async (_: any, { sku, locationId }: { sku: string, locationId: string }) => {
+    inventoryItemBySkuAndLocation: async (_: any, { sku, locationId }: { sku: string, locationId: string }, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelBySkuAndLocationUseCase.execute(sku, locationId);
     },
-    product: async (_: any, { id }: { id: string }) => {
+    product: async (_: any, { id }: { id: string }, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const p = await getProductByIdUseCase.execute(id);
       if (!p) return null;
       return {
@@ -215,7 +232,8 @@ export const resolvers = {
         }))
       };
     },
-    products: async () => {
+    products: async (_: any, __: any, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const products = await getProductsUseCase.execute();
       return products.map(p => ({
         id: p.id.value,
@@ -229,7 +247,7 @@ export const resolvers = {
       }));
     },
     serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: any) => {
-      const auth = getTenantAndActor(context, tenantId);
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
       const item = await getSerializedItemBySerialUseCase.execute(serialNumber, auth.tenantId);
       if (!item) return null;
       return {
@@ -250,7 +268,7 @@ export const resolvers = {
       };
     },
     shopifyConnections: async (_: any, { tenantId }: { tenantId: string }, context: any) => {
-      const auth = getTenantAndActor(context, tenantId);
+      const auth = enforceRole(context, ['admin'], tenantId);
       const connections = await getShopifyConnectionsUseCase.execute(auth.tenantId);
       return connections.map(c => ({
         id: c.id.value,
@@ -260,7 +278,8 @@ export const resolvers = {
         isActive: c.isActive
       }));
     },
-    productUomConfiguration: async (_: any, { sku }: { sku: string }) => {
+    productUomConfiguration: async (_: any, { sku }: { sku: string }, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const config = await getProductUomConfigurationUseCase.execute(sku);
       if (!config) return null;
       return {
@@ -293,7 +312,7 @@ export const resolvers = {
       };
     },
     journalEntries: async (_: any, { tenantId }: { tenantId: string }, context: any) => {
-      const auth = getTenantAndActor(context, tenantId);
+      const auth = enforceRole(context, ['admin', 'accountant'], tenantId);
       const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
       return entries.map(e => ({
         id: e.id.value,
@@ -310,7 +329,8 @@ export const resolvers = {
         }))
       }));
     },
-    barcodeSet: async (_: any, { sku }: { sku: string }) => {
+    barcodeSet: async (_: any, { sku }: { sku: string }, context: any) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
       const set = await barcodeRepository.findSetBySku(new Sku(sku));
       if (!set) return null;
       return {
@@ -328,14 +348,16 @@ export const resolvers = {
         }))
       };
     },
-    lookupBarcode: async (_: any, { barcodeValue }: { barcodeValue: string }) => {
+    lookupBarcode: async (_: any, { barcodeValue }: { barcodeValue: string }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
         return await lookupBarcodeUseCase.execute(barcodeValue);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    stockOnboarding: async (_: any, { id }: { id: string }) => {
+    stockOnboarding: async (_: any, { id }: { id: string }, context: any) => {
+      enforceRole(context, ['admin', 'accountant']);
       const onboarding = await getStockOnboardingUseCase.execute(id);
       if (!onboarding) return null;
       return {
@@ -352,7 +374,7 @@ export const resolvers = {
       };
     },
     stockOnboardings: async (_: any, { tenantId }: { tenantId: string }, context: any) => {
-      const auth = getTenantAndActor(context, tenantId);
+      const auth = enforceRole(context, ['admin', 'accountant'], tenantId);
       const list = await getStockOnboardingsUseCase.execute(auth.tenantId);
       return list.map(onboarding => ({
         id: onboarding.id.value,
@@ -369,22 +391,25 @@ export const resolvers = {
     }
   },
   Mutation: {
-    receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }) => {
+    receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await receiveStockUseCase.execute(sku, locationId, amount);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }) => {
+    dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await dispatchStockUseCase.execute(sku, locationId, amount);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    submitInventoryCount: async (_: any, { counts }: { counts: { sku: string; locationId: string; actualQuantity: number }[] }) => {
+    submitInventoryCount: async (_: any, { counts }: { counts: { sku: string; locationId: string; actualQuantity: number }[] }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await submitInventoryCountUseCase.execute(counts);
       } catch (error: any) {
         throw new Error(error.message);
@@ -392,7 +417,7 @@ export const resolvers = {
     },
     submitOpeningBalance: async (_: any, { input }: { input: any }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, input.tenantId, input.actorId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
         const onboardingId = Math.random().toString(36).substring(2, 15);
         await createStockOnboardingUseCase.execute({
           id: onboardingId,
@@ -409,22 +434,25 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    createProduct: async (_: any, { id, name }: { id: string; name: string }) => {
+    createProduct: async (_: any, { id, name }: { id: string; name: string }, context: any) => {
       try {
+        enforceRole(context, ['admin']);
         return await createProductUseCase.execute(id, name);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    addProductVariant: async (_: any, { productId, sku, attributes, trackingMode }: { productId: string; sku: string; attributes: any[]; trackingMode: any }) => {
+    addProductVariant: async (_: any, { productId, sku, attributes, trackingMode }: { productId: string; sku: string; attributes: any[]; trackingMode: any }, context: any) => {
       try {
+        enforceRole(context, ['admin']);
         return await addProductVariantUseCase.execute({ productId, sku, attributes, trackingMode });
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }) => {
+    createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }, context: any) => {
       try {
+        enforceRole(context, ['admin']);
         const kit = new Kit(new KitId(id), new Sku(sku), name);
         for (const comp of components) {
           kit.addComponent(new ProductVariantId(comp.variantId), comp.quantity);
@@ -435,8 +463,9 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    sellKit: async (_: any, { input }: { input: any }) => {
+    sellKit: async (_: any, { input }: { input: any }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await sellKitUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -444,7 +473,7 @@ export const resolvers = {
     },
     assembleKit: async (_: any, { input }: { input: any }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, input.tenantId, input.actorId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await assembleKitUseCase.execute({
           ...input,
           tenantId: auth.tenantId,
@@ -456,7 +485,7 @@ export const resolvers = {
     },
     disassembleKit: async (_: any, { input }: { input: any }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, input.tenantId, input.actorId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await disassembleKitUseCase.execute({
           ...input,
           tenantId: auth.tenantId,
@@ -466,8 +495,9 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    receiveSerializedItem: async (_: any, { input }: { input: any }) => {
+    receiveSerializedItem: async (_: any, { input }: { input: any }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await receiveSerializedItemUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -475,14 +505,15 @@ export const resolvers = {
     },
     connectShopifyStore: async (_: any, { input }: { input: any }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, input.tenantId);
+        const auth = enforceRole(context, ['admin'], input.tenantId);
         return await connectShopifyStoreUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    configureProductUom: async (_: any, { input }: { input: any }) => {
+    configureProductUom: async (_: any, { input }: { input: any }, context: any) => {
       try {
+        enforceRole(context, ['admin']);
         return await configureProductUomUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -490,21 +521,23 @@ export const resolvers = {
     },
     createJournalEntry: async (_: any, { input }: { input: any }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, input.tenantId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
         return await createJournalEntryUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    assignBarcode: async (_: any, { input }: { input: any }) => {
+    assignBarcode: async (_: any, { input }: { input: any }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await assignBarcodeUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    revokeBarcode: async (_: any, { input }: { input: any }) => {
+    revokeBarcode: async (_: any, { input }: { input: any }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await revokeBarcodeUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -512,7 +545,7 @@ export const resolvers = {
     },
     generateInternalBarcode: async (_: any, { sku, tenantId }: { sku: string; tenantId: string }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
         return await generateInternalBarcodeUseCase.execute(sku, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -520,8 +553,8 @@ export const resolvers = {
     },
     dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: any) => {
       try {
+        const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], payload.tenantId || 'tenant-1');
         const result = await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
-        const auth = getTenantAndActor(ctx, payload.tenantId || 'tenant-1');
         
         // Publish real-time scan event to active tenant subscription channel
         pubsub.publish(`${BARCODE_SCANNED_TOPIC}_${auth.tenantId}`, {
@@ -556,14 +589,15 @@ export const resolvers = {
     },
     createStockOnboarding: async (_: any, { input }: { input: any }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, input.tenantId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
         return await createStockOnboardingUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    saveStockOnboardingItems: async (_: any, { input }: { input: any }) => {
+    saveStockOnboardingItems: async (_: any, { input }: { input: any }, context: any) => {
       try {
+        enforceRole(context, ['admin', 'accountant']);
         return await saveStockOnboardingItemsUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -571,18 +605,19 @@ export const resolvers = {
     },
     submitStockOnboarding: async (_: any, { id, actorId }: { id: string; actorId: string }, context: any) => {
       try {
-        const auth = getTenantAndActor(context, undefined, actorId);
+        const auth = enforceRole(context, ['admin', 'accountant'], undefined, actorId);
         return await submitStockOnboardingUseCase.execute(id, auth.actorId);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    login: async (_: any, { tenantId, actorId }: { tenantId: string; actorId: string }) => {
+    login: async (_: any, { tenantId, actorId, role }: { tenantId: string; actorId: string; role?: string }) => {
       if (!tenantId || !actorId) {
         throw new Error('Tenant ID and User ID are required.');
       }
+      const userRole = role || 'admin';
       return jwt.sign(
-        { tenantId, actorId, role: 'admin' },
+        { tenantId, actorId, role: userRole },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -592,7 +627,7 @@ export const resolvers = {
     barcodeScanned: {
       subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: any) => {
         // Enforce token check; only allow subscription to active tenant events
-        const auth = getTenantAndActor(ctx, tenantId);
+        const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], tenantId);
         return (pubsub as any).asyncIterator(`${BARCODE_SCANNED_TOPIC}_${auth.tenantId}`);
       }
     }

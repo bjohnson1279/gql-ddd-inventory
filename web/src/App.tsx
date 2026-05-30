@@ -104,6 +104,8 @@ function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
   const [loginTenant, setLoginTenant] = useState('tenant-1');
   const [loginActor, setLoginActor] = useState('admin-user');
+  const [loginRole, setLoginRole] = useState('admin');
+  const [role, setRole] = useState('admin');
 
   const [tenantId, setTenantId] = useState('tenant-1');
   const [locationId, setLocationId] = useState('loc-1');
@@ -166,11 +168,30 @@ function App() {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.tenantId) setTenantId(payload.tenantId);
         if (payload.actorId) setActorId(payload.actorId);
+        if (payload.role) setRole(payload.role);
       } catch (err) {
         console.error('Failed to parse token payload:', err);
       }
     }
   }, [token]);
+
+  // Redirect to dashboard if the active tab is not allowed for the role
+  useEffect(() => {
+    const allowedTabs: Tab[] = ['dashboard'];
+    if (role === 'admin') {
+      allowedTabs.push('onboarding', 'products', 'scanning', 'ledger', 'serials', 'shopify');
+    } else if (role === 'warehouse_operator') {
+      allowedTabs.push('products', 'scanning', 'serials');
+    } else if (role === 'accountant') {
+      allowedTabs.push('onboarding', 'products', 'ledger');
+    } else if (role === 'viewer') {
+      allowedTabs.push('products', 'serials');
+    }
+    
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab('dashboard');
+    }
+  }, [role, activeTab]);
 
   // --- GraphQL Fetch Wrapper ---
   const fetchGraphql = async (query: string, variables = {}, customToken?: string) => {
@@ -201,9 +222,9 @@ function App() {
     e.preventDefault();
     try {
       setLoading(true);
-      const data = await fetchGraphql(`mutation Login($tenant: ID!, $actor: ID!) {
-        login(tenantId: $tenant, actorId: $actor)
-      }`, { tenant: loginTenant, actor: loginActor }, 'NONE');
+      const data = await fetchGraphql(`mutation Login($tenant: ID!, $actor: ID!, $role: String) {
+        login(tenantId: $tenant, actorId: $actor, role: $role)
+      }`, { tenant: loginTenant, actor: loginActor, role: loginRole }, 'NONE');
 
       const jwtToken = data.login;
       localStorage.setItem('auth_token', jwtToken);
@@ -219,6 +240,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     setToken(null);
+    setRole('viewer');
     setMessage({ type: 'success', text: 'Logged out successfully.' });
   };
 
@@ -657,6 +679,15 @@ function App() {
               <label>User / Actor ID</label>
               <input value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
             </div>
+            <div className="form-group">
+              <label>Assign Role</label>
+              <select value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
+                <option value="admin">Admin</option>
+                <option value="warehouse_operator">Warehouse Operator</option>
+                <option value="accountant">Accountant</option>
+                <option value="viewer">Viewer (Read-Only)</option>
+              </select>
+            </div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }} disabled={loading}>
               {loading ? 'Authenticating...' : 'Sign In & Verify'}
             </button>
@@ -679,24 +710,36 @@ function App() {
             <div className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
               📊 Status Overview
             </div>
-            <div className={`nav-link ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')}>
-              📝 Opening Balances
-            </div>
-            <div className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
-              🗂️ Product Catalog
-            </div>
-            <div className={`nav-link ${activeTab === 'scanning' ? 'active' : ''}`} onClick={() => setActiveTab('scanning')}>
-              🚨 Scan Dispatcher
-            </div>
-            <div className={`nav-link ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
-              ⚖️ General Ledger
-            </div>
-            <div className={`nav-link ${activeTab === 'serials' ? 'active' : ''}`} onClick={() => setActiveTab('serials')}>
-              🔍 Serial Tracking
-            </div>
-            <div className={`nav-link ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')}>
-              🔌 Shopify Integrations
-            </div>
+            {(role === 'admin' || role === 'accountant') && (
+              <div className={`nav-link ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')}>
+                📝 Opening Balances
+              </div>
+            )}
+            {(role === 'admin' || role === 'warehouse_operator' || role === 'accountant' || role === 'viewer') && (
+              <div className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
+                🗂️ Product Catalog
+              </div>
+            )}
+            {(role === 'admin' || role === 'warehouse_operator') && (
+              <div className={`nav-link ${activeTab === 'scanning' ? 'active' : ''}`} onClick={() => setActiveTab('scanning')}>
+                🚨 Scan Dispatcher
+              </div>
+            )}
+            {(role === 'admin' || role === 'accountant') && (
+              <div className={`nav-link ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
+                ⚖️ General Ledger
+              </div>
+            )}
+            {(role === 'admin' || role === 'warehouse_operator' || role === 'viewer') && (
+              <div className={`nav-link ${activeTab === 'serials' ? 'active' : ''}`} onClick={() => setActiveTab('serials')}>
+                🔍 Serial Tracking
+              </div>
+            )}
+            {role === 'admin' && (
+              <div className={`nav-link ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')}>
+                🔌 Shopify Integrations
+              </div>
+            )}
           </nav>
         </div>
         <div className="sidebar-footer">
@@ -724,6 +767,10 @@ function App() {
             <div className="control-item">
               <label>User</label>
               <span className="badge badge-success" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', minWidth: '100px', textAlign: 'center' }}>{actorId}</span>
+            </div>
+            <div className="control-item">
+              <label>Role</label>
+              <span className="badge badge-warning" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', minWidth: '100px', textAlign: 'center', textTransform: 'capitalize' }}>{role.replace('_', ' ')}</span>
             </div>
             <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', marginLeft: '1rem', cursor: 'pointer' }} onClick={handleLogout}>
               Logout 🔓
@@ -941,20 +988,25 @@ function App() {
         {activeTab === 'products' && (
           <div className="grid-cols-2">
             <div className="glass-panel" style={{ alignSelf: 'start' }}>
-              <h2 className="form-section-title">Create Product</h2>
-              <form onSubmit={handleCreateProduct}>
-                <div className="form-group">
-                  <label>Product ID (UUID format recommended)</label>
-                  <input value={newProdId} onChange={e => setNewProdId(e.target.value)} placeholder="e.g. 5e06497f-bc3a-446f..." required />
-                </div>
-                <div className="form-group">
-                  <label>Product Name</label>
-                  <input value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
-                </div>
-                <button type="submit" className="btn btn-primary">Create Product</button>
-              </form>
+              {role === 'admin' && (
+                <>
+                  <h2 className="form-section-title">Create Product</h2>
+                  <form onSubmit={handleCreateProduct}>
+                    <div className="form-group">
+                      <label>Product ID (UUID format recommended)</label>
+                      <input value={newProdId} onChange={e => setNewProdId(e.target.value)} placeholder="e.g. 5e06497f-bc3a-446f..." required />
+                    </div>
+                    <div className="form-group">
+                      <label>Product Name</label>
+                      <input value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
+                    </div>
+                    <button type="submit" className="btn btn-primary">Create Product</button>
+                  </form>
+                  <div style={{ height: '1.5rem' }}></div>
+                </>
+              )}
 
-              <h2 className="form-section-title" style={{ marginTop: '2.5rem' }}>Products List</h2>
+              <h2 className="form-section-title">Products List</h2>
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -992,44 +1044,46 @@ function App() {
             <div>
               {selectedProduct ? (
                 <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                  <div>
-                    <h2 className="form-section-title">Add Variant to: {selectedProduct.name}</h2>
-                    <form onSubmit={handleAddVariant}>
-                      <div className="form-group">
-                        <label>SKU</label>
-                        <input value={newVarSku} onChange={e => setNewVarSku(e.target.value)} placeholder="e.g. TEE-BLU-M" required />
-                      </div>
-                      <div className="form-group">
-                        <label>Tracking Mode</label>
-                        <select value={newVarTracking} onChange={e => setNewVarTracking(e.target.value as any)}>
-                          <option value="quantity">Quantity level tracking</option>
-                          <option value="serial">Serial number tracking</option>
-                          <option value="lot">Lot tracking</option>
-                        </select>
-                      </div>
-                      
-                      <label>Variant Attributes (Colors, Sizes, etc.)</label>
-                      {newVarAttrs.map((attr, idx) => (
-                        <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                          <input placeholder="Attribute Name" value={attr.name} onChange={e => {
-                            const updated = [...newVarAttrs];
-                            updated[idx].name = e.target.value;
-                            setNewVarAttrs(updated);
-                          }} />
-                          <input placeholder="Value" value={attr.value} onChange={e => {
-                            const updated = [...newVarAttrs];
-                            updated[idx].value = e.target.value;
-                            setNewVarAttrs(updated);
-                          }} />
+                  {role === 'admin' && (
+                    <div>
+                      <h2 className="form-section-title">Add Variant to: {selectedProduct.name}</h2>
+                      <form onSubmit={handleAddVariant}>
+                        <div className="form-group">
+                          <label>SKU</label>
+                          <input value={newVarSku} onChange={e => setNewVarSku(e.target.value)} placeholder="e.g. TEE-BLU-M" required />
                         </div>
-                      ))}
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginBottom: '1rem' }} onClick={() => setNewVarAttrs([...newVarAttrs, { name: '', value: '' }])}>
-                        + Add Attribute Row
-                      </button>
+                        <div className="form-group">
+                          <label>Tracking Mode</label>
+                          <select value={newVarTracking} onChange={e => setNewVarTracking(e.target.value as any)}>
+                            <option value="quantity">Quantity level tracking</option>
+                            <option value="serial">Serial number tracking</option>
+                            <option value="lot">Lot tracking</option>
+                          </select>
+                        </div>
+                        
+                        <label>Variant Attributes (Colors, Sizes, etc.)</label>
+                        {newVarAttrs.map((attr, idx) => (
+                          <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
+                            <input placeholder="Attribute Name" value={attr.name} onChange={e => {
+                              const updated = [...newVarAttrs];
+                              updated[idx].name = e.target.value;
+                              setNewVarAttrs(updated);
+                            }} />
+                            <input placeholder="Value" value={attr.value} onChange={e => {
+                              const updated = [...newVarAttrs];
+                              updated[idx].value = e.target.value;
+                              setNewVarAttrs(updated);
+                            }} />
+                          </div>
+                        ))}
+                        <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginBottom: '1rem' }} onClick={() => setNewVarAttrs([...newVarAttrs, { name: '', value: '' }])}>
+                          + Add Attribute Row
+                        </button>
 
-                      <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Variant</button>
-                    </form>
-                  </div>
+                        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Variant</button>
+                      </form>
+                    </div>
+                  )}
 
                   <div>
                     <h2 className="form-section-title">Variants & Barcodes</h2>
@@ -1055,9 +1109,11 @@ function App() {
                             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                               <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Barcodes</span>
-                                <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)}>
-                                  ⚡ Auto Gen Internal
-                                </button>
+                                {(role === 'admin' || role === 'warehouse_operator') && (
+                                  <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)}>
+                                    ⚡ Auto Gen Internal
+                                  </button>
+                                )}
                               </div>
 
                               {v.barcodes && v.barcodes.length > 0 ? (
@@ -1068,9 +1124,11 @@ function App() {
                                         <strong>{b.barcode.value}</strong> ({b.barcode.symbology}) 
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
-                                      <button style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
-                                        Revoke
-                                      </button>
+                                      {(role === 'admin' || role === 'warehouse_operator') ? (
+                                        <button style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
+                                          Revoke
+                                        </button>
+                                      ) : <span></span>}
                                     </div>
                                   ))}
                                 </div>
@@ -1138,17 +1196,19 @@ function App() {
                                   </div>
                                 </form>
                               ) : (
-                                <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
-                                  <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => {
-                                    setAssignSku(v.sku);
-                                    setAssignVal('');
-                                    setAssignSymbology('upc_a');
-                                    setAssignSource('supplier');
-                                    setAssignPrimary(true);
-                                  }}>
-                                    + Assign Custom Barcode
-                                  </button>
-                                </div>
+                                (role === 'admin' || role === 'warehouse_operator') && (
+                                  <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
+                                    <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => {
+                                      setAssignSku(v.sku);
+                                      setAssignVal('');
+                                      setAssignSymbology('upc_a');
+                                      setAssignSource('supplier');
+                                      setAssignPrimary(true);
+                                    }}>
+                                      + Assign Custom Barcode
+                                    </button>
+                                  </div>
+                                )
                               )}
                             </div>
                           </div>

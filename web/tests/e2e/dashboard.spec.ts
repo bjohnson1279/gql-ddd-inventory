@@ -345,4 +345,32 @@ test.describe('GraphQL DDD Inventory Management Dashboard E2E Tests', () => {
     await expect(page.locator('.timeline')).toContainText('Initial Onboarding Receipt');
     await expect(page.locator('.timeline')).toContainText('Actor: admin-user');
   });
+
+  test('Viewer role enforces read-only access in dashboard layout', async ({ page }) => {
+    // Override default admin token setup in localStorage to simulate viewer role
+    await page.goto('/');
+    await page.evaluate(() => {
+      const mockPayload = { tenantId: 'tenant-1', actorId: 'viewer-user', role: 'viewer' };
+      const mockToken = 'mockHeader.' + btoa(JSON.stringify(mockPayload)) + '.mockSignature';
+      localStorage.setItem('auth_token', mockToken);
+    });
+    
+    // Refresh/load page with viewer role session
+    await page.goto('/');
+
+    // Check that unauthorized navigation tabs are not visible
+    await expect(page.locator('text=General Ledger')).not.toBeVisible();
+    await expect(page.locator('text=Scan Dispatcher')).not.toBeVisible();
+    await expect(page.locator('text=Opening Balances')).not.toBeVisible();
+    await expect(page.locator('text=Shopify Integrations')).not.toBeVisible();
+
+    // Check that authorized navigation tabs are visible
+    await expect(page.locator('text=Product Catalog')).toBeVisible();
+
+    // Navigate to Product Catalog
+    await page.click('text=Product Catalog');
+
+    // Verify Create Product form is hidden for viewers
+    await expect(page.locator('h2:has-text("Create Product")')).not.toBeVisible();
+  });
 });
