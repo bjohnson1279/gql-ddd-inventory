@@ -365,6 +365,19 @@ export const typeDefs = `#graphql
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
     login(tenantId: ID!, actorId: ID!): String!
   }
+
+  type Subscription {
+    barcodeScanned(tenantId: ID!): BarcodeScanEvent!
+  }
+
+  type BarcodeScanEvent {
+    scanValue: String!
+    symbology: String!
+    context: String!
+    status: String!
+    time: String!
+    payload: String!
+  }
 `;
 
 

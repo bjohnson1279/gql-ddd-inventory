@@ -1,35 +1,104 @@
+import { createServer } from 'http';
 import { ApolloServer } from '@apollo/server';
-import { startStandaloneServer } from '@apollo/server/standalone';
+import { expressMiddleware } from '@apollo/server/express4';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/use/ws';
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import jwt from 'jsonwebtoken';
+
 import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
-import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-999';
 
 async function startApolloServer() {
-  const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+  const app = express();
+  const httpServer = createServer(app);
+
+  const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+  // Set up WebSocket server
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: '/graphql',
   });
 
-  const { url } = await startStandaloneServer(server, {
-    listen: { port: 4000 },
-    context: async ({ req }) => {
-      const authHeader = req.headers.authorization || '';
-      if (authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-          const decoded = jwt.verify(token, JWT_SECRET);
-          return { auth: decoded };
-        } catch (err) {
-          // Token invalid or expired
+  // Integrate WebSocket server with graphql-ws
+  const serverCleanup = useServer(
+    {
+      schema,
+      // Inject auth context into subscription connections
+      context: async (ctx: any) => {
+        // Connection params carry the Authorization header during WebSockets handshakes
+        const connectionParams = ctx.connectionParams || {};
+        const authHeader = connectionParams.Authorization || connectionParams.authorization || '';
+        if (authHeader.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+          try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            return { auth: decoded };
+          } catch (err) {
+            // Invalid token
+          }
         }
-      }
-      return {};
-    }
+        return {};
+      },
+    },
+    wsServer
+  );
+
+  // Set up Apollo Server
+  const server = new ApolloServer({
+    schema,
+    plugins: [
+      // Proper shutdown for the HTTP server
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      // Proper shutdown for the WebSocket server
+      {
+        async serverWillStart() {
+          return {
+            async drainServer() {
+              await serverCleanup.dispose();
+            },
+          };
+        },
+      },
+    ],
   });
 
-  console.log(`🚀  Inventory API Server ready at: ${url}`);
+  await server.start();
+
+  // Mount Apollo express middleware
+  app.use(
+    '/graphql',
+    cors<cors.CorsRequest>(),
+    bodyParser.json(),
+    expressMiddleware(server, {
+      context: async ({ req }) => {
+        const authHeader = req.headers.authorization || '';
+        if (authHeader.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+          try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            return { auth: decoded };
+          } catch (err) {
+            // Invalid token or expired
+          }
+        }
+        return {};
+      },
+    })
+  );
+
+  const PORT = 4000;
+  httpServer.listen(PORT, () => {
+    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
+    console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}/graphql`);
+  });
 }
 
 startApolloServer().catch(err => {

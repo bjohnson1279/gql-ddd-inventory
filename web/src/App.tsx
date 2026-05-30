@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createClient } from 'graphql-ws'
 
 // --- Interface Definitions ---
 interface Item {
@@ -319,6 +320,68 @@ function App() {
       }
     }
   }, [products]);
+
+  // Set up real-time barcode scanning subscriptions over WebSocket connection
+  useEffect(() => {
+    if (!token) return;
+
+    const wsClient = createClient({
+      url: 'ws://localhost:4000/graphql',
+      connectionParams: () => {
+        const activeToken = token || localStorage.getItem('auth_token');
+        return activeToken ? { Authorization: `Bearer ${activeToken}` } : {};
+      },
+    });
+
+    const unsubscribe = wsClient.subscribe(
+      {
+        query: `subscription OnBarcodeScanned($tenant: ID!) {
+          barcodeScanned(tenantId: $tenant) {
+            scanValue
+            symbology
+            context
+            status
+            time
+            payload
+          }
+        }`,
+        variables: { tenant: tenantId },
+      },
+      {
+        next: (data: any) => {
+          const scan = data?.data?.barcodeScanned;
+          if (scan) {
+            // Append incoming scan event to live simulator logs timeline dynamically
+            setScanHistory(prev => [
+              {
+                time: scan.time,
+                scan: scan.scanValue,
+                context: scan.context,
+                status: scan.status
+              },
+              ...prev
+            ]);
+            // Display alert banner feedback
+            setMessage({
+              type: scan.status.startsWith('Error') ? 'error' : 'success',
+              text: `Live scan received: ${scan.scanValue} [${scan.context.toUpperCase()}] -> ${scan.status}`
+            });
+          }
+        },
+        error: (err: any) => {
+          console.error('Subscription WebSocket Error:', err);
+        },
+        complete: () => {
+          console.log('Subscription completed.');
+        },
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      wsClient.dispose();
+    };
+  }, [token, tenantId]);
 
   // --- Mutation Responders ---
 

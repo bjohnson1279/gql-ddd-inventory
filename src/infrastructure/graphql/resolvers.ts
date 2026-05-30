@@ -1,4 +1,9 @@
 import jwt from 'jsonwebtoken';
+import { PubSub } from 'graphql-subscriptions';
+
+export const pubsub = new PubSub();
+export const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
+
 import { ReceiveStockUseCase } from '../../application/useCases/ReceiveStock';
 import { DispatchStockUseCase } from '../../application/useCases/DispatchStock';
 import { GetStockLevelsUseCase, GetStockLevelsBySkuUseCase, GetStockLevelBySkuAndLocationUseCase } from '../../application/useCases/GetStockLevels';
@@ -465,10 +470,39 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }) => {
+    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: any) => {
       try {
-        return await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
+        const result = await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
+        const auth = getTenantAndActor(ctx, payload.tenantId || 'tenant-1');
+        
+        // Publish real-time scan event to active tenant subscription channel
+        pubsub.publish(`${BARCODE_SCANNED_TOPIC}_${auth.tenantId}`, {
+          barcodeScanned: {
+            scanValue: rawScan,
+            symbology: 'unknown',
+            context: String(context),
+            status: 'Success',
+            time: new Date().toLocaleTimeString(),
+            payload: JSON.stringify(payload)
+          }
+        });
+        
+        return result;
       } catch (error: any) {
+        const tenantId = ctx?.auth?.tenantId || payload?.tenantId || 'tenant-1';
+        
+        // Publish failure scan events to subscription channel for supervisor auditing
+        pubsub.publish(`${BARCODE_SCANNED_TOPIC}_${tenantId}`, {
+          barcodeScanned: {
+            scanValue: rawScan,
+            symbology: 'unknown',
+            context: String(context),
+            status: `Error: ${error.message}`,
+            time: new Date().toLocaleTimeString(),
+            payload: JSON.stringify(payload)
+          }
+        });
+        
         throw new Error(error.message);
       }
     },
@@ -506,6 +540,15 @@ export const resolvers = {
       );
     }
   },
+  Subscription: {
+    barcodeScanned: {
+      subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: any) => {
+        // Enforce token check; only allow subscription to active tenant events
+        const auth = getTenantAndActor(ctx, tenantId);
+        return (pubsub as any).asyncIterator(`${BARCODE_SCANNED_TOPIC}_${auth.tenantId}`);
+      }
+    }
+  }
 };
 
 
