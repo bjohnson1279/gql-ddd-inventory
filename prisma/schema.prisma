@@ -1,10 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -12,11 +8,230 @@ datasource db {
 }
 
 model InventoryItem {
-  id         String   @id
+  id         String @id
   sku        String
   locationId String
   quantity   Int
   version    Int
 
   @@unique([sku, locationId])
+  @@map("inventory_items")
 }
+
+model Product {
+  id        String           @id @db.Uuid
+  name      String
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  variants  ProductVariant[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id                  String               @id @db.Uuid
+  productId           String               @map("product_id") @db.Uuid
+  sku                 String               @unique
+  trackingMode        String               @default("quantity") @map("tracking_mode")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  product             Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributes          VariantAttribute[]
+  ledgerEntries       LedgerEntry[]
+  inventoryCostLayers InventoryCostLayer[]
+  serializedItems     SerializedItem[]
+  barcodes            Barcode[]
+
+  @@map("product_variants")
+}
+
+model VariantAttribute {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variantId String         @map("variant_id") @db.Uuid
+  name      String
+  value     String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, name])
+  @@map("variant_attributes")
+}
+
+model LedgerEntry {
+  id          String         @id @db.Uuid
+  tenantId    String         @map("tenant_id")
+  locationId  String         @map("location_id")
+  variantId   String         @map("variant_id") @db.Uuid
+  quantity    Int
+  reason      String
+  actorId     String         @map("actor_id")
+  occurredAt  DateTime       @map("occurred_at") @db.Timestamptz
+  referenceId String?        @map("reference_id")
+  metadata    Json?          @map("metadata")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("ledger_entries")
+}
+
+model InventoryCostLayer {
+  id               String         @id @db.Uuid
+  variantId        String         @map("variant_id") @db.Uuid
+  initialQuantity  Int            @map("initial_quantity")
+  consumedQuantity Int            @default(0) @map("consumed_quantity")
+  unitCostCents    Int            @map("unit_cost_cents")
+  receivedAt       DateTime       @map("received_at") @db.Timestamptz
+  serialNumber     String?        @map("serial_number")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  variant          ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("inventory_cost_layers")
+}
+
+model SerializedItem {
+  id           String                  @id @db.Uuid
+  variantId    String                  @map("variant_id") @db.Uuid
+  serialNumber String                  @map("serial_number")
+  tenantId     String                  @map("tenant_id")
+  locationId   String                  @map("location_id")
+  status       String
+  variant      ProductVariant          @relation(fields: [variantId], references: [id])
+  history      SerializedItemHistory[]
+
+  @@unique([tenantId, serialNumber])
+  @@map("serialized_items")
+}
+
+model SerializedItemHistory {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId      String         @map("item_id") @db.Uuid
+  fromStatus  String         @map("from_status")
+  toStatus    String         @map("to_status")
+  reason      String?
+  actorId     String         @map("actor_id")
+  occurredAt  DateTime       @map("occurred_at") @db.Timestamptz
+  referenceId String?        @map("reference_id")
+  item        SerializedItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("serialized_item_history")
+}
+
+model Barcode {
+  id         String         @id @db.Uuid
+  variantId  String         @map("variant_id") @db.Uuid
+  value      String
+  symbology  String
+  source     String
+  isPrimary  Boolean?       @default(false) @map("is_primary")
+  assignedAt DateTime       @map("assigned_at") @db.Timestamptz
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, value])
+  @@map("barcodes")
+}
+
+model IntegrationConnection {
+  id               String            @id @db.Uuid
+  tenantId         String            @map("tenant_id")
+  platform         String
+  storeDomain      String            @map("store_domain")
+  accessToken      String            @map("access_token")
+  isActive         Boolean?          @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  externalMappings ExternalMapping[]
+
+  @@map("integration_connections")
+}
+
+model ExternalMapping {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String                @map("tenant_id")
+  integrationId       String                @map("integration_id") @db.Uuid
+  entityType          String                @map("entity_type")
+  internalId          String                @map("internal_id")
+  externalId          String                @map("external_id")
+  externalSecondaryId String?               @map("external_secondary_id")
+  integration         IntegrationConnection @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, entityType, internalId])
+  @@unique([integrationId, entityType, externalId])
+  @@map("external_mappings")
+}
+
+model ProductUomConfiguration {
+  sku                    String           @id
+  baseUnitName           String           @map("base_unit_name")
+  baseUnitAbbreviation   String           @map("base_unit_abbreviation")
+  baseUnitCategory       String           @map("base_unit_category")
+  purchaseUnitName       String?          @map("purchase_unit_name")
+  purchaseUnitAbbreviation String?          @map("purchase_unit_abbreviation")
+  purchaseUnitCategory   String?          @map("purchase_unit_category")
+  saleUnitName           String?          @map("sale_unit_name")
+  saleUnitAbbreviation   String?          @map("sale_unit_abbreviation")
+  saleUnitCategory       String?          @map("sale_unit_category")
+  conversionRules        ConversionRule[]
+
+  @@map("product_uom_configurations")
+}
+
+model ConversionRule {
+  id               String                  @id @db.Uuid
+  productUomSku    String                  @map("product_uom_sku")
+  unitName         String                  @map("unit_name")
+  unitAbbreviation String                  @map("unit_abbreviation")
+  unitCategory     String                  @map("unit_category")
+  factorToBase     Float                   @map("factor_to_base")
+  label            String?
+  productUom       ProductUomConfiguration @relation(fields: [productUomSku], references: [sku], onDelete: Cascade)
+
+  @@map("conversion_rules")
+}
+
+model JournalEntry {
+  id          String        @id @db.Uuid
+  tenantId    String        @map("tenant_id")
+  date        DateTime      @db.Timestamptz
+  description String
+  method      String
+  referenceId String?       @map("reference_id")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  lines       JournalLine[]
+
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entryId     String       @map("entry_id") @db.Uuid
+  accountCode String       @map("account_code")
+  amountCents Int          @map("amount_cents")
+  type        String
+  memo        String?
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@map("journal_lines")
+}
+
+model StockOnboarding {
+  id         String                @id @db.Uuid
+  tenantId   String                @map("tenant_id")
+  locationId String                @map("location_id")
+  status     String
+  asOfDate   DateTime              @map("as_of_date") @db.Timestamptz
+  createdAt  DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  items      StockOnboardingItem[]
+
+  @@map("stock_onboardings")
+}
+
+model StockOnboardingItem {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  onboardingId  String          @map("onboarding_id") @db.Uuid
+  variantId     String          @map("variant_id") @db.Uuid
+  quantity      Int
+  unitCostCents Int             @map("unit_cost_cents")
+  onboarding    StockOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  @@unique([onboardingId, variantId])
+  @@map("stock_onboarding_items")
+}
+
+
+

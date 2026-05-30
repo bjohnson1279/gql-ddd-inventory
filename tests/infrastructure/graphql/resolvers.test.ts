@@ -1,8 +1,99 @@
 jest.mock('../../../src/infrastructure/persistence/PostgresInventoryRepository', () => {
   const { InMemoryInventoryRepository } = require('../../../src/infrastructure/persistence/InMemoryInventoryRepository');
-  return {
-    PostgresInventoryRepository: InMemoryInventoryRepository
-  };
+  return { PostgresInventoryRepository: InMemoryInventoryRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresProductRepository', () => {
+  const { InMemoryProductRepository } = require('../../../src/infrastructure/persistence/InMemoryProductRepository');
+  return { PostgresProductRepository: InMemoryProductRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresLedgerRepository', () => {
+  const { InMemoryLedgerRepository } = require('../../../src/infrastructure/persistence/InMemoryLedgerRepository');
+  return { PostgresLedgerRepository: InMemoryLedgerRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresSerializedItemRepository', () => {
+  const { InMemorySerializedItemRepository } = require('../../../src/infrastructure/persistence/InMemorySerializedItemRepository');
+  return { PostgresSerializedItemRepository: InMemorySerializedItemRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresInventoryCostLayerRepository', () => {
+  return { PostgresInventoryCostLayerRepository: jest.fn().mockImplementation(() => ({
+    save: jest.fn(),
+    getActiveLayers: jest.fn().mockResolvedValue([]),
+    findBySerial: jest.fn().mockResolvedValue(null)
+  })) };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresIntegrationRepository', () => {
+  return { PostgresIntegrationRepository: jest.fn().mockImplementation(() => {
+    const map = new Map();
+    return {
+      save: jest.fn(async (conn) => { map.set(conn.id.value, conn); }),
+      findById: jest.fn(async (id) => map.get(id.value) || null),
+      findAllByTenant: jest.fn(async (tenantId) => Array.from(map.values()).filter((c: any) => c.tenantId.equals(tenantId)))
+    };
+  }) };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresExternalMappingRepository', () => {
+  return { PostgresExternalMappingRepository: jest.fn().mockImplementation(() => ({
+    save: jest.fn(),
+    findByInternalId: jest.fn().mockResolvedValue(null),
+    findByExternalId: jest.fn().mockResolvedValue(null),
+    delete: jest.fn()
+  })) };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresProductUomConfigurationRepository', () => {
+  return { PostgresProductUomConfigurationRepository: jest.fn().mockImplementation(() => {
+    const map = new Map();
+    return {
+      save: jest.fn(async (config) => { map.set(config.sku.value, config); }),
+      findBySku: jest.fn(async (sku) => map.get(sku.value) || null)
+    };
+  }) };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresJournalRepository', () => {
+  return { PostgresJournalRepository: jest.fn().mockImplementation(() => {
+    const map = new Map();
+    return {
+      save: jest.fn(async (entry) => { map.set(entry.id.value, entry); }),
+      findById: jest.fn(async (id) => map.get(id.value) || null),
+      findAllByTenant: jest.fn(async (tenantId) => Array.from(map.values()).filter((e: any) => e.tenantId.equals(tenantId)))
+    };
+  }) };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresBarcodeRepository', () => {
+  return { PostgresBarcodeRepository: jest.fn().mockImplementation(() => {
+    const { VariantBarcodeSet } = require('../../../src/domain/entities/VariantBarcodeSet');
+    const map = new Map();
+    return {
+      save: jest.fn(async (set) => { map.set(set.sku.value, set); }),
+      findSetBySku: jest.fn(async (sku) => {
+        if (!sku.value.startsWith('SKU')) return null;
+        if (!map.has(sku.value)) {
+          map.set(sku.value, new VariantBarcodeSet(sku));
+        }
+        return map.get(sku.value);
+      }),
+      findSkuByBarcodeValue: jest.fn(async (value) => {
+        for (const set of map.values()) {
+          for (const a of set.all) {
+            if (a.barcode.value === value) {
+              return set.sku;
+            }
+          }
+        }
+        return null;
+      })
+    };
+  }) };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresStockOnboardingRepository', () => {
+  return { PostgresStockOnboardingRepository: jest.fn().mockImplementation(() => {
+    const { StockOnboarding } = require('../../../src/domain/entities/StockOnboarding');
+    const map = new Map();
+    return {
+      save: jest.fn(async (onboarding) => { map.set(onboarding.id.value, onboarding); }),
+      findById: jest.fn(async (id) => map.get(id.value) || null),
+      findAllByTenant: jest.fn(async (tenantId) => Array.from(map.values()).filter((o: any) => o.tenantId.equals(tenantId)))
+    };
+  }) };
 });
 
 import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
@@ -104,5 +195,217 @@ describe('GraphQL Resolvers', () => {
     };
     const result = await (resolvers.Mutation as any).submitOpeningBalance(null, { input });
     expect(result).toBe(true);
+  });
+
+  it('should create product, variants, and query them', async () => {
+    const createResult = await (resolvers.Mutation as any).createProduct(null, { id: 'p-123', name: 'Test Product' });
+    expect(createResult).toBe(true);
+
+    const variantResult = await (resolvers.Mutation as any).addProductVariant(null, {
+      productId: 'p-123',
+      sku: 'SKU-V1',
+      attributes: [{ name: 'size', value: 'M' }],
+      trackingMode: 'quantity'
+    });
+    expect(variantResult).toBe(true);
+
+    const products = await (resolvers.Query as any).products();
+    expect(products.length).toBeGreaterThan(0);
+    const prod = products.find((p: any) => p.id === 'p-123');
+    expect(prod).toBeDefined();
+    expect(prod.name).toBe('Test Product');
+    expect(prod.variants[0].sku).toBe('SKU-V1');
+  });
+
+  it('should connect Shopify store and retrieve it', async () => {
+    const connectResult = await (resolvers.Mutation as any).connectShopifyStore(null, {
+      input: {
+        id: 'conn-123',
+        tenantId: 't-shopify',
+        storeDomain: 'mystore.myshopify.com',
+        accessToken: 'token123'
+      }
+    });
+    expect(connectResult).toBe(true);
+
+    const connections = await (resolvers.Query as any).shopifyConnections(null, { tenantId: 't-shopify' });
+    expect(connections).toHaveLength(1);
+    expect(connections[0].storeDomain).toBe('mystore.myshopify.com');
+  });
+
+  it('should configure Product UOM and retrieve it', async () => {
+    const configResult = await (resolvers.Mutation as any).configureProductUom(null, {
+      input: {
+        sku: 'SKU-UOM',
+        baseUnit: { name: 'Each', abbreviation: 'ea', category: 'discrete' },
+        purchaseUnit: { name: 'Dozen', abbreviation: 'dz', category: 'discrete' },
+        saleUnit: { name: 'Each', abbreviation: 'ea', category: 'discrete' },
+        conversionRules: [
+          {
+            unit: { name: 'Dozen', abbreviation: 'dz', category: 'discrete' },
+            factorToBase: 12.0,
+            label: 'Dozen rule'
+          }
+        ]
+      }
+    });
+    expect(configResult).toBe(true);
+
+    const config = await (resolvers.Query as any).productUomConfiguration(null, { sku: 'SKU-UOM' });
+    expect(config).not.toBeNull();
+    expect(config.sku).toBe('SKU-UOM');
+    expect(config.baseUnit.name).toBe('Each');
+    expect(config.conversionRules).toHaveLength(1);
+    expect(config.conversionRules[0].factorToBase).toBe(12.0);
+  });
+
+  it('should create Journal Entry and query them', async () => {
+    const journalResult = await (resolvers.Mutation as any).createJournalEntry(null, {
+      input: {
+        id: 'j-entry-1',
+        tenantId: 't-journal',
+        date: '2026-05-30T00:00:00Z',
+        description: 'Test entry',
+        method: 'accrual',
+        lines: [
+          { accountCode: '1000', amountCents: 5000, type: 'debit', memo: 'Dr side' },
+          { accountCode: '2000', amountCents: 5000, type: 'credit', memo: 'Cr side' }
+        ]
+      }
+    });
+    expect(journalResult).toBe(true);
+
+    const entries = await (resolvers.Query as any).journalEntries(null, { tenantId: 't-journal' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].description).toBe('Test entry');
+    expect(entries[0].lines).toHaveLength(2);
+    expect(entries[0].lines[0].accountCode).toBe('1000');
+  });
+
+  it('should assign, query, revoke, generate, and dispatch scans for barcodes', async () => {
+    // 1. Assign barcode
+    const assignResult = await (resolvers.Mutation as any).assignBarcode(null, {
+      input: {
+        sku: 'SKU-BAR',
+        barcodeValue: '012345678905',
+        symbology: 'upc_a',
+        source: 'supplier',
+        makePrimary: true
+      }
+    });
+    expect(assignResult).toBe(true);
+
+    // 2. Query barcode set
+    const set = await (resolvers.Query as any).barcodeSet(null, { sku: 'SKU-BAR' });
+    expect(set).not.toBeNull();
+    expect(set.sku).toBe('SKU-BAR');
+    expect(set.assignments).toHaveLength(1);
+    expect(set.assignments[0].barcode.value).toBe('012345678905');
+    const assignmentId = set.assignments[0].id;
+
+    // 3. Lookup barcode
+    const sku = await (resolvers.Query as any).lookupBarcode(null, { barcodeValue: '012345678905' });
+    expect(sku).toBe('SKU-BAR');
+
+    // 4. Generate internal barcode
+    const generated = await (resolvers.Mutation as any).generateInternalBarcode(null, {
+      sku: 'SKU-BAR',
+      tenantId: 'tenant-123'
+    });
+    expect(generated).toContain('INV-');
+
+    // 5. Dispatch scan (Receiving)
+    const dispatchResult = await (resolvers.Mutation as any).dispatchBarcodeScan(null, {
+      rawScan: '012345678905',
+      context: 'receiving',
+      payload: {
+        locationId: 'LOC-WH',
+        amount: 20
+      }
+    });
+    expect(dispatchResult).toBe(true);
+
+    // Verify stock was incremented to 20
+    const stock = await (resolvers.Query as any).inventoryItemBySkuAndLocation(null, {
+      sku: 'SKU-BAR',
+      locationId: 'LOC-WH'
+    });
+    expect(stock).not.toBeNull();
+    expect(stock.quantity).toBe(20);
+
+    // 6. Revoke barcode
+    const setAfterGen = await (resolvers.Query as any).barcodeSet(null, { sku: 'SKU-BAR' });
+    const generatedAssignment = setAfterGen.assignments.find((a: any) => a.barcode.value === generated);
+    expect(generatedAssignment).toBeDefined();
+
+    // Revoke the generated barcode first (non-primary, set size is 2, allowed)
+    const revokeGenResult = await (resolvers.Mutation as any).revokeBarcode(null, {
+      input: {
+        sku: 'SKU-BAR',
+        assignmentId: generatedAssignment.id
+      }
+    });
+    expect(revokeGenResult).toBe(true);
+
+    // Revoke the primary barcode (primary, set size is 1, allowed)
+    const revokePrimaryResult = await (resolvers.Mutation as any).revokeBarcode(null, {
+      input: {
+        sku: 'SKU-BAR',
+        assignmentId: assignmentId
+      }
+    });
+    expect(revokePrimaryResult).toBe(true);
+
+    // The set should now be empty
+    const finalSet = await (resolvers.Query as any).barcodeSet(null, { sku: 'SKU-BAR' });
+    expect(finalSet.assignments).toHaveLength(0);
+  });
+
+  it('should support StockOnboarding draft, add items, query, and submit workflows', async () => {
+    // 1. Create a draft onboarding sheet
+    const createResult = await (resolvers.Mutation as any).createStockOnboarding(null, {
+      input: {
+        id: 'onb-123',
+        tenantId: 'tenant-onb',
+        locationId: 'LOC-ONB',
+        asOfDate: '2026-05-30T00:00:00Z'
+      }
+    });
+    expect(createResult).toBe(true);
+
+    // 2. Save items onto the draft
+    const saveResult = await (resolvers.Mutation as any).saveStockOnboardingItems(null, {
+      input: {
+        id: 'onb-123',
+        items: [
+          { variantId: 'var-1', quantity: 50, unitCostCents: 500 },
+          { variantId: 'var-2', quantity: 30, unitCostCents: 1200 }
+        ]
+      }
+    });
+    expect(saveResult).toBe(true);
+
+    // 3. Query the onboarding sheet
+    const onboarding = await (resolvers.Query as any).stockOnboarding(null, { id: 'onb-123' });
+    expect(onboarding).not.toBeNull();
+    expect(onboarding.status).toBe('draft');
+    expect(onboarding.items).toHaveLength(2);
+    expect(onboarding.items.find((i: any) => i.variantId === 'var-1')?.quantity).toBe(50);
+
+    // 4. Query onboarding sheets by tenant
+    const tenantOnboardings = await (resolvers.Query as any).stockOnboardings(null, { tenantId: 'tenant-onb' });
+    expect(tenantOnboardings).toHaveLength(1);
+    expect(tenantOnboardings[0].id).toBe('onb-123');
+
+    // 5. Submit the onboarding sheet to the ledger
+    const submitResult = await (resolvers.Mutation as any).submitStockOnboarding(null, {
+      id: 'onb-123',
+      actorId: 'actor-onb'
+    });
+    expect(submitResult).toBe(true);
+
+    // Verify it is submitted now
+    const submittedOnboarding = await (resolvers.Query as any).stockOnboarding(null, { id: 'onb-123' });
+    expect(submittedOnboarding.status).toBe('submitted');
   });
 });

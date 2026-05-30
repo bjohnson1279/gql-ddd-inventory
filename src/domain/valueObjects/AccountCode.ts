@@ -30,4 +30,24 @@ export class AccountCode {
   static costOfGoodsSold(): AccountCode {
     return new AccountCode('5000', 'Cost of Goods Sold', AccountCategory.Expense);
   }
+
+  static fromCode(code: string): AccountCode {
+    switch (code) {
+      case '1000': return AccountCode.cash();
+      case '1100': return AccountCode.accountsReceivable();
+      case '1200': return AccountCode.inventory();
+      case '2000': return AccountCode.accountsPayable();
+      case '4000': return AccountCode.salesRevenue();
+      case '5000': return AccountCode.costOfGoodsSold();
+      default:
+        // Default category as Asset or custom depending on code prefix if desired
+        const category = code.startsWith('2') ? AccountCategory.Liability 
+                       : code.startsWith('3') ? AccountCategory.Equity 
+                       : code.startsWith('4') ? AccountCategory.Revenue 
+                       : code.startsWith('5') ? AccountCategory.Expense 
+                       : AccountCategory.Asset;
+        return new AccountCode(code, `Account ${code}`, category);
+    }
+  }
 }
+

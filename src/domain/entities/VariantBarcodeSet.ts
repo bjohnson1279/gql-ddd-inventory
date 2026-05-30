@@ -51,6 +51,10 @@ export class VariantBarcodeSet {
     return assignment;
   }
 
+  loadAssignment(assignment: BarcodeAssignment): void {
+    this._assignments.set(assignment.id.value, assignment);
+  }
+
   revoke(assignmentId: BarcodeAssignmentId): void {
     const assignment = this._assignments.get(assignmentId.value);
 
