@@ -14,6 +14,23 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=inventory_db
+      - POSTGRES_USER=inventory_user
+      - POSTGRES_PASSWORD=inventory_password
+      - BACKUP_NUM_KEEP=7
+      - BACKUP_FREQUENCY=daily
+      - SCHEDULE=@daily
+    volumes:
+      - ./infra/db/backups:/backups
+    depends_on:
+      - db
+
   api:
     build: .
     ports:
