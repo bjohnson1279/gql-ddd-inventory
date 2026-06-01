@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, InventoryItem as PrismaInventoryItem } from '@prisma/client';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { ConcurrencyError } from '../../domain/exceptions/DomainErrors';
@@ -9,7 +9,7 @@ import { Quantity } from '../../domain/valueObjects/Quantity';
 export class PostgresInventoryRepository implements IInventoryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: import('@prisma/client').InventoryItem): InventoryItem {
+  private toDomain(model: PrismaInventoryItem): InventoryItem {
     return new InventoryItem(
       model.id,
       new Sku(model.sku),
