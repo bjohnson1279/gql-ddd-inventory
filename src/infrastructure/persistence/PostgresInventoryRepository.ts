@@ -9,7 +9,7 @@ import { Quantity } from '../../domain/valueObjects/Quantity';
 export class PostgresInventoryRepository implements IInventoryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: any): InventoryItem {
+  private toDomain(model: import('@prisma/client').InventoryItem): InventoryItem {
     return new InventoryItem(
       model.id,
       new Sku(model.sku),
@@ -36,6 +36,20 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       }
     });
     return item ? this.toDomain(item) : null;
+  }
+
+  async findBySkuAndLocationBatch(pairs: { sku: string; locationId: string }[]): Promise<InventoryItem[]> {
+    if (pairs.length === 0) return [];
+
+    const items = await this.prisma.inventoryItem.findMany({
+      where: {
+        OR: pairs.map(p => ({
+          sku: p.sku,
+          locationId: p.locationId
+        }))
+      }
+    });
+    return items.map(i => this.toDomain(i));
   }
 
   async findAll(): Promise<InventoryItem[]> {
@@ -72,6 +86,58 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
       if (updateResult.count === 0) {
         throw new ConcurrencyError(item.sku.value, item.locationId.value);
+      }
+    }
+  }
+
+  async saveBatch(items: InventoryItem[]): Promise<void> {
+    if (items.length === 0) return;
+
+    // Fetch existing items to determine inserts vs updates
+    const existingItems = await this.prisma.inventoryItem.findMany({
+      where: {
+        id: { in: items.map(i => i.id) }
+      },
+      select: { id: true }
+    });
+
+    const existingIds = new Set(existingItems.map(i => i.id));
+
+    const ops = items.map(item => {
+      if (!existingIds.has(item.id)) {
+        return this.prisma.inventoryItem.create({
+          data: {
+            id: item.id,
+            sku: item.sku.value,
+            locationId: item.locationId.value,
+            quantity: item.quantity.value,
+            version: item.version
+          }
+        });
+      } else {
+        return this.prisma.inventoryItem.updateMany({
+          where: {
+            id: item.id,
+            version: item.version - 1
+          },
+          data: {
+            quantity: item.quantity.value,
+            version: item.version
+          }
+        });
+      }
+    });
+
+    const results = await this.prisma.$transaction(ops);
+
+    // Check for concurrency errors on updates
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (existingIds.has(item.id)) {
+        const result = results[i] as { count: number };
+        if (result.count === 0) {
+          throw new ConcurrencyError(item.sku.value, item.locationId.value);
+        }
       }
     }
   }

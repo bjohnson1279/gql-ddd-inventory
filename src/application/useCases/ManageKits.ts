@@ -272,17 +272,34 @@ export class DisassembleKitUseCase {
     let totalEstimatedComponentsCost = 0;
     const componentAvgCosts: { variantId: ProductVariantId; quantity: number; avgUnitCost: number }[] = [];
 
+    // Pre-fetch active layers for all components
+    const componentVariantIds = kit.components.map(c => c.variantId);
+    let componentLayersMap: Map<string, InventoryCostLayer[]>;
+    if (this.costLayers.getActiveLayersBatch) {
+      componentLayersMap = await this.costLayers.getActiveLayersBatch(componentVariantIds);
+    } else {
+      componentLayersMap = new Map();
+      const layersResults = await Promise.all(
+        componentVariantIds.map(v => this.costLayers.getActiveLayers(v))
+      );
+      for (let i = 0; i < componentVariantIds.length; i++) {
+        componentLayersMap.set(componentVariantIds[i].value, layersResults[i]);
+      }
+    }
+
     for (const component of kit.components) {
       const needed = component.quantity * input.quantity;
       let avgUnitCost = 0;
+
       try {
         const breakdown = await costService.calculateWeightedAverageCost(component.variantId, 1);
         avgUnitCost = breakdown.totalCostCents;
       } catch (err) {
         // Fallback if no inventory layers exist for this component
-        const activeLayers = await this.costLayers.getActiveLayers(component.variantId);
+        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
         avgUnitCost = activeLayers.length > 0 ? activeLayers[0].unitCostCents : 1000; // default 10.00
       }
+
       componentAvgCosts.push({
         variantId: component.variantId,
         quantity: needed,
