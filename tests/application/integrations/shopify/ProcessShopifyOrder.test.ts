@@ -26,6 +26,7 @@ describe('ProcessShopifyOrder', () => {
       findByInternalId: jest.fn(),
       findManyByInternalId: jest.fn(),
       findByExternalId: jest.fn(),
+      findByExternalIds: jest.fn(),
       delete: jest.fn(),
     };
     inventoryService = {
@@ -51,6 +52,15 @@ describe('ProcessShopifyOrder', () => {
         return new ExternalMapping(tenantId, id, type, 'int-v1', externalId);
       }
       return null;
+    });
+
+    mappingRepo.findByExternalIds.mockImplementation(async (id, externalIds, type) => {
+      if (type === ExternalEntityType.Variant) {
+        return externalIds
+          .filter(extId => extId === 'ext-v1')
+          .map(extId => new ExternalMapping(tenantId, id, type, 'int-v1', extId));
+      }
+      return [];
     });
 
     await useCase.execute({
@@ -106,6 +116,10 @@ describe('ProcessShopifyOrder', () => {
     mappingRepo.findByExternalId.mockImplementation(async (id, externalId, type) => {
       if (type === ExternalEntityType.Location) return new ExternalMapping(new TenantId('T1'), id, type, 'int-l', externalId);
       return null; // Missing variant mapping
+    });
+
+    mappingRepo.findByExternalIds.mockImplementation(async (id, externalIds, type) => {
+      return []; // Missing variant mapping
     });
 
     await useCase.execute({

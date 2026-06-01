@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { PubSub } from 'graphql-subscriptions';
+import crypto from 'crypto';
 
 export const pubsub = new PubSub();
 export const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
@@ -171,9 +172,20 @@ const submitStockOnboardingUseCase = new SubmitStockOnboardingUseCase(stockOnboa
 const getStockOnboardingUseCase = new GetStockOnboardingUseCase(stockOnboardingRepository);
 const getStockOnboardingsUseCase = new GetStockOnboardingsUseCase(stockOnboardingRepository);
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-999';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+}
 
-function enforceRole(context: any, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
+export interface GraphQLContext {
+  auth?: {
+    tenantId?: string;
+    actorId?: string;
+    role?: string;
+  };
+}
+
+function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
   // If context.auth is explicitly provided, we must enforce roles even in test mode
   if (context?.auth) {
     const role = context.auth.role || 'viewer';
@@ -199,25 +211,25 @@ function enforceRole(context: any, allowedRoles: string[], tenantId?: string, ac
   throw new Error('Authentication required: Access token is missing or invalid.');
 }
 
-function getTenantAndActor(context: any, tenantId?: string, actorId?: string): { tenantId: string; actorId: string } {
+function getTenantAndActor(context: GraphQLContext, tenantId?: string, actorId?: string): { tenantId: string; actorId: string } {
   return enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId, actorId);
 }
 
 export const resolvers = {
   Query: {
-    inventoryItems: async (_: any, __: any, context: any) => {
+    inventoryItems: async (_: any, __: any, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsUseCase.execute();
     },
-    inventoryItemBySku: async (_: any, { sku }: { sku: string }, context: any) => {
+    inventoryItemBySku: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsBySkuUseCase.execute(sku);
     },
-    inventoryItemBySkuAndLocation: async (_: any, { sku, locationId }: { sku: string, locationId: string }, context: any) => {
+    inventoryItemBySkuAndLocation: async (_: any, { sku, locationId }: { sku: string, locationId: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelBySkuAndLocationUseCase.execute(sku, locationId);
     },
-    product: async (_: any, { id }: { id: string }, context: any) => {
+    product: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const p = await getProductByIdUseCase.execute(id);
       if (!p) return null;
@@ -232,7 +244,7 @@ export const resolvers = {
         }))
       };
     },
-    products: async (_: any, __: any, context: any) => {
+    products: async (_: any, __: any, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const products = await getProductsUseCase.execute();
       return products.map(p => ({
@@ -246,7 +258,7 @@ export const resolvers = {
         }))
       }));
     },
-    serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: any) => {
+    serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: GraphQLContext) => {
       const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
       const item = await getSerializedItemBySerialUseCase.execute(serialNumber, auth.tenantId);
       if (!item) return null;
@@ -267,7 +279,7 @@ export const resolvers = {
         }))
       };
     },
-    shopifyConnections: async (_: any, { tenantId }: { tenantId: string }, context: any) => {
+    shopifyConnections: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       const auth = enforceRole(context, ['admin'], tenantId);
       const connections = await getShopifyConnectionsUseCase.execute(auth.tenantId);
       return connections.map(c => ({
@@ -278,7 +290,7 @@ export const resolvers = {
         isActive: c.isActive
       }));
     },
-    productUomConfiguration: async (_: any, { sku }: { sku: string }, context: any) => {
+    productUomConfiguration: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const config = await getProductUomConfigurationUseCase.execute(sku);
       if (!config) return null;
@@ -311,7 +323,7 @@ export const resolvers = {
         }))
       };
     },
-    journalEntries: async (_: any, { tenantId }: { tenantId: string }, context: any) => {
+    journalEntries: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       const auth = enforceRole(context, ['admin', 'accountant'], tenantId);
       const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
       return entries.map(e => ({
@@ -329,7 +341,7 @@ export const resolvers = {
         }))
       }));
     },
-    barcodeSet: async (_: any, { sku }: { sku: string }, context: any) => {
+    barcodeSet: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
       const set = await barcodeRepository.findSetBySku(new Sku(sku));
       if (!set) return null;
@@ -348,7 +360,7 @@ export const resolvers = {
         }))
       };
     },
-    lookupBarcode: async (_: any, { barcodeValue }: { barcodeValue: string }, context: any) => {
+    lookupBarcode: async (_: any, { barcodeValue }: { barcodeValue: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
         return await lookupBarcodeUseCase.execute(barcodeValue);
@@ -356,7 +368,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    stockOnboarding: async (_: any, { id }: { id: string }, context: any) => {
+    stockOnboarding: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'accountant']);
       const onboarding = await getStockOnboardingUseCase.execute(id);
       if (!onboarding) return null;
@@ -373,7 +385,7 @@ export const resolvers = {
         }))
       };
     },
-    stockOnboardings: async (_: any, { tenantId }: { tenantId: string }, context: any) => {
+    stockOnboardings: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       const auth = enforceRole(context, ['admin', 'accountant'], tenantId);
       const list = await getStockOnboardingsUseCase.execute(auth.tenantId);
       return list.map(onboarding => ({
@@ -391,7 +403,7 @@ export const resolvers = {
     }
   },
   Mutation: {
-    receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: any) => {
+    receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await receiveStockUseCase.execute(sku, locationId, amount);
@@ -399,7 +411,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: any) => {
+    dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await dispatchStockUseCase.execute(sku, locationId, amount);
@@ -407,7 +419,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    submitInventoryCount: async (_: any, { counts }: { counts: { sku: string; locationId: string; actualQuantity: number }[] }, context: any) => {
+    submitInventoryCount: async (_: any, { counts }: { counts: { sku: string; locationId: string; actualQuantity: number }[] }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await submitInventoryCountUseCase.execute(counts);
@@ -415,10 +427,10 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    submitOpeningBalance: async (_: any, { input }: { input: any }, context: any) => {
+    submitOpeningBalance: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
-        const onboardingId = Math.random().toString(36).substring(2, 15);
+        const onboardingId = crypto.randomUUID();
         await createStockOnboardingUseCase.execute({
           id: onboardingId,
           tenantId: auth.tenantId,
@@ -434,7 +446,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    createProduct: async (_: any, { id, name }: { id: string; name: string }, context: any) => {
+    createProduct: async (_: any, { id, name }: { id: string; name: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin']);
         return await createProductUseCase.execute(id, name);
@@ -442,7 +454,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    addProductVariant: async (_: any, { productId, sku, attributes, trackingMode }: { productId: string; sku: string; attributes: any[]; trackingMode: any }, context: any) => {
+    addProductVariant: async (_: any, { productId, sku, attributes, trackingMode }: { productId: string; sku: string; attributes: any[]; trackingMode: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin']);
         return await addProductVariantUseCase.execute({ productId, sku, attributes, trackingMode });
@@ -450,7 +462,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }, context: any) => {
+    createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin']);
         const kit = new Kit(new KitId(id), new Sku(sku), name);
@@ -463,7 +475,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    sellKit: async (_: any, { input }: { input: any }, context: any) => {
+    sellKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await sellKitUseCase.execute(input);
@@ -471,7 +483,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    assembleKit: async (_: any, { input }: { input: any }, context: any) => {
+    assembleKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await assembleKitUseCase.execute({
@@ -483,7 +495,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    disassembleKit: async (_: any, { input }: { input: any }, context: any) => {
+    disassembleKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await disassembleKitUseCase.execute({
@@ -495,7 +507,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    receiveSerializedItem: async (_: any, { input }: { input: any }, context: any) => {
+    receiveSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await receiveSerializedItemUseCase.execute(input);
@@ -503,7 +515,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    connectShopifyStore: async (_: any, { input }: { input: any }, context: any) => {
+    connectShopifyStore: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin'], input.tenantId);
         return await connectShopifyStoreUseCase.execute({ ...input, tenantId: auth.tenantId });
@@ -511,7 +523,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    configureProductUom: async (_: any, { input }: { input: any }, context: any) => {
+    configureProductUom: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin']);
         return await configureProductUomUseCase.execute(input);
@@ -519,7 +531,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    createJournalEntry: async (_: any, { input }: { input: any }, context: any) => {
+    createJournalEntry: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
         return await createJournalEntryUseCase.execute({ ...input, tenantId: auth.tenantId });
@@ -527,7 +539,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    assignBarcode: async (_: any, { input }: { input: any }, context: any) => {
+    assignBarcode: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await assignBarcodeUseCase.execute(input);
@@ -535,7 +547,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    revokeBarcode: async (_: any, { input }: { input: any }, context: any) => {
+    revokeBarcode: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await revokeBarcodeUseCase.execute(input);
@@ -543,7 +555,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    generateInternalBarcode: async (_: any, { sku, tenantId }: { sku: string; tenantId: string }, context: any) => {
+    generateInternalBarcode: async (_: any, { sku, tenantId }: { sku: string; tenantId: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
         return await generateInternalBarcodeUseCase.execute(sku, auth.tenantId);
@@ -551,7 +563,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: any) => {
+    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: GraphQLContext) => {
       try {
         const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], payload.tenantId || 'tenant-1');
         const result = await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
@@ -587,7 +599,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    createStockOnboarding: async (_: any, { input }: { input: any }, context: any) => {
+    createStockOnboarding: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
         return await createStockOnboardingUseCase.execute({ ...input, tenantId: auth.tenantId });
@@ -595,7 +607,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    saveStockOnboardingItems: async (_: any, { input }: { input: any }, context: any) => {
+    saveStockOnboardingItems: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'accountant']);
         return await saveStockOnboardingItemsUseCase.execute(input);
@@ -603,7 +615,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    submitStockOnboarding: async (_: any, { id, actorId }: { id: string; actorId: string }, context: any) => {
+    submitStockOnboarding: async (_: any, { id, actorId }: { id: string; actorId: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], undefined, actorId);
         return await submitStockOnboardingUseCase.execute(id, auth.actorId);
@@ -625,7 +637,7 @@ export const resolvers = {
   },
   Subscription: {
     barcodeScanned: {
-      subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: any) => {
+      subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: GraphQLContext) => {
         // Enforce token check; only allow subscription to active tenant events
         const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], tenantId);
         return (pubsub as any).asyncIterator(`${BARCODE_SCANNED_TOPIC}_${auth.tenantId}`);

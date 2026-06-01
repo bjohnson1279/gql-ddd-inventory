@@ -43,13 +43,16 @@ describe('ManageKits Use Cases', () => {
 
     ledgerRepo = {
       append: jest.fn(),
+      appendBatch: jest.fn(),
       currentQuantity: jest.fn(),
+      currentQuantities: jest.fn(),
       entriesFor: jest.fn(),
       hasAnyEntries: jest.fn(),
     };
 
     costLayers = {
       save: jest.fn(),
+      saveBatch: jest.fn(),
       getActiveLayers: jest.fn(),
       findBySerial: jest.fn(),
     };
@@ -86,10 +89,14 @@ describe('ManageKits Use Cases', () => {
       });
 
       // Setup ledger mock
-      ledgerRepo.currentQuantity.mockImplementation(async (varId) => {
-        if (varId.equals(comp1VariantId)) return 10;
-        if (varId.equals(comp2VariantId)) return 5;
-        return 0;
+      ledgerRepo.currentQuantities.mockImplementation(async (variantIds) => {
+        const map = new Map<string, number>();
+        for (const varId of variantIds) {
+          if (varId.equals(comp1VariantId)) map.set(varId.value, 10);
+          else if (varId.equals(comp2VariantId)) map.set(varId.value, 5);
+          else map.set(varId.value, 0);
+        }
+        return map;
       });
 
       // Setup costing layer mock: FIFO layers for components
@@ -147,7 +154,13 @@ describe('ManageKits Use Cases', () => {
       productRepo.findBySku.mockResolvedValue(kitProduct);
 
       // Stock is only 1, but we need 4
-      ledgerRepo.currentQuantity.mockResolvedValue(1);
+      ledgerRepo.currentQuantities.mockImplementation(async (variantIds) => {
+        const map = new Map<string, number>();
+        for (const varId of variantIds) {
+          map.set(varId.value, 1);
+        }
+        return map;
+      });
 
       const useCase = new AssembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
       await expect(useCase.execute({
@@ -210,11 +223,13 @@ describe('ManageKits Use Cases', () => {
       // Kit consumed: 2 kits * 400 unit cost = 800 total cost cents.
       // Components restored: 2 kits * 2 = 4 units of comp1.
       // Restored comp1 layer unit cost should be 200 cents (800 / 4).
-      expect(costLayers.save).toHaveBeenCalledWith(expect.objectContaining({
-        variantId: comp1VariantId,
-        initialQuantity: 4,
-        unitCostCents: 200
-      }));
+      expect(costLayers.saveBatch).toHaveBeenCalledWith(expect.arrayContaining([
+        expect.objectContaining({
+          variantId: comp1VariantId,
+          initialQuantity: 4,
+          unitCostCents: 200
+        })
+      ]));
 
       const journalEntry = journalRepo.save.mock.calls[0][0];
       expect(journalEntry.isBalanced()).toBe(true);

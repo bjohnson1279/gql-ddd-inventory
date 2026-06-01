@@ -31,12 +31,24 @@ jest.mock('../../../src/infrastructure/graphql/resolvers', () => {
 });
 
 describe('ShopifyWebhookHandler', () => {
-  const secret = 'shopify-fallback-secret-key-123';
+  const secret = 'test-secret-key-123';
   let mockReq: any;
   let mockRes: any;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeAll(() => {
+    originalEnv = process.env;
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.SHOPIFY_WEBHOOK_SECRET = secret;
+
+    process.env = { ...originalEnv, SHOPIFY_WEBHOOK_SECRET: secret };
 
     jest.mocked(ProcessShopifyOrder).mockImplementation(() => ({
       execute: mockProcessExecute
@@ -68,9 +80,38 @@ describe('ShopifyWebhookHandler', () => {
       .digest('base64');
   };
 
+  it('should return 401 and log an error if SHOPIFY_WEBHOOK_SECRET is not configured', async () => {
+    delete process.env.SHOPIFY_WEBHOOK_SECRET;
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    mockReq.body = Buffer.from(JSON.stringify({ id: 123 }));
+    mockReq.headers['x-shopify-hmac-sha256'] = 'some-hmac';
+
+    await shopifyWebhookHandler(mockReq, mockRes);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
+    expect(mockRes.status).toHaveBeenCalledWith(401);
+    expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it('should return 401 if HMAC signature is missing or invalid', async () => {
     mockReq.body = Buffer.from(JSON.stringify({ id: 123 }));
     mockReq.headers['x-shopify-hmac-sha256'] = 'invalid-hmac';
+
+    await shopifyWebhookHandler(mockReq, mockRes);
+
+    expect(mockRes.status).toHaveBeenCalledWith(401);
+    expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
+  });
+
+  it('should return 401 if SHOPIFY_WEBHOOK_SECRET is not configured', async () => {
+    delete process.env.SHOPIFY_WEBHOOK_SECRET;
+
+    const rawBody = JSON.stringify({ id: 123 });
+    mockReq.body = Buffer.from(rawBody);
+    mockReq.headers['x-shopify-hmac-sha256'] = signBody(rawBody);
 
     await shopifyWebhookHandler(mockReq, mockRes);
 
