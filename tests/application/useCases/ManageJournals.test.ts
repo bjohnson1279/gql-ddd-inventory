@@ -184,7 +184,7 @@ describe('ManageJournals Use Cases', () => {
             memo: 'Credit side 1'
           },
           {
-            accountCode: '2000', // Liability
+            accountCode: '4000', // Revenue
             amountCents: 500,
             type: DebitCredit.Credit,
             memo: 'Credit side 2'
