@@ -73,7 +73,7 @@ import { SerializedInventoryService } from '../../domain/services/SerializedInve
 import { InventoryService } from '../../domain/services/InventoryService';
 import { OpeningBalanceService } from '../../domain/services/OpeningBalanceService';
 import { ReasonCode } from '../../domain/enums/ReasonCode';
-import { appendStockLedgerEntry } from './ledgerEntryUtils';
+import { appendStockLedgerEntry } from '../utils/ledgerEntryUtils';
 
 import { PostgresInventoryRepository } from '../persistence/PostgresInventoryRepository';
 import { PostgresProductRepository } from '../persistence/PostgresProductRepository';
