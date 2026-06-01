@@ -6,7 +6,8 @@ import {
   integrationRepository,
   externalMappingRepository,
   productRepository,
-  inventoryService
+  inventoryService,
+  prisma
 } from '../graphql/resolvers';
 
 export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean {
@@ -106,12 +107,33 @@ export async function shopifyWebhookHandler(req: express.Request, res: express.R
       return;
     }
 
-    if (topic === 'orders/create' || topic === 'orders/paid') {
-      await processOrderWebhook(payload, connection, processShopifyOrderUseCase, shopDomain);
-    } else if (topic === 'products/create' || topic === 'products/update') {
-      await processProductWebhook(payload, connection, syncProductFromShopifyUseCase, shopDomain);
+    const eventId = (req.headers['x-shopify-webhook-id'] as string) || crypto.randomUUID();
+    const triggeredAtHeader = req.headers['x-shopify-triggered-at'] as string;
+    const occurredAt = triggeredAtHeader ? new Date(triggeredAtHeader) : new Date();
+
+    const isSync = process.env.SYNC_WEBHOOKS === 'true' || process.env.NODE_ENV === 'test';
+
+    await prisma.webhookEvent.create({
+      data: {
+        id: eventId,
+        topic,
+        shopDomain,
+        payload: rawBody,
+        status: isSync ? 'Processed' : 'Pending',
+        occurredAt
+      }
+    });
+
+    if (isSync) {
+      if (topic === 'orders/create' || topic === 'orders/paid') {
+        await processOrderWebhook(payload, connection, processShopifyOrderUseCase, shopDomain);
+      } else if (topic === 'products/create' || topic === 'products/update') {
+        await processProductWebhook(payload, connection, syncProductFromShopifyUseCase, shopDomain);
+      } else {
+        console.warn(`[Shopify Webhook] Unhandled topic: ${topic}`);
+      }
     } else {
-      console.warn(`[Shopify Webhook] Unhandled topic: ${topic}`);
+      console.log(`[Shopify Webhook] Staged pending event ${eventId} for asynchronous processing`);
     }
 
     res.status(200).send('OK');

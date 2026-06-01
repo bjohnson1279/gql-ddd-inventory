@@ -254,5 +254,19 @@ model KitComponent {
   @@map("kit_components")
 }
 
+model WebhookEvent {
+  id          String   @id
+  topic       String
+  shopDomain  String   @map("shop_domain")
+  payload     String   @db.Text
+  status      String   @default("Pending")
+  attempts    Int      @default(0)
+  lastError   String?  @map("last_error") @db.Text
+  occurredAt  DateTime @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("webhook_events")
+}
+
 
 

@@ -61,11 +61,33 @@ export const typeDefs = `#graphql
     value: String!
   }
 
+  type InventoryCostLayer {
+    id: ID!
+    variantId: ID!
+    initialQuantity: Int!
+    consumedQuantity: Int!
+    unitCostCents: Int!
+    receivedAt: String!
+    serialNumber: String
+  }
+
+  type ExternalMapping {
+    id: ID!
+    tenantId: ID!
+    integrationId: ID!
+    entityType: String!
+    internalId: String!
+    externalId: String!
+    externalSecondaryId: String
+  }
+
   type ProductVariant {
     id: ID!
     sku: String!
     trackingMode: TrackingMode!
     attributes: [VariantAttribute!]!
+    costLayers: [InventoryCostLayer!]!
+    externalMappings: [ExternalMapping!]!
   }
 
   type Product {

@@ -387,3 +387,30 @@ export class DisassembleKitUseCase {
     return true;
   }
 }
+
+export interface CreateKitInput {
+  id: string;
+  sku: string;
+  name: string;
+  components: {
+    variantId: string;
+    quantity: number;
+  }[];
+}
+
+export class CreateKitUseCase {
+  constructor(private readonly kitRepo: IKitRepository) {}
+
+  async execute(input: CreateKitInput): Promise<boolean> {
+    const kit = new Kit(
+      new KitId(input.id),
+      new Sku(input.sku),
+      input.name
+    );
+    for (const comp of input.components) {
+      kit.addComponent(new ProductVariantId(comp.variantId), comp.quantity);
+    }
+    await this.kitRepo.save(kit);
+    return true;
+  }
+}

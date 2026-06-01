@@ -1,8 +1,28 @@
 import jwt from 'jsonwebtoken';
 import { PubSub } from 'graphql-subscriptions';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
+import Redis from 'ioredis';
 import crypto from 'crypto';
+import { DataLoaders } from './dataloaders';
 
-export const pubsub = new PubSub();
+let pubsubInstance: any;
+
+if (process.env.NODE_ENV === 'test') {
+  pubsubInstance = new PubSub();
+} else {
+  const redisOptions = {
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: Number(process.env.REDIS_PORT) || 6379,
+    retryStrategy: (times: number) => Math.min(times * 50, 2000),
+  };
+
+  pubsubInstance = new RedisPubSub({
+    publisher: new Redis(redisOptions),
+    subscriber: new Redis(redisOptions),
+  });
+}
+
+export const pubsub = pubsubInstance;
 export const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 
 import { ReceiveStockUseCase } from '../../application/useCases/ReceiveStock';
@@ -12,7 +32,7 @@ import { SubmitInventoryCountUseCase } from '../../application/useCases/SubmitIn
 import { SubmitOpeningBalanceUseCase } from '../../application/useCases/SubmitOpeningBalance';
 
 import { CreateProductUseCase, AddProductVariantUseCase, GetProductsUseCase, GetProductByIdUseCase } from '../../application/useCases/ManageProducts';
-import { SellKitUseCase, AssembleKitUseCase, DisassembleKitUseCase } from '../../application/useCases/ManageKits';
+import { SellKitUseCase, AssembleKitUseCase, DisassembleKitUseCase, CreateKitUseCase } from '../../application/useCases/ManageKits';
 import { ReceiveSerializedItemUseCase, GetSerializedItemBySerialUseCase } from '../../application/useCases/ManageSerializedItems';
 import { ConnectShopifyStoreUseCase, GetShopifyConnectionsUseCase } from '../../application/useCases/ManageShopifyConnections';
 import { ConfigureProductUomUseCase, GetProductUomConfigurationUseCase } from '../../application/useCases/ManageUoms';
@@ -65,17 +85,8 @@ import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
 
-import { PrismaClient } from '@prisma/client';
-import * as dotenv from 'dotenv';
-dotenv.config();
-
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const connectionString = `${process.env.DATABASE_URL}`;
-export const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-export const prisma = new PrismaClient({ adapter } as any);
+import { prisma, pool } from '../persistence/prismaClient';
+export { prisma, pool };
 
 // DB Repositories
 const inventoryRepository = new PostgresInventoryRepository(prisma);
@@ -118,6 +129,7 @@ const addProductVariantUseCase = new AddProductVariantUseCase(productRepository)
 const getProductsUseCase = new GetProductsUseCase(productRepository);
 const getProductByIdUseCase = new GetProductByIdUseCase(productRepository);
 const sellKitUseCase = new SellKitUseCase(inventoryService);
+const createKitUseCase = new CreateKitUseCase(kitRepository);
 const assembleKitUseCase = new AssembleKitUseCase(
   kitRepository,
   productRepository,
@@ -183,6 +195,8 @@ export interface GraphQLContext {
     actorId?: string;
     role?: string;
   };
+  prisma?: any;
+  loaders?: DataLoaders;
 }
 
 function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
@@ -216,6 +230,36 @@ function getTenantAndActor(context: GraphQLContext, tenantId?: string, actorId?:
 }
 
 export const resolvers = {
+  Product: {
+    variants: async (parent: any, _: any, context: GraphQLContext) => {
+      if (context?.loaders?.productVariants) {
+        return context.loaders.productVariants.load(parent.id);
+      }
+      return parent.variants || [];
+    }
+  },
+  ProductVariant: {
+    costLayers: async (parent: any, _: any, context: GraphQLContext) => {
+      if (context?.loaders?.costLayers) {
+        return context.loaders.costLayers.load(parent.id);
+      }
+      return [];
+    },
+    externalMappings: async (parent: any, _: any, context: GraphQLContext) => {
+      if (context?.loaders?.externalMappings) {
+        return context.loaders.externalMappings.load(parent.id);
+      }
+      return [];
+    }
+  },
+  Kit: {
+    components: async (parent: any, _: any, context: GraphQLContext) => {
+      if (context?.loaders?.kitComponents) {
+        return context.loaders.kitComponents.load(parent.id);
+      }
+      return parent.components || [];
+    }
+  },
   Query: {
     inventoryItems: async (_: any, __: any, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
@@ -465,12 +509,7 @@ export const resolvers = {
     createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin']);
-        const kit = new Kit(new KitId(id), new Sku(sku), name);
-        for (const comp of components) {
-          kit.addComponent(new ProductVariantId(comp.variantId), comp.quantity);
-        }
-        await kitRepository.save(kit);
-        return true;
+        return await createKitUseCase.execute({ id, sku, name, components });
       } catch (error: any) {
         throw new Error(error.message);
       }

@@ -13,6 +13,8 @@ import jwt from 'jsonwebtoken';
 import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
+import { createDataLoaders } from './infrastructure/graphql/dataloaders';
+import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -35,16 +37,21 @@ function setupWebSocketServer(httpServer: any, schema: any) {
         // Connection params carry the Authorization header during WebSockets handshakes
         const connectionParams = ctx.connectionParams || {};
         const authHeader = connectionParams.Authorization || connectionParams.authorization || '';
+        let auth: any = undefined;
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            const decoded = jwt.verify(token, JWT_SECRET as string);
-            return { auth: decoded };
+            auth = jwt.verify(token, JWT_SECRET as string);
           } catch (err) {
             // Invalid token
           }
         }
-        return {};
+        const activePrisma = auth?.tenantId ? getTenantPrisma(globalPrisma, auth.tenantId) : globalPrisma;
+        return {
+          auth,
+          prisma: activePrisma,
+          loaders: createDataLoaders(activePrisma),
+        };
       },
     },
     wsServer
@@ -95,19 +102,39 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       }
     }),
     bodyParser.json(),
+    (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const authHeader = req.headers.authorization || req.headers.Authorization || '';
+      let tenantId: string | undefined;
+      if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET as string) as any;
+          tenantId = decoded.tenantId;
+        } catch (err) {}
+      }
+      const activePrisma = tenantId ? getTenantPrisma(globalPrisma, tenantId) : globalPrisma;
+      prismaContext.run(activePrisma, () => {
+        next();
+      });
+    },
     expressMiddleware(server, {
       context: async ({ req }: { req: express.Request }) => {
-        const authHeader = req.headers.authorization || '';
-        if (authHeader.startsWith('Bearer ')) {
+        const authHeader = req.headers.authorization || req.headers.Authorization || '';
+        let auth: any = undefined;
+        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            const decoded = jwt.verify(token, JWT_SECRET as string);
-            return { auth: decoded };
+            auth = jwt.verify(token, JWT_SECRET as string);
           } catch (err) {
             // Invalid token or expired
           }
         }
-        return {};
+        const db = prismaContext.getStore() || globalPrisma;
+        return {
+          auth,
+          prisma: db,
+          loaders: createDataLoaders(db),
+        };
       },
     })
   );

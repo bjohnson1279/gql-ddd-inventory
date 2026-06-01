@@ -21,6 +21,11 @@ const mockFindByStoreDomain = jest.fn();
 
 jest.mock('../../../src/infrastructure/graphql/resolvers', () => {
   return {
+    prisma: {
+      webhookEvent: {
+        create: jest.fn().mockResolvedValue({})
+      }
+    },
     integrationRepository: {
       findByStoreDomain: (...args: any[]) => mockFindByStoreDomain(...args)
     },
