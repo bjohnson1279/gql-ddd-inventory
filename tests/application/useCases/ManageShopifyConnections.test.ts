@@ -53,7 +53,7 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if the integration ID is empty', async () => {
+    it('should throw an error if the id is empty', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
       await expect(useCase.execute({
@@ -66,7 +66,7 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if the tenant ID is empty', async () => {
+    it('should throw an error if the tenantId is empty', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
       await expect(useCase.execute({
@@ -79,7 +79,7 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if the repository save fails', async () => {
+    it('should propagate errors from the repository', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
       integrationRepo.save.mockRejectedValue(new Error('Database error'));
