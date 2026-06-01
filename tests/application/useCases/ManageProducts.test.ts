@@ -1,4 +1,4 @@
-import { AddProductVariantUseCase } from '../../../src/application/useCases/ManageProducts';
+import { AddProductVariantUseCase, CreateProductUseCase } from '../../../src/application/useCases/ManageProducts';
 import { IProductRepository } from '../../../src/domain/repositories/IProductRepository';
 import { Product } from '../../../src/domain/entities/Product';
 import { ProductId } from '../../../src/domain/valueObjects/ProductId';
@@ -14,6 +14,22 @@ describe('ManageProducts Use Cases', () => {
       findBySku: jest.fn(),
       findAll: jest.fn(),
     };
+  });
+
+  describe('CreateProductUseCase', () => {
+    it('should create a product and save it to the repository', async () => {
+      const useCase = new CreateProductUseCase(productRepo);
+
+      const result = await useCase.execute('prod-123', 'New Test Product');
+
+      expect(result).toBe(true);
+      expect(productRepo.save).toHaveBeenCalledTimes(1);
+
+      const savedProduct = productRepo.save.mock.calls[0][0];
+      expect(savedProduct).toBeInstanceOf(Product);
+      expect(savedProduct.id.value).toBe('prod-123');
+      expect(savedProduct.name).toBe('New Test Product');
+    });
   });
 
   describe('AddProductVariantUseCase', () => {
