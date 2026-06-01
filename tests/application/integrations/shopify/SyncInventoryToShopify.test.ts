@@ -26,6 +26,7 @@ describe('SyncInventoryToShopify', () => {
     mappingRepo = {
       save: jest.fn(),
       findByInternalId: jest.fn(),
+      findManyByInternalId: jest.fn(),
       findByExternalId: jest.fn(),
       delete: jest.fn(),
     };
@@ -61,14 +62,16 @@ describe('SyncInventoryToShopify', () => {
     integrationRepo.findAllByTenant.mockResolvedValue([connection]);
     ledgerRepo.currentQuantity.mockResolvedValue(10);
 
-    mappingRepo.findByInternalId.mockImplementation(async (id, internalId, type) => {
-      if (type === ExternalEntityType.Variant) {
-        return new ExternalMapping(new TenantId(tenantId), id, type, variantId, 'ext-v', 'ext-inv');
-      }
-      if (type === ExternalEntityType.Location) {
-        return new ExternalMapping(new TenantId(tenantId), id, type, locationId, 'ext-loc');
-      }
-      return null;
+    mappingRepo.findManyByInternalId.mockImplementation(async (ids, internalId, type) => {
+      return ids.map(id => {
+        if (type === ExternalEntityType.Variant) {
+          return new ExternalMapping(new TenantId(tenantId), id, type, variantId, 'ext-v', 'ext-inv');
+        }
+        if (type === ExternalEntityType.Location) {
+          return new ExternalMapping(new TenantId(tenantId), id, type, locationId, 'ext-loc');
+        }
+        return null;
+      }).filter(Boolean) as ExternalMapping[];
     });
 
     await useCase.execute(tenantId, locationId, variantId);

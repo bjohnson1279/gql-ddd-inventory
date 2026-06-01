@@ -31,21 +31,33 @@ export class SyncInventoryToShopify {
     // 2. Get current stock level from ledger
     const currentQty = await this.ledgerRepo.currentQuantity(vId, lId);
 
-    // 3. For each connection, find the mapping and push to Shopify
-    for (const connection of activeShopifyConnections) {
-      // Find variant mapping
-      const variantMapping = await this.mappingRepo.findByInternalId(
-        connection.id,
-        vId.value,
-        ExternalEntityType.Variant
-      );
+    const integrationIds = activeShopifyConnections.map((c) => c.id);
 
-      // Find location mapping
-      const locationMapping = await this.mappingRepo.findByInternalId(
-        connection.id,
-        lId.value,
-        ExternalEntityType.Location
-      );
+    // 3. Fetch all variant mappings and location mappings in batch
+    const variantMappings = await this.mappingRepo.findManyByInternalId(
+      integrationIds,
+      vId.value,
+      ExternalEntityType.Variant
+    );
+
+    const locationMappings = await this.mappingRepo.findManyByInternalId(
+      integrationIds,
+      lId.value,
+      ExternalEntityType.Location
+    );
+
+    // Create lookup maps by integrationId
+    const variantMappingMap = new Map(
+      variantMappings.map((m) => [m.integrationId.value, m])
+    );
+    const locationMappingMap = new Map(
+      locationMappings.map((m) => [m.integrationId.value, m])
+    );
+
+    // 4. For each connection, push to Shopify if mappings exist
+    for (const connection of activeShopifyConnections) {
+      const variantMapping = variantMappingMap.get(connection.id.value);
+      const locationMapping = locationMappingMap.get(connection.id.value);
 
       if (variantMapping && locationMapping && variantMapping.externalSecondaryId) {
         await this.shopifyClient.setInventory(
