@@ -17,6 +17,24 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('AddProductVariantUseCase', () => {
+    it('should throw an Error when the requested productId does not exist in the repository', async () => {
+      // Setup
+      productRepo.findById.mockResolvedValue(null);
+      const useCase = new AddProductVariantUseCase(productRepo);
+
+      const input = {
+        productId: 'missing-product-id',
+        sku: 'TEST-SKU-NEW',
+        attributes: [{ name: 'Size', value: 'Large' }],
+        trackingMode: VariantTrackingMode.Quantity
+      };
+
+      // Execute & Assert
+      await expect(useCase.execute(input)).rejects.toThrow('Product missing-product-id not found.');
+      expect(productRepo.findById).toHaveBeenCalledWith(new ProductId('missing-product-id'));
+      expect(productRepo.save).not.toHaveBeenCalled();
+    });
+
     // Covers product not found error path
     it('should throw an error when the product repo returns null (product not found)', async () => {
       // Mock repository to return null, simulating product not found
