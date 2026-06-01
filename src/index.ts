@@ -43,7 +43,7 @@ async function startApolloServer() {
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            const decoded = jwt.verify(token, JWT_SECRET);
+            const decoded = jwt.verify(token, JWT_SECRET as string);
             return { auth: decoded };
           } catch (err) {
             // Invalid token
@@ -101,7 +101,7 @@ async function startApolloServer() {
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            const decoded = jwt.verify(token, JWT_SECRET);
+            const decoded = jwt.verify(token, JWT_SECRET as string);
             return { auth: decoded };
           } catch (err) {
             // Invalid token or expired
