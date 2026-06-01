@@ -18,7 +18,9 @@ describe('Inventory Use Cases', () => {
       findById: jest.fn(),
       findBySku: jest.fn(),
       findBySkuAndLocation: jest.fn(),
+      findBySkuAndLocationBatch: jest.fn(),
       save: jest.fn(),
+      saveBatch: jest.fn(),
       findAll: jest.fn(),
     } as any;
 
@@ -113,7 +115,7 @@ describe('Inventory Use Cases', () => {
   describe('SubmitInventoryCountUseCase', () => {
     it('should reconcile stock for multiple items', async () => {
       const item1 = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
-      mockRepo.findBySkuAndLocation.mockResolvedValueOnce(item1).mockResolvedValueOnce(null);
+      mockRepo.findBySkuAndLocationBatch.mockResolvedValueOnce([item1]);
       
       const useCase = new SubmitInventoryCountUseCase(mockRepo, mockEventDispatcher);
       const result = await useCase.execute([
@@ -126,7 +128,11 @@ describe('Inventory Use Cases', () => {
       expect(result[0].variance).toBe(-2);
       expect(result[1].sku).toBe('SKU2');
       expect(result[1].variance).toBe(5); // New item, so 5 - 0 = 5
-      expect(mockRepo.save).toHaveBeenCalledTimes(2);
+      expect(mockRepo.saveBatch).toHaveBeenCalledTimes(1);
+
+      // Should have saved an array of 2 items
+      const saveBatchCall = mockRepo.saveBatch.mock.calls[0][0];
+      expect(saveBatchCall).toHaveLength(2);
       expect(mockEventDispatcher.dispatch).toHaveBeenCalledTimes(2);
     });
   });
