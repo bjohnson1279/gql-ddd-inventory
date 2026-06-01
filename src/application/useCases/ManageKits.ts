@@ -115,6 +115,7 @@ export class AssembleKitUseCase {
     // 4. Second pass: Consume FIFO costing layers for components and calculate total components cost
     const costService = new CostLayerService(this.costLayers);
     let totalCostCents = 0;
+    const ledgerEntriesToAppend: LedgerEntry[] = [];
 
     for (const component of kit.components) {
       const needed = component.quantity * input.quantity;
@@ -134,7 +135,7 @@ export class AssembleKitUseCase {
         new Date(),
         input.referenceId
       );
-      await this.ledgerRepo.append(ledgerEntry);
+      ledgerEntriesToAppend.push(ledgerEntry);
     }
 
     // 5. Calculate assembled unit cost
@@ -164,7 +165,10 @@ export class AssembleKitUseCase {
       new Date(),
       input.referenceId
     );
-    await this.ledgerRepo.append(kitLedgerEntry);
+    ledgerEntriesToAppend.push(kitLedgerEntry);
+
+    // Append all ledger entries in a single batch operation
+    await this.ledgerRepo.appendBatch(ledgerEntriesToAppend);
 
     // 8. Write balanced double-entry Journal Entry to record inventory value shift
     const journalId = Math.random().toString(36).substring(2, 15);
@@ -250,6 +254,8 @@ export class DisassembleKitUseCase {
     const kitBreakdown = await costService.consumeFifoLayers(kitVariant.id, input.quantity);
     const totalDisassembledCost = kitBreakdown.totalCostCents;
 
+    const ledgerEntriesToAppend: LedgerEntry[] = [];
+
     // Add deduction ledger entry for the Kit variant
     const kitEntryId = Math.random().toString(36).substring(2, 15);
     const kitLedgerEntry = new LedgerEntry(
@@ -263,7 +269,7 @@ export class DisassembleKitUseCase {
       new Date(),
       input.referenceId
     );
-    await this.ledgerRepo.append(kitLedgerEntry);
+    ledgerEntriesToAppend.push(kitLedgerEntry);
 
     // 5. Estimate components value and distribute cost proportionally
     let totalEstimatedComponentsCost = 0;
@@ -318,8 +324,11 @@ export class DisassembleKitUseCase {
         new Date(),
         input.referenceId
       );
-      await this.ledgerRepo.append(ledgerEntry);
+      ledgerEntriesToAppend.push(ledgerEntry);
     }
+
+    // Append all ledger entries in a single batch operation
+    await this.ledgerRepo.appendBatch(ledgerEntriesToAppend);
 
     // 7. Write balanced double-entry Journal Entry to record inventory value shift
     const journalId = Math.random().toString(36).substring(2, 15);

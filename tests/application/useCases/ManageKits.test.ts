@@ -43,6 +43,7 @@ describe('ManageKits Use Cases', () => {
 
     ledgerRepo = {
       append: jest.fn(),
+      appendBatch: jest.fn(),
       currentQuantity: jest.fn(),
       entriesFor: jest.fn(),
       hasAnyEntries: jest.fn(),
