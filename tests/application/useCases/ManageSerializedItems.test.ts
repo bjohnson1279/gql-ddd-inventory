@@ -107,6 +107,50 @@ describe('ManageSerializedItems', () => {
         new ActorId('actor-1')
       );
     });
+
+    it('should throw an error if registration fails', async () => {
+      mockSerialsRepo.isRegistered.mockResolvedValue(false);
+      mockSerializedInventoryService.register.mockRejectedValue(new Error('Registration failed'));
+
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-12345',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Registration failed');
+    });
+
+    it('should throw an error if receive fails', async () => {
+      mockSerialsRepo.isRegistered.mockResolvedValue(true);
+      mockSerializedInventoryService.receive.mockRejectedValue(new Error('Receive failed'));
+
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-12345',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Receive failed');
+    });
   });
 
   describe('GetSerializedItemBySerialUseCase', () => {
@@ -135,6 +179,13 @@ describe('ManageSerializedItems', () => {
         new TenantId('tenant-1')
       );
       expect(result).toBeNull();
+    });
+
+    it('should throw an error if repository findBySerial fails', async () => {
+      mockSerialsRepo.findBySerial.mockRejectedValue(new Error('Repository error'));
+
+      const useCase = new GetSerializedItemBySerialUseCase(mockSerialsRepo);
+      await expect(useCase.execute('SN-UNKNOWN', 'tenant-1')).rejects.toThrow('Repository error');
     });
   });
 });
