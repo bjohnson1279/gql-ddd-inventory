@@ -28,6 +28,25 @@ export class PostgresLedgerRepository implements ILedgerRepository {
     });
   }
 
+  async appendBatch(entries: LedgerEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+
+    await this.prisma.ledgerEntry.createMany({
+      data: entries.map((entry) => ({
+        id: entry.id.value,
+        tenantId: entry.tenantId.value,
+        locationId: entry.locationId.value,
+        variantId: entry.variantId.value,
+        quantity: entry.quantity,
+        reason: entry.reason,
+        actorId: entry.actor.value,
+        occurredAt: entry.occurredAt,
+        referenceId: entry.referenceId || null,
+        metadata: entry.metadata || undefined,
+      })),
+    });
+  }
+
   async currentQuantity(variantId: ProductVariantId, locationId: LocationId): Promise<number> {
     const result = await this.prisma.ledgerEntry.aggregate({
       where: {
