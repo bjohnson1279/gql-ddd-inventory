@@ -1,4 +1,4 @@
-import { CreateJournalEntryUseCase, CreateJournalEntryInput } from '../../../src/application/useCases/ManageJournals';
+import { CreateJournalEntryUseCase, CreateJournalEntryInput, GetJournalEntriesUseCase } from '../../../src/application/useCases/ManageJournals';
 import { IJournalRepository } from '../../../src/domain/repositories/IJournalRepository';
 import { AccountingMethod, DebitCredit } from '../../../src/domain/enums/AccountingEnums';
 
@@ -45,6 +45,36 @@ describe('ManageJournals Use Cases', () => {
       expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
     });
 
+
+    it('should throw an error when creating a journal entry with only debits', async () => {
+      const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
+
+      const input: CreateJournalEntryInput = {
+        id: 'J3',
+        tenantId: 'T1',
+        date: new Date().toISOString(),
+        description: 'Test debit-only entry',
+        method: AccountingMethod.Accrual,
+        lines: [
+          {
+            accountCode: '1000', // Asset
+            amountCents: 1000,
+            type: DebitCredit.Debit,
+            memo: 'Debit side 1'
+          },
+          {
+            accountCode: '5000', // Expense
+            amountCents: 500,
+            type: DebitCredit.Debit,
+            memo: 'Debit side 2'
+          }
+        ]
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should throw an error when creating an unbalanced journal entry', async () => {
       const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
 
@@ -72,6 +102,24 @@ describe('ManageJournals Use Cases', () => {
 
       await expect(useCase.execute(input)).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
+  });
+
+  describe('GetJournalEntriesUseCase', () => {
+    it('should successfully return journal entries for a given tenant', async () => {
+      const useCase = new GetJournalEntriesUseCase(mockJournalRepo);
+      const mockEntries = [
+        { id: { value: 'J1' }, tenantId: { value: 'T1' }, description: 'Entry 1' },
+        { id: { value: 'J2' }, tenantId: { value: 'T1' }, description: 'Entry 2' }
+      ];
+      mockJournalRepo.findAllByTenant.mockResolvedValue(mockEntries as any);
+
+      const result = await useCase.execute('T1');
+
+      expect(result).toEqual(mockEntries);
+      expect(mockJournalRepo.findAllByTenant).toHaveBeenCalledTimes(1);
+      expect(mockJournalRepo.findAllByTenant.mock.calls[0][0].value).toBe('T1');
     });
   });
 });
