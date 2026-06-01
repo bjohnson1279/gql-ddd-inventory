@@ -106,7 +106,7 @@ const serializedInventoryService = new SerializedInventoryService(serializedItem
 export const inventoryService = new InventoryService(ledgerRepository);
 
 // Messaging & Event Bus
-const eventBus = new InMemoryEventBus();
+export const eventBus = new InMemoryEventBus();
 const lowStockHandler = new LowStockAlertHandler();
 const reconciledHandler = new InventoryReconciledHandler();
 

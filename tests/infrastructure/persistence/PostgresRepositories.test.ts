@@ -142,6 +142,9 @@ describe('Postgres Repositories', () => {
         deleteMany: jest.fn(),
         createMany: jest.fn(),
       },
+      outboxEvent: {
+        create: jest.fn(),
+      },
       $transaction: jest.fn(async (cb) => cb(prismaMock)),
     };
   });

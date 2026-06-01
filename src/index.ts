@@ -15,6 +15,8 @@ import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
 import { createDataLoaders } from './infrastructure/graphql/dataloaders';
 import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
+import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
+import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -156,6 +158,11 @@ async function startApolloServer() {
   httpServer.listen(PORT, () => {
     console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
     console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}/graphql`);
+
+    if (process.env.NODE_ENV !== 'test') {
+      WebhookWorker.start();
+      OutboxWorker.start();
+    }
   });
 }
 

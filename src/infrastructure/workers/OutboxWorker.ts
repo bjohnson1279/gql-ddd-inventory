@@ -1,0 +1,118 @@
+import { prisma } from '../persistence/prismaClient';
+import { eventBus } from '../graphql/resolvers';
+import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
+import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent } from '../../domain/events/InventoryEvents';
+
+export function deserializeEvent(eventType: string, payloadStr: string): any {
+  const payload = JSON.parse(payloadStr);
+
+  if (eventType === 'InventoryDecremented') {
+    const variantId = new ProductVariantId(payload.variantId.value);
+    const event = new InventoryDecremented(
+      payload.tenantId,
+      payload.locationId,
+      variantId,
+      payload.quantity,
+      payload.referenceId
+    );
+    (event as any).occurredAt = new Date(payload.occurredAt);
+    return event;
+  } else if (eventType === 'LowStockAlertEvent') {
+    const event = new LowStockAlertEvent(
+      payload.sku,
+      payload.locationId,
+      payload.currentQuantity
+    );
+    (event as any).occurredAt = new Date(payload.occurredAt);
+    return event;
+  } else if (eventType === 'InventoryReconciledEvent') {
+    const event = new InventoryReconciledEvent(
+      payload.sku,
+      payload.locationId,
+      payload.expected,
+      payload.actual,
+      payload.variance
+    );
+    (event as any).occurredAt = new Date(payload.occurredAt);
+    return event;
+  } else {
+    // Dynamic fallback to preserve constructor.name matching eventType
+    const mockConstructor = function () {};
+    Object.defineProperty(mockConstructor, 'name', { value: eventType, writable: false });
+    const event = Object.create(mockConstructor.prototype);
+    Object.assign(event, payload);
+    if (event.occurredAt) event.occurredAt = new Date(event.occurredAt);
+    return event;
+  }
+}
+
+export class OutboxWorker {
+  private static isRunning = false;
+  private static timer: NodeJS.Timeout | null = null;
+
+  public static start(intervalMs = 200) {
+    if (this.timer) return;
+    this.timer = setInterval(() => this.processPendingEvents(), intervalMs);
+    console.log(`[OutboxWorker] Started background worker (polling every ${intervalMs}ms)`);
+  }
+
+  public static stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    console.log('[OutboxWorker] Stopped background worker');
+  }
+
+  public static async processPendingEvents() {
+    if (this.isRunning) return;
+    this.isRunning = true;
+
+    try {
+      const events = await prisma.outboxEvent.findMany({
+        where: { status: 'Pending' },
+        orderBy: { createdAt: 'asc' },
+        take: 20,
+      });
+
+      for (const event of events) {
+        // Mark as Processing
+        await prisma.outboxEvent.update({
+          where: { id: event.id },
+          data: { status: 'Processing' },
+        });
+
+        try {
+          const domainEvent = deserializeEvent(event.eventType, event.payload);
+
+          // Publish event asynchronously to InMemoryEventBus
+          eventBus.publish(domainEvent);
+
+          // Mark as Processed
+          await prisma.outboxEvent.update({
+            where: { id: event.id },
+            data: {
+              status: 'Processed',
+              attempts: event.attempts + 1,
+              processedAt: new Date(),
+            },
+          });
+        } catch (err: any) {
+          console.error(`[OutboxWorker] Failed to process outbox event ${event.id}:`, err);
+          await prisma.outboxEvent.update({
+            where: { id: event.id },
+            data: {
+              status: event.attempts >= 3 ? 'Failed' : 'Pending',
+              attempts: event.attempts + 1,
+              lastError: err.message,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[OutboxWorker] Error in background worker loop:', error);
+    } finally {
+      this.isRunning = false;
+    }
+  }
+}

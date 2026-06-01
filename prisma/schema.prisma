@@ -268,5 +268,18 @@ model WebhookEvent {
   @@map("webhook_events")
 }
 
+model OutboxEvent {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType   String    @map("event_type")
+  payload     String    @db.Text
+  status      String    @default("Pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  processedAt DateTime? @map("processed_at") @db.Timestamptz
+
+  @@map("outbox_events")
+}
+
 
 
