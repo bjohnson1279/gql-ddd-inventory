@@ -78,6 +78,95 @@ describe('ManageJournals Use Cases', () => {
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should throw an error when an entry line amount is not positive', async () => {
+      const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
+
+      const input: CreateJournalEntryInput = {
+        id: 'J5',
+        tenantId: 'T1',
+        date: new Date().toISOString(),
+        description: 'Test negative amount entry',
+        method: AccountingMethod.Accrual,
+        lines: [
+          {
+            accountCode: '1000',
+            amountCents: -500,
+            type: DebitCredit.Debit,
+            memo: 'Invalid debit'
+          },
+          {
+            accountCode: '4000',
+            amountCents: -500,
+            type: DebitCredit.Credit,
+            memo: 'Invalid credit'
+          }
+        ]
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Journal line amount must be positive.');
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should propagate error if journalRepo.save fails', async () => {
+      const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
+
+      const input: CreateJournalEntryInput = {
+        id: 'J6',
+        tenantId: 'T1',
+        date: new Date().toISOString(),
+        description: 'Test repo save failure',
+        method: AccountingMethod.Accrual,
+        lines: [
+          {
+            accountCode: '1000',
+            amountCents: 500,
+            type: DebitCredit.Debit,
+            memo: 'Debit side'
+          },
+          {
+            accountCode: '4000',
+            amountCents: 500,
+            type: DebitCredit.Credit,
+            memo: 'Credit side'
+          }
+        ]
+      };
+
+      mockJournalRepo.save.mockRejectedValue(new Error('Database error'));
+
+      await expect(useCase.execute(input)).rejects.toThrow('Database error');
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw an error specifically testing when debits not equal to credits', async () => {
+      const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
+
+      const input: CreateJournalEntryInput = {
+        id: 'J7',
+        tenantId: 'T1',
+        date: new Date().toISOString(),
+        description: 'Test purely debits not equal to credits',
+        method: AccountingMethod.Accrual,
+        lines: [
+          {
+            accountCode: '1000',
+            amountCents: 200,
+            type: DebitCredit.Debit,
+            memo: 'Debit'
+          },
+          {
+            accountCode: '4000',
+            amountCents: 300,
+            type: DebitCredit.Credit,
+            memo: 'Credit'
+          }
+        ]
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should throw an error when creating a journal entry with only credits', async () => {
       const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
 

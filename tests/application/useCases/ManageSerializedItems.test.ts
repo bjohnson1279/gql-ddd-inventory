@@ -72,6 +72,186 @@ describe('ManageSerializedItems', () => {
       );
     });
 
+
+    it('should throw an error for invalid serial number (empty)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: '',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Serial number cannot be empty.');
+    });
+
+    it('should throw an error for invalid serial number (too long)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'A'.repeat(101),
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Serial number cannot exceed 100 characters.');
+    });
+
+    it('should throw an error for invalid serial number (invalid characters)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN!@#',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Serial number contains invalid characters: SN!@#');
+    });
+
+    it('should propagate errors from serializedInventoryService.register', async () => {
+      mockSerialsRepo.isRegistered.mockResolvedValue(false);
+      mockSerializedInventoryService.register.mockRejectedValue(new Error('Registration failed'));
+
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-12345',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Registration failed');
+    });
+
+    it('should propagate errors from serializedInventoryService.receive', async () => {
+      mockSerialsRepo.isRegistered.mockResolvedValue(true);
+      mockSerializedInventoryService.receive.mockRejectedValue(new Error('Receive failed'));
+
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-12345',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Receive failed');
+    });
+
+
+    it('should throw an error for invalid tenantId (empty)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-1234',
+        tenantId: '',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('TenantId cannot be empty.');
+    });
+
+    it('should throw an error for invalid locationId (empty)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-1234',
+        tenantId: 'tenant-1',
+        locationId: '',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('LocationId cannot be empty.');
+    });
+
+
+    it('should throw an error for invalid actorId (empty)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-1234',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: '',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('ActorId cannot be empty.');
+    });
+
+    it('should throw an error for invalid variantId (empty)', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: '',
+        serialNumber: 'SN-1234',
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('ProductVariantId cannot be empty.');
+    });
+
     it('should only receive the item if it is already registered', async () => {
       mockSerialsRepo.isRegistered.mockResolvedValue(true);
 
@@ -106,6 +286,44 @@ describe('ManageSerializedItems', () => {
         1500,
         new ActorId('actor-1')
       );
+    });
+
+    it('should throw an error when provided an empty serial number', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: '', // Empty serial number
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Serial number cannot be empty.');
+    });
+
+    it('should throw an error when provided an empty tenant id', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-12345',
+        tenantId: '', // Empty tenant id
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('TenantId cannot be empty');
     });
   });
 

@@ -7,12 +7,15 @@ import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { VariantTrackingMode } from '../enums/VariantEnums';
 
 export class Product {
-  private _variants: Map<string, ProductVariant> = new Map();
+  private _variants: Map<string, ProductVariant>;
 
   constructor(
     public readonly id: ProductId,
-    public readonly name: string
-  ) {}
+    public readonly name: string,
+    variants?: Map<string, ProductVariant>
+  ) {
+    this._variants = variants ?? new Map<string, ProductVariant>();
+  }
 
   addVariant(sku: Sku, attributes: VariantAttribute[], trackingMode: VariantTrackingMode = VariantTrackingMode.Quantity): ProductVariant {
     const attributeSet = new VariantAttributeSet(attributes);
