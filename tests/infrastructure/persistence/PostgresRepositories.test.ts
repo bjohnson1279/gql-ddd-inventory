@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PostgresProductRepository } from '../../../src/infrastructure/persistence/PostgresProductRepository';
+import { PostgresWarehouseLocationRepository } from '../../../src/infrastructure/persistence/PostgresWarehouseLocationRepository';
+import { WarehouseLocation } from '../../../src/domain/entities/WarehouseLocation';
 import { PostgresLedgerRepository } from '../../../src/infrastructure/persistence/PostgresLedgerRepository';
 import { PostgresSerializedItemRepository } from '../../../src/infrastructure/persistence/PostgresSerializedItemRepository';
 import { PostgresInventoryCostLayerRepository } from '../../../src/infrastructure/persistence/PostgresInventoryCostLayerRepository';
@@ -144,6 +146,12 @@ describe('Postgres Repositories', () => {
       },
       outboxEvent: {
         create: jest.fn(),
+      },
+      warehouseLocation: {
+        upsert: jest.fn(),
+        findUnique: jest.fn(),
+        delete: jest.fn(),
+        findMany: jest.fn(),
       },
       $transaction: jest.fn(async (cb) => cb(prismaMock)),
     };
@@ -577,6 +585,75 @@ describe('Postgres Repositories', () => {
 
       await repo.delete(new KitId('k-1'));
       expect(prismaMock.kit.delete).toHaveBeenCalled();
+    });
+  });
+
+  describe('PostgresWarehouseLocationRepository', () => {
+    it('should save a location', async () => {
+      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
+      const loc = new WarehouseLocation(
+        new LocationId('WH1-ZONEA-A01-R01-S01-B01'),
+        'WH1',
+        'ZONEA',
+        'A01',
+        'R01',
+        'S01',
+        'B01',
+        10000,
+        5.5
+      );
+
+      await repo.save(loc);
+      expect(prismaMock.warehouseLocation.upsert).toHaveBeenCalled();
+    });
+
+    it('should find location by ID', async () => {
+      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.warehouseLocation.findUnique.mockResolvedValue({
+        id: 'WH1-ZONEA-A01-R01-S01-B01',
+        warehouseId: 'WH1',
+        zone: 'ZONEA',
+        aisle: 'A01',
+        rack: 'R01',
+        shelf: 'S01',
+        bin: 'B01',
+        maxWeightGrams: 10000,
+        maxVolumeCubicMeters: 5.5,
+      });
+
+      const loc = await repo.findById(new LocationId('WH1-ZONEA-A01-R01-S01-B01'));
+      expect(loc).not.toBeNull();
+      expect(loc?.warehouseId).toBe('WH1');
+      expect(loc?.maxWeightGrams).toBe(10000);
+    });
+
+    it('should find all locations', async () => {
+      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.warehouseLocation.findMany.mockResolvedValue([
+        {
+          id: 'WH1-ZONEA-A01-R01-S01-B01',
+          warehouseId: 'WH1',
+          zone: 'ZONEA',
+          aisle: 'A01',
+          rack: 'R01',
+          shelf: 'S01',
+          bin: 'B01',
+          maxWeightGrams: 10000,
+          maxVolumeCubicMeters: 5.5,
+        }
+      ]);
+
+      const list = await repo.findAll();
+      expect(list).toHaveLength(1);
+      expect(list[0].id.value).toBe('WH1-ZONEA-A01-R01-S01-B01');
+    });
+
+    it('should delete a location', async () => {
+      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.warehouseLocation.delete.mockResolvedValue({ id: 'WH1-ZONEA-A01-R01-S01-B01' });
+
+      await repo.delete(new LocationId('WH1-ZONEA-A01-R01-S01-B01'));
+      expect(prismaMock.warehouseLocation.delete).toHaveBeenCalled();
     });
   });
 });

@@ -95,6 +95,10 @@ jest.mock('../../../src/infrastructure/persistence/PostgresStockOnboardingReposi
     };
   }) };
 });
+jest.mock('../../../src/infrastructure/persistence/PostgresWarehouseLocationRepository', () => {
+  const { InMemoryWarehouseLocationRepository } = require('../../../src/infrastructure/persistence/InMemoryWarehouseLocationRepository');
+  return { PostgresWarehouseLocationRepository: InMemoryWarehouseLocationRepository };
+});
 
 import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
 
@@ -441,5 +445,142 @@ describe('GraphQL Resolvers', () => {
         }
       }, mockViewerContext)
     ).rejects.toThrow(/Forbidden: You do not have permission/);
+  });
+
+  it('should manage warehouse locations through queries and mutations', async () => {
+    const input = {
+      id: 'WH1-ZONEA-A03-R02-S01-B10',
+      warehouseId: 'WH1',
+      zone: 'ZONEA',
+      aisle: 'A03',
+      rack: 'R02',
+      shelf: 'S01',
+      bin: 'B10',
+      maxWeightGrams: 50000,
+      maxVolumeCubicMeters: 2.5
+    };
+
+    // 1. Create a warehouse location
+    const created = await (resolvers.Mutation as any).createWarehouseLocation(null, { input });
+    expect(created.id).toBe(input.id);
+    expect(created.maxWeightGrams).toBe(50000);
+
+    // 2. Query specific warehouse location
+    const loc = await (resolvers.Query as any).warehouseLocation(null, { id: input.id });
+    expect(loc).not.toBeNull();
+    expect(loc.warehouseId).toBe('WH1');
+
+    // 3. Query all warehouse locations
+    const list = await (resolvers.Query as any).warehouseLocations(null, {});
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.find((l: any) => l.id === input.id)).toBeDefined();
+
+    // 4. Delete warehouse location
+    const deleted = await (resolvers.Mutation as any).deleteWarehouseLocation(null, { id: input.id });
+    expect(deleted).toBe(true);
+
+    // 5. Verify deletion
+    const locAfterDelete = await (resolvers.Query as any).warehouseLocation(null, { id: input.id });
+    expect(locAfterDelete).toBeNull();
+  });
+
+  it('should allocate, release, and fulfill stock commitments through GraphQL mutations', async () => {
+    const sku = 'SKU-COMMIT';
+    const loc = 'LOC-COMMIT';
+    
+    // Receive some stock to have on-hand inventory
+    await (resolvers.Mutation as any).receiveStock(null, { sku, locationId: loc, amount: 20 });
+
+    // Allocate stock
+    const allocated = await (resolvers.Mutation as any).allocateStock(null, { sku, locationId: loc, amount: 8 });
+    expect(allocated.sku).toBe(sku);
+    expect(allocated.quantity).toBe(20);
+    expect(allocated.allocated).toBe(8);
+    expect(allocated.available).toBe(12);
+
+    // Trying to allocate more than available should throw
+    await expect(
+      (resolvers.Mutation as any).allocateStock(null, { sku, locationId: loc, amount: 15 })
+    ).rejects.toThrow(/Insufficient available stock/);
+
+    // Release some allocation
+    const released = await (resolvers.Mutation as any).releaseAllocation(null, { sku, locationId: loc, amount: 3 });
+    expect(released.allocated).toBe(5);
+    expect(released.available).toBe(15);
+
+    // Fulfill some allocation (ships stock)
+    const fulfilled = await (resolvers.Mutation as any).fulfillAllocation(null, { sku, locationId: loc, amount: 4 });
+    expect(fulfilled.allocated).toBe(1);
+    expect(fulfilled.quantity).toBe(16);
+    expect(fulfilled.available).toBe(15);
+
+    // Create in-transit stock
+    const transitCreated = await (resolvers.Mutation as any).createInTransit(null, { sku, locationId: loc, amount: 10 });
+    expect(transitCreated.inTransit).toBe(10);
+    expect(transitCreated.available).toBe(25);
+
+    // Receive in-transit stock
+    const transitReceived = await (resolvers.Mutation as any).receiveInTransit(null, { sku, locationId: loc, amount: 6 });
+    expect(transitReceived.inTransit).toBe(4);
+    expect(transitReceived.quantity).toBe(22);
+    expect(transitReceived.available).toBe(25);
+  });
+
+  it('should query historical stock levels through the event sourced ledger resolver', async () => {
+    const sku = 'SKU-HIST';
+    const loc = 'LOC-HIST';
+    const productRepo = require('../../../src/infrastructure/graphql/resolvers').productRepository;
+    const { Product } = require('../../../src/domain/entities/Product');
+    const { ProductId } = require('../../../src/domain/valueObjects/ProductId');
+    const { ProductVariant } = require('../../../src/domain/entities/ProductVariant');
+    const { ProductVariantId } = require('../../../src/domain/valueObjects/ProductVariantId');
+    const { VariantAttributeSet } = require('../../../src/domain/valueObjects/VariantAttributeSet');
+    const { VariantAttribute } = require('../../../src/domain/valueObjects/VariantAttribute');
+    const { Sku } = require('../../../src/domain/valueObjects/Sku');
+
+    const map = new Map();
+    const v = new ProductVariant(
+      new ProductVariantId('v-hist'),
+      new ProductId('p-hist'),
+      new Sku(sku),
+      new VariantAttributeSet([new VariantAttribute('color', 'blue')])
+    );
+    map.set(v.id.value, v);
+    const p = new Product(new ProductId('p-hist'), 'Hist Product', map);
+    await productRepo.save(p);
+
+    const t1 = new Date('2026-06-01T10:00:00Z');
+    const t2 = new Date('2026-06-01T11:00:00Z');
+
+    // Perform ledger mutations at simulated historical times
+    jest.useFakeTimers({ now: t1 });
+    await (resolvers.Mutation as any).receiveStock(null, { sku, locationId: loc, amount: 15 });
+
+    jest.useFakeTimers({ now: t2 });
+    await (resolvers.Mutation as any).dispatchStock(null, { sku, locationId: loc, amount: 5 });
+
+    jest.useRealTimers();
+
+    // Query historical balances via GraphQL Query
+    const beforeT1 = await (resolvers.Query as any).historicalStockLevel(null, {
+      sku,
+      locationId: loc,
+      timestamp: '2026-06-01T09:00:00Z'
+    });
+    expect(beforeT1).toBe(0);
+
+    const atT1 = await (resolvers.Query as any).historicalStockLevel(null, {
+      sku,
+      locationId: loc,
+      timestamp: '2026-06-01T10:30:00Z'
+    });
+    expect(atT1).toBe(15);
+
+    const atT2 = await (resolvers.Query as any).historicalStockLevel(null, {
+      sku,
+      locationId: loc,
+      timestamp: '2026-06-01T11:30:00Z'
+    });
+    expect(atT2).toBe(10);
   });
 });

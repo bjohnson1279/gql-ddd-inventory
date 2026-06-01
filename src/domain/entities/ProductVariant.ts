@@ -10,6 +10,8 @@ export class ProductVariant {
     public readonly productId: ProductId,
     public readonly sku: Sku,
     public readonly attributes: VariantAttributeSet,
-    public trackingMode: VariantTrackingMode = VariantTrackingMode.Quantity
+    public trackingMode: VariantTrackingMode = VariantTrackingMode.Quantity,
+    public readonly weightGrams: number = 0,
+    public readonly volumeCubicMeters: number = 0
   ) {}
 }

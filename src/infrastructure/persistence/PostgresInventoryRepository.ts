@@ -15,6 +15,8 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       new Sku(model.sku),
       new LocationId(model.locationId),
       new Quantity(model.quantity),
+      new Quantity(model.allocated),
+      new Quantity(model.inTransit),
       model.version
     );
   }
@@ -52,6 +54,11 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     return items.map(i => this.toDomain(i));
   }
 
+  async findByLocation(locationId: string): Promise<InventoryItem[]> {
+    const items = await this.prisma.inventoryItem.findMany({ where: { locationId } });
+    return items.map(i => this.toDomain(i));
+  }
+
   async findAll(): Promise<InventoryItem[]> {
     const items = await this.prisma.inventoryItem.findMany();
     return items.map(i => this.toDomain(i));
@@ -72,6 +79,8 @@ export class PostgresInventoryRepository implements IInventoryRepository {
             sku: item.sku.value,
             locationId: item.locationId.value,
             quantity: item.quantity.value,
+            allocated: item.allocated.value,
+            inTransit: item.inTransit.value,
             version: item.version
           }
         });
@@ -83,6 +92,8 @@ export class PostgresInventoryRepository implements IInventoryRepository {
           },
           data: {
             quantity: item.quantity.value,
+            allocated: item.allocated.value,
+            inTransit: item.inTransit.value,
             version: item.version
           }
         });
@@ -129,6 +140,8 @@ export class PostgresInventoryRepository implements IInventoryRepository {
               sku: item.sku.value,
               locationId: item.locationId.value,
               quantity: item.quantity.value,
+              allocated: item.allocated.value,
+              inTransit: item.inTransit.value,
               version: item.version
             }
           });
@@ -141,6 +154,8 @@ export class PostgresInventoryRepository implements IInventoryRepository {
             },
             data: {
               quantity: item.quantity.value,
+              allocated: item.allocated.value,
+              inTransit: item.inTransit.value,
               version: item.version
             }
           });

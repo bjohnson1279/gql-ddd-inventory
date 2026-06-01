@@ -20,6 +20,12 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
       .reduce((sum, e) => sum + e.quantity, 0);
   }
 
+  async currentQuantityAt(variantId: ProductVariantId, locationId: LocationId, timestamp: Date): Promise<number> {
+    return this.entries
+      .filter(e => e.variantId.equals(variantId) && e.locationId.equals(locationId) && e.occurredAt <= timestamp)
+      .reduce((sum, e) => sum + e.quantity, 0);
+  }
+
   async currentQuantities(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, number>> {
     const quantities = new Map<string, number>();
     const variantIdStrs = new Set(variantIds.map(id => id.value));

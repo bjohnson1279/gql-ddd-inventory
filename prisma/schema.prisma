@@ -12,6 +12,8 @@ model InventoryItem {
   sku        String
   locationId String
   quantity   Int
+  allocated  Int    @default(0) @map("allocated")
+  inTransit  Int    @default(0) @map("in_transit")
   version    Int
 
   @@unique([sku, locationId])
@@ -32,6 +34,8 @@ model ProductVariant {
   productId           String               @map("product_id") @db.Uuid
   sku                 String               @unique
   trackingMode        String               @default("quantity") @map("tracking_mode")
+  weightGrams         Int?                 @map("weight_grams")
+  volumeCubicMeters   Float?               @map("volume_cubic_meters")
   createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
   product             Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
   attributes          VariantAttribute[]
@@ -279,6 +283,22 @@ model OutboxEvent {
   processedAt DateTime? @map("processed_at") @db.Timestamptz
 
   @@map("outbox_events")
+}
+
+model WarehouseLocation {
+  id                   String   @id // e.g. "WH1-ZONEA-A03-R02-S01-B10"
+  warehouseId          String   @map("warehouse_id")
+  zone                 String
+  aisle                String
+  rack                 String
+  shelf                String
+  bin                  String
+  maxWeightGrams       Int      @map("max_weight_grams")
+  maxVolumeCubicMeters Float    @map("max_volume_cubic_meters")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([warehouseId, zone, aisle, rack, shelf, bin])
+  @@map("warehouse_locations")
 }
 
 

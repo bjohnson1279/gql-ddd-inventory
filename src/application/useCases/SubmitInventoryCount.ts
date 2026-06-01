@@ -3,17 +3,38 @@ import { Quantity } from '../../domain/valueObjects/Quantity';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { CountItemInputDTO, CountResultDTO } from '../dtos/SubmitInventoryCountDTO';
 import { DomainEventDispatcher } from '../services/DomainEventDispatcher';
+import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
 
 export class SubmitInventoryCountUseCase {
   constructor(
     private readonly inventoryRepository: IInventoryRepository,
-    private readonly eventDispatcher: DomainEventDispatcher
+    private readonly eventDispatcher: DomainEventDispatcher,
+    private readonly capacityService?: WMSCapacityService
   ) {}
 
   async execute(counts: CountItemInputDTO[]): Promise<CountResultDTO[]> {
     const results: CountResultDTO[] = [];
 
     if (counts.length === 0) return results;
+
+    if (this.capacityService) {
+      // Group counts by locationId to run one capacity check per location
+      const countsByLocation = new Map<string, { sku: string; quantity: number }[]>();
+      for (const count of counts) {
+        const list = countsByLocation.get(count.locationId) ?? [];
+        list.push({ sku: count.sku, quantity: count.actualQuantity });
+        countsByLocation.set(count.locationId, list);
+      }
+
+      for (const [locationId, items] of countsByLocation.entries()) {
+        const adjustments = items.map(item => ({
+          sku: item.sku,
+          mode: 'absolute' as const,
+          quantity: item.quantity
+        }));
+        await this.capacityService.validateCapacity(locationId, adjustments);
+      }
+    }
 
     const pairs = counts.map(c => ({ sku: c.sku, locationId: c.locationId }));
     const existingItems = await this.inventoryRepository.findBySkuAndLocationBatch(pairs);

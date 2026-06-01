@@ -14,6 +14,7 @@ import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
 import { createDataLoaders } from './infrastructure/graphql/dataloaders';
+import { depthLimitRule, complexityLimitRule } from './infrastructure/graphql/guardrails';
 import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
@@ -64,6 +65,10 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
   // Set up Apollo Server
   const server = new ApolloServer({
     schema,
+    validationRules: [
+      depthLimitRule(5),
+      complexityLimitRule(100)
+    ],
     plugins: [
       // Proper shutdown for the HTTP server
       ApolloServerPluginDrainHttpServer({ httpServer }),

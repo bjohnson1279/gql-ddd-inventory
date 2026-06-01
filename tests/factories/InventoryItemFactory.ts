@@ -41,6 +41,8 @@ export class InventoryItemFactory {
       new Sku(this.sku),
       new LocationId(this.locationId),
       new Quantity(this.quantity),
+      new Quantity(0),
+      new Quantity(0),
       this.version
     );
   }

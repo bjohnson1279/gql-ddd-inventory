@@ -30,6 +30,13 @@ import { DispatchStockUseCase } from '../../application/useCases/DispatchStock';
 import { GetStockLevelsUseCase, GetStockLevelsBySkuUseCase, GetStockLevelBySkuAndLocationUseCase } from '../../application/useCases/GetStockLevels';
 import { SubmitInventoryCountUseCase } from '../../application/useCases/SubmitInventoryCount';
 import { SubmitOpeningBalanceUseCase } from '../../application/useCases/SubmitOpeningBalance';
+import {
+  AllocateStockUseCase,
+  ReleaseAllocationUseCase,
+  FulfillAllocationUseCase,
+  CreateInTransitUseCase,
+  ReceiveInTransitUseCase
+} from '../../application/useCases/ManageAllocations';
 
 import { CreateProductUseCase, AddProductVariantUseCase, GetProductsUseCase, GetProductByIdUseCase } from '../../application/useCases/ManageProducts';
 import { SellKitUseCase, AssembleKitUseCase, DisassembleKitUseCase, CreateKitUseCase } from '../../application/useCases/ManageKits';
@@ -79,6 +86,10 @@ import { PostgresKitRepository } from '../persistence/PostgresKitRepository';
 import { Kit } from '../../domain/entities/Kit';
 import { KitId } from '../../domain/valueObjects/KitId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
+import { PostgresWarehouseLocationRepository } from '../persistence/PostgresWarehouseLocationRepository';
+import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
+import { WarehouseLocation } from '../../domain/entities/WarehouseLocation';
+import { LocationId } from '../../domain/valueObjects/LocationId';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
@@ -99,11 +110,17 @@ export const externalMappingRepository = new PostgresExternalMappingRepository(p
 const uomRepository = new PostgresProductUomConfigurationRepository(prisma);
 const journalRepository = new PostgresJournalRepository(prisma);
 const kitRepository = new PostgresKitRepository(prisma);
+const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
 const serializedInventoryService = new SerializedInventoryService(serializedItemRepository, ledgerRepository);
 export const inventoryService = new InventoryService(ledgerRepository);
+const wmsCapacityService = new WMSCapacityService(
+  inventoryRepository,
+  productRepository,
+  warehouseLocationRepository
+);
 
 // Messaging & Event Bus
 export const eventBus = new InMemoryEventBus();
@@ -116,13 +133,18 @@ eventBus.subscribe('InventoryReconciledEvent', reconciledHandler.handle.bind(rec
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
 // Use Cases
-const receiveStockUseCase = new ReceiveStockUseCase(inventoryRepository);
+const receiveStockUseCase = new ReceiveStockUseCase(inventoryRepository, wmsCapacityService);
 const dispatchStockUseCase = new DispatchStockUseCase(inventoryRepository, eventDispatcher);
 const getStockLevelsUseCase = new GetStockLevelsUseCase(inventoryRepository);
 const getStockLevelsBySkuUseCase = new GetStockLevelsBySkuUseCase(inventoryRepository);
 const getStockLevelBySkuAndLocationUseCase = new GetStockLevelBySkuAndLocationUseCase(inventoryRepository);
-const submitInventoryCountUseCase = new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher);
+const submitInventoryCountUseCase = new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService);
 const submitOpeningBalanceUseCase = new SubmitOpeningBalanceUseCase(openingBalanceService);
+const allocateStockUseCase = new AllocateStockUseCase(inventoryRepository);
+const releaseAllocationUseCase = new ReleaseAllocationUseCase(inventoryRepository);
+const fulfillAllocationUseCase = new FulfillAllocationUseCase(inventoryRepository);
+const createInTransitUseCase = new CreateInTransitUseCase(inventoryRepository);
+const receiveInTransitUseCase = new ReceiveInTransitUseCase(inventoryRepository);
 
 const createProductUseCase = new CreateProductUseCase(productRepository);
 const addProductVariantUseCase = new AddProductVariantUseCase(productRepository);
@@ -444,6 +466,53 @@ export const resolvers = {
           unitCostCents: item.unitCostCents
         }))
       }));
+    },
+    warehouseLocation: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const loc = await warehouseLocationRepository.findById(new LocationId(id));
+      if (!loc) return null;
+      return {
+        id: loc.id.value,
+        warehouseId: loc.warehouseId,
+        zone: loc.zone,
+        aisle: loc.aisle,
+        rack: loc.rack,
+        shelf: loc.shelf,
+        bin: loc.bin,
+        maxWeightGrams: loc.maxWeightGrams,
+        maxVolumeCubicMeters: loc.maxVolumeCubicMeters
+      };
+    },
+    warehouseLocations: async (_: any, __: any, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const list = await warehouseLocationRepository.findAll();
+      return list.map(loc => ({
+        id: loc.id.value,
+        warehouseId: loc.warehouseId,
+        zone: loc.zone,
+        aisle: loc.aisle,
+        rack: loc.rack,
+        shelf: loc.shelf,
+        bin: loc.bin,
+        maxWeightGrams: loc.maxWeightGrams,
+        maxVolumeCubicMeters: loc.maxVolumeCubicMeters
+      }));
+    },
+    historicalStockLevel: async (_: any, { sku, locationId, timestamp }: { sku: string; locationId: string; timestamp: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const product = await productRepository.findBySku(new Sku(sku));
+      if (!product) {
+        throw new Error(`Product variant with SKU ${sku} not found.`);
+      }
+      const variant = product.variants.find(v => v.sku.value === sku);
+      if (!variant) {
+        throw new Error(`Product variant with SKU ${sku} not found.`);
+      }
+      return await ledgerRepository.currentQuantityAt(
+        variant.id,
+        new LocationId(locationId),
+        new Date(timestamp)
+      );
     }
   },
   Mutation: {
@@ -459,6 +528,46 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await dispatchStockUseCase.execute(sku, locationId, amount);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    allocateStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await allocateStockUseCase.execute(sku, locationId, amount);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    releaseAllocation: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await releaseAllocationUseCase.execute(sku, locationId, amount);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    fulfillAllocation: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await fulfillAllocationUseCase.execute(sku, locationId, amount);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createInTransit: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await createInTransitUseCase.execute(sku, locationId, amount);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    receiveInTransit: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await receiveInTransitUseCase.execute(sku, locationId, amount);
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -658,6 +767,45 @@ export const resolvers = {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], undefined, actorId);
         return await submitStockOnboardingUseCase.execute(id, auth.actorId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createWarehouseLocation: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        const loc = new WarehouseLocation(
+          new LocationId(input.id),
+          input.warehouseId,
+          input.zone,
+          input.aisle,
+          input.rack,
+          input.shelf,
+          input.bin,
+          input.maxWeightGrams,
+          input.maxVolumeCubicMeters
+        );
+        await warehouseLocationRepository.save(loc);
+        return {
+          id: loc.id.value,
+          warehouseId: loc.warehouseId,
+          zone: loc.zone,
+          aisle: loc.aisle,
+          rack: loc.rack,
+          shelf: loc.shelf,
+          bin: loc.bin,
+          maxWeightGrams: loc.maxWeightGrams,
+          maxVolumeCubicMeters: loc.maxVolumeCubicMeters
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    deleteWarehouseLocation: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        await warehouseLocationRepository.delete(new LocationId(id));
+        return true;
       } catch (error: any) {
         throw new Error(error.message);
       }

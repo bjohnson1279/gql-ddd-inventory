@@ -5,6 +5,7 @@ export interface IInventoryRepository {
   findBySku(sku: string): Promise<InventoryItem[]>;
   findBySkuAndLocation(sku: string, locationId: string): Promise<InventoryItem | null>;
   findBySkuAndLocationBatch(pairs: { sku: string; locationId: string }[]): Promise<InventoryItem[]>;
+  findByLocation(locationId: string): Promise<InventoryItem[]>;
   save(item: InventoryItem): Promise<void>;
   saveBatch(items: InventoryItem[]): Promise<void>;
   findAll(): Promise<InventoryItem[]>;

@@ -8,5 +8,6 @@ export interface ILedgerRepository {
   currentQuantity(variantId: ProductVariantId, locationId: LocationId): Promise<number>;
   currentQuantities(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, number>>;
   entriesFor(variantId: ProductVariantId, locationId: LocationId): Promise<LedgerEntry[]>;
+  currentQuantityAt(variantId: ProductVariantId, locationId: LocationId, timestamp: Date): Promise<number>;
   hasAnyEntries(variantId: ProductVariantId, locationId: LocationId): Promise<boolean>;
 }

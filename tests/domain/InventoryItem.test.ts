@@ -116,4 +116,114 @@ describe('InventoryItem', () => {
     expect(item.quantity.value).toBe(15);
     expect(item.version).toBe(2);
   });
+
+  describe('Inventory Allocation Engine Invariants', () => {
+    it('should initialize with default allocated and in-transit quantities of 0', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10));
+      expect(item.allocated.value).toBe(0);
+      expect(item.inTransit.value).toBe(0);
+      expect(item.available.value).toBe(10);
+    });
+
+    it('should calculate available stock (ATP) correctly', () => {
+      // On Hand: 10, Allocated: 3, In Transit: 5 -> Available: 10 - 3 + 5 = 12
+      const item = new InventoryItem(
+        '1',
+        new Sku('S1'),
+        new LocationId('L1'),
+        new Quantity(10),
+        new Quantity(3),
+        new Quantity(5)
+      );
+      expect(item.available.value).toBe(12);
+    });
+
+    it('should clamp available stock to 0 if formula evaluates to negative', () => {
+      // On Hand: 2, Allocated: 5, In Transit: 1 -> Available: 2 - 5 + 1 = -2 -> Clamped to 0
+      const item = new InventoryItem(
+        '1',
+        new Sku('S1'),
+        new LocationId('L1'),
+        new Quantity(2),
+        new Quantity(5),
+        new Quantity(1)
+      );
+      expect(item.available.value).toBe(0);
+    });
+
+    it('should successfully allocate stock when available is sufficient', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10));
+      item.allocateStock(new Quantity(4));
+      expect(item.allocated.value).toBe(4);
+      expect(item.available.value).toBe(6);
+      expect(item.version).toBe(2);
+    });
+
+    it('should throw InsufficientAvailableStockError when allocating exceeds available', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(5));
+      expect(() => item.allocateStock(new Quantity(6))).toThrow(
+        /Insufficient available stock/
+      );
+      expect(item.allocated.value).toBe(0);
+    });
+
+    it('should successfully release allocated stock', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10), new Quantity(4));
+      item.releaseAllocation(new Quantity(3));
+      expect(item.allocated.value).toBe(1);
+      expect(item.available.value).toBe(9);
+    });
+
+    it('should throw error when releasing more than allocated', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10), new Quantity(4));
+      expect(() => item.releaseAllocation(new Quantity(5))).toThrow(/Cannot release allocation/);
+    });
+
+    it('should successfully fulfill allocated stock', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10), new Quantity(4));
+      item.fulfillAllocation(new Quantity(3));
+      expect(item.allocated.value).toBe(1);
+      expect(item.quantity.value).toBe(7);
+      expect(item.available.value).toBe(6); // 7 - 1 = 6
+    });
+
+    it('should throw error when fulfilling more than allocated', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10), new Quantity(4));
+      expect(() => item.fulfillAllocation(new Quantity(5))).toThrow(/Cannot fulfill allocation/);
+    });
+
+    it('should successfully create in-transit stock', () => {
+      const item = new InventoryItem('1', new Sku('S1'), new LocationId('L1'), new Quantity(10));
+      item.createInTransit(new Quantity(5));
+      expect(item.inTransit.value).toBe(5);
+      expect(item.available.value).toBe(15); // 10 - 0 + 5 = 15
+    });
+
+    it('should successfully receive in-transit stock', () => {
+      const item = new InventoryItem(
+        '1',
+        new Sku('S1'),
+        new LocationId('L1'),
+        new Quantity(10),
+        new Quantity(0),
+        new Quantity(5)
+      );
+      item.receiveInTransit(new Quantity(3));
+      expect(item.inTransit.value).toBe(2);
+      expect(item.quantity.value).toBe(13);
+      expect(item.available.value).toBe(15); // 13 - 0 + 2 = 15
+    });
+
+    it('should throw error when receiving more than in transit', () => {
+      const item = new InventoryItem(
+        '1',
+        new Sku('S1'),
+        new LocationId('L1'),
+        new Quantity(10),
+        new Quantity(0),
+        new Quantity(5)
+      );
+      expect(() => item.receiveInTransit(new Quantity(6))).toThrow(/Cannot receive in transit/);
+    });
+  });
 });

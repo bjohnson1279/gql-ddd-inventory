@@ -35,7 +35,9 @@ export class PostgresProductRepository implements IProductRepository {
         new ProductId(model.id),
         new Sku(v.sku),
         new VariantAttributeSet(attributes),
-        v.trackingMode as VariantTrackingMode
+        v.trackingMode as VariantTrackingMode,
+        v.weightGrams || 0,
+        v.volumeCubicMeters || 0
       );
       variantsMap.set(variant.id.value, variant);
     }
@@ -89,10 +91,14 @@ export class PostgresProductRepository implements IProductRepository {
             productId: product.id.value,
             sku: variant.sku.value,
             trackingMode: variant.trackingMode,
+            weightGrams: variant.weightGrams,
+            volumeCubicMeters: variant.volumeCubicMeters,
           },
           update: {
             sku: variant.sku.value,
             trackingMode: variant.trackingMode,
+            weightGrams: variant.weightGrams,
+            volumeCubicMeters: variant.volumeCubicMeters,
           },
         });
 

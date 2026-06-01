@@ -3,11 +3,21 @@ import { Quantity } from '../../domain/valueObjects/Quantity';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { InventoryItemDTO } from '../dtos/InventoryItemDTO';
 import { InventoryItemMapper } from '../dtos/InventoryItemMapper';
+import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
 
 export class ReceiveStockUseCase {
-  constructor(private readonly inventoryRepository: IInventoryRepository) {}
+  constructor(
+    private readonly inventoryRepository: IInventoryRepository,
+    private readonly capacityService?: WMSCapacityService
+  ) {}
 
   async execute(sku: string, locationId: string, amount: number): Promise<InventoryItemDTO> {
+    if (this.capacityService) {
+      await this.capacityService.validateCapacity(locationId, [
+        { sku, mode: 'relative', quantity: amount }
+      ]);
+    }
+
     const quantity = new Quantity(amount);
     
     let item = await this.inventoryRepository.findBySkuAndLocation(sku, locationId);

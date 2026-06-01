@@ -145,6 +145,9 @@ export const typeDefs = `#graphql
     sku: String!
     locationId: String!
     quantity: Int!
+    allocated: Int!
+    inTransit: Int!
+    available: Int!
     version: Int!
   }
 
@@ -270,6 +273,30 @@ export const typeDefs = `#graphql
     items: [OpeningBalanceItemInput!]!
   }
 
+  type WarehouseLocation {
+    id: ID!
+    warehouseId: String!
+    zone: String!
+    aisle: String!
+    rack: String!
+    shelf: String!
+    bin: String!
+    maxWeightGrams: Int!
+    maxVolumeCubicMeters: Float!
+  }
+
+  input CreateWarehouseLocationInput {
+    id: ID!
+    warehouseId: String!
+    zone: String!
+    aisle: String!
+    rack: String!
+    shelf: String!
+    bin: String!
+    maxWeightGrams: Int!
+    maxVolumeCubicMeters: Float!
+  }
+
   type Query {
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
@@ -285,6 +312,9 @@ export const typeDefs = `#graphql
     lookupBarcode(barcodeValue: String!): String
     stockOnboarding(id: ID!): StockOnboarding
     stockOnboardings(tenantId: ID!): [StockOnboarding!]!
+    warehouseLocation(id: ID!): WarehouseLocation
+    warehouseLocations: [WarehouseLocation!]!
+    historicalStockLevel(sku: String!, locationId: String!, timestamp: String!): Int!
   }
 
   type InventoryCountResult {
@@ -383,6 +413,11 @@ export const typeDefs = `#graphql
   type Mutation {
     receiveStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     dispatchStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
+    allocateStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
+    releaseAllocation(sku: String!, locationId: String!, amount: Int!): InventoryItem!
+    fulfillAllocation(sku: String!, locationId: String!, amount: Int!): InventoryItem!
+    createInTransit(sku: String!, locationId: String!, amount: Int!): InventoryItem!
+    receiveInTransit(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     submitInventoryCount(counts: [InventoryCountInput!]!): [InventoryCountResult!]!
     submitOpeningBalance(input: SubmitOpeningBalanceInput!): Boolean!
     
@@ -406,6 +441,8 @@ export const typeDefs = `#graphql
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
     login(tenantId: ID!, actorId: ID!, role: String): String!
+    createWarehouseLocation(input: CreateWarehouseLocationInput!): WarehouseLocation!
+    deleteWarehouseLocation(id: ID!): Boolean!
   }
 
   type Subscription {

@@ -61,6 +61,21 @@ export class PostgresLedgerRepository implements ILedgerRepository {
     return result._sum.quantity || 0;
   }
 
+  async currentQuantityAt(variantId: ProductVariantId, locationId: LocationId, timestamp: Date): Promise<number> {
+    const result = await this.prisma.ledgerEntry.aggregate({
+      where: {
+        variantId: variantId.value,
+        locationId: locationId.value,
+        occurredAt: { lte: timestamp }
+      },
+      _sum: {
+        quantity: true,
+      },
+    });
+
+    return result._sum.quantity || 0;
+  }
+
   async currentQuantities(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, number>> {
     if (variantIds.length === 0) {
       return new Map();
