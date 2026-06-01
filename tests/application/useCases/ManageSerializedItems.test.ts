@@ -1,26 +1,12 @@
-import {
-  ReceiveSerializedItemUseCase,
-  GetSerializedItemBySerialUseCase
-} from '../../../src/application/useCases/ManageSerializedItems';
-import { SerializedInventoryService } from '../../../src/domain/services/SerializedInventoryService';
+import { GetSerializedItemBySerialUseCase } from '../../../src/application/useCases/ManageSerializedItems';
 import { ISerializedItemRepository } from '../../../src/domain/repositories/ISerializedItemRepository';
 import { SerialNumber } from '../../../src/domain/valueObjects/SerialNumber';
-import { ProductVariantId } from '../../../src/domain/valueObjects/ProductVariantId';
 import { TenantId } from '../../../src/domain/valueObjects/TenantId';
-import { LocationId } from '../../../src/domain/valueObjects/LocationId';
-import { ActorId } from '../../../src/domain/valueObjects/ActorId';
 
 describe('ManageSerializedItems', () => {
-  let mockSerializedInventoryService: jest.Mocked<SerializedInventoryService>;
   let mockSerialsRepo: jest.Mocked<ISerializedItemRepository>;
 
   beforeEach(() => {
-    mockSerializedInventoryService = {
-      register: jest.fn(),
-      receive: jest.fn(),
-      sell: jest.fn(),
-    } as any;
-
     mockSerialsRepo = {
       isRegistered: jest.fn(),
       save: jest.fn(),
