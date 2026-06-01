@@ -40,6 +40,7 @@ export class PostgresProductRepository implements IProductRepository {
       variantsMap.set(variant.id.value, variant);
     }
 
+    const product = new Product(new ProductId(model.id), model.name);
     (product as unknown as { _variants: Map<string, ProductVariant> })._variants = variantsMap;
     return product;
   }
