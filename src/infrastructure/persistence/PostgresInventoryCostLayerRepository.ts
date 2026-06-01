@@ -80,6 +80,54 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
       });
   }
 
+  async getActiveLayersBatch(
+    variantIds: ProductVariantId[],
+    orderBy: string = 'asc'
+  ): Promise<Map<string, InventoryCostLayer[]>> {
+    if (variantIds.length === 0) return new Map();
+
+    const orderDirection = orderBy.toLowerCase() === 'desc' ? 'desc' : 'asc';
+    const variantIdStrs = variantIds.map(v => v.value);
+
+    const dbLayers = await this.prisma.inventoryCostLayer.findMany({
+      where: {
+        variantId: { in: variantIdStrs },
+        consumedQuantity: {
+          lt: this.prisma.inventoryCostLayer.fields.initialQuantity
+        }
+      },
+      orderBy: {
+        receivedAt: orderDirection,
+      },
+    });
+
+    const activeLayers = dbLayers.map((l) => {
+      const layer = new InventoryCostLayer(
+        new InventoryCostLayerId(l.id),
+        new ProductVariantId(l.variantId),
+        l.initialQuantity,
+        l.unitCostCents,
+        l.receivedAt,
+        l.serialNumber ? new SerialNumber(l.serialNumber) : undefined
+      );
+      (layer as any)._consumedQuantity = l.consumedQuantity;
+      return layer;
+    });
+
+    const map = new Map<string, InventoryCostLayer[]>();
+    for (const v of variantIdStrs) {
+      map.set(v, []);
+    }
+    for (const layer of activeLayers) {
+      const arr = map.get(layer.variantId.value);
+      if (arr) {
+        arr.push(layer);
+      }
+    }
+
+    return map;
+  }
+
   async findBySerial(
     variantId: ProductVariantId,
     serialNumber: SerialNumber
