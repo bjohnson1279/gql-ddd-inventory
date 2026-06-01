@@ -9,12 +9,17 @@ import {
   inventoryService
 } from '../graphql/resolvers';
 
-const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || 'shopify-fallback-secret-key-123';
-
 export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean {
   if (!hmacHeader) return false;
+
+  const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
+    return false;
+  }
+
   const hash = crypto
-    .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
+    .createHmac('sha256', secret)
     .update(rawBody)
     .digest('base64');
   return hash === hmacHeader;
