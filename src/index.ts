@@ -14,7 +14,10 @@ import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-999';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+}
 
 async function startApolloServer() {
   const app = express();
