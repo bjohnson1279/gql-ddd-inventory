@@ -173,7 +173,7 @@ const getStockOnboardingUseCase = new GetStockOnboardingUseCase(stockOnboardingR
 const getStockOnboardingsUseCase = new GetStockOnboardingsUseCase(stockOnboardingRepository);
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 
@@ -630,7 +630,7 @@ export const resolvers = {
       const userRole = role || 'admin';
       return jwt.sign(
         { tenantId, actorId, role: userRole },
-        JWT_SECRET,
+        JWT_SECRET as string,
         { expiresIn: '24h' }
       );
     }
