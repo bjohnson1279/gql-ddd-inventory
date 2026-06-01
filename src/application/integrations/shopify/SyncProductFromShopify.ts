@@ -59,12 +59,18 @@ export class SyncProductFromShopify {
     }
 
     // 2. Sync variants
+    const variantExternalIds = data.variants.map(v => v.id);
+    const existingVariantMappings = await this.mappingRepo.findByExternalIds(
+      iId,
+      variantExternalIds,
+      ExternalEntityType.Variant
+    );
+    const variantMappingMap = new Map(
+      existingVariantMappings.map(m => [m.externalId, m])
+    );
+
     for (const variantData of data.variants) {
-      const variantMapping = await this.mappingRepo.findByExternalId(
-        iId,
-        variantData.id,
-        ExternalEntityType.Variant
-      );
+      const variantMapping = variantMappingMap.get(variantData.id);
 
       if (!variantMapping) {
         // Create new variant

@@ -35,6 +35,7 @@ describe('SyncProductFromShopify', () => {
     const tenantId = 'T1';
     
     mappingRepo.findByExternalId.mockResolvedValue(null);
+    mappingRepo.findByExternalIds.mockResolvedValue([]);
 
     await useCase.execute(integrationId, tenantId, {
       id: 'shop-p-1',
@@ -62,6 +63,7 @@ describe('SyncProductFromShopify', () => {
     
     mappingRepo.findByExternalId.mockResolvedValue(new ExternalMapping(new TenantId(tenantId), new IntegrationId(integrationId), ExternalEntityType.Product, 'internal-p', 'shop-p-1'));
     productRepo.findById.mockResolvedValue(null);
+    mappingRepo.findByExternalIds.mockResolvedValue([]);
 
     await expect(useCase.execute(integrationId, tenantId, {
       id: 'shop-p-1',
