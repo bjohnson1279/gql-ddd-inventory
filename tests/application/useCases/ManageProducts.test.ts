@@ -17,6 +17,7 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('AddProductVariantUseCase', () => {
+    // Covers product not found error path
     it('should throw an error when the product repo returns null (product not found)', async () => {
       // Mock repository to return null, simulating product not found
       productRepo.findById.mockResolvedValue(null);
