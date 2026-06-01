@@ -8,19 +8,7 @@ import { ExternalMapping } from '../../../domain/integrations/entities/ExternalM
 import { ExternalEntityType } from '../../../domain/integrations/enums/IntegrationEnums';
 import { TenantId } from '../../../domain/valueObjects/TenantId';
 import { VariantAttribute } from '../../../domain/valueObjects/VariantAttribute';
-
-export interface ShopifyVariantData {
-  id: string;
-  sku: string;
-  inventoryItemId: string;
-  title: string;
-}
-
-export interface ShopifyProductData {
-  id: string;
-  title: string;
-  variants: ShopifyVariantData[];
-}
+import { ShopifyProductData, ShopifyVariantData } from '../../../domain/integrations/services/IShopifyClient';
 
 export class SyncProductFromShopify {
   constructor(
