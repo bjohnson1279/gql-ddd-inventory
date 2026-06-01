@@ -23,6 +23,29 @@ export class CostLayerService {
     return breakdown;
   }
 
+  async consumeFifoLayersBatch(
+    items: { variantId: ProductVariantId; quantity: number }[]
+  ): Promise<{ breakdowns: Map<string, CostBreakdown>; totalCostCents: number }> {
+    const variantIds = items.map(i => i.variantId);
+    const activeLayersMap = await this.layers.getActiveLayersBatch(variantIds, 'received_at ASC');
+
+    let totalCostCents = 0;
+    const breakdowns = new Map<string, CostBreakdown>();
+    const layersToSave: InventoryCostLayer[] = [];
+
+    for (const item of items) {
+      const activeLayers = activeLayersMap.get(item.variantId.value) || [];
+      const breakdown = this.calculateConsumedCost(activeLayers, item.quantity, true);
+      breakdowns.set(item.variantId.value, breakdown);
+      totalCostCents += breakdown.totalCostCents;
+      layersToSave.push(...activeLayers);
+    }
+
+    await this.layers.saveMany(layersToSave);
+
+    return { breakdowns, totalCostCents };
+  }
+
   async calculateWeightedAverageCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
     const activeLayers = await this.layers.getActiveLayers(variantId);
 

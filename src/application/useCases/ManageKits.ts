@@ -114,21 +114,24 @@ export class AssembleKitUseCase {
 
     // 4. Second pass: Consume FIFO costing layers for components and calculate total components cost
     const costService = new CostLayerService(this.costLayers);
-    let totalCostCents = 0;
 
-    for (const component of kit.components) {
-      const needed = component.quantity * input.quantity;
-      const breakdown = await costService.consumeFifoLayers(component.variantId, needed);
-      totalCostCents += breakdown.totalCostCents;
+    const consumptionItems = kit.components.map(component => ({
+      variantId: component.variantId,
+      quantity: component.quantity * input.quantity
+    }));
 
+    const batchResult = await costService.consumeFifoLayersBatch(consumptionItems);
+    const totalCostCents = batchResult.totalCostCents;
+
+    for (const item of consumptionItems) {
       // Add deduction ledger entry for this component
       const entryId = Math.random().toString(36).substring(2, 15);
       const ledgerEntry = new LedgerEntry(
         new LedgerEntryId(entryId),
         tenantId,
         locationId,
-        component.variantId,
-        -needed,
+        item.variantId,
+        -item.quantity,
         ReasonCode.KitAssembly,
         actorId,
         new Date(),

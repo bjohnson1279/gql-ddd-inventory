@@ -7,12 +7,20 @@ import { SerialNumber } from '../../src/domain/valueObjects/SerialNumber';
 class MockLayerRepo implements IInventoryCostLayerRepository {
   public layers: InventoryCostLayer[] = [];
   async save(layer: InventoryCostLayer): Promise<void> {}
+  async saveMany(layers: InventoryCostLayer[]): Promise<void> {}
   async getActiveLayers(variantId: ProductVariantId, orderBy?: string): Promise<InventoryCostLayer[]> {
     let result = this.layers.filter(l => l.variantId.equals(variantId) && !l.isFullyConsumed());
     if (orderBy === 'received_at ASC') {
       result.sort((a, b) => a.receivedAt.getTime() - b.receivedAt.getTime());
     }
     return result;
+  }
+  async getActiveLayersBatch(variantIds: ProductVariantId[], orderBy?: string): Promise<Map<string, InventoryCostLayer[]>> {
+    const map = new Map<string, InventoryCostLayer[]>();
+    for (const vId of variantIds) {
+      map.set(vId.value, await this.getActiveLayers(vId, orderBy));
+    }
+    return map;
   }
   async findBySerial(variantId: ProductVariantId, serialNumber: SerialNumber): Promise<InventoryCostLayer | null> {
     return this.layers.find(l => l.variantId.equals(variantId) && l.serialNumber?.equals(serialNumber)) || null;
