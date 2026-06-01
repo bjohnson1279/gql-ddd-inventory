@@ -16,7 +16,7 @@ function toUuid(id: string): string {
 export class PostgresKitRepository implements IKitRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: any): Kit {
+  private toDomain(model: import('@prisma/client').Kit & { components?: import('@prisma/client').KitComponent[] }): Kit {
     const kit = new Kit(
       new KitId(model.id),
       new Sku(model.sku),
