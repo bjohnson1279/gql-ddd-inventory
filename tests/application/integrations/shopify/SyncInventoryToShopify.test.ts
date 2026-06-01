@@ -37,6 +37,7 @@ describe('SyncInventoryToShopify', () => {
       currentQuantity: jest.fn(),
       currentQuantities: jest.fn(),
       entriesFor: jest.fn(),
+      currentQuantityAt: jest.fn(),
       hasAnyEntries: jest.fn(),
     };
     shopifyClient = {

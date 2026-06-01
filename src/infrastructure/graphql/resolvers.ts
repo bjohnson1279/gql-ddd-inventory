@@ -72,6 +72,11 @@ import { Sku } from '../../domain/valueObjects/Sku';
 import { SerializedInventoryService } from '../../domain/services/SerializedInventoryService';
 import { InventoryService } from '../../domain/services/InventoryService';
 import { OpeningBalanceService } from '../../domain/services/OpeningBalanceService';
+import { LedgerEntry } from '../../domain/entities/LedgerEntry';
+import { LedgerEntryId } from '../../domain/valueObjects/LedgerEntryId';
+import { TenantId } from '../../domain/valueObjects/TenantId';
+import { ActorId } from '../../domain/valueObjects/ActorId';
+import { ReasonCode } from '../../domain/enums/ReasonCode';
 
 import { PostgresInventoryRepository } from '../persistence/PostgresInventoryRepository';
 import { PostgresProductRepository } from '../persistence/PostgresProductRepository';
@@ -519,7 +524,27 @@ export const resolvers = {
     receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
-        return await receiveStockUseCase.execute(sku, locationId, amount);
+        const result = await receiveStockUseCase.execute(sku, locationId, amount);
+
+        const product = await productRepository.findBySku(new Sku(sku));
+        const variant = product?.variants.find(v => v.sku.value === sku);
+        if (variant) {
+          const tenantId = new TenantId(context?.auth?.tenantId || 'default');
+          const actor = new ActorId(context?.auth?.actorId || 'system');
+          const ledgerEntry = new LedgerEntry(
+            new LedgerEntryId(Math.random().toString(36).substring(2, 15)),
+            tenantId,
+            new LocationId(locationId),
+            variant.id,
+            amount,
+            ReasonCode.PurchaseReceipt,
+            actor,
+            new Date()
+          );
+          await ledgerRepository.append(ledgerEntry);
+        }
+
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -527,7 +552,27 @@ export const resolvers = {
     dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
-        return await dispatchStockUseCase.execute(sku, locationId, amount);
+        const result = await dispatchStockUseCase.execute(sku, locationId, amount);
+
+        const product = await productRepository.findBySku(new Sku(sku));
+        const variant = product?.variants.find(v => v.sku.value === sku);
+        if (variant) {
+          const tenantId = new TenantId(context?.auth?.tenantId || 'default');
+          const actor = new ActorId(context?.auth?.actorId || 'system');
+          const ledgerEntry = new LedgerEntry(
+            new LedgerEntryId(Math.random().toString(36).substring(2, 15)),
+            tenantId,
+            new LocationId(locationId),
+            variant.id,
+            -amount,
+            ReasonCode.Sale,
+            actor,
+            new Date()
+          );
+          await ledgerRepository.append(ledgerEntry);
+        }
+
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }

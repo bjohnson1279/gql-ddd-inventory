@@ -2,6 +2,7 @@ export enum ReasonCode {
   Sale = 'sale',
   KitSale = 'kit_sale',
   PurchaseReceipt = 'purchase_receipt',
+  Restock = 'restock',
   Return = 'return',
   Damage = 'damage',
   Transfer = 'transfer',

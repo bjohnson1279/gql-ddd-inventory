@@ -47,6 +47,7 @@ describe('ManageKits Use Cases', () => {
       currentQuantity: jest.fn(),
       currentQuantities: jest.fn(),
       entriesFor: jest.fn(),
+      currentQuantityAt: jest.fn(),
       hasAnyEntries: jest.fn(),
     };
 
