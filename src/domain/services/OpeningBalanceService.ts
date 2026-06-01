@@ -5,13 +5,13 @@ import { LedgerEntry } from '../entities/LedgerEntry';
 import { LedgerEntryId } from '../valueObjects/LedgerEntryId';
 import { ReasonCode } from '../enums/ReasonCode';
 import { ActorId } from '../valueObjects/ActorId';
-import { OpeningBalancePosted, DomainEvent } from '../events/OnboardingEvents';
+import { OpeningBalancePosted } from '../events/OnboardingEvents';
 
 export class OpeningBalanceService {
   constructor(
     private readonly ledgerRepository: ILedgerRepository,
     // In a real system, we'd inject an event dispatcher
-    private readonly eventDispatcher: (event: DomainEvent) => void = () => {}
+    private readonly eventDispatcher: (event: any) => void = () => {}
   ) {}
 
   async process(onboarding: StockOnboarding, actor: ActorId): Promise<void> {

@@ -4,19 +4,6 @@ export interface ShopifyInventoryLevel {
   available: number;
 }
 
-export interface ShopifyVariantData {
-  id: string;
-  sku: string;
-  inventoryItemId: string;
-  title: string;
-}
-
-export interface ShopifyProductData {
-  id: string;
-  title: string;
-  variants: ShopifyVariantData[];
-}
-
 export interface IShopifyClient {
   setInventory(
     storeDomain: string,
@@ -30,7 +17,7 @@ export interface IShopifyClient {
   upsertProduct(
     storeDomain: string,
     accessToken: string,
-    productData: ShopifyProductData
+    productData: any
   ): Promise<string>;
 
   getInventoryLevels(

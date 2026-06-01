@@ -104,12 +104,9 @@ export class AssembleKitUseCase {
     }
 
     // 3. First pass: Validate component stock level
-    const componentVariantIds = kit.components.map(c => c.variantId);
-    const availableQuantities = await this.ledgerRepo.currentQuantities(componentVariantIds, locationId);
-
     for (const component of kit.components) {
       const needed = component.quantity * input.quantity;
-      const available = availableQuantities.get(component.variantId.value) || 0;
+      const available = await this.ledgerRepo.currentQuantity(component.variantId, locationId);
       if (available < needed) {
         throw new Error(`Insufficient stock for component variant ID ${component.variantId.value}. Needed: ${needed}, Available: ${available}`);
       }
@@ -272,34 +269,17 @@ export class DisassembleKitUseCase {
     let totalEstimatedComponentsCost = 0;
     const componentAvgCosts: { variantId: ProductVariantId; quantity: number; avgUnitCost: number }[] = [];
 
-    // Pre-fetch active layers for all components
-    const componentVariantIds = kit.components.map(c => c.variantId);
-    let componentLayersMap: Map<string, InventoryCostLayer[]>;
-    if (this.costLayers.getActiveLayersBatch) {
-      componentLayersMap = await this.costLayers.getActiveLayersBatch(componentVariantIds);
-    } else {
-      componentLayersMap = new Map();
-      const layersResults = await Promise.all(
-        componentVariantIds.map(v => this.costLayers.getActiveLayers(v))
-      );
-      for (let i = 0; i < componentVariantIds.length; i++) {
-        componentLayersMap.set(componentVariantIds[i].value, layersResults[i]);
-      }
-    }
-
     for (const component of kit.components) {
       const needed = component.quantity * input.quantity;
       let avgUnitCost = 0;
-
       try {
         const breakdown = await costService.calculateWeightedAverageCost(component.variantId, 1);
         avgUnitCost = breakdown.totalCostCents;
       } catch (err) {
         // Fallback if no inventory layers exist for this component
-        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
+        const activeLayers = await this.costLayers.getActiveLayers(component.variantId);
         avgUnitCost = activeLayers.length > 0 ? activeLayers[0].unitCostCents : 1000; // default 10.00
       }
-
       componentAvgCosts.push({
         variantId: component.variantId,
         quantity: needed,
@@ -311,9 +291,6 @@ export class DisassembleKitUseCase {
     const scaleFactor = totalEstimatedComponentsCost > 0 ? totalDisassembledCost / totalEstimatedComponentsCost : 0;
 
     // 6. Restore component variants stock and costing layers
-    const newLayers: InventoryCostLayer[] = [];
-    const newLedgerEntries: LedgerEntry[] = [];
-
     for (const item of componentAvgCosts) {
       const allocatedUnitCost = scaleFactor > 0 ? Math.round(item.avgUnitCost * scaleFactor) : 0;
 
@@ -326,7 +303,7 @@ export class DisassembleKitUseCase {
         allocatedUnitCost,
         new Date()
       );
-      newLayers.push(newLayer);
+      await this.costLayers.save(newLayer);
 
       // Add increment ledger entry for this component
       const entryId = Math.random().toString(36).substring(2, 15);
@@ -341,24 +318,7 @@ export class DisassembleKitUseCase {
         new Date(),
         input.referenceId
       );
-      newLedgerEntries.push(ledgerEntry);
-    }
-
-    // Use batch save methods if available, otherwise fallback to iterative saves
-    if (this.costLayers.saveBatch) {
-      await this.costLayers.saveBatch(newLayers);
-    } else {
-      for (const layer of newLayers) {
-        await this.costLayers.save(layer);
-      }
-    }
-
-    if (this.ledgerRepo.appendBatch) {
-      await this.ledgerRepo.appendBatch(newLedgerEntries);
-    } else {
-      for (const entry of newLedgerEntries) {
-        await this.ledgerRepo.append(entry);
-      }
+      await this.ledgerRepo.append(ledgerEntry);
     }
 
     // 7. Write balanced double-entry Journal Entry to record inventory value shift

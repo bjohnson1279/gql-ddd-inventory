@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { IProductRepository } from '../../domain/repositories/IProductRepository';
 import { Product } from '../../domain/entities/Product';
 import { ProductId } from '../../domain/valueObjects/ProductId';
@@ -9,26 +9,16 @@ import { VariantAttribute } from '../../domain/valueObjects/VariantAttribute';
 import { VariantAttributeSet } from '../../domain/valueObjects/VariantAttributeSet';
 import { VariantTrackingMode } from '../../domain/enums/VariantEnums';
 
-type ProductModel = Prisma.ProductGetPayload<{
-  include: {
-    variants: {
-      include: {
-        attributes: true;
-      };
-    };
-  };
-}>;
-
 export class PostgresProductRepository implements IProductRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: ProductModel): Product {
+  private toDomain(model: any): Product {
     const product = new Product(new ProductId(model.id), model.name);
     const variantsMap = new Map<string, ProductVariant>();
 
     for (const v of model.variants || []) {
       const attributes = (v.attributes || []).map(
-        (a) => new VariantAttribute(a.name, a.value)
+        (a: any) => new VariantAttribute(a.name, a.value)
       );
 
       const variant = new ProductVariant(

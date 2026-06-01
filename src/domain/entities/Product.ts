@@ -4,7 +4,6 @@ import { Sku } from '../valueObjects/Sku';
 import { VariantAttribute } from '../valueObjects/VariantAttribute';
 import { VariantAttributeSet } from '../valueObjects/VariantAttributeSet';
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
-import { VariantTrackingMode } from '../enums/VariantEnums';
 
 export class Product {
   private _variants: Map<string, ProductVariant> = new Map();
@@ -14,7 +13,7 @@ export class Product {
     public readonly name: string
   ) {}
 
-  addVariant(sku: Sku, attributes: VariantAttribute[], trackingMode: VariantTrackingMode = VariantTrackingMode.Quantity): ProductVariant {
+  addVariant(sku: Sku, attributes: VariantAttribute[]): ProductVariant {
     const attributeSet = new VariantAttributeSet(attributes);
 
     // Enforce uniqueness — no duplicate attribute combos per product
@@ -28,8 +27,7 @@ export class Product {
       new ProductVariantId(this.generateId()),
       this.id,
       sku,
-      attributeSet,
-      trackingMode
+      attributeSet
     );
 
     this._variants.set(variant.id.value, variant);

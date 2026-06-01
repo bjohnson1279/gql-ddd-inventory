@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { IKitRepository } from '../../domain/repositories/IKitRepository';
 import { Kit } from '../../domain/entities/Kit';
 import { KitId } from '../../domain/valueObjects/KitId';
@@ -16,7 +16,7 @@ function toUuid(id: string): string {
 export class PostgresKitRepository implements IKitRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: Prisma.KitGetPayload<{ include: { components: true } }>): Kit {
+  private toDomain(model: any): Kit {
     const kit = new Kit(
       new KitId(model.id),
       new Sku(model.sku),
