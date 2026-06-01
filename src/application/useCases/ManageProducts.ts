@@ -32,8 +32,7 @@ export class AddProductVariantUseCase {
     }
 
     const attrs = input.attributes.map((a) => new VariantAttribute(a.name, a.value));
-    const variant = product.addVariant(new Sku(input.sku), attrs);
-    (variant as any).trackingMode = input.trackingMode;
+    const variant = product.addVariant(new Sku(input.sku), attrs, input.trackingMode);
 
     await this.productRepo.save(product);
     return true;
