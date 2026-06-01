@@ -1,4 +1,4 @@
-import { AddProductVariantUseCase, CreateProductUseCase } from '../../../src/application/useCases/ManageProducts';
+import { AddProductVariantUseCase, CreateProductUseCase, GetProductsUseCase, GetProductByIdUseCase } from '../../../src/application/useCases/ManageProducts';
 import { IProductRepository } from '../../../src/domain/repositories/IProductRepository';
 import { Product } from '../../../src/domain/entities/Product';
 import { ProductId } from '../../../src/domain/valueObjects/ProductId';
