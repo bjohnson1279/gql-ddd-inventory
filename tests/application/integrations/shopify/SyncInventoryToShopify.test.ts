@@ -27,6 +27,7 @@ describe('SyncInventoryToShopify', () => {
       save: jest.fn(),
       findByInternalId: jest.fn(),
       findByExternalId: jest.fn(),
+      findByExternalIds: jest.fn(),
       delete: jest.fn(),
     };
     ledgerRepo = {
