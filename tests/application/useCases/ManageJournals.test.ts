@@ -78,6 +78,35 @@ describe('ManageJournals Use Cases', () => {
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should throw an error when creating a journal entry with only credits', async () => {
+      const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
+
+      const input: CreateJournalEntryInput = {
+        id: 'J4',
+        tenantId: 'T1',
+        date: new Date().toISOString(),
+        description: 'Test credit-only entry',
+        method: AccountingMethod.Accrual,
+        lines: [
+          {
+            accountCode: '4000', // Revenue
+            amountCents: 1000,
+            type: DebitCredit.Credit,
+            memo: 'Credit side 1'
+          },
+          {
+            accountCode: '4000', // Revenue
+            amountCents: 500,
+            type: DebitCredit.Credit,
+            memo: 'Credit side 2'
+          }
+        ]
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should throw an error when creating an unbalanced journal entry', async () => {
       const useCase = new CreateJournalEntryUseCase(mockJournalRepo);
 
@@ -148,6 +177,9 @@ describe('ManageJournals Use Cases', () => {
         'Test Entry',
         AccountingMethod.Accrual
       );
+
+      // Access the getter to cover it
+      expect(mockEntry.lines).toEqual([]);
 
       mockJournalRepo.findAllByTenant.mockResolvedValue([mockEntry]);
 
