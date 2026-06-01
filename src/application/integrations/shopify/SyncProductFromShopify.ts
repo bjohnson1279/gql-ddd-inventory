@@ -8,19 +8,7 @@ import { ExternalMapping } from '../../../domain/integrations/entities/ExternalM
 import { ExternalEntityType } from '../../../domain/integrations/enums/IntegrationEnums';
 import { TenantId } from '../../../domain/valueObjects/TenantId';
 import { VariantAttribute } from '../../../domain/valueObjects/VariantAttribute';
-
-export interface ShopifyVariantData {
-  id: string;
-  sku: string;
-  inventoryItemId: string;
-  title: string;
-}
-
-export interface ShopifyProductData {
-  id: string;
-  title: string;
-  variants: ShopifyVariantData[];
-}
+import { ShopifyProductData, ShopifyVariantData } from '../../../domain/integrations/services/IShopifyClient';
 
 export class SyncProductFromShopify {
   constructor(
@@ -59,12 +47,18 @@ export class SyncProductFromShopify {
     }
 
     // 2. Sync variants
+    const variantExternalIds = data.variants.map(v => v.id);
+    const existingVariantMappings = await this.mappingRepo.findByExternalIds(
+      iId,
+      variantExternalIds,
+      ExternalEntityType.Variant
+    );
+    const variantMappingMap = new Map(
+      existingVariantMappings.map(m => [m.externalId, m])
+    );
+
     for (const variantData of data.variants) {
-      const variantMapping = await this.mappingRepo.findByExternalId(
-        iId,
-        variantData.id,
-        ExternalEntityType.Variant
-      );
+      const variantMapping = variantMappingMap.get(variantData.id);
 
       if (!variantMapping) {
         // Create new variant

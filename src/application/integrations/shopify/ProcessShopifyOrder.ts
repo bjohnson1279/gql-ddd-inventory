@@ -50,22 +50,31 @@ export class ProcessShopifyOrder {
 
     const internalLocationId = new LocationId(locationMapping.internalId);
 
-    // 2. Process each line item
-    for (const item of input.lineItems) {
-      const variantMapping = await this.mappingRepo.findByExternalId(
-        integrationId,
-        item.shopifyVariantId,
-        ExternalEntityType.Variant
-      );
+    // 2. Fetch all variant mappings at once to avoid N+1 query
+    const variantExternalIds = input.lineItems.map(item => item.shopifyVariantId);
+    const variantMappingsList = await this.mappingRepo.findByExternalIds(
+      integrationId,
+      variantExternalIds,
+      ExternalEntityType.Variant
+    );
 
-      if (!variantMapping) {
+    const variantMappingsMap = new Map<string, string>();
+    for (const mapping of variantMappingsList) {
+      variantMappingsMap.set(mapping.externalId, mapping.internalId);
+    }
+
+    // 3. Process each line item
+    for (const item of input.lineItems) {
+      const internalId = variantMappingsMap.get(item.shopifyVariantId);
+
+      if (!internalId) {
         console.warn(`No mapping found for Shopify variant ${item.shopifyVariantId}. Skipping.`);
         continue;
       }
 
-      const internalVariantId = new ProductVariantId(variantMapping.internalId);
+      const internalVariantId = new ProductVariantId(internalId);
 
-      // 3. Decrement inventory using the core domain service
+      // 4. Decrement inventory using the core domain service
       await this.inventoryService.decrementForSale(
         tenantId,
         internalLocationId,
