@@ -23,6 +23,7 @@ describe('SyncProductFromShopify', () => {
     mappingRepo = {
       save: jest.fn(),
       findByInternalId: jest.fn(),
+      findManyByInternalId: jest.fn(),
       findByExternalId: jest.fn(),
       findByExternalIds: jest.fn(),
       delete: jest.fn(),
