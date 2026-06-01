@@ -10,13 +10,13 @@ import {
 } from '../graphql/resolvers';
 
 export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean {
-  if (!hmacHeader) return false;
-
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
   if (!secret) {
-    console.error('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
+    console.error('[Shopify Webhook] SHOPIFY_WEBHOOK_SECRET is not configured.');
     return false;
   }
+
+  if (!hmacHeader) return false;
 
   const hash = crypto
     .createHmac('sha256', secret)
