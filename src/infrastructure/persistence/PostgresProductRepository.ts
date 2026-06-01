@@ -12,13 +12,13 @@ import { VariantTrackingMode } from '../../domain/enums/VariantEnums';
 export class PostgresProductRepository implements IProductRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: any): Product {
+  private toDomain(model: import('@prisma/client').Product & { variants?: (import('@prisma/client').ProductVariant & { attributes?: import('@prisma/client').VariantAttribute[] })[] }): Product {
     const product = new Product(new ProductId(model.id), model.name);
     const variantsMap = new Map<string, ProductVariant>();
 
     for (const v of model.variants || []) {
       const attributes = (v.attributes || []).map(
-        (a: any) => new VariantAttribute(a.name, a.value)
+        (a: import('@prisma/client').VariantAttribute) => new VariantAttribute(a.name, a.value)
       );
 
       const variant = new ProductVariant(

@@ -9,7 +9,7 @@ import { Quantity } from '../../domain/valueObjects/Quantity';
 export class PostgresInventoryRepository implements IInventoryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: any): InventoryItem {
+  private toDomain(model: import('@prisma/client').InventoryItem): InventoryItem {
     return new InventoryItem(
       model.id,
       new Sku(model.sku),
