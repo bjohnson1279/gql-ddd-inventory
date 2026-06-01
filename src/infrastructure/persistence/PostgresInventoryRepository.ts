@@ -38,6 +38,20 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     return item ? this.toDomain(item) : null;
   }
 
+  async findBySkusAndLocations(pairs: { sku: string; locationId: string }[]): Promise<InventoryItem[]> {
+    if (pairs.length === 0) return [];
+
+    const items = await this.prisma.inventoryItem.findMany({
+      where: {
+        OR: pairs.map(p => ({
+          sku: p.sku,
+          locationId: p.locationId
+        }))
+      }
+    });
+    return items.map(i => this.toDomain(i));
+  }
+
   async findAll(): Promise<InventoryItem[]> {
     const items = await this.prisma.inventoryItem.findMany();
     return items.map(i => this.toDomain(i));
@@ -74,5 +88,45 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         throw new ConcurrencyError(item.sku.value, item.locationId.value);
       }
     }
+  }
+
+  async saveBatch(items: InventoryItem[]): Promise<void> {
+    if (items.length === 0) return;
+
+    // Use $transaction to perform multiple operations
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const existing = await tx.inventoryItem.findUnique({
+          where: { id: item.id }
+        });
+
+        if (!existing) {
+          await tx.inventoryItem.create({
+            data: {
+              id: item.id,
+              sku: item.sku.value,
+              locationId: item.locationId.value,
+              quantity: item.quantity.value,
+              version: item.version
+            }
+          });
+        } else {
+          const updateResult = await tx.inventoryItem.updateMany({
+            where: {
+              id: item.id,
+              version: item.version - 1
+            },
+            data: {
+              quantity: item.quantity.value,
+              version: item.version
+            }
+          });
+
+          if (updateResult.count === 0) {
+            throw new ConcurrencyError(item.sku.value, item.locationId.value);
+          }
+        }
+      }
+    });
   }
 }

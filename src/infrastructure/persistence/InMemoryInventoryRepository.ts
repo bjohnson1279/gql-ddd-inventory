@@ -36,6 +36,14 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
     return item ? this.cloneItem(item) : null;
   }
 
+  async findBySkusAndLocations(pairs: { sku: string; locationId: string }[]): Promise<InventoryItem[]> {
+    return Array.from(this.items.values())
+      .filter(item =>
+        pairs.some(p => p.sku === item.sku.value && p.locationId === item.locationId.value)
+      )
+      .map(item => this.cloneItem(item));
+  }
+
   async save(item: InventoryItem): Promise<void> {
     const existing = this.items.get(item.id);
     
@@ -45,6 +53,12 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
     }
     
     this.items.set(item.id, item);
+  }
+
+  async saveBatch(items: InventoryItem[]): Promise<void> {
+    for (const item of items) {
+      await this.save(item);
+    }
   }
 
   async findAll(): Promise<InventoryItem[]> {
