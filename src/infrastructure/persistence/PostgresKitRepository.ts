@@ -73,6 +73,16 @@ export class PostgresKitRepository implements IKitRepository {
     return this.toDomain(model);
   }
 
+  async findByIds(ids: KitId[]): Promise<Kit[]> {
+    if (ids.length === 0) return [];
+    const dbIds = ids.map(id => toUuid(id.value));
+    const models = await this.prisma.kit.findMany({
+      where: { id: { in: dbIds } },
+      include: { components: true }
+    });
+    return models.map(m => this.toDomain(m));
+  }
+
   async findBySku(sku: Sku): Promise<Kit | null> {
     const model = await this.prisma.kit.findUnique({
       where: { sku: sku.value },
@@ -80,6 +90,16 @@ export class PostgresKitRepository implements IKitRepository {
     });
     if (!model) return null;
     return this.toDomain(model);
+  }
+
+  async findBySkus(skus: Sku[]): Promise<Kit[]> {
+    if (skus.length === 0) return [];
+    const skuStrs = skus.map(s => s.value);
+    const models = await this.prisma.kit.findMany({
+      where: { sku: { in: skuStrs } },
+      include: { components: true }
+    });
+    return models.map(m => this.toDomain(m));
   }
 
   async delete(id: KitId): Promise<void> {

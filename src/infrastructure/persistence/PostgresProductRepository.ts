@@ -136,6 +136,21 @@ export class PostgresProductRepository implements IProductRepository {
     return this.toDomain(model);
   }
 
+  async findByIds(ids: ProductId[]): Promise<Product[]> {
+    if (ids.length === 0) return [];
+    const models = await this.prisma.product.findMany({
+      where: { id: { in: ids.map(id => id.value) } },
+      include: {
+        variants: {
+          include: {
+            attributes: true,
+          },
+        },
+      },
+    });
+    return models.map(model => this.toDomain(model));
+  }
+
   async findBySku(sku: Sku): Promise<Product | null> {
     const variantModel = await this.prisma.productVariant.findUnique({
       where: { sku: sku.value },
@@ -145,6 +160,17 @@ export class PostgresProductRepository implements IProductRepository {
     if (!variantModel) return null;
 
     return this.findById(new ProductId(variantModel.productId));
+  }
+
+  async findBySkus(skus: Sku[]): Promise<Product[]> {
+    if (skus.length === 0) return [];
+    const skuStrs = skus.map(s => s.value);
+    const variants = await this.prisma.productVariant.findMany({
+      where: { sku: { in: skuStrs } },
+      select: { productId: true },
+    });
+    const productIds = Array.from(new Set(variants.map(v => v.productId)));
+    return this.findByIds(productIds.map(id => new ProductId(id)));
   }
 
   async findAll(): Promise<Product[]> {

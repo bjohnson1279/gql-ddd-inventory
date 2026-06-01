@@ -1,4 +1,5 @@
-import { SyncProductFromShopify, ShopifyProductData } from './src/application/integrations/shopify/SyncProductFromShopify';
+import { SyncProductFromShopify } from './src/application/integrations/shopify/SyncProductFromShopify';
+import { ShopifyProductData } from './src/domain/integrations/services/IShopifyClient';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -13,6 +14,9 @@ class MockProductRepo {
 
 class MockMappingRepo {
   async save() { await delay(1); }
+  async saveBatch(mappings: any[]) {
+    await delay(5); // Simulate batch DB save latency
+  }
   async findByInternalId() { return null; }
   async findByExternalId() {
     await delay(5); // Simulate DB query latency

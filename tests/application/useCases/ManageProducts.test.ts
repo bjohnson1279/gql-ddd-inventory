@@ -11,7 +11,9 @@ describe('ManageProducts Use Cases', () => {
     productRepo = {
       save: jest.fn(),
       findById: jest.fn(),
+      findByIds: jest.fn(),
       findBySku: jest.fn(),
+      findBySkus: jest.fn(),
       findAll: jest.fn(),
     };
   });

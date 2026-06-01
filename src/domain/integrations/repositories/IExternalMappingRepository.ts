@@ -4,6 +4,7 @@ import { ExternalEntityType } from '../enums/IntegrationEnums';
 
 export interface IExternalMappingRepository {
   save(mapping: ExternalMapping): Promise<void>;
+  saveBatch(mappings: ExternalMapping[]): Promise<void>;
   findByInternalId(integrationId: IntegrationId, internalId: string, entityType: ExternalEntityType): Promise<ExternalMapping | null>;
   findManyByInternalId(integrationIds: IntegrationId[], internalId: string, entityType: ExternalEntityType): Promise<ExternalMapping[]>;
   findByExternalId(integrationId: IntegrationId, externalId: string, entityType: ExternalEntityType): Promise<ExternalMapping | null>;

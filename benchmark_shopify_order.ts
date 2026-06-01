@@ -15,7 +15,9 @@ async function run() {
 
   const mappingRepo = {
     save: async () => {},
+    saveBatch: async () => {},
     findByInternalId: async () => null,
+    findManyByInternalId: async () => [],
     findByExternalId: async (id: any, externalId: string, type: any) => {
       // Simulate DB delay
       await new Promise(resolve => setTimeout(resolve, 2));

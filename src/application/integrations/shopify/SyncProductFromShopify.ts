@@ -57,6 +57,9 @@ export class SyncProductFromShopify {
       existingVariantMappings.map(m => [m.externalId, m])
     );
 
+    const newMappings: ExternalMapping[] = [];
+    let hasChanges = false;
+
     for (const variantData of data.variants) {
       const variantMapping = variantMappingMap.get(variantData.id);
 
@@ -66,8 +69,8 @@ export class SyncProductFromShopify {
           new Sku(variantData.sku),
           [new VariantAttribute('title', variantData.title)]
         );
-        await this.productRepo.save(product);
-        await this.mappingRepo.save(new ExternalMapping(
+        hasChanges = true;
+        newMappings.push(new ExternalMapping(
           tId,
           iId,
           ExternalEntityType.Variant,
@@ -78,6 +81,13 @@ export class SyncProductFromShopify {
       } else {
         // Variant already exists, maybe update SKU (ignoring for brevity)
       }
+    }
+
+    if (hasChanges) {
+      await this.productRepo.save(product);
+    }
+    if (newMappings.length > 0) {
+      await this.mappingRepo.saveBatch(newMappings);
     }
   }
 }

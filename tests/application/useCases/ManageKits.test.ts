@@ -30,14 +30,18 @@ describe('ManageKits Use Cases', () => {
     kitRepo = {
       save: jest.fn(),
       findById: jest.fn(),
+      findByIds: jest.fn(),
       findBySku: jest.fn(),
+      findBySkus: jest.fn(),
       delete: jest.fn(),
     };
 
     productRepo = {
       save: jest.fn(),
       findById: jest.fn(),
+      findByIds: jest.fn(),
       findBySku: jest.fn(),
+      findBySkus: jest.fn(),
       findAll: jest.fn(),
     };
 

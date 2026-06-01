@@ -16,6 +16,8 @@ async function run() {
         new Sku(p.sku),
         new LocationId(p.locationId),
         new Quantity(10),
+        new Quantity(0),
+        new Quantity(0),
         1
       ));
     },

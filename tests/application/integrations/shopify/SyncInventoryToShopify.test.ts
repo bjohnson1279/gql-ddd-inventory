@@ -25,6 +25,7 @@ describe('SyncInventoryToShopify', () => {
     };
     mappingRepo = {
       save: jest.fn(),
+      saveBatch: jest.fn(),
       findByInternalId: jest.fn(),
       findManyByInternalId: jest.fn(),
       findByExternalId: jest.fn(),

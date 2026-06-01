@@ -33,7 +33,9 @@ class MockLayerRepo implements IInventoryCostLayerRepository {
     return this.layers[variantId.value] || [];
   }
 
-  async saveMany(layers: InventoryCostLayer[]): Promise<void> {}
+  async saveBatch(layers: InventoryCostLayer[]): Promise<void> {
+    await Promise.all(layers.map(l => this.save(l)));
+  }
   async getActiveLayersBatch(variantIds: ProductVariantId[], orderBy?: string): Promise<Map<string, InventoryCostLayer[]>> {
     const map = new Map();
     for (const v of variantIds) {
@@ -79,7 +81,15 @@ async function runBenchmark() {
   const productRepo = { findBySku: async () => kitProduct } as unknown as IProductRepository;
   const ledgerRepo = {
     currentQuantity: async () => 1000,
-    append: async () => {}
+    currentQuantities: async (ids: ProductVariantId[]) => {
+      const map = new Map<string, number>();
+      for (const id of ids) {
+        map.set(id.value, 1000);
+      }
+      return map;
+    },
+    append: async () => {},
+    appendBatch: async () => {}
   } as unknown as ILedgerRepository;
   const journalRepo = { save: async () => {} } as unknown as IJournalRepository;
 

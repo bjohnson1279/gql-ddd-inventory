@@ -8,5 +8,5 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist"
   },
-  "include": ["benchmark_usecase_mock.ts", "src/**/*"]
+  "include": ["*.ts", "src/**/*"]
 }

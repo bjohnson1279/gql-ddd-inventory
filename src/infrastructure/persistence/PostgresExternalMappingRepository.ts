@@ -52,6 +52,38 @@ export class PostgresExternalMappingRepository implements IExternalMappingReposi
     }
   }
 
+  async saveBatch(mappings: ExternalMapping[]): Promise<void> {
+    if (mappings.length === 0) return;
+
+    await this.prisma.$transaction(
+      mappings.map((mapping) => {
+        const dbIntegrationId = toUuid(mapping.integrationId.value);
+        return this.prisma.externalMapping.upsert({
+          where: {
+            integrationId_entityType_internalId: {
+              integrationId: dbIntegrationId,
+              entityType: mapping.entityType,
+              internalId: mapping.internalId,
+            },
+          },
+          update: {
+            tenantId: mapping.tenantId.value,
+            externalId: mapping.externalId,
+            externalSecondaryId: mapping.externalSecondaryId || null,
+          },
+          create: {
+            tenantId: mapping.tenantId.value,
+            integrationId: dbIntegrationId,
+            entityType: mapping.entityType,
+            internalId: mapping.internalId,
+            externalId: mapping.externalId,
+            externalSecondaryId: mapping.externalSecondaryId || null,
+          },
+        });
+      })
+    );
+  }
+
   async findByInternalId(
     integrationId: IntegrationId,
     internalId: string,

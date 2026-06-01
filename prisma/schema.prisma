@@ -86,6 +86,8 @@ model InventoryCostLayer {
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
   variant          ProductVariant @relation(fields: [variantId], references: [id])
 
+  @@index([variantId, receivedAt])
+  @@index([variantId, serialNumber])
   @@map("inventory_cost_layers")
 }
 
@@ -160,17 +162,17 @@ model ExternalMapping {
 }
 
 model ProductUomConfiguration {
-  sku                    String           @id
-  baseUnitName           String           @map("base_unit_name")
-  baseUnitAbbreviation   String           @map("base_unit_abbreviation")
-  baseUnitCategory       String           @map("base_unit_category")
-  purchaseUnitName       String?          @map("purchase_unit_name")
+  sku                      String           @id
+  baseUnitName             String           @map("base_unit_name")
+  baseUnitAbbreviation     String           @map("base_unit_abbreviation")
+  baseUnitCategory         String           @map("base_unit_category")
+  purchaseUnitName         String?          @map("purchase_unit_name")
   purchaseUnitAbbreviation String?          @map("purchase_unit_abbreviation")
-  purchaseUnitCategory   String?          @map("purchase_unit_category")
-  saleUnitName           String?          @map("sale_unit_name")
-  saleUnitAbbreviation   String?          @map("sale_unit_abbreviation")
-  saleUnitCategory       String?          @map("sale_unit_category")
-  conversionRules        ConversionRule[]
+  purchaseUnitCategory     String?          @map("purchase_unit_category")
+  saleUnitName             String?          @map("sale_unit_name")
+  saleUnitAbbreviation     String?          @map("sale_unit_abbreviation")
+  saleUnitCategory         String?          @map("sale_unit_category")
+  conversionRules          ConversionRule[]
 
   @@map("product_uom_configurations")
 }
@@ -259,15 +261,15 @@ model KitComponent {
 }
 
 model WebhookEvent {
-  id          String   @id
-  topic       String
-  shopDomain  String   @map("shop_domain")
-  payload     String   @db.Text
-  status      String   @default("Pending")
-  attempts    Int      @default(0)
-  lastError   String?  @map("last_error") @db.Text
-  occurredAt  DateTime @map("occurred_at") @db.Timestamptz
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id         String   @id
+  topic      String
+  shopDomain String   @map("shop_domain")
+  payload    String   @db.Text
+  status     String   @default("Pending")
+  attempts   Int      @default(0)
+  lastError  String?  @map("last_error") @db.Text
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("webhook_events")
 }
@@ -300,6 +302,3 @@ model WarehouseLocation {
   @@unique([warehouseId, zone, aisle, rack, shelf, bin])
   @@map("warehouse_locations")
 }
-
-
-

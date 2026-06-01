@@ -20,7 +20,7 @@ class MockRepo implements IInventoryCostLayerRepository {
     await new Promise(r => setTimeout(r, 2));
   }
 
-  async saveMany(layers: InventoryCostLayer[]): Promise<void> {
+  async saveBatch(layers: InventoryCostLayer[]): Promise<void> {
     for (const layer of layers) {
       const existing = this.layers[layer.variantId.value] || [];
       const index = existing.findIndex(l => l.id.equals(layer.id));
@@ -81,11 +81,7 @@ class MockRepo implements IInventoryCostLayerRepository {
       layersToSave.push(...layers);
     }
 
-    if (this.layers.saveMany) {
-      await this.layers.saveMany(layersToSave);
-    } else {
-      await Promise.all(layersToSave.map((l: any) => this.layers.save(l)));
-    }
+    await this.layers.saveBatch(layersToSave);
 
     return { breakdowns, totalCostCents };
   };

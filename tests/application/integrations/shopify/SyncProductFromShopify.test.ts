@@ -17,11 +17,14 @@ describe('SyncProductFromShopify', () => {
     productRepo = {
       save: jest.fn(),
       findById: jest.fn(),
+      findByIds: jest.fn(),
       findBySku: jest.fn(),
+      findBySkus: jest.fn(),
       findAll: jest.fn(),
     };
     mappingRepo = {
       save: jest.fn(),
+      saveBatch: jest.fn(),
       findByInternalId: jest.fn(),
       findManyByInternalId: jest.fn(),
       findByExternalId: jest.fn(),
@@ -51,11 +54,13 @@ describe('SyncProductFromShopify', () => {
       entityType: ExternalEntityType.Product,
       externalId: 'shop-p-1'
     }));
-    expect(mappingRepo.save).toHaveBeenCalledWith(expect.objectContaining({
-      entityType: ExternalEntityType.Variant,
-      externalId: 'shop-v-1',
-      externalSecondaryId: 'shop-inv-1'
-    }));
+    expect(mappingRepo.saveBatch).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({
+        entityType: ExternalEntityType.Variant,
+        externalId: 'shop-v-1',
+        externalSecondaryId: 'shop-inv-1'
+      })
+    ]));
   });
 
   it('should throw error if mapping exists but product not found in repository', async () => {
