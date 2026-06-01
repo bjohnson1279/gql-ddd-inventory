@@ -291,6 +291,9 @@ export class DisassembleKitUseCase {
     const scaleFactor = totalEstimatedComponentsCost > 0 ? totalDisassembledCost / totalEstimatedComponentsCost : 0;
 
     // 6. Restore component variants stock and costing layers
+    const newLayers: InventoryCostLayer[] = [];
+    const newLedgerEntries: LedgerEntry[] = [];
+
     for (const item of componentAvgCosts) {
       const allocatedUnitCost = scaleFactor > 0 ? Math.round(item.avgUnitCost * scaleFactor) : 0;
 
@@ -303,7 +306,7 @@ export class DisassembleKitUseCase {
         allocatedUnitCost,
         new Date()
       );
-      await this.costLayers.save(newLayer);
+      newLayers.push(newLayer);
 
       // Add increment ledger entry for this component
       const entryId = Math.random().toString(36).substring(2, 15);
@@ -318,7 +321,24 @@ export class DisassembleKitUseCase {
         new Date(),
         input.referenceId
       );
-      await this.ledgerRepo.append(ledgerEntry);
+      newLedgerEntries.push(ledgerEntry);
+    }
+
+    // Use batch save methods if available, otherwise fallback to iterative saves
+    if (this.costLayers.saveBatch) {
+      await this.costLayers.saveBatch(newLayers);
+    } else {
+      for (const layer of newLayers) {
+        await this.costLayers.save(layer);
+      }
+    }
+
+    if (this.ledgerRepo.appendBatch) {
+      await this.ledgerRepo.appendBatch(newLedgerEntries);
+    } else {
+      for (const entry of newLedgerEntries) {
+        await this.ledgerRepo.append(entry);
+      }
     }
 
     // 7. Write balanced double-entry Journal Entry to record inventory value shift
