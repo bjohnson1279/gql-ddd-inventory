@@ -171,7 +171,10 @@ const submitStockOnboardingUseCase = new SubmitStockOnboardingUseCase(stockOnboa
 const getStockOnboardingUseCase = new GetStockOnboardingUseCase(stockOnboardingRepository);
 const getStockOnboardingsUseCase = new GetStockOnboardingsUseCase(stockOnboardingRepository);
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-999';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+}
 
 function enforceRole(context: any, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
   // If context.auth is explicitly provided, we must enforce roles even in test mode
