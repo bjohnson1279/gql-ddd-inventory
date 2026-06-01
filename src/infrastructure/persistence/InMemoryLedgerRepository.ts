@@ -10,6 +10,10 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
     this.entries.push(entry);
   }
 
+  async appendBatch(entries: LedgerEntry[]): Promise<void> {
+    this.entries.push(...entries);
+  }
+
   async currentQuantity(variantId: ProductVariantId, locationId: LocationId): Promise<number> {
     return this.entries
       .filter(e => e.variantId.equals(variantId) && e.locationId.equals(locationId))

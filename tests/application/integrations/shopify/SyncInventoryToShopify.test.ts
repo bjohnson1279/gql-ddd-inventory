@@ -33,6 +33,7 @@ describe('SyncInventoryToShopify', () => {
     };
     ledgerRepo = {
       append: jest.fn(),
+      appendBatch: jest.fn(),
       currentQuantity: jest.fn(),
       currentQuantities: jest.fn(),
       entriesFor: jest.fn(),
