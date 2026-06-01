@@ -107,6 +107,44 @@ describe('ManageSerializedItems', () => {
         new ActorId('actor-1')
       );
     });
+
+    it('should throw an error when provided an empty serial number', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: '', // Empty serial number
+        tenantId: 'tenant-1',
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Serial number cannot be empty.');
+    });
+
+    it('should throw an error when provided an empty tenant id', async () => {
+      const useCase = new ReceiveSerializedItemUseCase(
+        mockSerializedInventoryService,
+        mockSerialsRepo
+      );
+
+      const input = {
+        variantId: 'variant-1',
+        serialNumber: 'SN-12345',
+        tenantId: '', // Empty tenant id
+        locationId: 'location-1',
+        actorId: 'actor-1',
+        purchaseOrderId: 'PO-987',
+        unitCostCents: 1500,
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('TenantId cannot be empty');
+    });
   });
 
   describe('GetSerializedItemBySerialUseCase', () => {
