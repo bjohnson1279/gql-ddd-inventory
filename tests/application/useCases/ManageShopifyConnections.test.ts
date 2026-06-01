@@ -52,6 +52,47 @@ describe('ManageShopifyConnections Use Cases', () => {
 
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
+
+    it('should throw an error if the id is empty', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: '',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      })).rejects.toThrow('IntegrationId cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if the tenantId is empty', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: 'int-123',
+        tenantId: '',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      })).rejects.toThrow('TenantId cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      integrationRepo.save.mockRejectedValue(new Error('Database error'));
+
+      await expect(useCase.execute({
+        id: 'int-123',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      })).rejects.toThrow('Database error');
+
+      expect(integrationRepo.save).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('GetShopifyConnectionsUseCase', () => {
