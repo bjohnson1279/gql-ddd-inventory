@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { PubSub } from 'graphql-subscriptions';
+import crypto from 'crypto';
 
 export const pubsub = new PubSub();
 export const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
@@ -418,7 +419,7 @@ export const resolvers = {
     submitOpeningBalance: async (_: any, { input }: { input: any }, context: any) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
-        const onboardingId = Math.random().toString(36).substring(2, 15);
+        const onboardingId = crypto.randomUUID();
         await createStockOnboardingUseCase.execute({
           id: onboardingId,
           tenantId: auth.tenantId,
