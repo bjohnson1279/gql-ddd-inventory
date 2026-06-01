@@ -11,12 +11,13 @@ import { SerializedItemStatus } from '../enums/SerializedItemStatus';
 import { LedgerEntry } from '../entities/LedgerEntry';
 import { LedgerEntryId } from '../valueObjects/LedgerEntryId';
 import { ReasonCode } from '../enums/ReasonCode';
+import { DomainEvent } from '../events/OnboardingEvents';
 
 export class SerializedInventoryService {
   constructor(
     private readonly serials: ISerializedItemRepository,
     private readonly ledger: ILedgerRepository,
-    private readonly eventDispatcher: (event: any) => void = () => {}
+    private readonly eventDispatcher: (event: DomainEvent) => void = () => {}
   ) {}
 
   async register(

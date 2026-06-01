@@ -8,11 +8,12 @@ import { Kit } from '../entities/Kit';
 import { InventoryDecremented } from '../events/InventoryEvents';
 import { LocationId } from '../valueObjects/LocationId';
 import { TenantId } from '../valueObjects/TenantId';
+import { DomainEvent } from '../events/OnboardingEvents';
 
 export class InventoryService {
   constructor(
     private readonly ledgerRepository: ILedgerRepository,
-    private readonly eventDispatcher: (event: any) => void = () => {}
+    private readonly eventDispatcher: (event: DomainEvent) => void = () => {}
   ) {}
 
   async decrementForSale(
