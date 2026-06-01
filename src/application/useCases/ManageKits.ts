@@ -104,9 +104,12 @@ export class AssembleKitUseCase {
     }
 
     // 3. First pass: Validate component stock level
+    const componentVariantIds = kit.components.map(c => c.variantId);
+    const availableQuantities = await this.ledgerRepo.currentQuantities(componentVariantIds, locationId);
+
     for (const component of kit.components) {
       const needed = component.quantity * input.quantity;
-      const available = await this.ledgerRepo.currentQuantity(component.variantId, locationId);
+      const available = availableQuantities.get(component.variantId.value) || 0;
       if (available < needed) {
         throw new Error(`Insufficient stock for component variant ID ${component.variantId.value}. Needed: ${needed}, Available: ${available}`);
       }
