@@ -17,11 +17,13 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('AddProductVariantUseCase', () => {
-    it('should throw an error when product is not found', async () => {
+    it('should throw an error when the product repo returns null (product not found)', async () => {
+      // Mock repository to return null, simulating product not found
       productRepo.findById.mockResolvedValue(null);
 
       const useCase = new AddProductVariantUseCase(productRepo);
 
+      // Execute use case and assert that it throws the expected error
       await expect(useCase.execute({
         productId: 'non-existent-id',
         sku: 'TEST-SKU',
@@ -29,6 +31,7 @@ describe('ManageProducts Use Cases', () => {
         trackingMode: VariantTrackingMode.Quantity
       })).rejects.toThrow('Product non-existent-id not found.');
 
+      // Verify findById was called with correct ID and save was never called
       expect(productRepo.findById).toHaveBeenCalledWith(new ProductId('non-existent-id'));
       expect(productRepo.save).not.toHaveBeenCalled();
     });
@@ -51,6 +54,34 @@ describe('ManageProducts Use Cases', () => {
       expect(product.variants[0].sku.value).toBe('TEST-SKU');
       expect((product.variants[0] as any).trackingMode).toBe(VariantTrackingMode.Quantity);
       expect(productRepo.save).toHaveBeenCalledWith(product);
+    });
+
+    it('should throw an error when a variant with the same attributes already exists on the product', async () => {
+      const product = new Product(new ProductId('prod-1'), 'Test Product');
+      productRepo.findById.mockResolvedValue(product);
+
+      const useCase = new AddProductVariantUseCase(productRepo);
+
+      // Add initial variant
+      await useCase.execute({
+        productId: 'prod-1',
+        sku: 'TEST-SKU-1',
+        attributes: [{ name: 'Color', value: 'Red' }],
+        trackingMode: VariantTrackingMode.Quantity
+      });
+
+      // Clear the save mock to verify it's not called on failure
+      productRepo.save.mockClear();
+
+      // Attempt to add a variant with the same attributes
+      await expect(useCase.execute({
+        productId: 'prod-1',
+        sku: 'TEST-SKU-2',
+        attributes: [{ name: 'Color', value: 'Red' }],
+        trackingMode: VariantTrackingMode.Quantity
+      })).rejects.toThrow('A variant with these attributes already exists on product prod-1.');
+
+      expect(productRepo.save).not.toHaveBeenCalled();
     });
   });
 
