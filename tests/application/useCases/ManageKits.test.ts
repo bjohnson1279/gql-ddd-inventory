@@ -54,6 +54,7 @@ describe('ManageKits Use Cases', () => {
       save: jest.fn(),
       saveBatch: jest.fn(),
       getActiveLayers: jest.fn(),
+      getActiveLayersBatch: jest.fn(),
       findBySerial: jest.fn(),
     };
 
@@ -100,18 +101,20 @@ describe('ManageKits Use Cases', () => {
       });
 
       // Setup costing layer mock: FIFO layers for components
-      costLayers.getActiveLayers.mockImplementation(async (varId) => {
-        if (varId.equals(comp1VariantId)) {
-          return [
-            new InventoryCostLayer(new InventoryCostLayerId('L1'), comp1VariantId, 10, 100, new Date()) // unit cost 100
-          ];
+      costLayers.getActiveLayersBatch.mockImplementation(async (varIds) => {
+        const map = new Map<string, InventoryCostLayer[]>();
+        for (const varId of varIds) {
+          if (varId.equals(comp1VariantId)) {
+            map.set(varId.value, [
+              new InventoryCostLayer(new InventoryCostLayerId('L1'), comp1VariantId, 10, 100, new Date()) // unit cost 100
+            ]);
+          } else if (varId.equals(comp2VariantId)) {
+            map.set(varId.value, [
+              new InventoryCostLayer(new InventoryCostLayerId('L2'), comp2VariantId, 10, 200, new Date()) // unit cost 200
+            ]);
+          }
         }
-        if (varId.equals(comp2VariantId)) {
-          return [
-            new InventoryCostLayer(new InventoryCostLayerId('L2'), comp2VariantId, 10, 200, new Date()) // unit cost 200
-          ];
-        }
-        return [];
+        return map;
       });
 
       const useCase = new AssembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);

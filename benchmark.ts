@@ -1,61 +1,138 @@
-import { ProcessShopifyOrder } from './src/application/integrations/shopify/ProcessShopifyOrder';
-import { IntegrationConnection } from './src/domain/integrations/aggregates/IntegrationConnection';
-import { IntegrationId } from './src/domain/integrations/valueObjects/IntegrationId';
-import { TenantId } from './src/domain/valueObjects/TenantId';
-import { IntegrationPlatform, ExternalEntityType } from './src/domain/integrations/enums/IntegrationEnums';
-import { ExternalMapping } from './src/domain/integrations/entities/ExternalMapping';
+import { CostLayerService } from './src/domain/services/CostLayerService';
+import { ProductVariantId } from './src/domain/valueObjects/ProductVariantId';
+import { InventoryCostLayer, InventoryCostLayerId } from './src/domain/entities/InventoryCostLayer';
+import { IInventoryCostLayerRepository } from './src/domain/repositories/IInventoryCostLayerRepository';
+import { SerialNumber } from './src/domain/valueObjects/SerialNumber';
+import { CostBreakdown } from './src/domain/valueObjects/CostBreakdown';
 
-async function run() {
-  const integrationRepo = {
-    save: async () => {},
-    findById: async () => new IntegrationConnection(new IntegrationId('I1'), new TenantId('T1'), IntegrationPlatform.Shopify, 'test.myshopify.com', 'token'),
-    findAllByTenant: async () => [],
-    findByStoreDomain: async () => null,
-  };
+class MockRepo implements IInventoryCostLayerRepository {
+  public layers: Record<string, InventoryCostLayer[]> = {};
 
-  const mappingRepo = {
-    save: async () => {},
-    findByInternalId: async () => null,
-    findByExternalId: async (id: any, externalId: string, type: any) => {
-      // Simulate DB delay
-      await new Promise(resolve => setTimeout(resolve, 2));
-      if (type === ExternalEntityType.Location && externalId === 'ext-loc') {
-        return new ExternalMapping(new TenantId('T1'), id, type, 'int-loc', externalId);
+  async save(layer: InventoryCostLayer): Promise<void> {
+    const existing = this.layers[layer.variantId.value] || [];
+    const index = existing.findIndex(l => l.id.equals(layer.id));
+    if (index >= 0) {
+      existing[index] = layer;
+    } else {
+      existing.push(layer);
+    }
+    this.layers[layer.variantId.value] = existing;
+    await new Promise(r => setTimeout(r, 2));
+  }
+
+  async saveMany(layers: InventoryCostLayer[]): Promise<void> {
+    for (const layer of layers) {
+      const existing = this.layers[layer.variantId.value] || [];
+      const index = existing.findIndex(l => l.id.equals(layer.id));
+      if (index >= 0) {
+        existing[index] = layer;
+      } else {
+        existing.push(layer);
       }
-      if (type === ExternalEntityType.Variant) {
-        return new ExternalMapping(new TenantId('T1'), id, type, `int-${externalId}`, externalId);
-      }
-      return null;
-    },
-    findByExternalIds: async (id: any, externalIds: string[], type: any) => {
-      await new Promise(resolve => setTimeout(resolve, 2));
-      return externalIds.map(extId => new ExternalMapping(new TenantId('T1'), id, type, `int-${extId}`, extId));
-    },
-    delete: async () => {},
-  };
+      this.layers[layer.variantId.value] = existing;
+    }
+    // Batch save simulated to be faster than N saves
+    await new Promise(r => setTimeout(r, 5));
+  }
 
-  const inventoryService = {
-    decrementForSale: async () => {},
-    decrementForKitSale: async () => {},
-  } as any;
+  async getActiveLayers(variantId: ProductVariantId, orderBy?: string): Promise<InventoryCostLayer[]> {
+    await new Promise(r => setTimeout(r, 2));
+    return this.layers[variantId.value] || [];
+  }
 
-  const useCase = new ProcessShopifyOrder(integrationRepo, mappingRepo, inventoryService);
+  async getActiveLayersBatch(variantIds: ProductVariantId[], orderBy?: string): Promise<Map<string, InventoryCostLayer[]>> {
+    await new Promise(r => setTimeout(r, 5));
+    const map = new Map();
+    for (const v of variantIds) {
+      map.set(v.value, this.layers[v.value] || []);
+    }
+    return map;
+  }
 
-  const numItems = 100;
-  const lineItems = Array.from({ length: numItems }).map((_, i) => ({
-    shopifyVariantId: `ext-v${i}`,
-    quantity: 1
-  }));
-
-  const start = Date.now();
-  await useCase.execute({
-    integrationId: 'I1',
-    shopifyOrderId: '1001',
-    shopifyLocationId: 'ext-loc',
-    lineItems
-  });
-  const end = Date.now();
-  console.log(`Execution time for ${numItems} items: ${end - start} ms`);
+  async findBySerial(variantId: ProductVariantId, serialNumber: SerialNumber): Promise<InventoryCostLayer | null> {
+    return null;
+  }
 }
 
-run().catch(console.error);
+// Monkey-patch CostLayerService for benchmark test
+(CostLayerService.prototype as any).consumeFifoLayersBatch = async function(
+    items: { variantId: ProductVariantId; quantity: number }[]
+  ): Promise<{ breakdowns: Map<string, CostBreakdown>; totalCostCents: number }> {
+    let activeLayersMap: Map<string, InventoryCostLayer[]>;
+    if (this.layers.getActiveLayersBatch) {
+      activeLayersMap = await this.layers.getActiveLayersBatch(items.map((i: any) => i.variantId), 'received_at ASC');
+    } else {
+      activeLayersMap = new Map();
+      await Promise.all(items.map(async (item: any) => {
+        const layers = await this.layers.getActiveLayers(item.variantId, 'received_at ASC');
+        activeLayersMap.set(item.variantId.value, layers);
+      }));
+    }
+
+    let totalCostCents = 0;
+    const breakdowns = new Map<string, CostBreakdown>();
+    const layersToSave: InventoryCostLayer[] = [];
+
+    for (const item of items) {
+      const layers = activeLayersMap.get(item.variantId.value) || [];
+      const breakdown = this.calculateConsumedCost(layers, item.quantity, true);
+      breakdowns.set(item.variantId.value, breakdown);
+      totalCostCents += breakdown.totalCostCents;
+      layersToSave.push(...layers);
+    }
+
+    if (this.layers.saveMany) {
+      await this.layers.saveMany(layersToSave);
+    } else {
+      await Promise.all(layersToSave.map((l: any) => this.layers.save(l)));
+    }
+
+    return { breakdowns, totalCostCents };
+  };
+
+
+async function runBenchmark() {
+  const repo1 = new MockRepo();
+  const service1 = new CostLayerService(repo1);
+
+  const variants = Array.from({ length: 50 }).map((_, i) => new ProductVariantId(`V-${i}`));
+
+  for (const v of variants) {
+    const layer = new InventoryCostLayer(
+      new InventoryCostLayerId(`L-${v.value}`),
+      v,
+      100,
+      10,
+      new Date()
+    );
+    await repo1.save(layer);
+  }
+
+  const startSeq = Date.now();
+  for (const v of variants) {
+    await service1.consumeFifoLayers(v, 1);
+  }
+  const endSeq = Date.now();
+  console.log(`Time taken sequentially: ${endSeq - startSeq}ms`);
+
+  const repo2 = new MockRepo();
+  const service2 = new CostLayerService(repo2);
+  for (const v of variants) {
+    const layer = new InventoryCostLayer(
+      new InventoryCostLayerId(`L-${v.value}`),
+      v,
+      100,
+      10,
+      new Date()
+    );
+    await repo2.save(layer);
+  }
+
+  const startBatch = Date.now();
+  const batchItems = variants.map(v => ({ variantId: v, quantity: 1 }));
+  await (service2 as any).consumeFifoLayersBatch(batchItems);
+  const endBatch = Date.now();
+  console.log(`Time taken batched: ${endBatch - startBatch}ms`);
+}
+
+runBenchmark().catch(console.error);
