@@ -15,7 +15,7 @@ import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 
