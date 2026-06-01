@@ -37,6 +37,7 @@ describe('ShopifyWebhookHandler', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.SHOPIFY_WEBHOOK_SECRET = secret;
 
     jest.mocked(ProcessShopifyOrder).mockImplementation(() => ({
       execute: mockProcessExecute
@@ -71,6 +72,19 @@ describe('ShopifyWebhookHandler', () => {
   it('should return 401 if HMAC signature is missing or invalid', async () => {
     mockReq.body = Buffer.from(JSON.stringify({ id: 123 }));
     mockReq.headers['x-shopify-hmac-sha256'] = 'invalid-hmac';
+
+    await shopifyWebhookHandler(mockReq, mockRes);
+
+    expect(mockRes.status).toHaveBeenCalledWith(401);
+    expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
+  });
+
+  it('should return 401 if SHOPIFY_WEBHOOK_SECRET is not configured', async () => {
+    delete process.env.SHOPIFY_WEBHOOK_SECRET;
+
+    const rawBody = JSON.stringify({ id: 123 });
+    mockReq.body = Buffer.from(rawBody);
+    mockReq.headers['x-shopify-hmac-sha256'] = signBody(rawBody);
 
     await shopifyWebhookHandler(mockReq, mockRes);
 
