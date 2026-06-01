@@ -23,7 +23,6 @@ export class PostgresProductRepository implements IProductRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   private toDomain(model: ProductModel): Product {
-    const product = new Product(new ProductId(model.id), model.name);
     const variantsMap = new Map<string, ProductVariant>();
 
     for (const v of model.variants || []) {
@@ -33,7 +32,7 @@ export class PostgresProductRepository implements IProductRepository {
 
       const variant = new ProductVariant(
         new ProductVariantId(v.id),
-        product.id,
+        new ProductId(model.id),
         new Sku(v.sku),
         new VariantAttributeSet(attributes),
         v.trackingMode as VariantTrackingMode
@@ -41,8 +40,7 @@ export class PostgresProductRepository implements IProductRepository {
       variantsMap.set(variant.id.value, variant);
     }
 
-    (product as any)._variants = variantsMap;
-    return product;
+    return new Product(new ProductId(model.id), model.name, variantsMap);
   }
 
   async save(product: Product): Promise<void> {
