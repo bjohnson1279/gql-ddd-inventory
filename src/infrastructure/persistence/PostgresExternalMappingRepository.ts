@@ -104,6 +104,32 @@ export class PostgresExternalMappingRepository implements IExternalMappingReposi
     );
   }
 
+  async findByExternalIds(
+    integrationId: IntegrationId,
+    externalIds: string[],
+    entityType: ExternalEntityType
+  ): Promise<ExternalMapping[]> {
+    if (externalIds.length === 0) return [];
+
+    const dbIntegrationId = toUuid(integrationId.value);
+    const models = await this.prisma.externalMapping.findMany({
+      where: {
+        integrationId: dbIntegrationId,
+        entityType: entityType,
+        externalId: { in: externalIds },
+      },
+    });
+
+    return models.map(model => new ExternalMapping(
+      new TenantId(model.tenantId),
+      new IntegrationId(model.integrationId),
+      model.entityType as ExternalEntityType,
+      model.internalId,
+      model.externalId,
+      model.externalSecondaryId || undefined
+    ));
+  }
+
   async delete(
     integrationId: IntegrationId,
     internalId: string,

@@ -24,6 +24,7 @@ describe('SyncProductFromShopify', () => {
       save: jest.fn(),
       findByInternalId: jest.fn(),
       findByExternalId: jest.fn(),
+      findByExternalIds: jest.fn(),
       delete: jest.fn(),
     };
     useCase = new SyncProductFromShopify(productRepo, mappingRepo);
