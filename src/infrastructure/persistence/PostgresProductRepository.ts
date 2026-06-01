@@ -41,7 +41,7 @@ export class PostgresProductRepository implements IProductRepository {
       variantsMap.set(variant.id.value, variant);
     }
 
-    (product as any)._variants = variantsMap;
+    (product as unknown as { _variants: Map<string, ProductVariant> })._variants = variantsMap;
     return product;
   }
 
