@@ -267,6 +267,9 @@ describe('ManageJournals Use Cases', () => {
         AccountingMethod.Accrual
       );
 
+      // Access the getter to cover it
+      expect(mockEntry.lines).toEqual([]);
+
       mockJournalRepo.findAllByTenant.mockResolvedValue([mockEntry]);
 
       const result = await useCase.execute('T1');
