@@ -43,6 +43,7 @@ describe('ManageKits Use Cases', () => {
 
     ledgerRepo = {
       append: jest.fn(),
+      appendBatch: jest.fn(),
       currentQuantity: jest.fn(),
       entriesFor: jest.fn(),
       hasAnyEntries: jest.fn(),
@@ -50,6 +51,7 @@ describe('ManageKits Use Cases', () => {
 
     costLayers = {
       save: jest.fn(),
+      saveBatch: jest.fn(),
       getActiveLayers: jest.fn(),
       findBySerial: jest.fn(),
     };
@@ -210,11 +212,13 @@ describe('ManageKits Use Cases', () => {
       // Kit consumed: 2 kits * 400 unit cost = 800 total cost cents.
       // Components restored: 2 kits * 2 = 4 units of comp1.
       // Restored comp1 layer unit cost should be 200 cents (800 / 4).
-      expect(costLayers.save).toHaveBeenCalledWith(expect.objectContaining({
-        variantId: comp1VariantId,
-        initialQuantity: 4,
-        unitCostCents: 200
-      }));
+      expect(costLayers.saveBatch).toHaveBeenCalledWith(expect.arrayContaining([
+        expect.objectContaining({
+          variantId: comp1VariantId,
+          initialQuantity: 4,
+          unitCostCents: 200
+        })
+      ]));
 
       const journalEntry = journalRepo.save.mock.calls[0][0];
       expect(journalEntry.isBalanced()).toBe(true);

@@ -115,6 +115,7 @@ export class AssembleKitUseCase {
     // 4. Second pass: Consume FIFO costing layers for components and calculate total components cost
     const costService = new CostLayerService(this.costLayers);
     let totalCostCents = 0;
+    const ledgerEntriesBatch: LedgerEntry[] = [];
 
     for (const component of kit.components) {
       const needed = component.quantity * input.quantity;
@@ -134,7 +135,7 @@ export class AssembleKitUseCase {
         new Date(),
         input.referenceId
       );
-      await this.ledgerRepo.append(ledgerEntry);
+      ledgerEntriesBatch.push(ledgerEntry);
     }
 
     // 5. Calculate assembled unit cost
@@ -164,7 +165,9 @@ export class AssembleKitUseCase {
       new Date(),
       input.referenceId
     );
-    await this.ledgerRepo.append(kitLedgerEntry);
+    ledgerEntriesBatch.push(kitLedgerEntry);
+
+    await this.ledgerRepo.appendBatch(ledgerEntriesBatch);
 
     // 8. Write balanced double-entry Journal Entry to record inventory value shift
     const journalId = Math.random().toString(36).substring(2, 15);
@@ -263,7 +266,9 @@ export class DisassembleKitUseCase {
       new Date(),
       input.referenceId
     );
-    await this.ledgerRepo.append(kitLedgerEntry);
+
+    const ledgerEntriesBatch: LedgerEntry[] = [kitLedgerEntry];
+    const costLayersBatch: InventoryCostLayer[] = [];
 
     // 5. Estimate components value and distribute cost proportionally
     let totalEstimatedComponentsCost = 0;
@@ -303,7 +308,7 @@ export class DisassembleKitUseCase {
         allocatedUnitCost,
         new Date()
       );
-      await this.costLayers.save(newLayer);
+      costLayersBatch.push(newLayer);
 
       // Add increment ledger entry for this component
       const entryId = Math.random().toString(36).substring(2, 15);
@@ -318,8 +323,11 @@ export class DisassembleKitUseCase {
         new Date(),
         input.referenceId
       );
-      await this.ledgerRepo.append(ledgerEntry);
+      ledgerEntriesBatch.push(ledgerEntry);
     }
+
+    await this.costLayers.saveBatch(costLayersBatch);
+    await this.ledgerRepo.appendBatch(ledgerEntriesBatch);
 
     // 7. Write balanced double-entry Journal Entry to record inventory value shift
     const journalId = Math.random().toString(36).substring(2, 15);

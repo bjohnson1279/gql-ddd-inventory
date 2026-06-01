@@ -7,6 +7,7 @@ import { SerialNumber } from '../../src/domain/valueObjects/SerialNumber';
 class MockLayerRepo implements IInventoryCostLayerRepository {
   public layers: InventoryCostLayer[] = [];
   async save(layer: InventoryCostLayer): Promise<void> {}
+  async saveBatch(layers: InventoryCostLayer[]): Promise<void> {}
   async getActiveLayers(variantId: ProductVariantId, orderBy?: string): Promise<InventoryCostLayer[]> {
     let result = this.layers.filter(l => l.variantId.equals(variantId) && !l.isFullyConsumed());
     if (orderBy === 'received_at ASC') {

@@ -25,6 +25,30 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
     });
   }
 
+  async saveBatch(layers: InventoryCostLayer[]): Promise<void> {
+    if (layers.length === 0) return;
+
+    const upserts = layers.map(layer =>
+      this.prisma.inventoryCostLayer.upsert({
+        where: { id: layer.id.value },
+        create: {
+          id: layer.id.value,
+          variantId: layer.variantId.value,
+          initialQuantity: layer.initialQuantity,
+          consumedQuantity: layer.consumedQuantity,
+          unitCostCents: layer.unitCostCents,
+          receivedAt: layer.receivedAt,
+          serialNumber: layer.serialNumber?.value || null,
+        },
+        update: {
+          consumedQuantity: layer.consumedQuantity,
+        },
+      })
+    );
+
+    await this.prisma.$transaction(upserts);
+  }
+
   async getActiveLayers(
     variantId: ProductVariantId,
     orderBy: string = 'asc'
