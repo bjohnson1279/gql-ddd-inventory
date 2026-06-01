@@ -32,30 +32,31 @@ export class SyncInventoryToShopify {
     const currentQty = await this.ledgerRepo.currentQuantity(vId, lId);
 
     // 3. For each connection, find the mapping and push to Shopify
-    for (const connection of activeShopifyConnections) {
-      // Find variant mapping
-      const variantMapping = await this.mappingRepo.findByInternalId(
-        connection.id,
-        vId.value,
-        ExternalEntityType.Variant
-      );
+    await Promise.all(
+      activeShopifyConnections.map(async (connection) => {
+        const [variantMapping, locationMapping] = await Promise.all([
+          this.mappingRepo.findByInternalId(
+            connection.id,
+            vId.value,
+            ExternalEntityType.Variant
+          ),
+          this.mappingRepo.findByInternalId(
+            connection.id,
+            lId.value,
+            ExternalEntityType.Location
+          )
+        ]);
 
-      // Find location mapping
-      const locationMapping = await this.mappingRepo.findByInternalId(
-        connection.id,
-        lId.value,
-        ExternalEntityType.Location
-      );
-
-      if (variantMapping && locationMapping && variantMapping.externalSecondaryId) {
-        await this.shopifyClient.setInventory(
-          connection.storeDomain,
-          connection.accessToken,
-          variantMapping.externalSecondaryId, // inventoryItemId
-          locationMapping.externalId,
-          currentQty
-        );
-      }
-    }
+        if (variantMapping && locationMapping && variantMapping.externalSecondaryId) {
+          await this.shopifyClient.setInventory(
+            connection.storeDomain,
+            connection.accessToken,
+            variantMapping.externalSecondaryId, // inventoryItemId
+            locationMapping.externalId,
+            currentQty
+          );
+        }
+      })
+    );
   }
 }
