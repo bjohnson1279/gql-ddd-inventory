@@ -23,7 +23,19 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean 
     .createHmac('sha256', secret)
     .update(rawBody)
     .digest('base64');
-  return hash === hmacHeader;
+
+  try {
+    const hashBuffer = Buffer.from(hash);
+    const hmacBuffer = Buffer.from(hmacHeader);
+
+    if (hashBuffer.length !== hmacBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(hashBuffer, hmacBuffer);
+  } catch (err) {
+    return false;
+  }
 }
 
 function validateAndParsePayload(rawBody: string, hmacHeader: string): { isValid: boolean; payload?: any; error?: string; status?: number } {
