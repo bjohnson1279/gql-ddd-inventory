@@ -9,4 +9,14 @@ describe('TenantId', () => {
     expect(id1.equals(id2)).toBe(true);
     expect(id1.equals(id3)).toBe(false);
   });
+
+  it('should throw an error if the id is empty', () => {
+    expect(() => {
+      new TenantId('');
+    }).toThrow('TenantId cannot be empty.');
+
+    expect(() => {
+      new TenantId('   ');
+    }).toThrow('TenantId cannot be empty.');
+  });
 });

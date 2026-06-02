@@ -21,4 +21,16 @@ describe('IntegrationConnection', () => {
     connection.activate();
     expect(connection.isActive).toBe(true);
   });
+
+  it('should throw an error if the store domain is not a valid shopify domain', () => {
+    expect(() => {
+      new IntegrationConnection(
+        new IntegrationId('int-123'),
+        new TenantId('tenant-123'),
+        IntegrationPlatform.Shopify,
+        'invalid-domain.com',
+        'shpat_1234567890'
+      );
+    }).toThrow('Invalid store domain. Must be a .myshopify.com domain.');
+  });
 });
