@@ -672,16 +672,16 @@ function App() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="form-group">
-              <label>Tenant ID</label>
-              <input value={loginTenant} onChange={e => setLoginTenant(e.target.value)} required placeholder="e.g. tenant-1" />
+              <label htmlFor="loginTenant">Tenant ID</label>
+              <input id="loginTenant" value={loginTenant} onChange={e => setLoginTenant(e.target.value)} required placeholder="e.g. tenant-1" />
             </div>
             <div className="form-group">
-              <label>User / Actor ID</label>
-              <input value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
+              <label htmlFor="loginActor">User / Actor ID</label>
+              <input id="loginActor" value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
             </div>
             <div className="form-group">
-              <label>Assign Role</label>
-              <select value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
+              <label htmlFor="loginRole">Assign Role</label>
+              <select id="loginRole" value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
                 <option value="admin">Admin</option>
                 <option value="warehouse_operator">Warehouse Operator</option>
                 <option value="accountant">Accountant</option>
