@@ -76,6 +76,19 @@ describe('ManageOnboardings Use Cases', () => {
       await expect(useCase.execute(input)).rejects.toThrow('LocationId cannot be empty.');
       expect(mockRepo.save).not.toHaveBeenCalled();
     });
+
+    it('should propagate errors if saving to the repository fails', async () => {
+      const useCase = new CreateStockOnboardingUseCase(mockRepo);
+      mockRepo.save.mockRejectedValue(new Error('Database connection failed.'));
+
+      const input = {
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Database connection failed.');
+      expect(mockRepo.save).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('SaveStockOnboardingItemsUseCase', () => {
