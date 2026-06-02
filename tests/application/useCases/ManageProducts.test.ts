@@ -53,16 +53,16 @@ describe('ManageProducts Use Cases', () => {
       expect(productRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should correctly handle the error path when product is missing', async () => {
+    it('should throw an error when the requested productId does not exist in the repository (product not found error path)', async () => {
       productRepo.findById.mockResolvedValue(null);
       const useCase = new AddProductVariantUseCase(productRepo);
       await expect(useCase.execute({
-        productId: 'non-existent-id',
-        sku: 'TEST-SKU',
-        attributes: [{ name: 'Color', value: 'Red' }],
+        productId: 'missing-product-id',
+        sku: 'TEST-SKU-NEW',
+        attributes: [{ name: 'Size', value: 'Large' }],
         trackingMode: VariantTrackingMode.Quantity
-      })).rejects.toThrow('Product non-existent-id not found.');
-      expect(productRepo.findById).toHaveBeenCalledWith(new ProductId('non-existent-id'));
+      })).rejects.toThrow('Product missing-product-id not found.');
+      expect(productRepo.findById).toHaveBeenCalledWith(new ProductId('missing-product-id'));
       expect(productRepo.save).not.toHaveBeenCalled();
     });
 
