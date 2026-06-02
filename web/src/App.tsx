@@ -962,7 +962,7 @@ function App() {
                       />
                     </div>
                     {selectedOnboarding.status === 'draft' && (
-                      <button className="btn btn-danger" onClick={() => setOnboardingItems(onboardingItems.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
+                      <button className="btn btn-danger" aria-label="Remove item" title="Remove item" onClick={() => setOnboardingItems(onboardingItems.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
                         &times;
                       </button>
                     )}
