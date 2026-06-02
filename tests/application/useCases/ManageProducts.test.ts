@@ -32,6 +32,25 @@ describe('ManageProducts Use Cases', () => {
       expect(savedProduct.id.value).toBe('prod-123');
       expect(savedProduct.name).toBe('New Test Product');
     });
+
+    it('should throw an error if the product id is empty', async () => {
+      const useCase = new CreateProductUseCase(productRepo);
+
+      await expect(useCase.execute('', 'New Test Product')).rejects.toThrow('ProductId cannot be empty.');
+
+      expect(productRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors thrown by the repository during save', async () => {
+      const useCase = new CreateProductUseCase(productRepo);
+      const dbError = new Error('Database connection failed');
+
+      productRepo.save.mockRejectedValue(dbError);
+
+      await expect(useCase.execute('prod-123', 'New Test Product')).rejects.toThrow('Database connection failed');
+
+      expect(productRepo.save).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('AddProductVariantUseCase', () => {
@@ -119,21 +138,6 @@ describe('ManageProducts Use Cases', () => {
       })).rejects.toThrow('A variant with these attributes already exists on product prod-1.');
 
       expect(productRepo.save).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('CreateProductUseCase', () => {
-    it('should create a product and save it to the repository', async () => {
-      const useCase = new CreateProductUseCase(productRepo);
-      const result = await useCase.execute('new-prod-id', 'New Product Name');
-
-      expect(result).toBe(true);
-      expect(productRepo.save).toHaveBeenCalledTimes(1);
-
-      const savedProduct = productRepo.save.mock.calls[0][0];
-      expect(savedProduct).toBeInstanceOf(Product);
-      expect(savedProduct.id.value).toBe('new-prod-id');
-      expect(savedProduct.name).toBe('New Product Name');
     });
   });
 
