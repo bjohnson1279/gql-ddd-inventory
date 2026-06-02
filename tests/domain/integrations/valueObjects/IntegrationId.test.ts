@@ -9,4 +9,14 @@ describe('IntegrationId', () => {
     expect(id1.equals(id2)).toBe(true);
     expect(id1.equals(id3)).toBe(false);
   });
+
+  it('should throw an error if the id is empty', () => {
+    expect(() => {
+      new IntegrationId('');
+    }).toThrow('IntegrationId cannot be empty.');
+
+    expect(() => {
+      new IntegrationId('   ');
+    }).toThrow('IntegrationId cannot be empty.');
+  });
 });

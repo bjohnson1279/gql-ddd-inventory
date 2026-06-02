@@ -40,51 +40,7 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(savedConnection.isActive).toBe(true);
     });
 
-    it('should correctly handle activation and deactivation of the connection', async () => {
-      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
-
-      await useCase.execute({
-        id: 'int-123',
-        tenantId: 'tenant-123',
-        storeDomain: 'test-store.myshopify.com',
-        accessToken: 'shpat_1234567890',
-      });
-
-      const savedConnection = integrationRepo.save.mock.calls[0][0] as IntegrationConnection;
-
-      expect(savedConnection.isActive).toBe(true);
-
-      savedConnection.deactivate();
-      expect(savedConnection.isActive).toBe(false);
-
-      savedConnection.activate();
-      expect(savedConnection.isActive).toBe(true);
-    });
-
-    it('should correctly evaluate equality for IntegrationId and TenantId', async () => {
-      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
-
-      await useCase.execute({
-        id: 'int-123',
-        tenantId: 'tenant-123',
-        storeDomain: 'test-store.myshopify.com',
-        accessToken: 'shpat_1234567890',
-      });
-
-      const savedConnection = integrationRepo.save.mock.calls[0][0] as IntegrationConnection;
-
-      const sameIntegrationId = new IntegrationId('int-123');
-      const differentIntegrationId = new IntegrationId('int-456');
-      expect(savedConnection.id.equals(sameIntegrationId)).toBe(true);
-      expect(savedConnection.id.equals(differentIntegrationId)).toBe(false);
-
-      const sameTenantId = new TenantId('tenant-123');
-      const differentTenantId = new TenantId('tenant-456');
-      expect(savedConnection.tenantId.equals(sameTenantId)).toBe(true);
-      expect(savedConnection.tenantId.equals(differentTenantId)).toBe(false);
-    });
-
-    it('should throw an error if the store domain is not a valid shopify domain', async () => {
+    it('should propagate errors when store domain is invalid and prevent saving', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
       await expect(useCase.execute({
@@ -97,7 +53,7 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if the id is empty', async () => {
+    it('should propagate errors when id is empty and prevent saving', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
       await expect(useCase.execute({
@@ -110,7 +66,7 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if the tenantId is empty', async () => {
+    it('should propagate errors when tenantId is empty and prevent saving', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
       await expect(useCase.execute({
@@ -121,6 +77,22 @@ describe('ManageShopifyConnections Use Cases', () => {
       })).rejects.toThrow('TenantId cannot be empty.');
 
       expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should set the platform to Shopify regardless of input and pass an IntegrationConnection to the repository', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await useCase.execute({
+        id: 'int-123',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      });
+
+      expect(integrationRepo.save).toHaveBeenCalledWith(expect.any(IntegrationConnection));
+
+      const savedConnection = integrationRepo.save.mock.calls[0][0] as IntegrationConnection;
+      expect(savedConnection.platform).toBe(IntegrationPlatform.Shopify);
     });
 
     it('should propagate errors from the repository', async () => {
