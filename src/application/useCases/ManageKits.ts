@@ -300,11 +300,12 @@ export class DisassembleKitUseCase {
       let avgUnitCost = 0;
 
       try {
-        const breakdown = await costService.calculateWeightedAverageCost(component.variantId, 1);
+        const activeLayers = componentLayersMap?.get(component.variantId.value);
+        const breakdown = await costService.calculateWeightedAverageCost(component.variantId, 1, activeLayers);
         avgUnitCost = breakdown.totalCostCents;
       } catch (err) {
         // Fallback if no inventory layers exist for this component
-        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
+        const activeLayers = componentLayersMap?.get(component.variantId.value) || [];
         avgUnitCost = activeLayers.length > 0 ? activeLayers[0].unitCostCents : 1000; // default 10.00
       }
 

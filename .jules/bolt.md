@@ -1,0 +1,3 @@
+## 2023-10-25 - [CostLayerService - N+1 Queries in calculateWeightedAverageCost]
+**Learning:** `DisassembleKitUseCase` iterates over all kit components and calls `calculateWeightedAverageCost` on each. Each call to `calculateWeightedAverageCost` calls `getActiveLayers` sequentially, causing an N+1 query problem, taking O(N) time instead of O(1) time. Although `DisassembleKitUseCase` prefetches active layers for all components using `getActiveLayersBatch`, `calculateWeightedAverageCost` doesn't accept prefetched layers and queries them again.
+**Action:** Add a `calculateWeightedAverageCostFromLayers` method or modify `calculateWeightedAverageCost` to take an optional `layers` array, and use it inside `DisassembleKitUseCase` to avoid N+1 queries.

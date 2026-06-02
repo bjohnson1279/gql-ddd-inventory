@@ -46,8 +46,9 @@ export class CostLayerService {
     return { breakdowns, totalCostCents };
   }
 
-  async calculateWeightedAverageCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
-    const activeLayers = await this.layers.getActiveLayers(variantId);
+  // Optimization: Added optional 'layers' parameter to avoid N+1 queries when processing batches (e.g. kit disassembly).
+  async calculateWeightedAverageCost(variantId: ProductVariantId, quantity: number, layers?: InventoryCostLayer[]): Promise<CostBreakdown> {
+    const activeLayers = layers ?? await this.layers.getActiveLayers(variantId);
 
     const totalUnits = activeLayers.reduce((sum, l) => sum + l.remainingQuantity(), 0);
     const totalValue = activeLayers.reduce((sum, l) => sum + l.remainingCostCents(), 0);
