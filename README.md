@@ -36,16 +36,16 @@ JWT_SECRET="fallback-secret-key-999"
 ```
 
 ### 2. Install Dependencies & Generate Prisma Client
-Install NPM packages in both root and web workspace, then sync database schema maps:
+Install dependencies in both root and web workspace using pnpm, then sync database schema maps:
 ```bash
 # Install root packages
-npm install
+pnpm install
 
 # Generate Prisma Client classes
-npx prisma generate
+pnpm exec prisma generate
 
 # Sync schema to target Postgres instance
-npx prisma db push
+pnpm exec prisma db push
 ```
 *(The schema definitions are stored in [schema.prisma](file:///C:/Users/johns/DEV/gql-ddd-inventory/prisma/schema.prisma))*
 
@@ -53,11 +53,11 @@ npx prisma db push
 Boot the GraphQL API and React Web Client simultaneously:
 ```bash
 # Run Backend GraphQL Server (in project root)
-npm run dev
+pnpm run dev
 
 # Run React Client (in a separate terminal inside /web)
 cd web
-npm run dev
+pnpm run dev
 ```
 The React frontend dashboard will boot at `http://localhost:5173/`, connecting directly to the GraphQL server on `http://localhost:4000/graphql`.
 
@@ -124,16 +124,16 @@ Automated database snapshots are scheduled daily using a dedicated cron containe
 Runs the backend unit tests using mocked repositories:
 ```bash
 # Unix / Linux
-npm test
+pnpm test
 
 # Windows (Bypassing PowerShell Script policy)
-powershell -ExecutionPolicy Bypass -Command "npm test"
+powershell -ExecutionPolicy Bypass -Command "pnpm test"
 ```
 
 ### End-To-End Browser Tests (Playwright)
 Executes Chrome automated browser tests inside the web project workspace:
 ```bash
 cd web
-npm run test:e2e
+pnpm run test:e2e
 ```
 All testing workflows, including database pushes and mock runs, are verified inside the [ci.yml](file:///C:/Users/johns/DEV/gql-ddd-inventory/.github/workflows/ci.yml) GitHub Actions automation.
