@@ -589,12 +589,9 @@ export const resolvers = {
     submitOpeningBalance: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
-        const onboardingId = crypto.randomUUID();
-        await createStockOnboardingUseCase.execute({
-          id: onboardingId,
+        const onboardingId = await createStockOnboardingUseCase.execute({
           tenantId: auth.tenantId,
-          locationId: input.locationId,
-          asOfDate: input.asOfDate
+          locationId: input.locationId
         });
         await saveStockOnboardingItemsUseCase.execute({
           id: onboardingId,
@@ -756,7 +753,10 @@ export const resolvers = {
     createStockOnboarding: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
-        return await createStockOnboardingUseCase.execute({ ...input, tenantId: auth.tenantId });
+        return await createStockOnboardingUseCase.execute({
+          tenantId: auth.tenantId,
+          locationId: input.locationId
+        });
       } catch (error: any) {
         throw new Error(error.message);
       }

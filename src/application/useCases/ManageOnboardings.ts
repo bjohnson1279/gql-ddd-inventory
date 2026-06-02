@@ -8,25 +8,24 @@ import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { ActorId } from '../../domain/valueObjects/ActorId';
 
 export interface CreateStockOnboardingInput {
-  id: string;
   tenantId: string;
   locationId: string;
-  asOfDate: string;
 }
 
 export class CreateStockOnboardingUseCase {
   constructor(private readonly onboardingRepo: IStockOnboardingRepository) {}
 
-  async execute(input: CreateStockOnboardingInput): Promise<boolean> {
+  async execute(input: CreateStockOnboardingInput): Promise<string> {
+    const id = new StockOnboardingId(Math.random().toString(36).substring(2, 15));
     const onboarding = new StockOnboarding(
-      new StockOnboardingId(input.id),
+      id,
       new TenantId(input.tenantId),
       new LocationId(input.locationId),
-      new Date(input.asOfDate)
+      new Date()
     );
 
     await this.onboardingRepo.save(onboarding);
-    return true;
+    return id.value;
   }
 }
 
