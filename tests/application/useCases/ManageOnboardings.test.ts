@@ -31,40 +31,49 @@ describe('ManageOnboardings Use Cases', () => {
   });
 
   describe('CreateStockOnboardingUseCase', () => {
-    it('should create and save a new stock onboarding entity successfully and return true', async () => {
+    it('should create and save a new stock onboarding entity successfully and return the generated ID', async () => {
       const useCase = new CreateStockOnboardingUseCase(mockRepo);
 
       const input = {
-        id: 'ob-123',
         tenantId: 'tenant-1',
         locationId: 'loc-1',
-        asOfDate: '2024-01-01T00:00:00.000Z',
       };
 
       const result = await useCase.execute(input);
 
-      expect(result).toBe(true);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
       expect(mockRepo.save).toHaveBeenCalledTimes(1);
 
       const savedEntity = mockRepo.save.mock.calls[0][0];
       expect(savedEntity).toBeInstanceOf(StockOnboarding);
-      expect(savedEntity.id).toEqual(new StockOnboardingId(input.id));
+      expect(savedEntity.id.value).toEqual(result);
       expect(savedEntity.tenantId).toEqual(new TenantId(input.tenantId));
       expect(savedEntity.locationId).toEqual(new LocationId(input.locationId));
-      expect(savedEntity.asOfDate).toEqual(new Date(input.asOfDate));
+      expect(savedEntity.asOfDate).toBeInstanceOf(Date);
     });
 
-    it('should fail if the provided ID is an empty string', async () => {
+    it('should fail if the provided tenant ID is an empty string', async () => {
       const useCase = new CreateStockOnboardingUseCase(mockRepo);
 
       const input = {
-        id: '',
-        tenantId: 'tenant-1',
+        tenantId: '',
         locationId: 'loc-1',
-        asOfDate: '2024-01-01T00:00:00.000Z',
       };
 
-      await expect(useCase.execute(input)).rejects.toThrow('StockOnboardingId cannot be empty.');
+      await expect(useCase.execute(input)).rejects.toThrow('TenantId cannot be empty.');
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should fail if the provided location ID is an empty string', async () => {
+      const useCase = new CreateStockOnboardingUseCase(mockRepo);
+
+      const input = {
+        tenantId: 'tenant-1',
+        locationId: '',
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('LocationId cannot be empty.');
       expect(mockRepo.save).not.toHaveBeenCalled();
     });
   });
@@ -118,6 +127,48 @@ describe('ManageOnboardings Use Cases', () => {
       await expect(useCase.execute(input)).rejects.toThrow('Stock onboarding ob-123 not found.');
       expect(mockRepo.save).not.toHaveBeenCalled();
     });
+
+    it('should fail if an item quantity is negative', async () => {
+      const useCase = new SaveStockOnboardingItemsUseCase(mockRepo);
+
+      const onboardingId = new StockOnboardingId('ob-123');
+      const existingOnboarding = new StockOnboarding(
+        onboardingId,
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        new Date()
+      );
+      mockRepo.findById.mockResolvedValue(existingOnboarding);
+
+      const input = {
+        id: 'ob-123',
+        items: [{ variantId: 'var-1', quantity: -10, unitCostCents: 1000 }],
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Opening balance quantity cannot be negative.');
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should fail if an item unitCostCents is negative', async () => {
+      const useCase = new SaveStockOnboardingItemsUseCase(mockRepo);
+
+      const onboardingId = new StockOnboardingId('ob-123');
+      const existingOnboarding = new StockOnboarding(
+        onboardingId,
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        new Date()
+      );
+      mockRepo.findById.mockResolvedValue(existingOnboarding);
+
+      const input = {
+        id: 'ob-123',
+        items: [{ variantId: 'var-1', quantity: 10, unitCostCents: -1000 }],
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Unit cost cannot be negative.');
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('SubmitStockOnboardingUseCase', () => {
@@ -153,6 +204,42 @@ describe('ManageOnboardings Use Cases', () => {
       await expect(useCase.execute('ob-123', 'actor-1')).rejects.toThrow('Stock onboarding ob-123 not found.');
       expect(mockRepo.save).not.toHaveBeenCalled();
       expect(mockOpeningBalanceService.process).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if submitting an empty onboarding', async () => {
+      const useCase = new SubmitStockOnboardingUseCase(mockRepo, mockOpeningBalanceService);
+
+      const onboardingId = new StockOnboardingId('ob-123');
+      const existingOnboarding = new StockOnboarding(
+        onboardingId,
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        new Date()
+      );
+      // No items added
+      mockRepo.findById.mockResolvedValue(existingOnboarding);
+
+      await expect(useCase.execute('ob-123', 'actor-1')).rejects.toThrow('Cannot submit a stock onboarding with no items.');
+      expect(mockRepo.save).not.toHaveBeenCalled();
+      expect(mockOpeningBalanceService.process).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if submitting an already submitted onboarding', async () => {
+      const useCase = new SubmitStockOnboardingUseCase(mockRepo, mockOpeningBalanceService);
+
+      const onboardingId = new StockOnboardingId('ob-123');
+      const existingOnboarding = new StockOnboarding(
+        onboardingId,
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        new Date()
+      );
+      existingOnboarding.setItem(new ProductVariantId('var-1'), 10, 1000);
+      existingOnboarding.submit();
+
+      mockRepo.findById.mockResolvedValue(existingOnboarding);
+
+      await expect(useCase.execute('ob-123', 'actor-1')).rejects.toThrow();
     });
   });
 

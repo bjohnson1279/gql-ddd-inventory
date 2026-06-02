@@ -369,18 +369,17 @@ describe('GraphQL Resolvers', () => {
     // 1. Create a draft onboarding sheet
     const createResult = await (resolvers.Mutation as any).createStockOnboarding(null, {
       input: {
-        id: 'onb-123',
         tenantId: 'tenant-onb',
         locationId: 'LOC-ONB',
-        asOfDate: '2026-05-30T00:00:00Z'
       }
     });
-    expect(createResult).toBe(true);
+    expect(typeof createResult).toBe('string');
+    const onboardingId = createResult;
 
     // 2. Save items onto the draft
     const saveResult = await (resolvers.Mutation as any).saveStockOnboardingItems(null, {
       input: {
-        id: 'onb-123',
+        id: onboardingId,
         items: [
           { variantId: 'var-1', quantity: 50, unitCostCents: 500 },
           { variantId: 'var-2', quantity: 30, unitCostCents: 1200 }
@@ -390,26 +389,26 @@ describe('GraphQL Resolvers', () => {
     expect(saveResult).toBe(true);
 
     // 3. Query the onboarding sheet
-    const onboarding = await (resolvers.Query as any).stockOnboarding(null, { id: 'onb-123' });
+    const onboarding = await (resolvers.Query as any).stockOnboarding(null, { id: onboardingId }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
     expect(onboarding).not.toBeNull();
     expect(onboarding.status).toBe('draft');
     expect(onboarding.items).toHaveLength(2);
     expect(onboarding.items.find((i: any) => i.variantId === 'var-1')?.quantity).toBe(50);
 
     // 4. Query onboarding sheets by tenant
-    const tenantOnboardings = await (resolvers.Query as any).stockOnboardings(null, { tenantId: 'tenant-onb' });
-    expect(tenantOnboardings).toHaveLength(1);
-    expect(tenantOnboardings[0].id).toBe('onb-123');
+    const tenantOnboardings = await (resolvers.Query as any).stockOnboardings(null, { tenantId: 'tenant-onb' }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
+    expect(tenantOnboardings.length).toBeGreaterThanOrEqual(1);
+    expect(tenantOnboardings.some((t: any) => t.id === onboardingId)).toBe(true);
 
     // 5. Submit the onboarding sheet to the ledger
     const submitResult = await (resolvers.Mutation as any).submitStockOnboarding(null, {
-      id: 'onb-123',
+      id: onboardingId,
       actorId: 'actor-onb'
-    });
+    }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
     expect(submitResult).toBe(true);
 
     // Verify it is submitted now
-    const submittedOnboarding = await (resolvers.Query as any).stockOnboarding(null, { id: 'onb-123' });
+    const submittedOnboarding = await (resolvers.Query as any).stockOnboarding(null, { id: onboardingId }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
     expect(submittedOnboarding.status).toBe('submitted');
   });
 
