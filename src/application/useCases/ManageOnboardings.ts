@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IStockOnboardingRepository } from '../../domain/repositories/IStockOnboardingRepository';
 import { OpeningBalanceService } from '../../domain/services/OpeningBalanceService';
 import { StockOnboarding } from '../../domain/entities/StockOnboarding';
@@ -16,7 +17,7 @@ export class CreateStockOnboardingUseCase {
   constructor(private readonly onboardingRepo: IStockOnboardingRepository) {}
 
   async execute(input: CreateStockOnboardingInput): Promise<string> {
-    const id = new StockOnboardingId(Math.random().toString(36).substring(2, 15));
+    const id = new StockOnboardingId(crypto.randomUUID());
     const onboarding = new StockOnboarding(
       id,
       new TenantId(input.tenantId),

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { ProductId } from '../valueObjects/ProductId';
 import { ProductVariant } from './ProductVariant';
 import { Sku } from '../valueObjects/Sku';
@@ -49,6 +50,6 @@ export class Product {
   }
 
   private generateId(): string {
-    return Math.random().toString(36).substring(2, 15);
+    return crypto.randomUUID();
   }
 }
