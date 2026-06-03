@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { ActorId } from '../valueObjects/ActorId';
@@ -95,6 +96,6 @@ export class InventoryService {
   }
 
   private generateId(): string {
-    return Math.random().toString(36).substring(2, 15);
+    return crypto.randomUUID();
   }
 }

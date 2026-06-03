@@ -14,6 +14,9 @@ export class IntegrationConnection {
     if (!storeDomain.includes('.myshopify.com')) {
         throw new Error('Invalid store domain. Must be a .myshopify.com domain.');
     }
+    if (!accessToken || accessToken.trim().length === 0) {
+      throw new Error('Access token cannot be empty.');
+    }
   }
 
   get isActive(): boolean {
