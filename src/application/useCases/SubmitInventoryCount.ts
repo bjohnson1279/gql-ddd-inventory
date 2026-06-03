@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { Quantity } from '../../domain/valueObjects/Quantity';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
@@ -53,7 +54,7 @@ export class SubmitInventoryCountUseCase {
       // If the item doesn't exist yet, we can create it as part of the count,
       // or throw an error. For a full inventory count, it's common to discover new SKUs.
       if (!item) {
-        const id = Math.random().toString(36).substring(2, 15);
+        const id = crypto.randomUUID();
         item = InventoryItem.createNew(id, count.sku, count.locationId);
         itemsMap.set(key, item);
       }
