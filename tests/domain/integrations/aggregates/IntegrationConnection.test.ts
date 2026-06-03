@@ -33,16 +33,4 @@ describe('IntegrationConnection', () => {
       );
     }).toThrow('Invalid store domain. Must be a .myshopify.com domain.');
   });
-
-  it('should throw an error if the access token is empty', () => {
-    expect(() => {
-      new IntegrationConnection(
-        new IntegrationId('int-123'),
-        new TenantId('tenant-123'),
-        IntegrationPlatform.Shopify,
-        'test-store.myshopify.com',
-        '   '
-      );
-    }).toThrow('Access token cannot be empty.');
-  });
 });

@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { Quantity } from '../../domain/valueObjects/Quantity';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
@@ -12,7 +11,7 @@ export class AllocateStockUseCase {
     const quantity = new Quantity(amount);
     let item = await this.inventoryRepository.findBySkuAndLocation(sku, locationId);
     if (!item) {
-      const id = crypto.randomUUID();
+      const id = Math.random().toString(36).substring(2, 15);
       item = InventoryItem.createNew(id, sku, locationId);
     }
 
@@ -61,7 +60,7 @@ export class CreateInTransitUseCase {
     const quantity = new Quantity(amount);
     let item = await this.inventoryRepository.findBySkuAndLocation(sku, locationId);
     if (!item) {
-      const id = crypto.randomUUID();
+      const id = Math.random().toString(36).substring(2, 15);
       item = InventoryItem.createNew(id, sku, locationId);
     }
 

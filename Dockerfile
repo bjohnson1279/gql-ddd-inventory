@@ -4,8 +4,8 @@ FROM node:20-alpine
 WORKDIR /usr/src/app
 
 # Install app dependencies (will use package-lock.json if present)
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile --silent
+COPY package.json package-lock.json ./
+RUN npm ci --silent
 
 # Copy source
 COPY . .
@@ -14,4 +14,4 @@ COPY . .
 EXPOSE 4000
 
 # Use the start script (uses ts-node in this project)
-CMD ["pnpm", "start"]
+CMD ["npm", "start"]

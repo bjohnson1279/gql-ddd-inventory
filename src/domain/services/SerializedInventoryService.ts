@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { ISerializedItemRepository } from '../repositories/ISerializedItemRepository';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { SerialNumber } from '../valueObjects/SerialNumber';
@@ -117,6 +116,6 @@ export class SerializedInventoryService {
   }
 
   private generateId(): string {
-    return crypto.randomUUID();
+    return Math.random().toString(36).substring(2, 15);
   }
 }

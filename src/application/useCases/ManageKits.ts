@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { Kit } from '../../domain/entities/Kit';
 import { KitId } from '../../domain/valueObjects/KitId';
 import { Sku } from '../../domain/valueObjects/Sku';
@@ -130,7 +129,7 @@ export class AssembleKitUseCase {
 
     for (const item of consumptionItems) {
       // Add deduction ledger entry for this component
-      const entryId = crypto.randomUUID();
+      const entryId = Math.random().toString(36).substring(2, 15);
       const ledgerEntry = new LedgerEntry(
         new LedgerEntryId(entryId),
         tenantId,
@@ -149,7 +148,7 @@ export class AssembleKitUseCase {
     const unitCostCents = Math.round(totalCostCents / input.quantity);
 
     // 6. Create new costing layer for the assembled Kit variant
-    const kitLayerId = crypto.randomUUID();
+    const kitLayerId = Math.random().toString(36).substring(2, 15);
     const newKitLayer = new InventoryCostLayer(
       new InventoryCostLayerId(kitLayerId),
       kitVariant.id,
@@ -160,7 +159,7 @@ export class AssembleKitUseCase {
     await this.costLayers.save(newKitLayer);
 
     // 7. Add increment ledger entry for the Kit variant
-    const kitEntryId = crypto.randomUUID();
+    const kitEntryId = Math.random().toString(36).substring(2, 15);
     const kitLedgerEntry = new LedgerEntry(
       new LedgerEntryId(kitEntryId),
       tenantId,
@@ -177,7 +176,7 @@ export class AssembleKitUseCase {
     await this.ledgerRepo.appendBatch(ledgerEntriesBatch);
 
     // 8. Write balanced double-entry Journal Entry to record inventory value shift
-    const journalId = crypto.randomUUID();
+    const journalId = Math.random().toString(36).substring(2, 15);
     const journalEntry = new JournalEntry(
       new JournalEntryId(journalId),
       tenantId,
@@ -261,7 +260,7 @@ export class DisassembleKitUseCase {
     const totalDisassembledCost = kitBreakdown.totalCostCents;
 
     // Add deduction ledger entry for the Kit variant
-    const kitEntryId = crypto.randomUUID();
+    const kitEntryId = Math.random().toString(36).substring(2, 15);
     const kitLedgerEntry = new LedgerEntry(
       new LedgerEntryId(kitEntryId),
       tenantId,
@@ -300,12 +299,15 @@ export class DisassembleKitUseCase {
       const needed = component.quantity * input.quantity;
       let avgUnitCost = 0;
 
-        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
-        const breakdown = costService.calculateWeightedAverageCostSync(activeLayers, 1, component.variantId.value);
+      try {
+        // Try to get layers from the pre-fetched map, fallback to an empty array
+        // Note: componentLayersMap might be undefined if getActiveLayersBatch was not available and we didn't populate it correctly, but we always populate it in line 290
+        const activeLayers = (componentLayersMap && componentLayersMap.get(component.variantId.value)) || [];
+        const breakdown = costService.calculateWeightedAverageCostSync(activeLayers || [], 1, component.variantId.value);
         avgUnitCost = breakdown.totalCostCents;
       } catch (err) {
         // Fallback if no inventory layers exist for this component
-        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
+        const activeLayers = (componentLayersMap && componentLayersMap.get(component.variantId.value)) || [];
         avgUnitCost = activeLayers.length > 0 ? activeLayers[0].unitCostCents : 1000; // default 10.00
       }
 
@@ -327,7 +329,7 @@ export class DisassembleKitUseCase {
       const allocatedUnitCost = scaleFactor > 0 ? Math.round(item.avgUnitCost * scaleFactor) : 0;
 
       // Add new costing layer for restored component
-      const layerId = crypto.randomUUID();
+      const layerId = Math.random().toString(36).substring(2, 15);
       const newLayer = new InventoryCostLayer(
         new InventoryCostLayerId(layerId),
         item.variantId,
@@ -338,7 +340,7 @@ export class DisassembleKitUseCase {
       newLayers.push(newLayer);
 
       // Add increment ledger entry for this component
-      const entryId = crypto.randomUUID();
+      const entryId = Math.random().toString(36).substring(2, 15);
       const ledgerEntry = new LedgerEntry(
         new LedgerEntryId(entryId),
         tenantId,
@@ -357,7 +359,7 @@ export class DisassembleKitUseCase {
     await this.ledgerRepo.appendBatch(ledgerEntriesBatch.concat(newLedgerEntries));
 
     // 7. Write balanced double-entry Journal Entry to record inventory value shift
-    const journalId = crypto.randomUUID();
+    const journalId = Math.random().toString(36).substring(2, 15);
     const journalEntry = new JournalEntry(
       new JournalEntryId(journalId),
       tenantId,

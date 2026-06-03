@@ -33,41 +33,36 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: 'npm'
 
       - name: Install Root Dependencies
-        run: pnpm install
+        run: npm ci
 
       - name: Generate Prisma Client
-        run: pnpm exec prisma generate
+        run: npx prisma generate
 
       - name: Push Prisma DB Schema
-        run: pnpm exec prisma db push --accept-data-loss
+        run: npx prisma db push --accept-data-loss
 
       - name: Run Backend Jest Tests
-        run: pnpm test
+        run: npm run test
 
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: pnpm install
+        run: npm ci
 
       - name: Build Frontend Assets
         working-directory: ./web
-        run: pnpm run build
+        run: npm run build
 
       - name: Install Playwright Browsers
         working-directory: ./web
-        run: pnpm exec playwright install chromium
+        run: npx playwright install chromium
 
       - name: Run Playwright E2E Tests
         working-directory: ./web
-        run: pnpm run test:e2e
+        run: npm run test:e2e

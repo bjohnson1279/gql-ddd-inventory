@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { IProductRepository } from '../../../domain/repositories/IProductRepository';
 import { IExternalMappingRepository } from '../../../domain/integrations/repositories/IExternalMappingRepository';
 import { Product } from '../../../domain/entities/Product';
@@ -38,7 +37,7 @@ export class SyncProductFromShopify {
     } else {
       // Create new product
       product = new Product(
-        new ProductId(crypto.randomUUID()),
+        new ProductId(Math.random().toString(36).substring(2, 15)),
         data.title
       );
       await this.productRepo.save(product);

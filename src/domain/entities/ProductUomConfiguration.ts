@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { Sku } from '../valueObjects/Sku';
 import { UnitOfMeasure } from '../valueObjects/UnitOfMeasure';
 import { ConversionRule } from './ConversionRule';
@@ -102,6 +101,6 @@ export class ProductUomConfiguration {
   }
 
   private generateId(): string {
-    return crypto.randomUUID();
+    return Math.random().toString(36).substring(2, 15);
   }
 }

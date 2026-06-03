@@ -13,12 +13,10 @@ function toUuid(id: string): string {
   return `${hash.substring(0, 8)}-${hash.substring(8, 12)}-${hash.substring(12, 16)}-${hash.substring(16, 20)}-${hash.substring(20, 32)}`;
 }
 
-type KitModel = Prisma.KitGetPayload<{ include: { components: true } }>;
-
 export class PostgresKitRepository implements IKitRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: KitModel): Kit {
+  private toDomain(model: Prisma.KitGetPayload<{ include: { components: true } }>): Kit {
     const kit = new Kit(
       new KitId(model.id),
       new Sku(model.sku),
