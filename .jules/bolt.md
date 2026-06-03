@@ -1,3 +1,6 @@
 ## 2023-10-25 - [CostLayerService - N+1 Queries in calculateWeightedAverageCost]
 **Learning:** `DisassembleKitUseCase` iterates over all kit components and calls `calculateWeightedAverageCost` on each. Each call to `calculateWeightedAverageCost` calls `getActiveLayers` sequentially, causing an N+1 query problem, taking O(N) time instead of O(1) time. Although `DisassembleKitUseCase` prefetches active layers for all components using `getActiveLayersBatch`, `calculateWeightedAverageCost` doesn't accept prefetched layers and queries them again.
 **Action:** Add a `calculateWeightedAverageCostFromLayers` method or modify `calculateWeightedAverageCost` to take an optional `layers` array, and use it inside `DisassembleKitUseCase` to avoid N+1 queries.
+## 2026-06-03 - [Filter active cost layers in DB instead of memory]
+**Learning:** `getActiveLayers` was fetching all historical layers into memory before filtering out fully consumed layers (`consumedQuantity < initialQuantity`). Over time, this causes significant performance degradation as historical layers accumulate.
+**Action:** Always filter conditions on the database level first if possible. With Prisma, use field reference syntax (`this.prisma.model.fields.field`) to compare two columns directly in the query.

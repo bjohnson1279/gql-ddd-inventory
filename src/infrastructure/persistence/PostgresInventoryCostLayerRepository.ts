@@ -55,9 +55,14 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
   ): Promise<InventoryCostLayer[]> {
     const orderDirection = orderBy.toLowerCase() === 'desc' ? 'desc' : 'asc';
 
+    // Optimization: Filter active layers (consumedQuantity < initialQuantity) at the database level
+    // to reduce memory usage and network transfer, instead of fetching all layers and filtering in memory.
     const dbLayers = await this.prisma.inventoryCostLayer.findMany({
       where: {
         variantId: variantId.value,
+        consumedQuantity: {
+          lt: this.prisma.inventoryCostLayer.fields.initialQuantity
+        }
       },
       orderBy: {
         receivedAt: orderDirection,
@@ -65,7 +70,6 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
     });
 
     return dbLayers
-      .filter((l) => l.consumedQuantity < l.initialQuantity)
       .map((l) => {
         const layer = new InventoryCostLayer(
           new InventoryCostLayerId(l.id),
