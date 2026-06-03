@@ -79,6 +79,19 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should propagate errors when accessToken is empty and prevent saving', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: 'int-123',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: '   ',
+      })).rejects.toThrow('Access token cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should set the platform to Shopify regardless of input and pass an IntegrationConnection to the repository', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
