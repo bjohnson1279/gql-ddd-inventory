@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { Sku } from '../valueObjects/Sku';
 import { BarcodeAssignment } from './BarcodeAssignment';
 import { Barcode } from '../valueObjects/Barcode';
@@ -94,6 +93,6 @@ export class VariantBarcodeSet {
   }
 
   private generateId(): string {
-    return crypto.randomUUID();
+    return Math.random().toString(36).substring(2, 15);
   }
 }

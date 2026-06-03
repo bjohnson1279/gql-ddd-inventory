@@ -672,16 +672,16 @@ function App() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="form-group">
-              <label htmlFor="loginTenant">Tenant ID</label>
-              <input id="loginTenant" value={loginTenant} onChange={e => setLoginTenant(e.target.value)} required placeholder="e.g. tenant-1" />
+              <label>Tenant ID</label>
+              <input value={loginTenant} onChange={e => setLoginTenant(e.target.value)} required placeholder="e.g. tenant-1" />
             </div>
             <div className="form-group">
-              <label htmlFor="loginActor">User / Actor ID</label>
-              <input id="loginActor" value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
+              <label>User / Actor ID</label>
+              <input value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
             </div>
             <div className="form-group">
-              <label htmlFor="loginRole">Assign Role</label>
-              <select id="loginRole" value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
+              <label>Assign Role</label>
+              <select value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
                 <option value="admin">Admin</option>
                 <option value="warehouse_operator">Warehouse Operator</option>
                 <option value="accountant">Accountant</option>
@@ -1233,12 +1233,12 @@ function App() {
               <h2 className="form-section-title">Live Barcode Scan Dispatcher</h2>
               <form onSubmit={handleDispatchScan}>
                 <div className="form-group">
-                  <label htmlFor="scan-barcode-value">Scan Barcode Value</label>
-                  <input id="scan-barcode-value" value={scanVal} onChange={e => setScanVal(e.target.value)} placeholder="Scan / Type Barcode Value" required autoFocus />
+                  <label>Scan Barcode Value</label>
+                  <input value={scanVal} onChange={e => setScanVal(e.target.value)} placeholder="Scan / Type Barcode Value" required />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="scan-workflow-context">Scan Workflow Context</label>
-                  <select id="scan-workflow-context" value={scanContext} onChange={e => setScanContext(e.target.value as any)}>
+                  <label>Scan Workflow Context</label>
+                  <select value={scanContext} onChange={e => setScanContext(e.target.value as any)}>
                     <option value="pos">Point of Sale (Decrement inventory)</option>
                     <option value="receiving">Warehouse Receiving (Increment inventory)</option>
                     <option value="cycle_count">Cycle Counting (Update actual quantity count)</option>
@@ -1247,15 +1247,15 @@ function App() {
 
                 {(scanContext === 'pos' || scanContext === 'receiving') && (
                   <div className="form-group">
-                    <label htmlFor="scan-quantity-amount">Quantity / Amount</label>
-                    <input id="scan-quantity-amount" type="number" value={scanAmount} onChange={e => setScanAmount(Number(e.target.value))} min={1} required />
+                    <label>Quantity / Amount</label>
+                    <input type="number" value={scanAmount} onChange={e => setScanAmount(Number(e.target.value))} min={1} required />
                   </div>
                 )}
 
                 {scanContext === 'cycle_count' && (
                   <div className="form-group">
-                    <label htmlFor="scan-actual-qty">Actual Physical Count (Reconciled)</label>
-                    <input id="scan-actual-qty" type="number" value={scanActualQty} onChange={e => setScanActualQty(Number(e.target.value))} min={0} required />
+                    <label>Actual Physical Count (Reconciled)</label>
+                    <input type="number" value={scanActualQty} onChange={e => setScanActualQty(Number(e.target.value))} min={0} required />
                   </div>
                 )}
 
@@ -1382,8 +1382,8 @@ function App() {
               <h2 className="form-section-title">Trace Serialized Item</h2>
               <form onSubmit={handleTraceSerial}>
                 <div className="form-group">
-                  <label htmlFor="trace-serial-number">Enter Serial Number</label>
-                  <input id="trace-serial-number" value={traceSerialNum} onChange={e => setTraceSerialNum(e.target.value)} placeholder="e.g. SN123" required autoFocus />
+                  <label>Enter Serial Number</label>
+                  <input value={traceSerialNum} onChange={e => setTraceSerialNum(e.target.value)} placeholder="e.g. SN123" required />
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Trace History Timeline</button>
               </form>

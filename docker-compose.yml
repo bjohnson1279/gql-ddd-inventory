@@ -40,7 +40,7 @@ services:
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
-    command: pnpm run dev
+    command: npm run dev
     environment:
       - NODE_ENV=development
       - DB_HOST=db

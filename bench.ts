@@ -26,10 +26,23 @@ async function runBenchmark() {
     save: async () => { await new Promise(r => setTimeout(r, 1)); }, // simulate DB latency
     saveBatch: async () => { await new Promise(r => setTimeout(r, 1)); },
     getActiveLayers: async (varId: any) => {
+      await new Promise(r => setTimeout(r, 2)); // simulate DB latency of 2ms
       if (varId.equals(kitVariant.id)) {
         return [new InventoryCostLayer(new InventoryCostLayerId('L-KIT'), kitVariant.id, 1000, 400, new Date())];
       }
       return [new InventoryCostLayer(new InventoryCostLayerId('L-COMP'), varId, 1000, 100, new Date())];
+    },
+    getActiveLayersBatch: async (varIds: any[]) => {
+      await new Promise(r => setTimeout(r, 5)); // simulate DB batch query latency of 5ms
+      const map = new Map();
+      for (const varId of varIds) {
+        if (varId.equals(kitVariant.id)) {
+          map.set(varId.value, [new InventoryCostLayer(new InventoryCostLayerId('L-KIT'), kitVariant.id, 1000, 400, new Date())]);
+        } else {
+          map.set(varId.value, [new InventoryCostLayer(new InventoryCostLayerId('L-COMP'), varId, 1000, 100, new Date())]);
+        }
+      }
+      return map;
     }
   };
   const journalRepo: any = { save: async () => { await new Promise(r => setTimeout(r, 1)); } };

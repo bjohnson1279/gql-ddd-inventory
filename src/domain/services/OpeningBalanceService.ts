@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { StockOnboarding } from '../entities/StockOnboarding';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { OpeningBalanceConflictError } from '../exceptions/DomainErrors';
@@ -52,6 +51,6 @@ export class OpeningBalanceService {
   }
 
   private generateId(): string {
-    return crypto.randomUUID();
+    return Math.random().toString(36).substring(2, 15);
   }
 }

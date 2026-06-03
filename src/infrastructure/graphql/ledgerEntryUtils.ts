@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { ILedgerRepository } from '../../domain/repositories/ILedgerRepository';
 import { IProductRepository } from '../../domain/repositories/IProductRepository';
 import { LedgerEntry } from '../../domain/entities/LedgerEntry';
@@ -33,7 +32,7 @@ export async function appendStockLedgerEntry(
   const actor = new ActorId(context?.auth?.actorId || 'system');
 
   const ledgerEntry = new LedgerEntry(
-    new LedgerEntryId(crypto.randomUUID()),
+    new LedgerEntryId(Math.random().toString(36).substring(2, 15)),
     tenantId,
     new LocationId(locationId),
     variant.id,
