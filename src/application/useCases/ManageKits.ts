@@ -300,15 +300,12 @@ export class DisassembleKitUseCase {
       const needed = component.quantity * input.quantity;
       let avgUnitCost = 0;
 
-      try {
-        // Try to get layers from the pre-fetched map, fallback to an empty array
-        // Note: componentLayersMap might be undefined if getActiveLayersBatch was not available and we didn't populate it correctly, but we always populate it in line 290
-        const activeLayers = (componentLayersMap && componentLayersMap.get(component.variantId.value)) || [];
-        const breakdown = costService.calculateWeightedAverageCostSync(activeLayers || [], 1, component.variantId.value);
+        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
+        const breakdown = costService.calculateWeightedAverageCostSync(activeLayers, 1, component.variantId.value);
         avgUnitCost = breakdown.totalCostCents;
       } catch (err) {
         // Fallback if no inventory layers exist for this component
-        const activeLayers = (componentLayersMap && componentLayersMap.get(component.variantId.value)) || [];
+        const activeLayers = componentLayersMap.get(component.variantId.value) || [];
         avgUnitCost = activeLayers.length > 0 ? activeLayers[0].unitCostCents : 1000; // default 10.00
       }
 
