@@ -75,6 +75,16 @@ describe('ManageOnboardings Use Cases', () => {
 
       expect(result1).not.toEqual(result2);
       expect(mockRepo.save).toHaveBeenCalledTimes(2);
+      expect(mockRepo.save).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        id: new StockOnboardingId(result1),
+        tenantId: new TenantId(input.tenantId),
+        locationId: new LocationId(input.locationId),
+      }));
+      expect(mockRepo.save).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        id: new StockOnboardingId(result2),
+        tenantId: new TenantId(input.tenantId),
+        locationId: new LocationId(input.locationId),
+      }));
     });
 
     it('should fail if the provided tenant ID is an empty string', async () => {
