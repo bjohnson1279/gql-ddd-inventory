@@ -94,20 +94,10 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
-  const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+  const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : [];
   app.use(
     '/graphql',
-    cors<cors.CorsRequest>({
-      origin: (origin, callback) => {
-        // allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-          const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-          return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-      }
-    }),
+    cors<cors.CorsRequest>({ origin: allowedOrigins }),
     bodyParser.json(),
     (req: express.Request, res: express.Response, next: express.NextFunction) => {
       const authHeader = req.headers.authorization || req.headers.Authorization || '';
