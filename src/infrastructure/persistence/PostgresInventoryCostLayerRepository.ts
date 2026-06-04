@@ -58,6 +58,9 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
     const dbLayers = await this.prisma.inventoryCostLayer.findMany({
       where: {
         variantId: variantId.value,
+        consumedQuantity: {
+          lt: this.prisma.inventoryCostLayer.fields.initialQuantity
+        }
       },
       orderBy: {
         receivedAt: orderDirection,
@@ -65,7 +68,6 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
     });
 
     return dbLayers
-      .filter((l) => l.consumedQuantity < l.initialQuantity)
       .map((l) => {
         const layer = new InventoryCostLayer(
           new InventoryCostLayerId(l.id),
