@@ -5,7 +5,8 @@ import { StockOnboardingStatus } from '../enums/StockOnboardingStatus';
 import { StockOnboardingItem } from '../valueObjects/StockOnboardingItem';
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { OnboardingAlreadySubmittedError } from '../exceptions/DomainErrors';
-import { DomainEvent, StockOnboardingSubmitted } from '../events/OnboardingEvents';
+import { StockOnboardingSubmitted } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 
 export class StockOnboarding {
   private _status: StockOnboardingStatus;

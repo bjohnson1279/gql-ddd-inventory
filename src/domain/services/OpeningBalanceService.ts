@@ -5,7 +5,8 @@ import { LedgerEntry } from '../entities/LedgerEntry';
 import { LedgerEntryId } from '../valueObjects/LedgerEntryId';
 import { ReasonCode } from '../enums/ReasonCode';
 import { ActorId } from '../valueObjects/ActorId';
-import { OpeningBalancePosted, DomainEvent } from '../events/OnboardingEvents';
+import { OpeningBalancePosted } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 
 export class OpeningBalanceService {
   constructor(

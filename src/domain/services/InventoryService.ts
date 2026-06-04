@@ -8,7 +8,7 @@ import { Kit } from '../entities/Kit';
 import { InventoryDecremented } from '../events/InventoryEvents';
 import { LocationId } from '../valueObjects/LocationId';
 import { TenantId } from '../valueObjects/TenantId';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 
 export class InventoryService {
   constructor(

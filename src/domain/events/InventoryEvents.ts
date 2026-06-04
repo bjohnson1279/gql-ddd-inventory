@@ -1,4 +1,4 @@
-import { DomainEvent } from './OnboardingEvents';
+import { DomainEvent } from './DomainEvent';
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
 
 export class InventoryDecremented implements DomainEvent {
