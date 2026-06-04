@@ -31,6 +31,15 @@ describe('ManageOnboardings Use Cases', () => {
   });
 
   describe('CreateStockOnboardingUseCase', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2023-01-01T00:00:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should create and save a new stock onboarding entity successfully and return the generated ID', async () => {
       const useCase = new CreateStockOnboardingUseCase(mockRepo);
 
@@ -50,7 +59,32 @@ describe('ManageOnboardings Use Cases', () => {
       expect(savedEntity.id.value).toEqual(result);
       expect(savedEntity.tenantId).toEqual(new TenantId(input.tenantId));
       expect(savedEntity.locationId).toEqual(new LocationId(input.locationId));
-      expect(savedEntity.asOfDate).toBeInstanceOf(Date);
+      expect(savedEntity.asOfDate).toEqual(new Date('2023-01-01T00:00:00Z'));
+    });
+
+    it('should generate unique IDs across successive calls', async () => {
+      const useCase = new CreateStockOnboardingUseCase(mockRepo);
+
+      const input = {
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+      };
+
+      const result1 = await useCase.execute(input);
+      const result2 = await useCase.execute(input);
+
+      expect(result1).not.toEqual(result2);
+      expect(mockRepo.save).toHaveBeenCalledTimes(2);
+      expect(mockRepo.save).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        id: new StockOnboardingId(result1),
+        tenantId: new TenantId(input.tenantId),
+        locationId: new LocationId(input.locationId),
+      }));
+      expect(mockRepo.save).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        id: new StockOnboardingId(result2),
+        tenantId: new TenantId(input.tenantId),
+        locationId: new LocationId(input.locationId),
+      }));
     });
 
     it('should fail if the provided tenant ID is an empty string', async () => {

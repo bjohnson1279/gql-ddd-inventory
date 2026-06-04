@@ -6,6 +6,7 @@ import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { ActorId } from '../../domain/valueObjects/ActorId';
+import * as crypto from 'crypto';
 
 export interface CreateStockOnboardingInput {
   tenantId: string;
@@ -16,7 +17,7 @@ export class CreateStockOnboardingUseCase {
   constructor(private readonly onboardingRepo: IStockOnboardingRepository) {}
 
   async execute(input: CreateStockOnboardingInput): Promise<string> {
-    const id = new StockOnboardingId(Math.random().toString(36).substring(2, 15));
+    const id = new StockOnboardingId(crypto.randomUUID());
     const onboarding = new StockOnboarding(
       id,
       new TenantId(input.tenantId),
