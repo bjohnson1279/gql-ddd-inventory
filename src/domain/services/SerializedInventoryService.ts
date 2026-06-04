@@ -11,7 +11,7 @@ import { SerializedItemStatus } from '../enums/SerializedItemStatus';
 import { LedgerEntry } from '../entities/LedgerEntry';
 import { LedgerEntryId } from '../valueObjects/LedgerEntryId';
 import { ReasonCode } from '../enums/ReasonCode';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 
 export class SerializedInventoryService {
   constructor(

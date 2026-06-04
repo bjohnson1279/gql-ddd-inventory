@@ -1,4 +1,4 @@
-import { DomainEvent } from './OnboardingEvents';
+import { DomainEvent } from './DomainEvent';
 
 export class BarcodeAssigned implements DomainEvent {
   readonly occurredAt: Date;

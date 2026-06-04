@@ -3,7 +3,7 @@ import { BarcodeAssignment } from './BarcodeAssignment';
 import { Barcode } from '../valueObjects/Barcode';
 import { BarcodeSource } from '../enums/BarcodeEnums';
 import { BarcodeAssignmentId } from '../valueObjects/BarcodeAssignmentId';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 import { BarcodeAssigned, BarcodeRevoked } from '../events/BarcodeEvents';
 
 export class VariantBarcodeSet {

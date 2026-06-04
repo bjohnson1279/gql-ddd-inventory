@@ -2,7 +2,7 @@ import { Sku } from '../valueObjects/Sku';
 import { Quantity } from '../valueObjects/Quantity';
 import { LocationId } from '../valueObjects/LocationId';
 import { InsufficientStockError, InsufficientAvailableStockError } from '../exceptions/DomainErrors';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 import { LowStockAlertEvent, InventoryReconciledEvent } from '../events/InventoryEvents';
 
 export class InventoryItem {

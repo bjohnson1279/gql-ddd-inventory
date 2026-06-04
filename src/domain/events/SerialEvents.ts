@@ -1,4 +1,4 @@
-import { DomainEvent } from './OnboardingEvents';
+import { DomainEvent } from './DomainEvent';
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { SerialNumber } from '../valueObjects/SerialNumber';
 import { SerializedItemStatus } from '../enums/SerializedItemStatus';

@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../domain/events/OnboardingEvents';
+import { DomainEvent } from '../../domain/events/DomainEvent';
 import { IEventBus } from '../../domain/events/IEventBus';
 
 export class DomainEventDispatcher {
