@@ -1233,8 +1233,8 @@ function App() {
               <h2 className="form-section-title">Live Barcode Scan Dispatcher</h2>
               <form onSubmit={handleDispatchScan}>
                 <div className="form-group">
-                  <label>Scan Barcode Value</label>
-                  <input value={scanVal} onChange={e => setScanVal(e.target.value)} placeholder="Scan / Type Barcode Value" required />
+                  <label htmlFor="scanVal">Scan Barcode Value</label>
+                  <input id="scanVal" autoFocus value={scanVal} onChange={e => setScanVal(e.target.value)} placeholder="Scan / Type Barcode Value" required />
                 </div>
                 <div className="form-group">
                   <label>Scan Workflow Context</label>
@@ -1382,8 +1382,8 @@ function App() {
               <h2 className="form-section-title">Trace Serialized Item</h2>
               <form onSubmit={handleTraceSerial}>
                 <div className="form-group">
-                  <label>Enter Serial Number</label>
-                  <input value={traceSerialNum} onChange={e => setTraceSerialNum(e.target.value)} placeholder="e.g. SN123" required />
+                  <label htmlFor="traceSerialNum">Enter Serial Number</label>
+                  <input id="traceSerialNum" autoFocus value={traceSerialNum} onChange={e => setTraceSerialNum(e.target.value)} placeholder="e.g. SN123" required />
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Trace History Timeline</button>
               </form>
