@@ -6,6 +6,8 @@ import { Sku } from '../../domain/valueObjects/Sku';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import * as crypto from 'crypto';
 
+type KitModel = Prisma.KitGetPayload<{ include: { components: true } }>;
+
 function toUuid(id: string): string {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(id)) return id.toLowerCase();
@@ -16,7 +18,7 @@ function toUuid(id: string): string {
 export class PostgresKitRepository implements IKitRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private toDomain(model: Prisma.KitGetPayload<{ include: { components: true } }>): Kit {
+  private toDomain(model: KitModel): Kit {
     const kit = new Kit(
       new KitId(model.id),
       new Sku(model.sku),
