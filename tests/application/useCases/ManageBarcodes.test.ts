@@ -41,6 +41,25 @@ describe('ManageBarcodes Use Cases', () => {
       expect(barcodeRepo.save).not.toHaveBeenCalled();
     });
 
+    it('mocks the repository to return null and asserts the specific error is thrown', async () => {
+      const input: AssignBarcodeInput = {
+        sku: 'MISSING-SKU-TEST',
+        barcodeValue: '123456789012',
+        symbology: BarcodeSymbology.UPC_A,
+        source: BarcodeSource.Internal,
+      };
+
+      barcodeRepo.findSetBySku.mockResolvedValue(null);
+
+      await expect(useCase.execute(input)).rejects.toThrow(
+        'ProductVariant not found for SKU: MISSING-SKU-TEST'
+      );
+
+      expect(barcodeRepo.findSetBySku).toHaveBeenCalledWith(expect.any(Sku));
+      expect(barcodeRepo.findSetBySku).toHaveBeenCalledTimes(1);
+      expect(barcodeRepo.save).not.toHaveBeenCalled();
+    });
+
     it('successfully assigns a barcode when product variant set is found', async () => {
       const input: AssignBarcodeInput = {
         sku: 'SKU-FOUND',
