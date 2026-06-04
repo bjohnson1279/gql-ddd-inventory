@@ -48,15 +48,13 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
       const layers = await prisma.inventoryCostLayer.findMany({
         where: {
           variantId: { in: variantIds as string[] },
+          consumedQuantity: { lt: prisma.inventoryCostLayer.fields.initialQuantity },
         },
         orderBy: { receivedAt: 'asc' },
       });
 
-      // Filter in memory to match DDD behavior where consumedQuantity < initialQuantity
-      const activeLayers = layers.filter((l) => l.consumedQuantity < l.initialQuantity);
-
       return variantIds.map((id) =>
-        activeLayers
+        layers
           .filter((l) => l.variantId === id)
           .map((l) => ({
             id: l.id,
