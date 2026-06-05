@@ -8,6 +8,10 @@
 **Vulnerability:** The application failed to securely validate the presence of `SHOPIFY_WEBHOOK_SECRET` at startup, allowing it to start silently misconfigured in production.
 **Learning:** Critical secrets must be validated at startup to fail securely and loudly rather than degrading silently or securely failing per-request.
 **Prevention:** Always implement a fail-fast startup check that throws an error when critical environment variables are missing in the production environment.
+## 2026-06-05 - Fix Hardcoded JWT Secret Vulnerability
+**Vulnerability:** A fallback JWT secret (`fallback-secret-key-999`) was hardcoded directly in the codebase using a logical OR fallback (`process.env.JWT_SECRET || 'fallback-secret-key-999'`).
+**Learning:** Hardcoding fallback secrets as string literals, even behind environment variables, exposes the secret to SAST tools and malicious actors who might gain access to the source code, allowing them to forge JWTs and bypass authentication.
+**Prevention:** Rely entirely on environment variables without string literal fallbacks for cryptographic secrets. In local or testing environments, configure a mock secret via environment configuration files or test setups rather than allowing the variable to evaluate to undefined in the runtime, which can cause unexpected runtime errors during verification. Explicitly fail or throw exceptions during startup in production environments if the required variable is missing.
 ## 2026-06-04 - Overly Permissive CORS Configuration
  **Vulnerability:** The CORS configuration in `src/index.ts` parsed the `ALLOWED_ORIGINS` environment variable and split it by commas but did not filter out empty strings. This meant that if the environment variable had a trailing comma, empty space, or was just an empty string, the allowed origins array would include `''`. Express CORS interprets an array containing an empty string as a wildcard or overly permissive, potentially allowing requests with any or no origin.
  **Learning:** Simple string splitting and mapping for environment variables is prone to injecting empty values.
