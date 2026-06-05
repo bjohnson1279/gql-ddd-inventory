@@ -2,3 +2,8 @@
  **Vulnerability:** The CORS configuration in `src/index.ts` parsed the `ALLOWED_ORIGINS` environment variable and split it by commas but did not filter out empty strings. This meant that if the environment variable had a trailing comma, empty space, or was just an empty string, the allowed origins array would include `''`. Express CORS interprets an array containing an empty string as a wildcard or overly permissive, potentially allowing requests with any or no origin.
  **Learning:** Simple string splitting and mapping for environment variables is prone to injecting empty values.
  **Prevention:** Always use `.filter(Boolean)` (or a strict length check) when splitting configuration strings into arrays to prevent accidentally passing empty values to sensitive configurations like CORS origins.
+
+## 2026-06-05 - Hardcoded JWT Secret Vulnerability
+ **Vulnerability:** The `JWT_SECRET` environment variable had a hardcoded fallback value (`fallback-secret-key-999`) in the `src/index.ts` and `src/infrastructure/graphql/resolvers.ts` files, and it was documented in `README.md`. If the environment variable was not set in production, the application would silently use this well-known secret, allowing attackers to forge valid JWT tokens and bypass authentication/authorization controls.
+ **Learning:** Providing fallback values for cryptographic secrets in application code is a critical anti-pattern because it masks misconfiguration in production and introduces a backdoor if the environment isn't properly provisioned.
+ **Prevention:** Cryptographic secrets like `JWT_SECRET` should never have fallback values in the source code. Instead, the application must throw a fatal error during startup if a required secret is missing in a production environment.
