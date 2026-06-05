@@ -13,7 +13,7 @@ import {
 export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean {
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
   if (!secret) {
-    console.error('[Shopify Webhook] SHOPIFY_WEBHOOK_SECRET is not configured.');
+    console.error('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
     return false;
   }
 
@@ -151,6 +151,6 @@ export async function shopifyWebhookHandler(req: express.Request, res: express.R
     res.status(200).send('OK');
   } catch (err: any) {
     console.error(`[Shopify Webhook] Error processing webhook:`, err);
-    res.status(500).send(`Error processing webhook: ${err.message}`);
+    res.status(500).send('Internal Server Error');
   }
 }

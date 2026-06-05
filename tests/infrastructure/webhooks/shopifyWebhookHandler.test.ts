@@ -94,7 +94,7 @@ describe('ShopifyWebhookHandler', () => {
 
     await shopifyWebhookHandler(mockReq, mockRes);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('[Shopify Webhook] SHOPIFY_WEBHOOK_SECRET is not configured.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
     expect(mockRes.status).toHaveBeenCalledWith(401);
     expect(mockRes.send).toHaveBeenCalledWith('Unauthorized');
 

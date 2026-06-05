@@ -24,6 +24,11 @@ if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 
+const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
+if (!SHOPIFY_WEBHOOK_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL ERROR: SHOPIFY_WEBHOOK_SECRET environment variable is not set.');
+}
+
 function setupWebSocketServer(httpServer: any, schema: any) {
   // Set up WebSocket server
   const wsServer = new WebSocketServer({
@@ -95,7 +100,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 
   // Mount Apollo express middleware
   const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
     : [];
   app.use(
     '/graphql',

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { WarehouseLocation } from '../../src/domain/entities/WarehouseLocation';
 import { LocationId } from '../../src/domain/valueObjects/LocationId';
 import { Sku } from '../../src/domain/valueObjects/Sku';
@@ -21,7 +22,7 @@ describe('Warehouse Location WMS & Capacity Service', () => {
 
   function createProductWithVariant(productId: string, skuStr: string, weight: number, volume: number): Product {
     const v = new ProductVariant(
-      new ProductVariantId(Math.random().toString()),
+      new ProductVariantId(crypto.randomUUID()),
       new ProductId(productId),
       new Sku(skuStr),
       new VariantAttributeSet(testAttrs),

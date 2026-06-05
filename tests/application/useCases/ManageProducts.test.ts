@@ -19,6 +19,20 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('CreateProductUseCase', () => {
+    it('should instantiate a Product entity and save it using the repository', async () => {
+      const useCase = new CreateProductUseCase(productRepo);
+
+      const result = await useCase.execute('new-prod-id', 'Another Test Product');
+
+      expect(result).toBe(true);
+      expect(productRepo.save).toHaveBeenCalledTimes(1);
+
+      const savedProduct = productRepo.save.mock.calls[0][0];
+      expect(savedProduct).toBeInstanceOf(Product);
+      expect(savedProduct.id.value).toBe('new-prod-id');
+      expect(savedProduct.name).toBe('Another Test Product');
+    });
+
     it('should create a product and save it to the repository', async () => {
       const useCase = new CreateProductUseCase(productRepo);
 
