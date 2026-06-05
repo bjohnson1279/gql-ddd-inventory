@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { ISerializedItemRepository } from '../repositories/ISerializedItemRepository';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { SerialNumber } from '../valueObjects/SerialNumber';
@@ -11,7 +12,7 @@ import { SerializedItemStatus } from '../enums/SerializedItemStatus';
 import { LedgerEntry } from '../entities/LedgerEntry';
 import { LedgerEntryId } from '../valueObjects/LedgerEntryId';
 import { ReasonCode } from '../enums/ReasonCode';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 
 export class SerializedInventoryService {
   constructor(
@@ -116,6 +117,6 @@ export class SerializedInventoryService {
   }
 
   private generateId(): string {
-    return Math.random().toString(36).substring(2, 15);
+    return crypto.randomUUID();
   }
 }

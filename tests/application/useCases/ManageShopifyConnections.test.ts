@@ -66,6 +66,19 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should propagate errors when id is whitespace only and prevent saving', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: '   ',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      })).rejects.toThrow('IntegrationId cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should propagate errors when tenantId is empty and prevent saving', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
@@ -75,6 +88,45 @@ describe('ManageShopifyConnections Use Cases', () => {
         storeDomain: 'test-store.myshopify.com',
         accessToken: 'shpat_1234567890',
       })).rejects.toThrow('TenantId cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors when tenantId is whitespace only and prevent saving', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: 'int-123',
+        tenantId: '   ',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      })).rejects.toThrow('TenantId cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors when accessToken is empty and prevent saving', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: 'int-123',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: '',
+      })).rejects.toThrow('Access token cannot be empty.');
+
+      expect(integrationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors when accessToken is whitespace only and prevent saving', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      await expect(useCase.execute({
+        id: 'int-123',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: '   ',
+      })).rejects.toThrow('Access token cannot be empty.');
 
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });

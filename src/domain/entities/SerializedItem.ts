@@ -6,7 +6,7 @@ import { LocationId } from '../valueObjects/LocationId';
 import { SerializedItemStatus, canTransitionTo } from '../enums/SerializedItemStatus';
 import { StatusTransition } from '../valueObjects/StatusTransition';
 import { ActorId } from '../valueObjects/ActorId';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 import { SerializedItemStatusChanged } from '../events/SerialEvents';
 
 export class SerializedItem {

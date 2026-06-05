@@ -1,9 +1,10 @@
+import crypto from 'crypto';
 import { Sku } from '../valueObjects/Sku';
 import { BarcodeAssignment } from './BarcodeAssignment';
 import { Barcode } from '../valueObjects/Barcode';
 import { BarcodeSource } from '../enums/BarcodeEnums';
 import { BarcodeAssignmentId } from '../valueObjects/BarcodeAssignmentId';
-import { DomainEvent } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 import { BarcodeAssigned, BarcodeRevoked } from '../events/BarcodeEvents';
 
 export class VariantBarcodeSet {
@@ -93,6 +94,6 @@ export class VariantBarcodeSet {
   }
 
   private generateId(): string {
-    return Math.random().toString(36).substring(2, 15);
+    return crypto.randomUUID();
   }
 }

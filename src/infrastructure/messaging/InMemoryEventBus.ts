@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { IEventBus, EventHandler } from '../../domain/events/IEventBus';
-import { DomainEvent } from '../../domain/events/OnboardingEvents';
+import { DomainEvent } from '../../domain/events/DomainEvent';
 
 export class InMemoryEventBus implements IEventBus {
   private emitter = new EventEmitter();

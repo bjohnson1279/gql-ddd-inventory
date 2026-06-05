@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { StockOnboarding } from '../entities/StockOnboarding';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { OpeningBalanceConflictError } from '../exceptions/DomainErrors';
@@ -5,7 +6,8 @@ import { LedgerEntry } from '../entities/LedgerEntry';
 import { LedgerEntryId } from '../valueObjects/LedgerEntryId';
 import { ReasonCode } from '../enums/ReasonCode';
 import { ActorId } from '../valueObjects/ActorId';
-import { OpeningBalancePosted, DomainEvent } from '../events/OnboardingEvents';
+import { OpeningBalancePosted } from '../events/OnboardingEvents';
+import { DomainEvent } from '../events/DomainEvent';
 
 export class OpeningBalanceService {
   constructor(
@@ -51,6 +53,6 @@ export class OpeningBalanceService {
   }
 
   private generateId(): string {
-    return Math.random().toString(36).substring(2, 15);
+    return crypto.randomUUID();
   }
 }

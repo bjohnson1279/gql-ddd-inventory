@@ -1,6 +1,5 @@
-## 2024-05-30 - N+1 Query in Kit Disassembly
-**Learning:** Found a severe N+1 query issue in the kit disassembly logic. While the use case was correctly pre-fetching component cost layers using `getActiveLayersBatch`, the subsequent cost calculation was still calling `costService.calculateWeightedAverageCost`, which internally performed an async query for EACH component. This bypassed the pre-fetched data completely, causing N+1 queries when disassembling large kits.
-**Action:** When a service method requires data that is already pre-fetched by the use case (like `CostLayerService.calculateWeightedAverageCost`), create a synchronous variant (e.g., `calculateWeightedAverageCostSync`) that accepts the data directly, and ensure the use case calls the synchronous variant instead of the async one that performs another database query.
-## 2024-05-31 - Cost layer fetching optimization
-**Learning:** Found an issue where the `getActiveLayers` method and `costLayers` dataloader were fetching all cost layers from the database and filtering them in memory to find the active ones.
-**Action:** When filtering data based on a comparison between two columns in the same table, use Prisma's field reference syntax (e.g., `this.prisma.inventoryCostLayer.fields.initialQuantity`) in the `where` clause to perform the comparison at the database level instead of filtering in-memory.
+## 2026-06-04 - Improve code health by extracting DomainEvent interface
+
+ **Learning:** Extracting inline interfaces or interfaces mixed with classes (like `DomainEvent` from `OnboardingEvents.ts`) to their own dedicated files improves code health, avoids circular dependencies, and increases maintainability. The original prompt stated the file had an `any` type on the event dispatcher in `InventoryService.ts`, which might have been a confusion in the prompt as the actual issue was that `DomainEvent` was poorly located and should be cleanly refactored. The issue was solved by cleanly extracting the interface and updating all imports.
+
+ **Action:** Extract commonly shared interfaces (like event interfaces, shared value objects) into their own files early on to prevent tightly coupling unrelated modules or causing bloated imports.

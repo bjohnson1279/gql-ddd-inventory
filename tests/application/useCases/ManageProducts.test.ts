@@ -19,6 +19,20 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('CreateProductUseCase', () => {
+    it('should instantiate a Product entity and save it using the repository', async () => {
+      const useCase = new CreateProductUseCase(productRepo);
+
+      const result = await useCase.execute('new-prod-id', 'Another Test Product');
+
+      expect(result).toBe(true);
+      expect(productRepo.save).toHaveBeenCalledTimes(1);
+
+      const savedProduct = productRepo.save.mock.calls[0][0];
+      expect(savedProduct).toBeInstanceOf(Product);
+      expect(savedProduct.id.value).toBe('new-prod-id');
+      expect(savedProduct.name).toBe('Another Test Product');
+    });
+
     it('should create a product and save it to the repository', async () => {
       const useCase = new CreateProductUseCase(productRepo);
 
@@ -54,6 +68,42 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('AddProductVariantUseCase', () => {
+    it('should propagate errors thrown by the repository during save', async () => {
+      const product = new Product(new ProductId('prod-1'), 'Test Product');
+      productRepo.findById.mockResolvedValue(product);
+
+      const dbError = new Error('Database connection failed');
+      productRepo.save.mockRejectedValue(dbError);
+
+      const useCase = new AddProductVariantUseCase(productRepo);
+
+      await expect(useCase.execute({
+        productId: 'prod-1',
+        sku: 'TEST-SKU',
+        attributes: [{ name: 'Color', value: 'Red' }],
+        trackingMode: VariantTrackingMode.Quantity
+      })).rejects.toThrow('Database connection failed');
+
+      expect(productRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should propagate domain validation errors when SKU is invalid', async () => {
+      const product = new Product(new ProductId('prod-1'), 'Test Product');
+      productRepo.findById.mockResolvedValue(product);
+
+      const useCase = new AddProductVariantUseCase(productRepo);
+
+      // Sku enforces validation (e.g., must not be empty)
+      await expect(useCase.execute({
+        productId: 'prod-1',
+        sku: '', // Invalid empty SKU
+        attributes: [{ name: 'Color', value: 'Red' }],
+        trackingMode: VariantTrackingMode.Quantity
+      })).rejects.toThrow('SKU cannot be empty.');
+
+      expect(productRepo.save).not.toHaveBeenCalled();
+    });
+
     it('should throw an Error when the requested productId does not exist in the repository', async () => {
       // Setup
       productRepo.findById.mockResolvedValue(null);
