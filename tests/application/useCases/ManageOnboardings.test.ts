@@ -40,6 +40,23 @@ describe('ManageOnboardings Use Cases', () => {
       jest.useRealTimers();
     });
 
+    it('should test with simple mocks that it saves a new entity', async () => {
+      const simpleMockRepo: any = { save: jest.fn() };
+      const useCase = new CreateStockOnboardingUseCase(simpleMockRepo);
+
+      const input = {
+        tenantId: 'simple-tenant',
+        locationId: 'simple-loc',
+      };
+
+      const result = await useCase.execute(input);
+
+      expect(simpleMockRepo.save).toHaveBeenCalledTimes(1);
+      const savedEntity = simpleMockRepo.save.mock.calls[0][0];
+      expect(savedEntity).toBeInstanceOf(StockOnboarding);
+      expect(savedEntity.id.value).toEqual(result);
+    });
+
     it('should create and save a new stock onboarding entity successfully and return the generated ID', async () => {
       const useCase = new CreateStockOnboardingUseCase(mockRepo);
 
