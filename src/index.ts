@@ -100,7 +100,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 
   // Mount Apollo express middleware
   const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
     : [];
   app.use(
     '/graphql',
