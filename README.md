@@ -32,7 +32,7 @@ Create a `.env` file in the project root:
 ```env
 PORT=4000
 DATABASE_URL="postgresql://inventory_user:inventory_password@localhost:5433/inventory_db?schema=public"
-JWT_SECRET="fallback-secret-key-999"
+JWT_SECRET="your-secure-random-secret"
 ```
 
 ### 2. Install Dependencies & Generate Prisma Client
