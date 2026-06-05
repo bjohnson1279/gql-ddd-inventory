@@ -213,6 +213,11 @@ if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 
+const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
+if (!SHOPIFY_WEBHOOK_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL ERROR: SHOPIFY_WEBHOOK_SECRET environment variable is not set.');
+}
+
 export interface GraphQLContext {
   auth?: {
     tenantId?: string;

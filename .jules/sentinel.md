@@ -4,10 +4,17 @@
 **Vulnerability:** The CORS configuration used a custom callback that allowed requests with an empty origin if the 'ALLOWED_ORIGINS' environment variable wasn't carefully handled. It was splitting an environment variable that might contain extra spaces, which could result in bypassing security controls or creating subtly flawed allowed origin lists. Also, the callback didn't properly follow best practices for explicitly trusted origins from environment variables without custom callbacks.
 **Learning:** Overly permissive CORS settings with manual callbacks can introduce subtle vulnerabilities, such as allowing unauthorized cross-origin requests.
 **Prevention:** Securely parse explicit trusted origins from environment variables by trimming whitespace, and pass the resulting array directly to the 'origin' configuration option instead of using a custom callback.
+<<<<<<< security-fix-insecure-randomness-17711638948139997486
 ## 2026-06-05 - Insecure Randomness for ID Generation
 **Vulnerability:** Found `Math.random().toString(36).substring(2, 15)` used across the codebase for generating IDs.
 **Learning:** `Math.random()` is not cryptographically secure and can lead to predictable IDs and collisions, which may compromise entity uniqueness and potentially expose them to enumeration or prediction attacks.
 **Prevention:** Always use a cryptographically secure pseudorandom number generator (CSPRNG) such as Node's native `crypto.randomUUID()` when generating unique identifiers for security-sensitive values or domain entities. Make sure to explicitly `import crypto from 'crypto';` to satisfy TypeScript and runtime environments.
+=======
+## 2026-06-05 - Fix missing SHOPIFY_WEBHOOK_SECRET startup validation
+**Vulnerability:** The application failed to securely validate the presence of `SHOPIFY_WEBHOOK_SECRET` at startup, allowing it to start silently misconfigured in production.
+**Learning:** Critical secrets must be validated at startup to fail securely and loudly rather than degrading silently or securely failing per-request.
+**Prevention:** Always implement a fail-fast startup check that throws an error when critical environment variables are missing in the production environment.
+>>>>>>> main
 ## 2026-06-05 - Fix Hardcoded JWT Secret Vulnerability
 **Vulnerability:** A fallback JWT secret (`fallback-secret-key-999`) was hardcoded directly in the codebase using a logical OR fallback (`process.env.JWT_SECRET || 'fallback-secret-key-999'`).
 **Learning:** Hardcoding fallback secrets as string literals, even behind environment variables, exposes the secret to SAST tools and malicious actors who might gain access to the source code, allowing them to forge JWTs and bypass authentication.
