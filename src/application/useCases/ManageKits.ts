@@ -357,6 +357,7 @@ export class DisassembleKitUseCase {
     }
 
     await this.costLayers.saveBatch(newLayers);
+    // Batch append optimization fixes N+1 query
     await this.ledgerRepo.appendBatch(ledgerEntriesBatch.concat(newLedgerEntries));
 
     // 7. Write balanced double-entry Journal Entry to record inventory value shift
