@@ -32,6 +32,7 @@ describe('ProcessShopifyOrder', () => {
     };
     inventoryService = {
       decrementForSale: jest.fn(),
+      decrementForSaleBatch: jest.fn(),
       decrementForKitSale: jest.fn(),
     } as any;
 
@@ -73,11 +74,15 @@ describe('ProcessShopifyOrder', () => {
       ]
     });
 
-    expect(inventoryService.decrementForSale).toHaveBeenCalledWith(
+    expect(inventoryService.decrementForSaleBatch).toHaveBeenCalledWith(
       tenantId,
       expect.objectContaining({ value: 'int-loc' }),
-      expect.objectContaining({ value: 'int-v1' }),
-      2,
+      [
+        {
+          variantId: expect.objectContaining({ value: 'int-v1' }),
+          quantity: 2
+        }
+      ],
       'SHOPIFY-1001',
       expect.objectContaining({ value: 'shopify-integration' })
     );

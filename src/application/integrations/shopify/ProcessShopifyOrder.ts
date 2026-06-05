@@ -63,7 +63,8 @@ export class ProcessShopifyOrder {
       variantMappingsMap.set(mapping.externalId, mapping.internalId);
     }
 
-    // 3. Process each line item
+    // 3. Process each line item and group into a batch
+    const batchItems: { variantId: ProductVariantId; quantity: number }[] = [];
     for (const item of input.lineItems) {
       const internalId = variantMappingsMap.get(item.shopifyVariantId);
 
@@ -72,14 +73,18 @@ export class ProcessShopifyOrder {
         continue;
       }
 
-      const internalVariantId = new ProductVariantId(internalId);
+      batchItems.push({
+        variantId: new ProductVariantId(internalId),
+        quantity: item.quantity
+      });
+    }
 
-      // 4. Decrement inventory using the core domain service
-      await this.inventoryService.decrementForSale(
+    // 4. Decrement inventory using the core domain service
+    if (batchItems.length > 0) {
+      await this.inventoryService.decrementForSaleBatch(
         tenantId,
         internalLocationId,
-        internalVariantId,
-        item.quantity,
+        batchItems,
         `SHOPIFY-${input.shopifyOrderId}`,
         new ActorId('shopify-integration')
       );
