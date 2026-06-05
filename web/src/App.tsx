@@ -672,16 +672,16 @@ function App() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="form-group">
-              <label>Tenant ID</label>
-              <input value={loginTenant} onChange={e => setLoginTenant(e.target.value)} required placeholder="e.g. tenant-1" />
+              <label htmlFor="loginTenant">Tenant ID</label>
+              <input id="loginTenant" value={loginTenant} onChange={e => setLoginTenant(e.target.value)} required placeholder="e.g. tenant-1" />
             </div>
             <div className="form-group">
-              <label>User / Actor ID</label>
-              <input value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
+              <label htmlFor="loginActor">User / Actor ID</label>
+              <input id="loginActor" value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
             </div>
             <div className="form-group">
-              <label>Assign Role</label>
-              <select value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
+              <label htmlFor="loginRole">Assign Role</label>
+              <select id="loginRole" value={loginRole} onChange={e => setLoginRole(e.target.value)} style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}>
                 <option value="admin">Admin</option>
                 <option value="warehouse_operator">Warehouse Operator</option>
                 <option value="accountant">Accountant</option>
@@ -761,8 +761,8 @@ function App() {
               <span className="badge badge-info" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', minWidth: '80px', textAlign: 'center' }}>{tenantId}</span>
             </div>
             <div className="control-item">
-              <label>Location</label>
-              <input value={locationId} onChange={e => setLocationId(e.target.value)} style={{ width: '100px' }} />
+              <label htmlFor="headerLocation">Location</label>
+              <input id="headerLocation" value={locationId} onChange={e => setLocationId(e.target.value)} style={{ width: '100px' }} />
             </div>
             <div className="control-item">
               <label>User</label>
@@ -993,12 +993,12 @@ function App() {
                   <h2 className="form-section-title">Create Product</h2>
                   <form onSubmit={handleCreateProduct}>
                     <div className="form-group">
-                      <label>Product ID (UUID format recommended)</label>
-                      <input value={newProdId} onChange={e => setNewProdId(e.target.value)} placeholder="e.g. 5e06497f-bc3a-446f..." required />
+                      <label htmlFor="newProdId">Product ID (UUID format recommended)</label>
+                      <input id="newProdId" value={newProdId} onChange={e => setNewProdId(e.target.value)} placeholder="e.g. 5e06497f-bc3a-446f..." required />
                     </div>
                     <div className="form-group">
-                      <label>Product Name</label>
-                      <input value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
+                      <label htmlFor="newProdName">Product Name</label>
+                      <input id="newProdName" value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
                     </div>
                     <button type="submit" className="btn btn-primary">Create Product</button>
                   </form>
@@ -1237,8 +1237,8 @@ function App() {
                   <input id="scanVal" autoFocus value={scanVal} onChange={e => setScanVal(e.target.value)} placeholder="Scan / Type Barcode Value" required />
                 </div>
                 <div className="form-group">
-                  <label>Scan Workflow Context</label>
-                  <select value={scanContext} onChange={e => setScanContext(e.target.value as any)}>
+                  <label htmlFor="scanContext">Scan Workflow Context</label>
+                  <select id="scanContext" value={scanContext} onChange={e => setScanContext(e.target.value as any)}>
                     <option value="pos">Point of Sale (Decrement inventory)</option>
                     <option value="receiving">Warehouse Receiving (Increment inventory)</option>
                     <option value="cycle_count">Cycle Counting (Update actual quantity count)</option>
@@ -1247,15 +1247,15 @@ function App() {
 
                 {(scanContext === 'pos' || scanContext === 'receiving') && (
                   <div className="form-group">
-                    <label>Quantity / Amount</label>
-                    <input type="number" value={scanAmount} onChange={e => setScanAmount(Number(e.target.value))} min={1} required />
+                    <label htmlFor="scanAmount">Quantity / Amount</label>
+                    <input id="scanAmount" type="number" value={scanAmount} onChange={e => setScanAmount(Number(e.target.value))} min={1} required />
                   </div>
                 )}
 
                 {scanContext === 'cycle_count' && (
                   <div className="form-group">
-                    <label>Actual Physical Count (Reconciled)</label>
-                    <input type="number" value={scanActualQty} onChange={e => setScanActualQty(Number(e.target.value))} min={0} required />
+                    <label htmlFor="scanActualQty">Actual Physical Count (Reconciled)</label>
+                    <input id="scanActualQty" type="number" value={scanActualQty} onChange={e => setScanActualQty(Number(e.target.value))} min={0} required />
                   </div>
                 )}
 
