@@ -41,3 +41,8 @@
 **Vulnerability:** The Shopify webhook handler in `src/infrastructure/webhooks/shopifyWebhookHandler.ts` was catching exceptions and sending the raw `err.message` back to the external caller in a 500 response (e.g., `res.status(500).send(\`Error processing webhook: ${err.message}\`)`).
 **Learning:** Exposing internal error messages, stack traces, or exception details directly to API clients or third-party webhooks can unintentionally leak sensitive system architecture, database query structures, or internal state.
 **Prevention:** Catch blocks in public-facing endpoints (REST APIs, Webhooks, GraphQL resolvers) should log the full error details internally for debugging (e.g., via `console.error`) but must return a generic, sanitized error message (like 'Internal Server Error') to the external consumer.
+
+## 2026-06-05 - Fix Hardcoded Shopify Webhook Secret Vulnerability
+**Vulnerability:** A fallback Shopify Webhook secret (`shopify-fallback-secret-key-123`) was hardcoded directly in the codebase using a logical OR fallback.
+**Learning:** Hardcoding fallback secrets as string literals exposes the secret to SAST tools and malicious actors who might gain access to the source code, allowing them to bypass payload HMAC verifications.
+**Prevention:** Rely entirely on environment variables without string literal fallbacks for cryptographic secrets. Explicitly fail during execution or throw an exception if the required variable is missing.
