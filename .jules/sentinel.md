@@ -4,3 +4,7 @@
 **Vulnerability:** The CORS configuration used a custom callback that allowed requests with an empty origin if the 'ALLOWED_ORIGINS' environment variable wasn't carefully handled. It was splitting an environment variable that might contain extra spaces, which could result in bypassing security controls or creating subtly flawed allowed origin lists. Also, the callback didn't properly follow best practices for explicitly trusted origins from environment variables without custom callbacks.
 **Learning:** Overly permissive CORS settings with manual callbacks can introduce subtle vulnerabilities, such as allowing unauthorized cross-origin requests.
 **Prevention:** Securely parse explicit trusted origins from environment variables by trimming whitespace, and pass the resulting array directly to the 'origin' configuration option instead of using a custom callback.
+## 2026-06-05 - Fix missing SHOPIFY_WEBHOOK_SECRET startup validation
+**Vulnerability:** The application failed to securely validate the presence of `SHOPIFY_WEBHOOK_SECRET` at startup, allowing it to start silently misconfigured in production.
+**Learning:** Critical secrets must be validated at startup to fail securely and loudly rather than degrading silently or securely failing per-request.
+**Prevention:** Always implement a fail-fast startup check that throws an error when critical environment variables are missing in the production environment.
