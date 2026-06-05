@@ -151,6 +151,6 @@ export async function shopifyWebhookHandler(req: express.Request, res: express.R
     res.status(200).send('OK');
   } catch (err: any) {
     console.error(`[Shopify Webhook] Error processing webhook:`, err);
-    res.status(500).send(`Error processing webhook: ${err.message}`);
+    res.status(500).send('Internal Server Error');
   }
 }
