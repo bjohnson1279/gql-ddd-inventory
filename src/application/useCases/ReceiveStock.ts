@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { Quantity } from '../../domain/valueObjects/Quantity';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
@@ -23,7 +24,7 @@ export class ReceiveStockUseCase {
     let item = await this.inventoryRepository.findBySkuAndLocation(sku, locationId);
     
     if (!item) {
-      const id = Math.random().toString(36).substring(2, 15);
+      const id = crypto.randomUUID();
       item = InventoryItem.createNew(id, sku, locationId);
     }
 

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { ILedgerRepository } from '../../domain/repositories/ILedgerRepository';
 import { OpeningBalanceService } from '../../domain/services/OpeningBalanceService';
 import { StockOnboarding } from '../../domain/entities/StockOnboarding';
@@ -29,7 +30,7 @@ export class SubmitOpeningBalanceUseCase {
 
   async execute(input: SubmitOpeningBalanceInput): Promise<boolean> {
     const onboarding = new StockOnboarding(
-      new StockOnboardingId(Math.random().toString(36).substring(2, 15)),
+      new StockOnboardingId(crypto.randomUUID()),
       new TenantId(input.tenantId),
       new LocationId(input.locationId),
       new Date(input.asOfDate)
