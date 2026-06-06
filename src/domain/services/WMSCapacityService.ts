@@ -60,7 +60,7 @@ export class WMSCapacityService {
 
     const products = await this.productRepository.findBySkus(activeSkus);
 
-    const variantMap = new Map<string, typeof products[0]['variants'][0]>();
+    const variantMap = new Map<string, typeof products[number]['variants'][number]>();
     for (const product of products) {
       for (const variant of product.variants) {
         variantMap.set(variant.sku.value, variant);
