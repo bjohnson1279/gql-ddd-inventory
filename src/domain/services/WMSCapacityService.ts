@@ -50,17 +50,29 @@ export class WMSCapacityService {
     let totalWeight = 0;
     let totalVolume = 0;
 
-    for (const [sku, qty] of quantityMap.entries()) {
+    const activeSkus = Array.from(quantityMap.entries())
+      .filter(([_, qty]) => qty > 0)
+      .map(([skuStr]) => new Sku(skuStr));
+
+    if (activeSkus.length === 0) {
+      return;
+    }
+
+    const products = await this.productRepository.findBySkus(activeSkus);
+
+    const variantMap = new Map<string, typeof products[number]['variants'][number]>();
+    for (const product of products) {
+      for (const variant of product.variants) {
+        variantMap.set(variant.sku.value, variant);
+      }
+    }
+
+    for (const [skuStr, qty] of quantityMap.entries()) {
       if (qty <= 0) {
         continue;
       }
 
-      const product = await this.productRepository.findBySku(new Sku(sku));
-      if (!product) {
-        continue;
-      }
-
-      const variant = product.variants.find(v => v.sku.value === sku);
+      const variant = variantMap.get(skuStr);
       if (!variant) {
         continue;
       }
