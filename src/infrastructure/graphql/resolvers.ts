@@ -3,6 +3,7 @@ import { PubSub } from 'graphql-subscriptions';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import Redis from 'ioredis';
 import crypto from 'crypto';
+import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 
 let pubsubInstance: any;
@@ -224,7 +225,7 @@ export interface GraphQLContext {
     actorId?: string;
     role?: string;
   };
-  prisma?: any;
+  prisma?: PrismaClient;
   loaders?: DataLoaders;
 }
 
