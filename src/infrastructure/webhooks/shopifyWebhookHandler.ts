@@ -10,6 +10,8 @@ import {
   prisma
 } from '../graphql/resolvers';
 
+// Note: The hardcoded Shopify Webhook Secret vulnerability has already been fixed.
+// The fallback 'shopify-fallback-secret-key-123' was removed and it now fails securely.
 export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean {
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
   if (!secret) {
