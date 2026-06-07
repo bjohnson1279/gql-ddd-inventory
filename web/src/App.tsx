@@ -1049,12 +1049,12 @@ function App() {
                       <h2 className="form-section-title">Add Variant to: {selectedProduct.name}</h2>
                       <form onSubmit={handleAddVariant}>
                         <div className="form-group">
-                          <label>SKU</label>
-                          <input value={newVarSku} onChange={e => setNewVarSku(e.target.value)} placeholder="e.g. TEE-BLU-M" required />
+                          <label htmlFor="newVarSku">SKU</label>
+                          <input id="newVarSku" value={newVarSku} onChange={e => setNewVarSku(e.target.value)} placeholder="e.g. TEE-BLU-M" required />
                         </div>
                         <div className="form-group">
-                          <label>Tracking Mode</label>
-                          <select value={newVarTracking} onChange={e => setNewVarTracking(e.target.value as any)}>
+                          <label htmlFor="newVarTracking">Tracking Mode</label>
+                          <select id="newVarTracking" value={newVarTracking} onChange={e => setNewVarTracking(e.target.value as any)}>
                             <option value="quantity">Quantity level tracking</option>
                             <option value="serial">Serial number tracking</option>
                             <option value="lot">Lot tracking</option>
@@ -1064,12 +1064,12 @@ function App() {
                         <label>Variant Attributes (Colors, Sizes, etc.)</label>
                         {newVarAttrs.map((attr, idx) => (
                           <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                            <input placeholder="Attribute Name" value={attr.name} onChange={e => {
+                            <input aria-label="Attribute Name" placeholder="Attribute Name" value={attr.name} onChange={e => {
                               const updated = [...newVarAttrs];
                               updated[idx].name = e.target.value;
                               setNewVarAttrs(updated);
                             }} />
-                            <input placeholder="Value" value={attr.value} onChange={e => {
+                            <input aria-label="Attribute Value" placeholder="Value" value={attr.value} onChange={e => {
                               const updated = [...newVarAttrs];
                               updated[idx].value = e.target.value;
                               setNewVarAttrs(updated);
