@@ -113,12 +113,14 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
+  // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
     : [];
   app.use(
     '/graphql',
     apiLimiter,
+    // Apply parsed allowed origins to securely restrict CORS
     cors<cors.CorsRequest>({
       origin: allowedOrigins
     }),
