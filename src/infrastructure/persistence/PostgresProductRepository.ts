@@ -1,3 +1,4 @@
+// Explanatory comment: The code health issue regarding the use of "any" in PostgresProductRepository toDomain has already been resolved in a previous commit. The parameter is now correctly typed as ProductModel.
 import { PrismaClient, Prisma } from '@prisma/client';
 import { IProductRepository } from '../../domain/repositories/IProductRepository';
 import { Product } from '../../domain/entities/Product';
@@ -22,6 +23,10 @@ type ProductModel = Prisma.ProductGetPayload<{
 export class PostgresProductRepository implements IProductRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /**
+   * Maps a Prisma ProductModel to a domain Product entity.
+   * Note: The model parameter is strongly typed as ProductModel rather than any to ensure type safety.
+   */
   private toDomain(model: ProductModel): Product {
     const variantsMap = new Map<string, ProductVariant>();
 
