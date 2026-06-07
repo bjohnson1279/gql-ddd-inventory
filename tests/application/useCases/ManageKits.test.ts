@@ -53,6 +53,7 @@ describe('ManageKits Use Cases', () => {
       entriesFor: jest.fn(),
       currentQuantityAt: jest.fn(),
       hasAnyEntries: jest.fn(),
+      hasAnyEntriesBatch: jest.fn(),
     };
 
     costLayers = {

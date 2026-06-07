@@ -47,4 +47,21 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
   async hasAnyEntries(variantId: ProductVariantId, locationId: LocationId): Promise<boolean> {
     return this.entries.some(e => e.variantId.equals(variantId) && e.locationId.equals(locationId));
   }
+
+  async hasAnyEntriesBatch(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, boolean>> {
+    const result = new Map<string, boolean>();
+    const variantIdStrs = new Set(variantIds.map(id => id.value));
+
+    for (const id of variantIds) {
+      result.set(id.value, false);
+    }
+
+    for (const entry of this.entries) {
+      if (entry.locationId.equals(locationId) && variantIdStrs.has(entry.variantId.value)) {
+        result.set(entry.variantId.value, true);
+      }
+    }
+
+    return result;
+  }
 }
