@@ -1311,17 +1311,17 @@ function App() {
 
                 {newJournalLines.map((line, idx) => (
                   <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                    <input placeholder="Account Code" value={line.accountCode} onChange={e => {
+                    <input aria-label="Account Code" placeholder="Account Code" value={line.accountCode} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].accountCode = e.target.value;
                       setNewJournalLines(updated);
                     }} required />
-                    <input type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
+                    <input aria-label="Amount (Cents)" type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].amountCents = Number(e.target.value);
                       setNewJournalLines(updated);
                     }} required />
-                    <select value={line.type} onChange={e => {
+                    <select aria-label="Transaction Type" value={line.type} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].type = e.target.value as any;
                       setNewJournalLines(updated);
@@ -1329,7 +1329,7 @@ function App() {
                       <option value="debit">DEBIT</option>
                       <option value="credit">CREDIT</option>
                     </select>
-                    <input placeholder="Memo" value={line.memo} onChange={e => {
+                    <input aria-label="Memo" placeholder="Memo" value={line.memo} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].memo = e.target.value;
                       setNewJournalLines(updated);
