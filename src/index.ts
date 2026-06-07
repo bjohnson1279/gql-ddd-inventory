@@ -96,11 +96,15 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
 }
 
 function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 1000, // Limit each IP to 1000 requests per `window` (here, per 15 minutes).
-    standardHeaders: 'draft-7', // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+    limit: 1000, // Limit each IP to 1000 requests per window (here, per 15 minutes).
+    standardHeaders: 'draft-7', // draft-6: RateLimit-* headers; draft-7: combined RateLimit header
+    legacyHeaders: false, // Disable the X-RateLimit-* headers.
     message: 'Too many requests from this IP, please try again after 15 minutes'
   });
 
