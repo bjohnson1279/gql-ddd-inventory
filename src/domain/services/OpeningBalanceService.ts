@@ -13,6 +13,7 @@ export class OpeningBalanceService {
   constructor(
     private readonly ledgerRepository: ILedgerRepository,
     // In a real system, we'd inject an event dispatcher
+    // Strongly typing the dispatcher ensures we only emit valid domain events
     private readonly eventDispatcher: (event: DomainEvent) => void = () => {}
   ) {}
 
