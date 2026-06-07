@@ -47,6 +47,20 @@ describe('ManageProducts Use Cases', () => {
       expect(savedProduct.name).toBe('New Test Product');
     });
 
+    it('should successfully instantiate and save a Product entity via the mocked repository', async () => {
+      const useCase = new CreateProductUseCase(productRepo);
+
+      const result = await useCase.execute('mocked-prod-id', 'Mocked Product Name');
+
+      expect(result).toBe(true);
+      expect(productRepo.save).toHaveBeenCalledTimes(1);
+
+      const savedProduct = productRepo.save.mock.calls[0][0];
+      expect(savedProduct).toBeInstanceOf(Product);
+      expect(savedProduct.id.value).toBe('mocked-prod-id');
+      expect(savedProduct.name).toBe('Mocked Product Name');
+    });
+
     it('should throw an error if the product id is empty', async () => {
       const useCase = new CreateProductUseCase(productRepo);
 
