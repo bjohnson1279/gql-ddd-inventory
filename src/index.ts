@@ -3,6 +3,7 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express5';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { WebSocketServer } from 'ws';
@@ -95,6 +96,18 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
 }
 
 function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 1000, // Limit each IP to 1000 requests per window (here, per 15 minutes).
+    standardHeaders: 'draft-7', // draft-6: RateLimit-* headers; draft-7: combined RateLimit header
+    legacyHeaders: false, // Disable the X-RateLimit-* headers.
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+  });
+
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
   app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
@@ -104,6 +117,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     : [];
   app.use(
     '/graphql',
+    apiLimiter,
     cors<cors.CorsRequest>({
       origin: allowedOrigins
     }),

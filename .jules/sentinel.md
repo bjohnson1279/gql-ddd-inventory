@@ -46,3 +46,8 @@
 **Vulnerability:** A fallback Shopify Webhook secret (`shopify-fallback-secret-key-123`) was hardcoded directly in the codebase using a logical OR fallback.
 **Learning:** Hardcoding fallback secrets as string literals exposes the secret to SAST tools and malicious actors who might gain access to the source code, allowing them to bypass payload HMAC verifications.
 **Prevention:** Rely entirely on environment variables without string literal fallbacks for cryptographic secrets. Explicitly fail during execution or throw an exception if the required variable is missing.
+
+## 2026-06-07 - Webhook Endpoint Rate Limiting Danger
+**Vulnerability:** Implementing overly strict IP-based rate limiting on third-party webhook endpoints (like Shopify `/webhooks/shopify`).
+**Learning:** Third-party providers often use a limited pool of shared IPs and can send traffic in massive bursts. Strict global API limiters applied to these endpoints cause legitimate webhooks to be dropped with `429 Too Many Requests`. This causes data inconsistency and can result in the provider disabling the webhook subscription entirely. Additionally, global limiters like `express-rate-limit` on endpoints like `/graphql` must have sufficiently high thresholds (e.g. 1000 requests / 15min) to not lock out legitimate users performing normal application interactions.
+**Prevention:** Exclude webhook endpoints from global strict rate limiters, or apply distinct limiters specifically calibrated for known third-party IP behavior.
