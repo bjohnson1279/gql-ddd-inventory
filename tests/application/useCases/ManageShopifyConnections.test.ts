@@ -131,6 +131,29 @@ describe('ManageShopifyConnections Use Cases', () => {
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });
 
+    it('should explicitly call repository save with the expected entity when input is valid', async () => {
+      const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
+
+      const result = await useCase.execute({
+        id: 'int-123',
+        tenantId: 'tenant-123',
+        storeDomain: 'test-store.myshopify.com',
+        accessToken: 'shpat_1234567890',
+      });
+
+      expect(result).toBe(true);
+      expect(integrationRepo.save).toHaveBeenCalledTimes(1);
+
+      const savedConnection = integrationRepo.save.mock.calls[0][0] as IntegrationConnection;
+      expect(savedConnection).toBeInstanceOf(IntegrationConnection);
+      expect(savedConnection.id.value).toBe('int-123');
+      expect(savedConnection.tenantId.value).toBe('tenant-123');
+      expect(savedConnection.platform).toBe(IntegrationPlatform.Shopify);
+      expect(savedConnection.storeDomain).toBe('test-store.myshopify.com');
+      expect(savedConnection.accessToken).toBe('shpat_1234567890');
+      expect(savedConnection.isActive).toBe(true);
+    });
+
     it('should set the platform to Shopify regardless of input and pass an IntegrationConnection to the repository', async () => {
       const useCase = new ConnectShopifyStoreUseCase(integrationRepo);
 
