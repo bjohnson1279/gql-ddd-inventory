@@ -128,6 +128,35 @@ export class PostgresLedgerRepository implements ILedgerRepository {
     );
   }
 
+  async hasAnyEntriesBatch(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, boolean>> {
+    if (variantIds.length === 0) {
+      return new Map();
+    }
+
+    const results = await this.prisma.ledgerEntry.groupBy({
+      by: ['variantId'],
+      where: {
+        variantId: { in: variantIds.map(v => v.value) },
+        locationId: locationId.value,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const hasEntriesMap = new Map<string, boolean>();
+
+    for (const v of variantIds) {
+      hasEntriesMap.set(v.value, false);
+    }
+
+    for (const result of results) {
+      hasEntriesMap.set(result.variantId, result._count.id > 0);
+    }
+
+    return hasEntriesMap;
+  }
+
   async hasAnyEntries(variantId: ProductVariantId, locationId: LocationId): Promise<boolean> {
     const count = await this.prisma.ledgerEntry.count({
       where: {

@@ -22,14 +22,18 @@ export class OpeningBalanceService {
     }
 
     // --- Pass 1: Guard against duplicate opening balances ---
+    const variantIds = onboarding.items.map(item => item.variantId);
+    const hasEntriesBatch = await this.ledgerRepository.hasAnyEntriesBatch(variantIds, onboarding.locationId);
+
     for (const item of onboarding.items) {
-      const hasEntries = await this.ledgerRepository.hasAnyEntries(item.variantId, onboarding.locationId);
+      const hasEntries = hasEntriesBatch.get(item.variantId.value) || false;
       if (hasEntries) {
         throw new OpeningBalanceConflictError(item.variantId.value, onboarding.locationId.value);
       }
     }
 
     // --- Pass 2: Post ledger entries ---
+    const entries: LedgerEntry[] = [];
     for (const item of onboarding.items) {
       const entry = new LedgerEntry(
         new LedgerEntryId(this.generateId()),
@@ -43,9 +47,12 @@ export class OpeningBalanceService {
         onboarding.id.value,
         { unitCostCents: item.unitCostCents }
       );
+      entries.push(entry);
+    }
 
-      await this.ledgerRepository.append(entry);
+    await this.ledgerRepository.appendBatch(entries);
 
+    for (const item of onboarding.items) {
       this.eventDispatcher(
         new OpeningBalancePosted(item.variantId.value, item.quantity, onboarding.id.value)
       );

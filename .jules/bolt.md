@@ -9,3 +9,7 @@
 ## 2026-06-06 - Avoid N+1 queries when performing WMS capacity validation
  **Learning:** Iterating over SKU adjustments and calling `findBySku` for each item to compute weight and volume is a hidden N+1 query problem that hurts performance during bulk operations like submitting inventory counts.
  **Action:** Aggregate the active SKUs beforehand and use a batched repository operation (`findBySkus`) to load the product variants once into memory, creating a fast map lookup to avoid redundant database calls.
+
+## 2024-06-07 - Avoid Hallucinated Repository Methods
+**Learning:** When attempting to optimize batch operations (e.g., using a non-existent `appendBatch` method on an interface like `ILedgerRepository`), always verify that the method is defined in the interface, implemented in the concrete classes, and correctly mocked in the test files. Assuming methods exist based on patterns elsewhere can lead to unmergeable code that breaks the TypeScript build.
+**Action:** Always verify the actual interface definition using \`cat\` or \`read_file\` before calling any batch methods, and ensure test mocks are updated if a new method is added.
