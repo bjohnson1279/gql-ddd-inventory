@@ -1,6 +1,6 @@
 import { DomainEventDispatcher } from '../../../src/application/services/DomainEventDispatcher';
 import { DomainEvent } from '../../../src/domain/events/DomainEvent';
-import { IEventBus, EventHandler } from '../../../src/domain/events/IEventBus';
+import { IEventBus } from '../../../src/domain/events/IEventBus';
 
 class MockEvent implements DomainEvent {
   occurredAt: Date = new Date();
