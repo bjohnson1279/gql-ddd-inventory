@@ -98,8 +98,14 @@ describe('OpeningBalanceService', () => {
     expect(entries[0].metadata).toEqual({ unitCostCents: 100 });
 
     // Check entry 2
+    expect(entries[1].tenantId.value).toBe('tenant-1');
+    expect(entries[1].locationId.value).toBe('loc-1');
     expect(entries[1].variantId.value).toBe('var-2');
     expect(entries[1].quantity).toBe(20);
+    expect(entries[1].reason).toBe(ReasonCode.OpeningBalance);
+    expect(entries[1].actor.value).toBe('user-1');
+    expect(entries[1].referenceId).toBe('ob-123');
+    expect(entries[1].metadata).toEqual({ unitCostCents: 200 });
 
     expect(mockEventDispatcher).toHaveBeenCalledTimes(2);
     expect(mockEventDispatcher).toHaveBeenNthCalledWith(1, expect.any(OpeningBalancePosted));
