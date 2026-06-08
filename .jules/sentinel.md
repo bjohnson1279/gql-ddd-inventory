@@ -51,3 +51,8 @@
 **Vulnerability:** Implementing overly strict IP-based rate limiting on third-party webhook endpoints (like Shopify `/webhooks/shopify`).
 **Learning:** Third-party providers often use a limited pool of shared IPs and can send traffic in massive bursts. Strict global API limiters applied to these endpoints cause legitimate webhooks to be dropped with `429 Too Many Requests`. This causes data inconsistency and can result in the provider disabling the webhook subscription entirely. Additionally, global limiters like `express-rate-limit` on endpoints like `/graphql` must have sufficiently high thresholds (e.g. 1000 requests / 15min) to not lock out legitimate users performing normal application interactions.
 **Prevention:** Exclude webhook endpoints from global strict rate limiters, or apply distinct limiters specifically calibrated for known third-party IP behavior.
+
+## 2026-06-08 - [Authentication Bypass in Mock Login Mutation]
+**Vulnerability:** The GraphQL `login` mutation accepted `tenantId` and `actorId` and returned a valid, signed JWT for those credentials without requiring any password or secret. It was not restricted by environment.
+**Learning:** Development utilities or mock endpoints built for easier testing are sometimes deployed to production if not explicitly guarded, acting as complete authorization bypass backdoors.
+**Prevention:** Ensure mock authentication endpoints or developer convenience tools are explicitly wrapped with environment checks (e.g., `if (process.env.NODE_ENV === 'production') { throw new Error('Forbidden') }`) so they fail securely if accidentally exposed in production.

@@ -822,6 +822,9 @@ export const resolvers = {
       }
     },
     login: async (_: any, { tenantId, actorId, role }: { tenantId: string; actorId: string; role?: string }) => {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Forbidden: Login mutation is not available in production.');
+      }
       if (!tenantId || !actorId) {
         throw new Error('Tenant ID and User ID are required.');
       }
