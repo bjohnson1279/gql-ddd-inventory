@@ -101,8 +101,26 @@ import {
   GetStockTransfersUseCase,
   GetStockTransferByIdUseCase
 } from '../../application/useCases/ManageStockTransfers';
-import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
+import { PostgresReplenishmentRuleRepository } from '../persistence/PostgresReplenishmentRuleRepository';
+import { PostgresPurchaseOrderRepository } from '../persistence/PostgresPurchaseOrderRepository';
+import {
+  CreateReplenishmentRuleUseCase,
+  UpdateReplenishmentRuleUseCase,
+  ToggleReplenishmentRuleUseCase,
+  EvaluateReplenishmentUseCase,
+  GetReplenishmentRulesUseCase,
+  CreatePurchaseOrderUseCase,
+  PlacePurchaseOrderUseCase,
+  ReceivePurchaseOrderUseCase,
+  CancelPurchaseOrderUseCase,
+  GetPurchaseOrdersUseCase,
+  GetPurchaseOrderByIdUseCase
+} from '../../application/useCases/ManageReplenishment';
+import { DemandVelocityCalculator, ReorderPointForecaster } from '../../domain/services/ReplenishmentForecaster';
+import { ReplenishmentEvaluator } from '../../domain/services/ReplenishmentEvaluator';
+import { TenantId } from '../../domain/valueObjects/TenantId';
+import { ReplenishmentType } from '../../domain/enums/ReplenishmentType';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
@@ -228,6 +246,36 @@ const receiveStockTransferUseCase = new ReceiveStockTransferUseCase(stockTransfe
 const cancelStockTransferUseCase = new CancelStockTransferUseCase(stockTransferRepository, inventoryRepository, productRepository, ledgerRepository);
 const getStockTransfersUseCase = new GetStockTransfersUseCase(stockTransferRepository);
 const getStockTransferByIdUseCase = new GetStockTransferByIdUseCase(stockTransferRepository);
+
+// Replenishment Repositories
+export const replenishmentRuleRepository = new PostgresReplenishmentRuleRepository(prisma);
+export const purchaseOrderRepository = new PostgresPurchaseOrderRepository(prisma);
+
+// Replenishment Services
+const demandVelocityCalculator = new DemandVelocityCalculator(productRepository, ledgerRepository);
+const reorderPointForecaster = new ReorderPointForecaster(demandVelocityCalculator);
+const replenishmentEvaluator = new ReplenishmentEvaluator(
+  replenishmentRuleRepository,
+  inventoryRepository,
+  productRepository,
+  stockTransferRepository,
+  purchaseOrderRepository,
+  reorderPointForecaster
+);
+
+// Replenishment Use Cases
+const createReplenishmentRuleUseCase = new CreateReplenishmentRuleUseCase(replenishmentRuleRepository);
+const updateReplenishmentRuleUseCase = new UpdateReplenishmentRuleUseCase(replenishmentRuleRepository);
+const toggleReplenishmentRuleUseCase = new ToggleReplenishmentRuleUseCase(replenishmentRuleRepository);
+const evaluateReplenishmentUseCase = new EvaluateReplenishmentUseCase(replenishmentEvaluator);
+const getReplenishmentRulesUseCase = new GetReplenishmentRulesUseCase(replenishmentRuleRepository);
+
+const createPurchaseOrderUseCase = new CreatePurchaseOrderUseCase(purchaseOrderRepository);
+const placePurchaseOrderUseCase = new PlacePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository);
+const receivePurchaseOrderUseCase = new ReceivePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository, ledgerRepository);
+const cancelPurchaseOrderUseCase = new CancelPurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository);
+const getPurchaseOrdersUseCase = new GetPurchaseOrdersUseCase(purchaseOrderRepository);
+const getPurchaseOrderByIdUseCase = new GetPurchaseOrderByIdUseCase(purchaseOrderRepository);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -580,6 +628,60 @@ export const resolvers = {
           quantity: i.quantity
         }))
       }));
+    },
+    replenishmentRules: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+      const list = await getReplenishmentRulesUseCase.execute(auth.tenantId);
+      return list.map(rule => ({
+        id: rule.id.value,
+        tenantId: rule.tenantId.value,
+        sku: rule.sku.value,
+        locationId: rule.locationId.value,
+        reorderPoint: rule.reorderPoint,
+        reorderQuantity: rule.reorderQuantity,
+        safetyStock: rule.safetyStock,
+        leadTimeDays: rule.leadTimeDays,
+        replenishmentType: rule.replenishmentType,
+        sourceLocationId: rule.sourceLocationId ? rule.sourceLocationId.value : null,
+        supplierId: rule.supplierId,
+        isActive: rule.isActive,
+        dynamicRopEnabled: rule.dynamicRopEnabled
+      }));
+    },
+    purchaseOrder: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const po = await getPurchaseOrderByIdUseCase.execute(id);
+      if (!po) return null;
+      return {
+        id: po.id.value,
+        tenantId: po.tenantId.value,
+        supplierId: po.supplierId,
+        destinationLocationId: po.destinationLocationId.value,
+        status: po.status,
+        items: po.items.map(i => ({
+          variantId: i.variantId.value,
+          quantity: i.quantity
+        })),
+        createdAt: po.createdAt.toISOString(),
+        updatedAt: po.updatedAt.toISOString()
+      };
+    },
+    purchaseOrders: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+      const list = await getPurchaseOrdersUseCase.execute(auth.tenantId);
+      return list.map(po => ({
+        id: po.id.value,
+        tenantId: po.tenantId.value,
+        supplierId: po.supplierId,
+        destinationLocationId: po.destinationLocationId.value,
+        status: po.status,
+        items: po.items.map(i => ({
+          variantId: i.variantId.value,
+          quantity: i.quantity
+        })),
+        createdAt: po.createdAt.toISOString(),
+        updatedAt: po.updatedAt.toISOString()
+      }));
     }
   },
   Mutation: {
@@ -909,6 +1011,63 @@ export const resolvers = {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
         return await cancelStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createReplenishmentRule: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId);
+        return await createReplenishmentRuleUseCase.execute({ ...input, tenantId: auth.tenantId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    toggleReplenishmentRule: async (_: any, { id, isActive }: { id: string; isActive: boolean }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await toggleReplenishmentRuleUseCase.execute(id, isActive);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    evaluateReplenishment: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
+        await evaluateReplenishmentUseCase.execute(auth.tenantId);
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createPurchaseOrder: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId);
+        return await createPurchaseOrderUseCase.execute({ ...input, tenantId: auth.tenantId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    placePurchaseOrder: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await placePurchaseOrderUseCase.execute(id);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    receivePurchaseOrder: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
+        return await receivePurchaseOrderUseCase.execute(id, auth.actorId, auth.tenantId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    cancelPurchaseOrder: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await cancelPurchaseOrderUseCase.execute(id);
       } catch (error: any) {
         throw new Error(error.message);
       }

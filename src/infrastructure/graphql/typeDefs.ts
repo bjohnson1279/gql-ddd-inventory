@@ -335,6 +335,76 @@ export const typeDefs = `#graphql
     referenceId: String
   }
 
+  enum ReplenishmentType {
+    SUPPLIER
+    TRANSFER
+  }
+
+  enum PurchaseOrderStatus {
+    DRAFT
+    ORDERED
+    RECEIVED
+    CANCELLED
+  }
+
+  type ReplenishmentRule {
+    id: ID!
+    tenantId: ID!
+    sku: String!
+    locationId: String!
+    reorderPoint: Int!
+    reorderQuantity: Int!
+    safetyStock: Int!
+    leadTimeDays: Int!
+    replenishmentType: ReplenishmentType!
+    sourceLocationId: String
+    supplierId: String
+    isActive: Boolean!
+    dynamicRopEnabled: Boolean!
+  }
+
+  type PurchaseOrderItem {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  type PurchaseOrder {
+    id: ID!
+    tenantId: ID!
+    supplierId: String!
+    destinationLocationId: String!
+    status: PurchaseOrderStatus!
+    items: [PurchaseOrderItem!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateReplenishmentRuleInput {
+    tenantId: ID!
+    sku: String!
+    locationId: String!
+    reorderPoint: Int!
+    reorderQuantity: Int!
+    safetyStock: Int!
+    leadTimeDays: Int!
+    replenishmentType: ReplenishmentType!
+    sourceLocationId: String
+    supplierId: String
+    dynamicRopEnabled: Boolean
+  }
+
+  input PurchaseOrderItemInput {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  input CreatePurchaseOrderInput {
+    tenantId: ID!
+    supplierId: String!
+    destinationLocationId: String!
+    items: [PurchaseOrderItemInput!]!
+  }
+
   type Query {
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
@@ -355,6 +425,9 @@ export const typeDefs = `#graphql
     historicalStockLevel(sku: String!, locationId: String!, timestamp: String!): Int!
     stockTransfer(id: ID!): StockTransfer
     stockTransfers(tenantId: ID!): [StockTransfer!]!
+    replenishmentRules(tenantId: ID!): [ReplenishmentRule!]!
+    purchaseOrder(id: ID!): PurchaseOrder
+    purchaseOrders(tenantId: ID!): [PurchaseOrder!]!
   }
 
   type InventoryCountResult {
@@ -488,6 +561,15 @@ export const typeDefs = `#graphql
     dispatchStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
     receiveStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
     cancelStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
+
+    createReplenishmentRule(input: CreateReplenishmentRuleInput!): ReplenishmentRule!
+    toggleReplenishmentRule(id: ID!, isActive: Boolean!): ReplenishmentRule!
+    evaluateReplenishment(tenantId: ID!): Boolean!
+
+    createPurchaseOrder(input: CreatePurchaseOrderInput!): PurchaseOrder!
+    placePurchaseOrder(id: ID!): PurchaseOrder!
+    receivePurchaseOrder(id: ID!, actorId: ID!, tenantId: ID!): PurchaseOrder!
+    cancelPurchaseOrder(id: ID!): PurchaseOrder!
   }
 
   type Subscription {

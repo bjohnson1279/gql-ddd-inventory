@@ -103,6 +103,14 @@ jest.mock('../../../src/infrastructure/persistence/PostgresStockTransferReposito
   const { InMemoryStockTransferRepository } = require('../../../src/infrastructure/persistence/InMemoryStockTransferRepository');
   return { PostgresStockTransferRepository: InMemoryStockTransferRepository };
 });
+jest.mock('../../../src/infrastructure/persistence/PostgresReplenishmentRuleRepository', () => {
+  const { InMemoryReplenishmentRuleRepository } = require('../../../src/infrastructure/persistence/InMemoryReplenishmentRuleRepository');
+  return { PostgresReplenishmentRuleRepository: InMemoryReplenishmentRuleRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresPurchaseOrderRepository', () => {
+  const { InMemoryPurchaseOrderRepository } = require('../../../src/infrastructure/persistence/InMemoryPurchaseOrderRepository');
+  return { PostgresPurchaseOrderRepository: InMemoryPurchaseOrderRepository };
+});
 
 import { setTimeout } from 'timers';
 import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
@@ -678,5 +686,106 @@ describe('GraphQL Resolvers', () => {
       tenantId: 't-resolver'
     }, context);
     expect(cancelled.status).toBe('cancelled');
+  });
+
+  it('should support creating and managing replenishment rules and purchase orders via GraphQL resolvers', async () => {
+    const context = {
+      auth: {
+        tenantId: 't-replenish-resolver',
+        actorId: 'user-replenish-resolver',
+        role: 'warehouse_operator'
+      }
+    };
+
+    const productRepo = require('../../../src/infrastructure/graphql/resolvers').productRepository;
+    const { Product } = require('../../../src/domain/entities/Product');
+    const { ProductId } = require('../../../src/domain/valueObjects/ProductId');
+    const { Sku } = require('../../../src/domain/valueObjects/Sku');
+    const { VariantAttribute } = require('../../../src/domain/valueObjects/VariantAttribute');
+    const { VariantTrackingMode } = require('../../../src/domain/enums/VariantEnums');
+
+    const product = new Product(new ProductId('p-rep-res'), 'Replenish Resolver Product');
+    const variant = product.addVariant(new Sku('SKU-REP-RESOLVER'), [new VariantAttribute('color', 'green')], VariantTrackingMode.Quantity);
+    await productRepo.save(product);
+
+    // 1. Create replenishment rule
+    const ruleInput = {
+      tenantId: 't-replenish-resolver',
+      sku: 'SKU-REP-RESOLVER',
+      locationId: 'LOC-REP-RESOLVER-A',
+      reorderPoint: 15,
+      reorderQuantity: 80,
+      safetyStock: 5,
+      leadTimeDays: 5,
+      replenishmentType: 'SUPPLIER',
+      supplierId: 'SUPP-RESOLVER',
+      dynamicRopEnabled: false
+    };
+
+    const createdRule = await (resolvers.Mutation as any).createReplenishmentRule(null, { input: ruleInput }, context);
+    expect(createdRule.id).toBeDefined();
+    expect(createdRule.sku).toBe('SKU-REP-RESOLVER');
+    expect(createdRule.isActive).toBe(true);
+
+    // 2. Toggle active
+    const toggledRule = await (resolvers.Mutation as any).toggleReplenishmentRule(null, { id: createdRule.id, isActive: false }, context);
+    expect(toggledRule.isActive).toBe(false);
+
+    // Toggle back to active
+    await (resolvers.Mutation as any).toggleReplenishmentRule(null, { id: createdRule.id, isActive: true }, context);
+
+    // 3. Query replenishment rules
+    const rules = await (resolvers.Query as any).replenishmentRules(null, { tenantId: 't-replenish-resolver' }, context);
+    expect(rules).toHaveLength(1);
+    expect(rules[0].id).toBe(createdRule.id);
+
+    // 4. Create purchase order
+    const poInput = {
+      tenantId: 't-replenish-resolver',
+      supplierId: 'SUPP-RESOLVER',
+      destinationLocationId: 'LOC-REP-RESOLVER-A',
+      items: [{ variantId: variant.id.value, quantity: 50 }]
+    };
+
+    const createdPo = await (resolvers.Mutation as any).createPurchaseOrder(null, { input: poInput }, context);
+    expect(createdPo.id).toBeDefined();
+    expect(createdPo.status).toBe('DRAFT');
+
+    // 5. Query PO by ID
+    const retrievedPo = await (resolvers.Query as any).purchaseOrder(null, { id: createdPo.id }, context);
+    expect(retrievedPo).not.toBeNull();
+    expect(retrievedPo.supplierId).toBe('SUPP-RESOLVER');
+
+    // 6. Query all POs for tenant
+    const pos = await (resolvers.Query as any).purchaseOrders(null, { tenantId: 't-replenish-resolver' }, context);
+    expect(pos).toHaveLength(1);
+    expect(pos[0].id).toBe(createdPo.id);
+
+    // 7. Place PO
+    const placedPo = await (resolvers.Mutation as any).placePurchaseOrder(null, { id: createdPo.id }, context);
+    expect(placedPo.status).toBe('ORDERED');
+
+    // 8. Receive PO
+    const receivedPo = await (resolvers.Mutation as any).receivePurchaseOrder(null, {
+      id: createdPo.id,
+      actorId: 'user-replenish-resolver',
+      tenantId: 't-replenish-resolver'
+    }, context);
+    expect(receivedPo.status).toBe('RECEIVED');
+
+    // 9. Create and cancel PO
+    const poInput2 = {
+      tenantId: 't-replenish-resolver',
+      supplierId: 'SUPP-RESOLVER',
+      destinationLocationId: 'LOC-REP-RESOLVER-A',
+      items: [{ variantId: variant.id.value, quantity: 20 }]
+    };
+    const createdPo2 = await (resolvers.Mutation as any).createPurchaseOrder(null, { input: poInput2 }, context);
+    const cancelledPo = await (resolvers.Mutation as any).cancelPurchaseOrder(null, { id: createdPo2.id }, context);
+    expect(cancelledPo.status).toBe('CANCELLED');
+
+    // 10. Run evaluation
+    const evaluated = await (resolvers.Mutation as any).evaluateReplenishment(null, { tenantId: 't-replenish-resolver' }, context);
+    expect(evaluated).toBe(true);
   });
 });

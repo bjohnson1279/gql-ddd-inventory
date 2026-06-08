@@ -328,3 +328,48 @@ model StockTransferItem {
   @@unique([transferId, variantId])
   @@map("stock_transfer_items")
 }
+
+model ReplenishmentRule {
+  id                    String   @id @db.Uuid
+  tenantId              String   @map("tenant_id")
+  sku                   String
+  locationId            String   @map("location_id")
+  reorderPoint          Int      @map("reorder_point")
+  reorderQuantity       Int      @map("reorder_quantity")
+  safetyStock           Int      @map("safety_stock")
+  leadTimeDays          Int      @map("lead_time_days")
+  replenishmentType     String   @map("replenishment_type") // "SUPPLIER" | "TRANSFER"
+  sourceLocationId      String?  @map("source_location_id")
+  supplierId            String?  @map("supplier_id")
+  isActive              Boolean  @default(true) @map("is_active")
+  dynamicRopEnabled     Boolean  @default(false) @map("dynamic_rop_enabled")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([tenantId, sku, locationId])
+  @@map("replenishment_rules")
+}
+
+model PurchaseOrder {
+  id                    String              @id @db.Uuid
+  tenantId              String              @map("tenant_id")
+  supplierId            String              @map("supplier_id")
+  destinationLocationId String              @map("destination_location_id")
+  status                String              @default("DRAFT")
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  items                 PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseOrderId String        @map("purchase_order_id") @db.Uuid
+  variantId       String        @map("variant_id") @db.Uuid
+  quantity        Int
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseOrderId, variantId])
+  @@map("purchase_order_items")
+}
