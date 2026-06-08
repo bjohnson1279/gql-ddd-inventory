@@ -1,4 +1,4 @@
-import { AssembleKitUseCase, DisassembleKitUseCase } from '../../../src/application/useCases/ManageKits';
+import { AssembleKitUseCase, DisassembleKitUseCase, SellKitUseCase, CreateKitUseCase } from '../../../src/application/useCases/ManageKits';
 import { IKitRepository } from '../../../src/domain/repositories/IKitRepository';
 import { IProductRepository } from '../../../src/domain/repositories/IProductRepository';
 import { ILedgerRepository } from '../../../src/domain/repositories/ILedgerRepository';
@@ -266,6 +266,58 @@ describe('ManageKits Use Cases', () => {
         actorId,
         referenceId
       })).rejects.toThrow('Insufficient stock');
+    });
+  });
+
+  describe('SellKitUseCase', () => {
+    it('successfully sells a kit and decrements component stock', async () => {
+      const mockInventoryService = {
+        decrementForKitSale: jest.fn().mockResolvedValue(undefined)
+      } as any;
+      const useCase = new SellKitUseCase(mockInventoryService);
+
+      const input = {
+        tenantId: 'T1',
+        locationId: 'LOC1',
+        kitId: 'K1',
+        sku: 'KIT-1',
+        name: 'Super Kit',
+        quantity: 2,
+        referenceId: 'REF-1',
+        actorId: 'A1',
+        components: [
+          { variantId: 'V1', quantity: 3 }
+        ]
+      };
+
+      const result = await useCase.execute(input);
+      expect(result).toBe(true);
+      expect(mockInventoryService.decrementForKitSale).toHaveBeenCalled();
+    });
+  });
+
+  describe('CreateKitUseCase', () => {
+    it('successfully creates a kit', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      kitRepo.save.mockResolvedValue(undefined);
+
+      const input = {
+        id: 'K2',
+        sku: 'KIT-2',
+        name: 'Another Kit',
+        components: [
+          { variantId: 'V1', quantity: 2 },
+          { variantId: 'V2', quantity: 1 }
+        ]
+      };
+
+      const result = await useCase.execute(input);
+      expect(result).toBe(true);
+      expect(kitRepo.save).toHaveBeenCalled();
+      const savedKit = kitRepo.save.mock.calls[0][0];
+      expect(savedKit.id.value).toBe('K2');
+      expect(savedKit.sku.value).toBe('KIT-2');
+      expect(savedKit.components).toHaveLength(2);
     });
   });
 });

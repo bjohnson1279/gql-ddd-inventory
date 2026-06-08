@@ -100,6 +100,7 @@ jest.mock('../../../src/infrastructure/persistence/PostgresWarehouseLocationRepo
   return { PostgresWarehouseLocationRepository: InMemoryWarehouseLocationRepository };
 });
 
+import { setTimeout } from 'timers';
 import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
 
 // Mock the Prisma/Pool calls to prevent database connection attempts during test lifecycle
@@ -115,7 +116,7 @@ describe('GraphQL Resolvers', () => {
 
   afterAll(async () => {
     // Wait for any pending event bus tasks to complete before tearing down
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setTimeout(resolve, 0));
     await new Promise(resolve => setTimeout(resolve, 50));
 
     await prisma.$disconnect();
