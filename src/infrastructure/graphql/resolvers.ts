@@ -823,8 +823,8 @@ export const resolvers = {
       }
     },
     login: async (_: any, { tenantId, actorId, role }: { tenantId: string; actorId: string; role?: string }) => {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('Login mutation is disabled in production.');
+      if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+        throw new Error('Login mutation is only available in development or test environments.');
       }
       if (!tenantId || !actorId) {
         throw new Error('Tenant ID and User ID are required.');
