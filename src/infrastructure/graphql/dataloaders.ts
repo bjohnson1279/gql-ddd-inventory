@@ -23,6 +23,7 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
             id: v.id,
             sku: v.sku,
             trackingMode: v.trackingMode,
+            costingMethod: v.costingMethod,
             attributes: v.attributes.map((a) => ({ name: a.name, value: a.value })),
           }))
       );
@@ -64,6 +65,10 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
             unitCostCents: l.unitCostCents,
             receivedAt: l.receivedAt.toISOString(),
             serialNumber: l.serialNumber,
+            lot: l.lotNumber ? {
+              lotNumber: l.lotNumber,
+              expirationDate: l.expirationDate ? l.expirationDate.toISOString() : '',
+            } : null,
           }))
       );
     }),

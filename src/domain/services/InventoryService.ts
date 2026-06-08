@@ -105,13 +105,24 @@ export class InventoryService {
       throw new Error('Cannot sell a kit with no components.');
     }
 
-    // --- Pass 1: validate all components upfront ---
+    // --- Pass 1: validate all components upfront in batch to prevent N+1 queries ---
+    const variantIds = kit.components.map(c => c.variantId);
+    const availableQuantities = await this.ledgerRepository.currentQuantities(variantIds, locationId);
+
     for (const component of kit.components) {
       const needed = component.quantity * kitQuantity;
-      await this.assertSufficientStock(component.variantId, locationId, needed);
+      const available = availableQuantities.get(component.variantId.value) || 0;
+      if (available < needed) {
+        throw new Error(
+          `Insufficient stock for variant ${component.variantId.value}. Requested: ${needed}, Available: ${available}`
+        );
+      }
     }
 
-    // --- Pass 2: write ledger entries for each component ---
+    // --- Pass 2: write ledger entries in batch ---
+    const entries: LedgerEntry[] = [];
+    const occurredAt = new Date();
+
     for (const component of kit.components) {
       const needed = component.quantity * kitQuantity;
       const entry = new LedgerEntry(
@@ -122,11 +133,17 @@ export class InventoryService {
         -needed,
         ReasonCode.KitSale,
         actor,
-        new Date(),
+        occurredAt,
         saleId
       );
+      entries.push(entry);
+    }
 
-      await this.ledgerRepository.append(entry);
+    await this.ledgerRepository.appendBatch(entries);
+
+    // --- Pass 3: dispatch events ---
+    for (const component of kit.components) {
+      const needed = component.quantity * kitQuantity;
       this.eventDispatcher(new InventoryDecremented(tenantId.value, locationId.value, component.variantId, needed, saleId));
     }
   }

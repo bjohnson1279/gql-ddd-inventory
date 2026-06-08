@@ -1,4 +1,3 @@
-// Explanatory comment: The code health issue regarding the use of "any" in PostgresProductRepository toDomain has already been resolved in a previous commit. The parameter is now correctly typed as ProductModel.
 import { PrismaClient, Prisma } from '@prisma/client';
 import { IProductRepository } from '../../domain/repositories/IProductRepository';
 import { Product } from '../../domain/entities/Product';
@@ -9,6 +8,7 @@ import { Sku } from '../../domain/valueObjects/Sku';
 import { VariantAttribute } from '../../domain/valueObjects/VariantAttribute';
 import { VariantAttributeSet } from '../../domain/valueObjects/VariantAttributeSet';
 import { VariantTrackingMode } from '../../domain/enums/VariantEnums';
+import { CostingMethod } from '../../domain/enums/AccountingEnums';
 
 type ProductModel = Prisma.ProductGetPayload<{
   include: {
@@ -42,7 +42,8 @@ export class PostgresProductRepository implements IProductRepository {
         new VariantAttributeSet(attributes),
         v.trackingMode as VariantTrackingMode,
         v.weightGrams || 0,
-        v.volumeCubicMeters || 0
+        v.volumeCubicMeters || 0,
+        v.costingMethod as CostingMethod
       );
       variantsMap.set(variant.id.value, variant);
     }
@@ -96,12 +97,14 @@ export class PostgresProductRepository implements IProductRepository {
             productId: product.id.value,
             sku: variant.sku.value,
             trackingMode: variant.trackingMode,
+            costingMethod: variant.costingMethod,
             weightGrams: variant.weightGrams,
             volumeCubicMeters: variant.volumeCubicMeters,
           },
           update: {
             sku: variant.sku.value,
             trackingMode: variant.trackingMode,
+            costingMethod: variant.costingMethod,
             weightGrams: variant.weightGrams,
             volumeCubicMeters: variant.volumeCubicMeters,
           },

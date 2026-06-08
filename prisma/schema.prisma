@@ -34,6 +34,7 @@ model ProductVariant {
   productId           String               @map("product_id") @db.Uuid
   sku                 String               @unique
   trackingMode        String               @default("quantity") @map("tracking_mode")
+  costingMethod       String               @default("fifo") @map("costing_method")
   weightGrams         Int?                 @map("weight_grams")
   volumeCubicMeters   Float?               @map("volume_cubic_meters")
   createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
@@ -83,11 +84,15 @@ model InventoryCostLayer {
   unitCostCents    Int            @map("unit_cost_cents")
   receivedAt       DateTime       @map("received_at") @db.Timestamptz
   serialNumber     String?        @map("serial_number")
+  lotNumber        String?        @map("lot_number")
+  expirationDate   DateTime?      @map("expiration_date") @db.Timestamptz
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
   variant          ProductVariant @relation(fields: [variantId], references: [id])
 
   @@index([variantId, receivedAt])
   @@index([variantId, serialNumber])
+  @@index([variantId, expirationDate])
+  @@index([variantId, lotNumber])
   @@map("inventory_cost_layers")
 }
 
@@ -301,4 +306,75 @@ model WarehouseLocation {
 
   @@unique([warehouseId, zone, aisle, rack, shelf, bin])
   @@map("warehouse_locations")
+}
+
+model StockTransfer {
+  id                    String              @id @db.Uuid
+  tenantId              String              @map("tenant_id")
+  sourceLocationId      String              @map("source_location_id")
+  destinationLocationId String              @map("destination_location_id")
+  status                String
+  referenceId           String?             @map("reference_id")
+  dispatchedAt          DateTime?           @map("dispatched_at") @db.Timestamptz
+  receivedAt            DateTime?           @map("received_at") @db.Timestamptz
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  items                 StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId  String        @map("transfer_id") @db.Uuid
+  variantId   String        @map("variant_id") @db.Uuid
+  quantity    Int
+  transfer    StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@unique([transferId, variantId])
+  @@map("stock_transfer_items")
+}
+
+model ReplenishmentRule {
+  id                    String   @id @db.Uuid
+  tenantId              String   @map("tenant_id")
+  sku                   String
+  locationId            String   @map("location_id")
+  reorderPoint          Int      @map("reorder_point")
+  reorderQuantity       Int      @map("reorder_quantity")
+  safetyStock           Int      @map("safety_stock")
+  leadTimeDays          Int      @map("lead_time_days")
+  replenishmentType     String   @map("replenishment_type") // "SUPPLIER" | "TRANSFER"
+  sourceLocationId      String?  @map("source_location_id")
+  supplierId            String?  @map("supplier_id")
+  isActive              Boolean  @default(true) @map("is_active")
+  dynamicRopEnabled     Boolean  @default(false) @map("dynamic_rop_enabled")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([tenantId, sku, locationId])
+  @@map("replenishment_rules")
+}
+
+model PurchaseOrder {
+  id                    String              @id @db.Uuid
+  tenantId              String              @map("tenant_id")
+  supplierId            String              @map("supplier_id")
+  destinationLocationId String              @map("destination_location_id")
+  status                String              @default("DRAFT")
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  items                 PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseOrderId String        @map("purchase_order_id") @db.Uuid
+  variantId       String        @map("variant_id") @db.Uuid
+  quantity        Int
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseOrderId, variantId])
+  @@map("purchase_order_items")
 }

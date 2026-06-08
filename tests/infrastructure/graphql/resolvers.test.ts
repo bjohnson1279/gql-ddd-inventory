@@ -6,20 +6,55 @@ jest.mock('../../../src/infrastructure/persistence/PostgresProductRepository', (
   const { InMemoryProductRepository } = require('../../../src/infrastructure/persistence/InMemoryProductRepository');
   return { PostgresProductRepository: InMemoryProductRepository };
 });
+let mockLedgerRepoInstance: any;
 jest.mock('../../../src/infrastructure/persistence/PostgresLedgerRepository', () => {
   const { InMemoryLedgerRepository } = require('../../../src/infrastructure/persistence/InMemoryLedgerRepository');
-  return { PostgresLedgerRepository: InMemoryLedgerRepository };
+  return {
+    PostgresLedgerRepository: jest.fn().mockImplementation(() => {
+      const instance = new InMemoryLedgerRepository();
+      mockLedgerRepoInstance = instance;
+      return instance;
+    })
+  };
 });
 jest.mock('../../../src/infrastructure/persistence/PostgresSerializedItemRepository', () => {
   const { InMemorySerializedItemRepository } = require('../../../src/infrastructure/persistence/InMemorySerializedItemRepository');
   return { PostgresSerializedItemRepository: InMemorySerializedItemRepository };
 });
 jest.mock('../../../src/infrastructure/persistence/PostgresInventoryCostLayerRepository', () => {
-  return { PostgresInventoryCostLayerRepository: jest.fn().mockImplementation(() => ({
-    save: jest.fn(),
-    getActiveLayers: jest.fn().mockResolvedValue([]),
-    findBySerial: jest.fn().mockResolvedValue(null)
-  })) };
+  const layers: any[] = [];
+  return {
+    PostgresInventoryCostLayerRepository: jest.fn().mockImplementation(() => ({
+      save: jest.fn(async (layer) => {
+        const idx = layers.findIndex(l => l.id.equals(layer.id));
+        if (idx !== -1) {
+          layers[idx] = layer;
+        } else {
+          layers.push(layer);
+        }
+      }),
+      getActiveLayers: jest.fn(async (variantId, orderBy) => {
+        const filtered = layers.filter(l => l.variantId.equals(variantId) && l.consumedQuantity < l.initialQuantity);
+        const isExpiration = orderBy?.toLowerCase().includes('expiration');
+        const orderDirection = orderBy?.toLowerCase().includes('desc') ? 'desc' : 'asc';
+        return [...filtered].sort((a, b) => {
+          if (isExpiration) {
+            const expA = a.lot?.expirationDate?.getTime() || Infinity;
+            const expB = b.lot?.expirationDate?.getTime() || Infinity;
+            if (expA !== expB) {
+              return orderDirection === 'desc' ? expB - expA : expA - expB;
+            }
+          }
+          const timeA = a.receivedAt.getTime();
+          const timeB = b.receivedAt.getTime();
+          return orderDirection === 'desc' ? timeB - timeA : timeA - timeB;
+        });
+      }),
+      findBySerial: jest.fn(async (variantId, serialNumber) => {
+        return layers.find(l => l.variantId.equals(variantId) && l.serialNumber?.equals(serialNumber)) || null;
+      })
+    }))
+  };
 });
 jest.mock('../../../src/infrastructure/persistence/PostgresIntegrationRepository', () => {
   return { PostgresIntegrationRepository: jest.fn().mockImplementation(() => {
@@ -99,8 +134,26 @@ jest.mock('../../../src/infrastructure/persistence/PostgresWarehouseLocationRepo
   const { InMemoryWarehouseLocationRepository } = require('../../../src/infrastructure/persistence/InMemoryWarehouseLocationRepository');
   return { PostgresWarehouseLocationRepository: InMemoryWarehouseLocationRepository };
 });
+jest.mock('../../../src/infrastructure/persistence/PostgresStockTransferRepository', () => {
+  const { InMemoryStockTransferRepository } = require('../../../src/infrastructure/persistence/InMemoryStockTransferRepository');
+  return { PostgresStockTransferRepository: InMemoryStockTransferRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresReplenishmentRuleRepository', () => {
+  const { InMemoryReplenishmentRuleRepository } = require('../../../src/infrastructure/persistence/InMemoryReplenishmentRuleRepository');
+  return { PostgresReplenishmentRuleRepository: InMemoryReplenishmentRuleRepository };
+});
+jest.mock('../../../src/infrastructure/persistence/PostgresPurchaseOrderRepository', () => {
+  const { InMemoryPurchaseOrderRepository } = require('../../../src/infrastructure/persistence/InMemoryPurchaseOrderRepository');
+  return { PostgresPurchaseOrderRepository: InMemoryPurchaseOrderRepository };
+});
 
-import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
+import { setTimeout } from 'timers';
+import { resolvers, prisma, pool, productRepository, warehouseLocationRepository } from '../../../src/infrastructure/graphql/resolvers';
+import { Product } from '../../../src/domain/entities/Product';
+import { ProductId } from '../../../src/domain/valueObjects/ProductId';
+import { Sku } from '../../../src/domain/valueObjects/Sku';
+import { VariantAttribute } from '../../../src/domain/valueObjects/VariantAttribute';
+import { WarehouseLocation } from '../../../src/domain/entities/WarehouseLocation';
 
 // Mock the Prisma/Pool calls to prevent database connection attempts during test lifecycle
 jest.spyOn(prisma.inventoryItem, 'deleteMany').mockImplementation(() => Promise.resolve({ count: 0 }) as any);
@@ -115,7 +168,7 @@ describe('GraphQL Resolvers', () => {
 
   afterAll(async () => {
     // Wait for any pending event bus tasks to complete before tearing down
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setTimeout(resolve, 0));
     await new Promise(resolve => setTimeout(resolve, 50));
 
     await prisma.$disconnect();
@@ -581,5 +634,334 @@ describe('GraphQL Resolvers', () => {
       timestamp: '2026-06-01T11:30:00Z'
     });
     expect(atT2).toBe(10);
+  });
+
+  it('should support creating, querying, dispatching, receiving, and cancelling stock transfers through GraphQL resolvers', async () => {
+    const context = {
+      auth: {
+        tenantId: 't-resolver',
+        actorId: 'user-resolver',
+        role: 'warehouse_operator'
+      }
+    };
+
+    // We need a product variant in the mock product repository to find sku.
+    const productRepo = require('../../../src/infrastructure/graphql/resolvers').productRepository;
+    const { Product } = require('../../../src/domain/entities/Product');
+    const { ProductId } = require('../../../src/domain/valueObjects/ProductId');
+    const { Sku } = require('../../../src/domain/valueObjects/Sku');
+    const { VariantAttribute } = require('../../../src/domain/valueObjects/VariantAttribute');
+    const { VariantTrackingMode } = require('../../../src/domain/enums/VariantEnums');
+
+    const product = new Product(new ProductId('p-resolver'), 'Resolver Product');
+    const variant = product.addVariant(new Sku('SKU-RESOLVER'), [new VariantAttribute('color', 'red')], VariantTrackingMode.Quantity);
+    await productRepo.save(product);
+
+    // 1. Create stock transfer
+    const transferInput = {
+      tenantId: 't-resolver',
+      sourceLocationId: 'LOC-RESOLVER-A',
+      destinationLocationId: 'LOC-RESOLVER-B',
+      items: [{ variantId: variant.id.value, quantity: 8 }],
+      referenceId: 'ref-res-1'
+    };
+
+    const created = await (resolvers.Mutation as any).createStockTransfer(null, { input: transferInput }, context);
+    expect(created.id).toBeDefined();
+    expect(created.status).toBe('draft');
+    expect(created.items).toHaveLength(1);
+    expect(created.items[0].variantId).toBe(variant.id.value);
+
+    // 2. Query stock transfer by ID
+    const retrieved = await (resolvers.Query as any).stockTransfer(null, { id: created.id }, context);
+    expect(retrieved).not.toBeNull();
+    expect(retrieved.status).toBe('draft');
+    expect(retrieved.referenceId).toBe('ref-res-1');
+
+    // 3. Query all stock transfers by tenant
+    const transfers = await (resolvers.Query as any).stockTransfers(null, { tenantId: 't-resolver' }, context);
+    expect(transfers).toHaveLength(1);
+    expect(transfers[0].id).toBe(created.id);
+
+    // Seed inventory at source so we can dispatch
+    await (resolvers.Mutation as any).receiveStock(null, { sku: 'SKU-RESOLVER', locationId: 'LOC-RESOLVER-A', amount: 20 }, context);
+
+    // 4. Dispatch stock transfer
+    const dispatched = await (resolvers.Mutation as any).dispatchStockTransfer(null, {
+      id: created.id,
+      actorId: 'user-resolver',
+      tenantId: 't-resolver'
+    }, context);
+    expect(dispatched.status).toBe('dispatched');
+    expect(dispatched.dispatchedAt).not.toBeNull();
+
+    // Verify source stock is reduced (20 - 8 = 12)
+    const sourceInv = await (resolvers.Query as any).inventoryItemBySkuAndLocation(null, { sku: 'SKU-RESOLVER', locationId: 'LOC-RESOLVER-A' }, context);
+    expect(sourceInv.quantity).toBe(12);
+
+    // 5. Receive stock transfer
+    const received = await (resolvers.Mutation as any).receiveStockTransfer(null, {
+      id: created.id,
+      actorId: 'user-resolver',
+      tenantId: 't-resolver'
+    }, context);
+    expect(received.status).toBe('received');
+    expect(received.receivedAt).not.toBeNull();
+
+    // Verify destination stock is increased (8)
+    const destInv = await (resolvers.Query as any).inventoryItemBySkuAndLocation(null, { sku: 'SKU-RESOLVER', locationId: 'LOC-RESOLVER-B' }, context);
+    expect(destInv.quantity).toBe(8);
+
+    // 6. Create and cancel a second stock transfer
+    const transferInput2 = {
+      tenantId: 't-resolver',
+      sourceLocationId: 'LOC-RESOLVER-A',
+      destinationLocationId: 'LOC-RESOLVER-B',
+      items: [{ variantId: variant.id.value, quantity: 2 }]
+    };
+    const created2 = await (resolvers.Mutation as any).createStockTransfer(null, { input: transferInput2 }, context);
+    const cancelled = await (resolvers.Mutation as any).cancelStockTransfer(null, {
+      id: created2.id,
+      actorId: 'user-resolver',
+      tenantId: 't-resolver'
+    }, context);
+    expect(cancelled.status).toBe('cancelled');
+  });
+
+  it('should support creating and managing replenishment rules and purchase orders via GraphQL resolvers', async () => {
+    const context = {
+      auth: {
+        tenantId: 't-replenish-resolver',
+        actorId: 'user-replenish-resolver',
+        role: 'warehouse_operator'
+      }
+    };
+
+    const productRepo = require('../../../src/infrastructure/graphql/resolvers').productRepository;
+    const { Product } = require('../../../src/domain/entities/Product');
+    const { ProductId } = require('../../../src/domain/valueObjects/ProductId');
+    const { Sku } = require('../../../src/domain/valueObjects/Sku');
+    const { VariantAttribute } = require('../../../src/domain/valueObjects/VariantAttribute');
+    const { VariantTrackingMode } = require('../../../src/domain/enums/VariantEnums');
+
+    const product = new Product(new ProductId('p-rep-res'), 'Replenish Resolver Product');
+    const variant = product.addVariant(new Sku('SKU-REP-RESOLVER'), [new VariantAttribute('color', 'green')], VariantTrackingMode.Quantity);
+    await productRepo.save(product);
+
+    // 1. Create replenishment rule
+    const ruleInput = {
+      tenantId: 't-replenish-resolver',
+      sku: 'SKU-REP-RESOLVER',
+      locationId: 'LOC-REP-RESOLVER-A',
+      reorderPoint: 15,
+      reorderQuantity: 80,
+      safetyStock: 5,
+      leadTimeDays: 5,
+      replenishmentType: 'SUPPLIER',
+      supplierId: 'SUPP-RESOLVER',
+      dynamicRopEnabled: false
+    };
+
+    const createdRule = await (resolvers.Mutation as any).createReplenishmentRule(null, { input: ruleInput }, context);
+    expect(createdRule.id).toBeDefined();
+    expect(createdRule.sku).toBe('SKU-REP-RESOLVER');
+    expect(createdRule.isActive).toBe(true);
+
+    // 2. Toggle active
+    const toggledRule = await (resolvers.Mutation as any).toggleReplenishmentRule(null, { id: createdRule.id, isActive: false }, context);
+    expect(toggledRule.isActive).toBe(false);
+
+    // Toggle back to active
+    await (resolvers.Mutation as any).toggleReplenishmentRule(null, { id: createdRule.id, isActive: true }, context);
+
+    // 3. Query replenishment rules
+    const rules = await (resolvers.Query as any).replenishmentRules(null, { tenantId: 't-replenish-resolver' }, context);
+    expect(rules).toHaveLength(1);
+    expect(rules[0].id).toBe(createdRule.id);
+
+    // 4. Create purchase order
+    const poInput = {
+      tenantId: 't-replenish-resolver',
+      supplierId: 'SUPP-RESOLVER',
+      destinationLocationId: 'LOC-REP-RESOLVER-A',
+      items: [{ variantId: variant.id.value, quantity: 50 }]
+    };
+
+    const createdPo = await (resolvers.Mutation as any).createPurchaseOrder(null, { input: poInput }, context);
+    expect(createdPo.id).toBeDefined();
+    expect(createdPo.status).toBe('DRAFT');
+
+    // 5. Query PO by ID
+    const retrievedPo = await (resolvers.Query as any).purchaseOrder(null, { id: createdPo.id }, context);
+    expect(retrievedPo).not.toBeNull();
+    expect(retrievedPo.supplierId).toBe('SUPP-RESOLVER');
+
+    // 6. Query all POs for tenant
+    const pos = await (resolvers.Query as any).purchaseOrders(null, { tenantId: 't-replenish-resolver' }, context);
+    expect(pos).toHaveLength(1);
+    expect(pos[0].id).toBe(createdPo.id);
+
+    // 7. Place PO
+    const placedPo = await (resolvers.Mutation as any).placePurchaseOrder(null, { id: createdPo.id }, context);
+    expect(placedPo.status).toBe('ORDERED');
+
+    // 8. Receive PO
+    const receivedPo = await (resolvers.Mutation as any).receivePurchaseOrder(null, {
+      id: createdPo.id,
+      actorId: 'user-replenish-resolver',
+      tenantId: 't-replenish-resolver'
+    }, context);
+    expect(receivedPo.status).toBe('RECEIVED');
+
+    // 9. Create and cancel PO
+    const poInput2 = {
+      tenantId: 't-replenish-resolver',
+      supplierId: 'SUPP-RESOLVER',
+      destinationLocationId: 'LOC-REP-RESOLVER-A',
+      items: [{ variantId: variant.id.value, quantity: 20 }]
+    };
+    const createdPo2 = await (resolvers.Mutation as any).createPurchaseOrder(null, { input: poInput2 }, context);
+    const cancelledPo = await (resolvers.Mutation as any).cancelPurchaseOrder(null, { id: createdPo2.id }, context);
+    expect(cancelledPo.status).toBe('CANCELLED');
+
+    // 10. Run evaluation
+    const evaluated = await (resolvers.Mutation as any).evaluateReplenishment(null, { tenantId: 't-replenish-resolver' }, context);
+    expect(evaluated).toBe(true);
+  });
+
+  it('should suggest putaway locations and optimize picking routes via GraphQL queries', async () => {
+    const context = {
+      auth: { tenantId: 't-routing', userId: 'user-routing', role: 'admin' },
+      prisma: {} as any
+    };
+
+    // 1. Setup mock product variant
+    const product = new Product(new ProductId('p-r1'), 'Routing Prod');
+    const variant = product.addVariant(new Sku('ROUTE-SKU-1'), [
+      new VariantAttribute('temperatureZone', 'ambient')
+    ]);
+    (variant as any).weightGrams = 100;
+    (variant as any).volumeCubicMeters = 0.05;
+    await productRepository.save(product);
+
+    // 2. Setup mock locations in repository
+    const loc1 = WarehouseLocation.parsePath('WH1-ambient-A01-R01-S01-B01', 1000, 1.0);
+    const loc2 = WarehouseLocation.parsePath('WH1-ambient-A02-R01-S01-B01', 1000, 1.0);
+    await warehouseLocationRepository.save(loc1);
+    await warehouseLocationRepository.save(loc2);
+
+    // 3. Test suggestPutawayLocations query resolver
+    const recs = await (resolvers.Query as any).suggestPutawayLocations(
+      null,
+      { input: { sku: 'ROUTE-SKU-1', quantity: 5 } },
+      context
+    );
+    expect(recs).toHaveLength(1);
+    expect(recs[0].locationId).toBe('WH1-ambient-A01-R01-S01-B01');
+    expect(recs[0].quantity).toBe(5);
+
+    // 4. Test optimizePickingRoute query resolver
+    const route = await (resolvers.Query as any).optimizePickingRoute(
+      null,
+      {
+        tenantId: 't-routing',
+        items: [
+          { sku: 'ROUTE-SKU-1', quantity: 2, locationId: 'WH1-ambient-A02-R01-S01-B01' },
+          { sku: 'ROUTE-SKU-1', quantity: 3, locationId: 'WH1-ambient-A01-R01-S01-B01' }
+        ]
+      },
+      context
+    );
+
+    expect(route).toHaveLength(1);
+    expect(route[0].warehouseId).toBe('WH1');
+    expect(route[0].items).toHaveLength(2);
+    // S-Shape route check: A01 is odd (asc), A02 is even (desc)
+    expect(route[0].items[0].locationId).toBe('WH1-ambient-A01-R01-S01-B01');
+    expect(route[0].items[1].locationId).toBe('WH1-ambient-A02-R01-S01-B01');
+  });
+
+  it('should manage FEFO costing and product recall via resolvers', async () => {
+    const context = { auth: { role: 'admin', tenantId: 'tenant-fefo', actorId: 'actor-fefo' } };
+
+    // 1. Create product & variant
+    await (resolvers.Mutation as any).createProduct(null, { id: 'p-fefo-1', name: 'FEFO Product' }, context);
+    await (resolvers.Mutation as any).addProductVariant(null, {
+      productId: 'p-fefo-1',
+      sku: 'SKU-FEFO-1',
+      attributes: [{ name: 'size', value: 'standard' }],
+      trackingMode: 'lot'
+    }, context);
+
+    // 2. Update costing method to FEFO
+    const variant = await (resolvers.Mutation as any).updateProductVariantCostingMethod(
+      null,
+      { sku: 'SKU-FEFO-1', costingMethod: 'fefo' },
+      context
+    );
+    expect(variant.costingMethod).toBe('fefo');
+
+    // 3. Receive stock with Lot
+    const expiry = new Date('2026-12-31T00:00:00.000Z');
+    const received = await (resolvers.Mutation as any).receiveStockWithLot(
+      null,
+      {
+        sku: 'SKU-FEFO-1',
+        locationId: 'LOC-FEFO-A',
+        quantity: 30,
+        unitCostCents: 600,
+        lotNumber: 'LOT-FEFO-X',
+        expirationDate: expiry.toISOString()
+      },
+      context
+    );
+    expect(received).toBe(true);
+
+    // 4. Query FEFO Pick Suggestion
+    const suggestions = await (resolvers.Query as any).suggestFefoPicking(
+      null,
+      { sku: 'SKU-FEFO-1', quantity: 15 },
+      context
+    );
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].lotNumber).toBe('LOT-FEFO-X');
+    expect(suggestions[0].locationId).toBe('LOC-FEFO-A');
+    expect(suggestions[0].quantity).toBe(15);
+
+    // 5. Trace recall: insert a simulated dispatch ledger entry directly into mock repository
+    const dbProduct = await productRepository.findBySku(new Sku('SKU-FEFO-1'));
+    expect(dbProduct).not.toBeNull();
+    const dbVariant = dbProduct!.variants.find(v => v.sku.value === 'SKU-FEFO-1');
+    expect(dbVariant).toBeDefined();
+
+    const { LedgerEntry } = require('../../../src/domain/entities/LedgerEntry');
+    const { LedgerEntryId } = require('../../../src/domain/valueObjects/LedgerEntryId');
+    const { TenantId } = require('../../../src/domain/valueObjects/TenantId');
+    const { LocationId } = require('../../../src/domain/valueObjects/LocationId');
+    const { ActorId } = require('../../../src/domain/valueObjects/ActorId');
+    const { ReasonCode } = require('../../../src/domain/enums/ReasonCode');
+
+    await mockLedgerRepoInstance.append(new LedgerEntry(
+      new LedgerEntryId('le-recall-dispatch-1'),
+      new TenantId('tenant-fefo'),
+      new LocationId('LOC-FEFO-A'),
+      dbVariant!.id,
+      -10, // Deduction/dispatch
+      ReasonCode.Sale,
+      new ActorId('actor-fefo'),
+      new Date(),
+      'ORDER-FEFO-1',
+      { lotNumber: 'LOT-FEFO-X' }
+    ));
+
+    const dispatches = await (resolvers.Query as any).traceProductRecall(
+      null,
+      { lotNumber: 'LOT-FEFO-X' },
+      context
+    );
+    expect(dispatches).toHaveLength(1);
+    expect(dispatches[0].ledgerEntryId).toBe('le-recall-dispatch-1');
+    expect(dispatches[0].quantity).toBe(10);
+    expect(dispatches[0].referenceId).toBe('ORDER-FEFO-1');
   });
 });

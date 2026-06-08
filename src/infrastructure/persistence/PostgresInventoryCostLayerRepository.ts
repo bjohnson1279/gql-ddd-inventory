@@ -3,6 +3,7 @@ import { IInventoryCostLayerRepository } from '../../domain/repositories/IInvent
 import { InventoryCostLayer, InventoryCostLayerId } from '../../domain/entities/InventoryCostLayer';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { SerialNumber } from '../../domain/valueObjects/SerialNumber';
+import { Lot } from '../../domain/valueObjects/Lot';
 
 export class PostgresInventoryCostLayerRepository implements IInventoryCostLayerRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -18,6 +19,8 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
         unitCostCents: layer.unitCostCents,
         receivedAt: layer.receivedAt,
         serialNumber: layer.serialNumber?.value || null,
+        lotNumber: layer.lot?.lotNumber || null,
+        expirationDate: layer.lot?.expirationDate || null,
       },
       update: {
         consumedQuantity: layer.consumedQuantity,
@@ -40,6 +43,8 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
             unitCostCents: layer.unitCostCents,
             receivedAt: layer.receivedAt,
             serialNumber: layer.serialNumber?.value || null,
+            lotNumber: layer.lot?.lotNumber || null,
+            expirationDate: layer.lot?.expirationDate || null,
           },
           update: {
             consumedQuantity: layer.consumedQuantity,
@@ -53,7 +58,8 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
     variantId: ProductVariantId,
     orderBy: string = 'asc'
   ): Promise<InventoryCostLayer[]> {
-    const orderDirection = orderBy.toLowerCase() === 'desc' ? 'desc' : 'asc';
+    const isExpiration = orderBy.toLowerCase().includes('expiration');
+    const orderDirection = orderBy.toLowerCase().includes('desc') ? 'desc' : 'asc';
 
     const dbLayers = await this.prisma.inventoryCostLayer.findMany({
       where: {
@@ -62,20 +68,29 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
           lt: this.prisma.inventoryCostLayer.fields.initialQuantity
         }
       },
-      orderBy: {
-        receivedAt: orderDirection,
-      },
+      orderBy: isExpiration
+        ? [
+            { expirationDate: orderDirection },
+            { receivedAt: 'asc' }
+          ]
+        : {
+            receivedAt: orderDirection,
+          },
     });
 
     return dbLayers
       .map((l) => {
+        const lot = l.lotNumber && l.expirationDate
+          ? new Lot(l.lotNumber, l.expirationDate)
+          : undefined;
         const layer = new InventoryCostLayer(
           new InventoryCostLayerId(l.id),
           new ProductVariantId(l.variantId),
           l.initialQuantity,
           l.unitCostCents,
           l.receivedAt,
-          l.serialNumber ? new SerialNumber(l.serialNumber) : undefined
+          l.serialNumber ? new SerialNumber(l.serialNumber) : undefined,
+          lot
         );
         (layer as any)._consumedQuantity = l.consumedQuantity;
         return layer;
@@ -88,7 +103,8 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
   ): Promise<Map<string, InventoryCostLayer[]>> {
     if (variantIds.length === 0) return new Map();
 
-    const orderDirection = orderBy.toLowerCase() === 'desc' ? 'desc' : 'asc';
+    const isExpiration = orderBy.toLowerCase().includes('expiration');
+    const orderDirection = orderBy.toLowerCase().includes('desc') ? 'desc' : 'asc';
     const variantIdStrs = variantIds.map(v => v.value);
 
     const dbLayers = await this.prisma.inventoryCostLayer.findMany({
@@ -98,19 +114,28 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
           lt: this.prisma.inventoryCostLayer.fields.initialQuantity
         }
       },
-      orderBy: {
-        receivedAt: orderDirection,
-      },
+      orderBy: isExpiration
+        ? [
+            { expirationDate: orderDirection },
+            { receivedAt: 'asc' }
+          ]
+        : {
+            receivedAt: orderDirection,
+          },
     });
 
     const activeLayers = dbLayers.map((l) => {
+      const lot = l.lotNumber && l.expirationDate
+        ? new Lot(l.lotNumber, l.expirationDate)
+        : undefined;
       const layer = new InventoryCostLayer(
         new InventoryCostLayerId(l.id),
         new ProductVariantId(l.variantId),
         l.initialQuantity,
         l.unitCostCents,
         l.receivedAt,
-        l.serialNumber ? new SerialNumber(l.serialNumber) : undefined
+        l.serialNumber ? new SerialNumber(l.serialNumber) : undefined,
+        lot
       );
       (layer as any)._consumedQuantity = l.consumedQuantity;
       return layer;
@@ -143,13 +168,17 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
 
     if (!l) return null;
 
+    const lot = l.lotNumber && l.expirationDate
+      ? new Lot(l.lotNumber, l.expirationDate)
+      : undefined;
     const layer = new InventoryCostLayer(
       new InventoryCostLayerId(l.id),
       new ProductVariantId(l.variantId),
       l.initialQuantity,
       l.unitCostCents,
       l.receivedAt,
-      l.serialNumber ? new SerialNumber(l.serialNumber) : undefined
+      l.serialNumber ? new SerialNumber(l.serialNumber) : undefined,
+      lot
     );
     (layer as any)._consumedQuantity = l.consumedQuantity;
     return layer;

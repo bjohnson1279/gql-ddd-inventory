@@ -1,5 +1,6 @@
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { SerialNumber } from '../valueObjects/SerialNumber';
+import { Lot } from '../valueObjects/Lot';
 
 export class InventoryCostLayerId {
   constructor(public readonly value: string) {
@@ -22,7 +23,8 @@ export class InventoryCostLayer {
     public readonly initialQuantity: number,
     public readonly unitCostCents: number,
     public readonly receivedAt: Date,
-    public readonly serialNumber?: SerialNumber
+    public readonly serialNumber?: SerialNumber,
+    public readonly lot?: Lot
   ) {
     if (initialQuantity <= 0) {
       throw new Error('Initial quantity must be positive.');

@@ -61,6 +61,11 @@ export const typeDefs = `#graphql
     value: String!
   }
 
+  type Lot {
+    lotNumber: String!
+    expirationDate: String!
+  }
+
   type InventoryCostLayer {
     id: ID!
     variantId: ID!
@@ -69,6 +74,23 @@ export const typeDefs = `#graphql
     unitCostCents: Int!
     receivedAt: String!
     serialNumber: String
+    lot: Lot
+  }
+
+  type FefoPickSuggestion {
+    locationId: ID!
+    lotNumber: String!
+    expirationDate: String!
+    quantity: Int!
+  }
+
+  type ContaminatedDispatch {
+    ledgerEntryId: ID!
+    locationId: ID!
+    quantity: Int!
+    referenceId: String
+    occurredAt: String!
+    actorId: String!
   }
 
   type ExternalMapping {
@@ -85,6 +107,7 @@ export const typeDefs = `#graphql
     id: ID!
     sku: String!
     trackingMode: TrackingMode!
+    costingMethod: String!
     attributes: [VariantAttribute!]!
     costLayers: [InventoryCostLayer!]!
     externalMappings: [ExternalMapping!]!
@@ -297,6 +320,149 @@ export const typeDefs = `#graphql
     maxVolumeCubicMeters: Float!
   }
 
+  enum StockTransferStatus {
+    draft
+    dispatched
+    received
+    cancelled
+  }
+
+  type StockTransferItem {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  type StockTransfer {
+    id: ID!
+    tenantId: ID!
+    sourceLocationId: String!
+    destinationLocationId: String!
+    status: StockTransferStatus!
+    items: [StockTransferItem!]!
+    referenceId: String
+    dispatchedAt: String
+    receivedAt: String
+    createdAt: String!
+  }
+
+  input StockTransferItemInput {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  input CreateStockTransferInput {
+    tenantId: ID!
+    sourceLocationId: String!
+    destinationLocationId: String!
+    items: [StockTransferItemInput!]!
+    referenceId: String
+  }
+
+  enum ReplenishmentType {
+    SUPPLIER
+    TRANSFER
+  }
+
+  enum PurchaseOrderStatus {
+    DRAFT
+    ORDERED
+    RECEIVED
+    CANCELLED
+  }
+
+  type ReplenishmentRule {
+    id: ID!
+    tenantId: ID!
+    sku: String!
+    locationId: String!
+    reorderPoint: Int!
+    reorderQuantity: Int!
+    safetyStock: Int!
+    leadTimeDays: Int!
+    replenishmentType: ReplenishmentType!
+    sourceLocationId: String
+    supplierId: String
+    isActive: Boolean!
+    dynamicRopEnabled: Boolean!
+  }
+
+  type PurchaseOrderItem {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  type PurchaseOrder {
+    id: ID!
+    tenantId: ID!
+    supplierId: String!
+    destinationLocationId: String!
+    status: PurchaseOrderStatus!
+    items: [PurchaseOrderItem!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateReplenishmentRuleInput {
+    tenantId: ID!
+    sku: String!
+    locationId: String!
+    reorderPoint: Int!
+    reorderQuantity: Int!
+    safetyStock: Int!
+    leadTimeDays: Int!
+    replenishmentType: ReplenishmentType!
+    sourceLocationId: String
+    supplierId: String
+    dynamicRopEnabled: Boolean
+  }
+
+  input PurchaseOrderItemInput {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  input CreatePurchaseOrderInput {
+    tenantId: ID!
+    supplierId: String!
+    destinationLocationId: String!
+    items: [PurchaseOrderItemInput!]!
+  }
+
+  type PutawayRecommendation {
+    locationId: ID!
+    quantity: Int!
+    remainingWeightGrams: Int!
+    remainingVolumeCubicMeters: Float!
+  }
+
+  type PickRouteItem {
+    sku: String!
+    locationId: ID!
+    quantity: Int!
+    warehouseId: String!
+    zone: String!
+    aisle: String!
+    rack: String!
+    shelf: String!
+    bin: String!
+  }
+
+  type PickRoute {
+    warehouseId: String!
+    items: [PickRouteItem!]!
+  }
+
+  input PutawayInput {
+    sku: String!
+    quantity: Int!
+  }
+
+  input PickItemInput {
+    sku: String!
+    quantity: Int!
+    locationId: ID!
+  }
+
   type Query {
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
@@ -315,6 +481,17 @@ export const typeDefs = `#graphql
     warehouseLocation(id: ID!): WarehouseLocation
     warehouseLocations: [WarehouseLocation!]!
     historicalStockLevel(sku: String!, locationId: String!, timestamp: String!): Int!
+    stockTransfer(id: ID!): StockTransfer
+    stockTransfers(tenantId: ID!): [StockTransfer!]!
+    replenishmentRules(tenantId: ID!): [ReplenishmentRule!]!
+    purchaseOrder(id: ID!): PurchaseOrder
+    purchaseOrders(tenantId: ID!): [PurchaseOrder!]!
+
+    suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
+    optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
+
+    suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
+    traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
   }
 
   type InventoryCountResult {
@@ -443,6 +620,23 @@ export const typeDefs = `#graphql
     login(tenantId: ID!, actorId: ID!, role: String): String!
     createWarehouseLocation(input: CreateWarehouseLocationInput!): WarehouseLocation!
     deleteWarehouseLocation(id: ID!): Boolean!
+
+    createStockTransfer(input: CreateStockTransferInput!): StockTransfer!
+    dispatchStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
+    receiveStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
+    cancelStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
+
+    createReplenishmentRule(input: CreateReplenishmentRuleInput!): ReplenishmentRule!
+    toggleReplenishmentRule(id: ID!, isActive: Boolean!): ReplenishmentRule!
+    evaluateReplenishment(tenantId: ID!): Boolean!
+
+    createPurchaseOrder(input: CreatePurchaseOrderInput!): PurchaseOrder!
+    placePurchaseOrder(id: ID!): PurchaseOrder!
+    receivePurchaseOrder(id: ID!, actorId: ID!, tenantId: ID!): PurchaseOrder!
+    cancelPurchaseOrder(id: ID!): PurchaseOrder!
+
+    updateProductVariantCostingMethod(sku: String!, costingMethod: String!): ProductVariant!
+    receiveStockWithLot(sku: String!, locationId: String!, quantity: Int!, unitCostCents: Int!, lotNumber: String!, expirationDate: String!): Boolean!
   }
 
   type Subscription {
