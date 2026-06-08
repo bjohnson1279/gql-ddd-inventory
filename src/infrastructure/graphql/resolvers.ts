@@ -244,7 +244,7 @@ function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?:
   }
 
   // Safe fallback for Jest integration unit tests which execute queries directly without tokens
-  if (process.env.NODE_ENV === 'test' || !context || Object.keys(context).length === 0) {
+  if (process.env.NODE_ENV === 'test') {
     return {
       tenantId: tenantId || 'tenant-1',
       actorId: actorId || 'admin-user',
