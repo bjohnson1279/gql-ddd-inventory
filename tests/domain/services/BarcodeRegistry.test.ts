@@ -36,10 +36,10 @@ describe('BarcodeRegistry', () => {
       expect(result).toBe(sku);
     });
 
-    it('should throw an error if barcode is not found', async () => {
+    it('should throw an error if barcode is not found, normalizing the repository query but preserving the original value in the error message', async () => {
       mockRepository.findSkuByBarcodeValue.mockResolvedValue(null);
 
-      await expect(registry.resolve('UNKNOWN')).rejects.toThrow('No variant found for barcode: UNKNOWN');
+      await expect(registry.resolve('  unknown  ')).rejects.toThrow('No variant found for barcode:   unknown  ');
       expect(mockRepository.findSkuByBarcodeValue).toHaveBeenCalledWith('UNKNOWN');
     });
   });
