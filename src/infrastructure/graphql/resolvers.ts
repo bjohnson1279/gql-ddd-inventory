@@ -122,6 +122,10 @@ import { ReplenishmentEvaluator } from '../../domain/services/ReplenishmentEvalu
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { ReplenishmentType } from '../../domain/enums/ReplenishmentType';
 
+import { PutawaySuggester } from '../../domain/services/PutawaySuggester';
+import { PickingRouteOptimizer } from '../../domain/services/PickingRouteOptimizer';
+import { GetPutawayRecommendationsUseCase, OptimizePickingRouteUseCase } from '../../application/useCases/ManageWarehouseRouting';
+
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
@@ -141,7 +145,7 @@ export const externalMappingRepository = new PostgresExternalMappingRepository(p
 const uomRepository = new PostgresProductUomConfigurationRepository(prisma);
 const journalRepository = new PostgresJournalRepository(prisma);
 const kitRepository = new PostgresKitRepository(prisma);
-const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
+export const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
@@ -276,6 +280,13 @@ const receivePurchaseOrderUseCase = new ReceivePurchaseOrderUseCase(purchaseOrde
 const cancelPurchaseOrderUseCase = new CancelPurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository);
 const getPurchaseOrdersUseCase = new GetPurchaseOrdersUseCase(purchaseOrderRepository);
 const getPurchaseOrderByIdUseCase = new GetPurchaseOrderByIdUseCase(purchaseOrderRepository);
+
+// Warehouse Routing Services & Use Cases
+const putawaySuggester = new PutawaySuggester(inventoryRepository, productRepository, warehouseLocationRepository);
+const pickingRouteOptimizer = new PickingRouteOptimizer(warehouseLocationRepository);
+
+const getPutawayRecommendationsUseCase = new GetPutawayRecommendationsUseCase(putawaySuggester);
+const optimizePickingRouteUseCase = new OptimizePickingRouteUseCase(pickingRouteOptimizer);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -682,6 +693,22 @@ export const resolvers = {
         createdAt: po.createdAt.toISOString(),
         updatedAt: po.updatedAt.toISOString()
       }));
+    },
+    suggestPutawayLocations: async (_: any, { input }: { input: { sku: string; quantity: number } }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        return await getPutawayRecommendationsUseCase.execute(input.sku, input.quantity);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    optimizePickingRoute: async (_: any, { tenantId, items }: { tenantId: string; items: { sku: string; quantity: number; locationId: string }[] }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+        return await optimizePickingRouteUseCase.execute(auth.tenantId, items);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
     }
   },
   Mutation: {

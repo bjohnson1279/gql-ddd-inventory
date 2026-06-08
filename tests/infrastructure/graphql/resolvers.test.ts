@@ -113,7 +113,12 @@ jest.mock('../../../src/infrastructure/persistence/PostgresPurchaseOrderReposito
 });
 
 import { setTimeout } from 'timers';
-import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
+import { resolvers, prisma, pool, productRepository, warehouseLocationRepository } from '../../../src/infrastructure/graphql/resolvers';
+import { Product } from '../../../src/domain/entities/Product';
+import { ProductId } from '../../../src/domain/valueObjects/ProductId';
+import { Sku } from '../../../src/domain/valueObjects/Sku';
+import { VariantAttribute } from '../../../src/domain/valueObjects/VariantAttribute';
+import { WarehouseLocation } from '../../../src/domain/entities/WarehouseLocation';
 
 // Mock the Prisma/Pool calls to prevent database connection attempts during test lifecycle
 jest.spyOn(prisma.inventoryItem, 'deleteMany').mockImplementation(() => Promise.resolve({ count: 0 }) as any);
@@ -787,5 +792,57 @@ describe('GraphQL Resolvers', () => {
     // 10. Run evaluation
     const evaluated = await (resolvers.Mutation as any).evaluateReplenishment(null, { tenantId: 't-replenish-resolver' }, context);
     expect(evaluated).toBe(true);
+  });
+
+  it('should suggest putaway locations and optimize picking routes via GraphQL queries', async () => {
+    const context = {
+      auth: { tenantId: 't-routing', userId: 'user-routing', role: 'admin' },
+      prisma: {} as any
+    };
+
+    // 1. Setup mock product variant
+    const product = new Product(new ProductId('p-r1'), 'Routing Prod');
+    const variant = product.addVariant(new Sku('ROUTE-SKU-1'), [
+      new VariantAttribute('temperatureZone', 'ambient')
+    ]);
+    (variant as any).weightGrams = 100;
+    (variant as any).volumeCubicMeters = 0.05;
+    await productRepository.save(product);
+
+    // 2. Setup mock locations in repository
+    const loc1 = WarehouseLocation.parsePath('WH1-ambient-A01-R01-S01-B01', 1000, 1.0);
+    const loc2 = WarehouseLocation.parsePath('WH1-ambient-A02-R01-S01-B01', 1000, 1.0);
+    await warehouseLocationRepository.save(loc1);
+    await warehouseLocationRepository.save(loc2);
+
+    // 3. Test suggestPutawayLocations query resolver
+    const recs = await (resolvers.Query as any).suggestPutawayLocations(
+      null,
+      { input: { sku: 'ROUTE-SKU-1', quantity: 5 } },
+      context
+    );
+    expect(recs).toHaveLength(1);
+    expect(recs[0].locationId).toBe('WH1-ambient-A01-R01-S01-B01');
+    expect(recs[0].quantity).toBe(5);
+
+    // 4. Test optimizePickingRoute query resolver
+    const route = await (resolvers.Query as any).optimizePickingRoute(
+      null,
+      {
+        tenantId: 't-routing',
+        items: [
+          { sku: 'ROUTE-SKU-1', quantity: 2, locationId: 'WH1-ambient-A02-R01-S01-B01' },
+          { sku: 'ROUTE-SKU-1', quantity: 3, locationId: 'WH1-ambient-A01-R01-S01-B01' }
+        ]
+      },
+      context
+    );
+
+    expect(route).toHaveLength(1);
+    expect(route[0].warehouseId).toBe('WH1');
+    expect(route[0].items).toHaveLength(2);
+    // S-Shape route check: A01 is odd (asc), A02 is even (desc)
+    expect(route[0].items[0].locationId).toBe('WH1-ambient-A01-R01-S01-B01');
+    expect(route[0].items[1].locationId).toBe('WH1-ambient-A02-R01-S01-B01');
   });
 });

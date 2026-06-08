@@ -405,6 +405,41 @@ export const typeDefs = `#graphql
     items: [PurchaseOrderItemInput!]!
   }
 
+  type PutawayRecommendation {
+    locationId: ID!
+    quantity: Int!
+    remainingWeightGrams: Int!
+    remainingVolumeCubicMeters: Float!
+  }
+
+  type PickRouteItem {
+    sku: String!
+    locationId: ID!
+    quantity: Int!
+    warehouseId: String!
+    zone: String!
+    aisle: String!
+    rack: String!
+    shelf: String!
+    bin: String!
+  }
+
+  type PickRoute {
+    warehouseId: String!
+    items: [PickRouteItem!]!
+  }
+
+  input PutawayInput {
+    sku: String!
+    quantity: Int!
+  }
+
+  input PickItemInput {
+    sku: String!
+    quantity: Int!
+    locationId: ID!
+  }
+
   type Query {
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
@@ -428,6 +463,9 @@ export const typeDefs = `#graphql
     replenishmentRules(tenantId: ID!): [ReplenishmentRule!]!
     purchaseOrder(id: ID!): PurchaseOrder
     purchaseOrders(tenantId: ID!): [PurchaseOrder!]!
+
+    suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
+    optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
   }
 
   type InventoryCountResult {
