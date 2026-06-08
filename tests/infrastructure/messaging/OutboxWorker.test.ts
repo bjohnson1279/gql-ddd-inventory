@@ -31,6 +31,7 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
         create: createMock,
         findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       $transaction: jest.fn(async (cb) => cb(txMock)),
     },
@@ -144,6 +145,7 @@ describe('Transactional Outbox Pattern', () => {
 
       const findManyMock = prisma.outboxEvent.findMany as jest.Mock;
       const updateMock = prisma.outboxEvent.update as jest.Mock;
+      const updateManyMock = prisma.outboxEvent.updateMany as jest.Mock;
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
       updateMock.mockResolvedValue({});
@@ -151,16 +153,17 @@ describe('Transactional Outbox Pattern', () => {
       await OutboxWorker.processPendingEvents();
 
       // Should mark as Processing, then process, then mark as Processed
-      expect(updateMock).toHaveBeenCalledTimes(2);
-      expect(updateMock.mock.calls[0][0]).toEqual({
-        where: { id: 'evt-1' },
+
+
+      expect(updateManyMock).toHaveBeenCalledWith({
+        where: { id: { in: ['evt-1'] } },
         data: { status: 'Processing' }
       });
-      expect(updateMock.mock.calls[1][0]).toEqual({
-        where: { id: 'evt-1' },
+      expect(updateManyMock).toHaveBeenCalledWith({
+        where: { id: { in: ['evt-1'] } },
         data: {
           status: 'Processed',
-          attempts: 1,
+          attempts: { increment: 1 },
           processedAt: expect.any(Date)
         }
       });
@@ -179,15 +182,17 @@ describe('Transactional Outbox Pattern', () => {
 
       const findManyMock = prisma.outboxEvent.findMany as jest.Mock;
       const updateMock = prisma.outboxEvent.update as jest.Mock;
+      const updateManyMock = prisma.outboxEvent.updateMany as jest.Mock;
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
       updateMock.mockResolvedValue({});
 
       await OutboxWorker.processPendingEvents();
 
-      expect(updateMock).toHaveBeenCalledTimes(2);
+
+
       // Processing update first, then error update
-      expect(updateMock.mock.calls[1][0]).toEqual({
+      expect(updateMock).toHaveBeenCalledWith({
         where: { id: 'evt-2' },
         data: {
           status: 'Pending',
@@ -207,14 +212,16 @@ describe('Transactional Outbox Pattern', () => {
 
       const findManyMock = prisma.outboxEvent.findMany as jest.Mock;
       const updateMock = prisma.outboxEvent.update as jest.Mock;
+      const updateManyMock = prisma.outboxEvent.updateMany as jest.Mock;
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
       updateMock.mockResolvedValue({});
 
       await OutboxWorker.processPendingEvents();
 
-      expect(updateMock).toHaveBeenCalledTimes(2);
-      expect(updateMock.mock.calls[1][0]).toEqual({
+
+
+      expect(updateMock).toHaveBeenCalledWith({
         where: { id: 'evt-3' },
         data: {
           status: 'Failed',
