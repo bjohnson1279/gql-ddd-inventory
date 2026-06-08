@@ -92,6 +92,16 @@ import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { PostgresWarehouseLocationRepository } from '../persistence/PostgresWarehouseLocationRepository';
 import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
 import { WarehouseLocation } from '../../domain/entities/WarehouseLocation';
+import { PostgresStockTransferRepository } from '../persistence/PostgresStockTransferRepository';
+import {
+  CreateStockTransferUseCase,
+  DispatchStockTransferUseCase,
+  ReceiveStockTransferUseCase,
+  CancelStockTransferUseCase,
+  GetStockTransfersUseCase,
+  GetStockTransferByIdUseCase
+} from '../../application/useCases/ManageStockTransfers';
+import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
@@ -208,6 +218,16 @@ const saveStockOnboardingItemsUseCase = new SaveStockOnboardingItemsUseCase(stoc
 const submitStockOnboardingUseCase = new SubmitStockOnboardingUseCase(stockOnboardingRepository, openingBalanceService);
 const getStockOnboardingUseCase = new GetStockOnboardingUseCase(stockOnboardingRepository);
 const getStockOnboardingsUseCase = new GetStockOnboardingsUseCase(stockOnboardingRepository);
+
+// Stock Transfer Repositories & Use Cases
+export const stockTransferRepository = new PostgresStockTransferRepository(prisma);
+
+const createStockTransferUseCase = new CreateStockTransferUseCase(stockTransferRepository);
+const dispatchStockTransferUseCase = new DispatchStockTransferUseCase(stockTransferRepository, inventoryRepository, productRepository, ledgerRepository);
+const receiveStockTransferUseCase = new ReceiveStockTransferUseCase(stockTransferRepository, inventoryRepository, productRepository, ledgerRepository);
+const cancelStockTransferUseCase = new CancelStockTransferUseCase(stockTransferRepository, inventoryRepository, productRepository, ledgerRepository);
+const getStockTransfersUseCase = new GetStockTransfersUseCase(stockTransferRepository);
+const getStockTransferByIdUseCase = new GetStockTransferByIdUseCase(stockTransferRepository);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -521,6 +541,45 @@ export const resolvers = {
         new LocationId(locationId),
         new Date(timestamp)
       );
+    },
+    stockTransfer: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const transfer = await getStockTransferByIdUseCase.execute(id);
+      if (!transfer) return null;
+      return {
+        id: transfer.id.value,
+        tenantId: transfer.tenantId.value,
+        sourceLocationId: transfer.sourceLocationId.value,
+        destinationLocationId: transfer.destinationLocationId.value,
+        status: transfer.status,
+        referenceId: transfer.referenceId,
+        dispatchedAt: transfer.dispatchedAt ? transfer.dispatchedAt.toISOString() : null,
+        receivedAt: transfer.receivedAt ? transfer.receivedAt.toISOString() : null,
+        createdAt: transfer.createdAt.toISOString(),
+        items: transfer.items.map(i => ({
+          variantId: i.variantId.value,
+          quantity: i.quantity
+        }))
+      };
+    },
+    stockTransfers: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+      const list = await getStockTransfersUseCase.execute(new TenantId(auth.tenantId));
+      return list.map(transfer => ({
+        id: transfer.id.value,
+        tenantId: transfer.tenantId.value,
+        sourceLocationId: transfer.sourceLocationId.value,
+        destinationLocationId: transfer.destinationLocationId.value,
+        status: transfer.status,
+        referenceId: transfer.referenceId,
+        dispatchedAt: transfer.dispatchedAt ? transfer.dispatchedAt.toISOString() : null,
+        receivedAt: transfer.receivedAt ? transfer.receivedAt.toISOString() : null,
+        createdAt: transfer.createdAt.toISOString(),
+        items: transfer.items.map(i => ({
+          variantId: i.variantId.value,
+          quantity: i.quantity
+        }))
+      }));
     }
   },
   Mutation: {
@@ -818,6 +877,38 @@ export const resolvers = {
         enforceRole(context, ['admin', 'warehouse_operator']);
         await warehouseLocationRepository.delete(new LocationId(id));
         return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createStockTransfer: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId);
+        return await createStockTransferUseCase.execute({ ...input, tenantId: auth.tenantId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    dispatchStockTransfer: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
+        return await dispatchStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    receiveStockTransfer: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
+        return await receiveStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    cancelStockTransfer: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
+        return await cancelStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
       }

@@ -12,6 +12,11 @@ import { PostgresJournalRepository } from '../../../src/infrastructure/persisten
 import { PostgresBarcodeRepository } from '../../../src/infrastructure/persistence/PostgresBarcodeRepository';
 import { PostgresStockOnboardingRepository } from '../../../src/infrastructure/persistence/PostgresStockOnboardingRepository';
 import { PostgresKitRepository } from '../../../src/infrastructure/persistence/PostgresKitRepository';
+import { PostgresStockTransferRepository } from '../../../src/infrastructure/persistence/PostgresStockTransferRepository';
+import { StockTransfer } from '../../../src/domain/entities/StockTransfer';
+import { StockTransferId } from '../../../src/domain/valueObjects/StockTransferId';
+import { StockTransferItem } from '../../../src/domain/valueObjects/StockTransferItem';
+import { StockTransferStatus } from '../../../src/domain/enums/StockTransferStatus';
 import { Kit } from '../../../src/domain/entities/Kit';
 import { KitId } from '../../../src/domain/valueObjects/KitId';
 import { StockOnboarding } from '../../../src/domain/entities/StockOnboarding';
@@ -152,6 +157,15 @@ describe('Postgres Repositories', () => {
         findUnique: jest.fn(),
         delete: jest.fn(),
         findMany: jest.fn(),
+      },
+      stockTransfer: {
+        upsert: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
+      stockTransferItem: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
       },
       $transaction: jest.fn(async (cb) => cb(prismaMock)),
     };
@@ -654,6 +668,84 @@ describe('Postgres Repositories', () => {
 
       await repo.delete(new LocationId('WH1-ZONEA-A01-R01-S01-B01'));
       expect(prismaMock.warehouseLocation.delete).toHaveBeenCalled();
+    });
+  });
+
+  describe('PostgresStockTransferRepository', () => {
+    it('should save a stock transfer in a transaction', async () => {
+      const repo = new PostgresStockTransferRepository(prismaMock as unknown as PrismaClient);
+      const transfer = StockTransfer.createNew(
+        new StockTransferId('st-1'),
+        new TenantId('t-1'),
+        new LocationId('LOC-A'),
+        new LocationId('LOC-B'),
+        [new StockTransferItem(new ProductVariantId('v-1'), 10)],
+        'ref-1'
+      );
+
+      await repo.save(transfer);
+
+      expect(prismaMock.$transaction).toHaveBeenCalled();
+      expect(prismaMock.stockTransfer.upsert).toHaveBeenCalled();
+      expect(prismaMock.stockTransferItem.deleteMany).toHaveBeenCalled();
+      expect(prismaMock.stockTransferItem.createMany).toHaveBeenCalled();
+    });
+
+    it('should find a stock transfer by id', async () => {
+      const repo = new PostgresStockTransferRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.stockTransfer.findUnique.mockResolvedValue({
+        id: 'st-1',
+        tenantId: 't-1',
+        sourceLocationId: 'LOC-A',
+        destinationLocationId: 'LOC-B',
+        status: 'draft',
+        referenceId: 'ref-1',
+        dispatchedAt: null,
+        receivedAt: null,
+        createdAt: new Date('2026-06-08T00:00:00Z'),
+        items: [
+          {
+            variantId: 'v-1',
+            quantity: 10,
+          },
+        ],
+      });
+
+      const transfer = await repo.findById(new StockTransferId('st-1'));
+      expect(transfer).not.toBeNull();
+      expect(transfer?.id.value).toBe('st-1');
+      expect(transfer?.status).toBe(StockTransferStatus.Draft);
+      expect(transfer?.items).toHaveLength(1);
+      expect(transfer?.items[0].variantId.value).toBe('v-1');
+      expect(transfer?.items[0].quantity).toBe(10);
+    });
+
+    it('should find all stock transfers by tenant', async () => {
+      const repo = new PostgresStockTransferRepository(prismaMock as unknown as PrismaClient);
+      prismaMock.stockTransfer.findMany.mockResolvedValue([
+        {
+          id: 'st-1',
+          tenantId: 't-1',
+          sourceLocationId: 'LOC-A',
+          destinationLocationId: 'LOC-B',
+          status: 'draft',
+          referenceId: 'ref-1',
+          dispatchedAt: null,
+          receivedAt: null,
+          createdAt: new Date('2026-06-08T00:00:00Z'),
+          items: [
+            {
+              variantId: 'v-1',
+              quantity: 10,
+            },
+          ],
+        },
+      ]);
+
+      const list = await repo.findAllByTenant(new TenantId('t-1'));
+      expect(list).toHaveLength(1);
+      expect(list[0].id.value).toBe('st-1');
+      expect(list[0].items[0].variantId.value).toBe('v-1');
     });
   });
 });

@@ -297,6 +297,44 @@ export const typeDefs = `#graphql
     maxVolumeCubicMeters: Float!
   }
 
+  enum StockTransferStatus {
+    draft
+    dispatched
+    received
+    cancelled
+  }
+
+  type StockTransferItem {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  type StockTransfer {
+    id: ID!
+    tenantId: ID!
+    sourceLocationId: String!
+    destinationLocationId: String!
+    status: StockTransferStatus!
+    items: [StockTransferItem!]!
+    referenceId: String
+    dispatchedAt: String
+    receivedAt: String
+    createdAt: String!
+  }
+
+  input StockTransferItemInput {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  input CreateStockTransferInput {
+    tenantId: ID!
+    sourceLocationId: String!
+    destinationLocationId: String!
+    items: [StockTransferItemInput!]!
+    referenceId: String
+  }
+
   type Query {
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
@@ -315,6 +353,8 @@ export const typeDefs = `#graphql
     warehouseLocation(id: ID!): WarehouseLocation
     warehouseLocations: [WarehouseLocation!]!
     historicalStockLevel(sku: String!, locationId: String!, timestamp: String!): Int!
+    stockTransfer(id: ID!): StockTransfer
+    stockTransfers(tenantId: ID!): [StockTransfer!]!
   }
 
   type InventoryCountResult {
@@ -443,6 +483,11 @@ export const typeDefs = `#graphql
     login(tenantId: ID!, actorId: ID!, role: String): String!
     createWarehouseLocation(input: CreateWarehouseLocationInput!): WarehouseLocation!
     deleteWarehouseLocation(id: ID!): Boolean!
+
+    createStockTransfer(input: CreateStockTransferInput!): StockTransfer!
+    dispatchStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
+    receiveStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
+    cancelStockTransfer(id: ID!, actorId: ID!, tenantId: ID!): StockTransfer!
   }
 
   type Subscription {

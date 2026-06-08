@@ -99,6 +99,10 @@ jest.mock('../../../src/infrastructure/persistence/PostgresWarehouseLocationRepo
   const { InMemoryWarehouseLocationRepository } = require('../../../src/infrastructure/persistence/InMemoryWarehouseLocationRepository');
   return { PostgresWarehouseLocationRepository: InMemoryWarehouseLocationRepository };
 });
+jest.mock('../../../src/infrastructure/persistence/PostgresStockTransferRepository', () => {
+  const { InMemoryStockTransferRepository } = require('../../../src/infrastructure/persistence/InMemoryStockTransferRepository');
+  return { PostgresStockTransferRepository: InMemoryStockTransferRepository };
+});
 
 import { setTimeout } from 'timers';
 import { resolvers, prisma, pool } from '../../../src/infrastructure/graphql/resolvers';
@@ -582,5 +586,97 @@ describe('GraphQL Resolvers', () => {
       timestamp: '2026-06-01T11:30:00Z'
     });
     expect(atT2).toBe(10);
+  });
+
+  it('should support creating, querying, dispatching, receiving, and cancelling stock transfers through GraphQL resolvers', async () => {
+    const context = {
+      auth: {
+        tenantId: 't-resolver',
+        actorId: 'user-resolver',
+        role: 'warehouse_operator'
+      }
+    };
+
+    // We need a product variant in the mock product repository to find sku.
+    const productRepo = require('../../../src/infrastructure/graphql/resolvers').productRepository;
+    const { Product } = require('../../../src/domain/entities/Product');
+    const { ProductId } = require('../../../src/domain/valueObjects/ProductId');
+    const { Sku } = require('../../../src/domain/valueObjects/Sku');
+    const { VariantAttribute } = require('../../../src/domain/valueObjects/VariantAttribute');
+    const { VariantTrackingMode } = require('../../../src/domain/enums/VariantEnums');
+
+    const product = new Product(new ProductId('p-resolver'), 'Resolver Product');
+    const variant = product.addVariant(new Sku('SKU-RESOLVER'), [new VariantAttribute('color', 'red')], VariantTrackingMode.Quantity);
+    await productRepo.save(product);
+
+    // 1. Create stock transfer
+    const transferInput = {
+      tenantId: 't-resolver',
+      sourceLocationId: 'LOC-RESOLVER-A',
+      destinationLocationId: 'LOC-RESOLVER-B',
+      items: [{ variantId: variant.id.value, quantity: 8 }],
+      referenceId: 'ref-res-1'
+    };
+
+    const created = await (resolvers.Mutation as any).createStockTransfer(null, { input: transferInput }, context);
+    expect(created.id).toBeDefined();
+    expect(created.status).toBe('draft');
+    expect(created.items).toHaveLength(1);
+    expect(created.items[0].variantId).toBe(variant.id.value);
+
+    // 2. Query stock transfer by ID
+    const retrieved = await (resolvers.Query as any).stockTransfer(null, { id: created.id }, context);
+    expect(retrieved).not.toBeNull();
+    expect(retrieved.status).toBe('draft');
+    expect(retrieved.referenceId).toBe('ref-res-1');
+
+    // 3. Query all stock transfers by tenant
+    const transfers = await (resolvers.Query as any).stockTransfers(null, { tenantId: 't-resolver' }, context);
+    expect(transfers).toHaveLength(1);
+    expect(transfers[0].id).toBe(created.id);
+
+    // Seed inventory at source so we can dispatch
+    await (resolvers.Mutation as any).receiveStock(null, { sku: 'SKU-RESOLVER', locationId: 'LOC-RESOLVER-A', amount: 20 }, context);
+
+    // 4. Dispatch stock transfer
+    const dispatched = await (resolvers.Mutation as any).dispatchStockTransfer(null, {
+      id: created.id,
+      actorId: 'user-resolver',
+      tenantId: 't-resolver'
+    }, context);
+    expect(dispatched.status).toBe('dispatched');
+    expect(dispatched.dispatchedAt).not.toBeNull();
+
+    // Verify source stock is reduced (20 - 8 = 12)
+    const sourceInv = await (resolvers.Query as any).inventoryItemBySkuAndLocation(null, { sku: 'SKU-RESOLVER', locationId: 'LOC-RESOLVER-A' }, context);
+    expect(sourceInv.quantity).toBe(12);
+
+    // 5. Receive stock transfer
+    const received = await (resolvers.Mutation as any).receiveStockTransfer(null, {
+      id: created.id,
+      actorId: 'user-resolver',
+      tenantId: 't-resolver'
+    }, context);
+    expect(received.status).toBe('received');
+    expect(received.receivedAt).not.toBeNull();
+
+    // Verify destination stock is increased (8)
+    const destInv = await (resolvers.Query as any).inventoryItemBySkuAndLocation(null, { sku: 'SKU-RESOLVER', locationId: 'LOC-RESOLVER-B' }, context);
+    expect(destInv.quantity).toBe(8);
+
+    // 6. Create and cancel a second stock transfer
+    const transferInput2 = {
+      tenantId: 't-resolver',
+      sourceLocationId: 'LOC-RESOLVER-A',
+      destinationLocationId: 'LOC-RESOLVER-B',
+      items: [{ variantId: variant.id.value, quantity: 2 }]
+    };
+    const created2 = await (resolvers.Mutation as any).createStockTransfer(null, { input: transferInput2 }, context);
+    const cancelled = await (resolvers.Mutation as any).cancelStockTransfer(null, {
+      id: created2.id,
+      actorId: 'user-resolver',
+      tenantId: 't-resolver'
+    }, context);
+    expect(cancelled.status).toBe('cancelled');
   });
 });

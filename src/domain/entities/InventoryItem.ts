@@ -132,6 +132,14 @@ export class InventoryItem {
     this.incrementVersion();
   }
 
+  cancelInTransit(amount: Quantity): void {
+    if (this._inTransit.value < amount.value) {
+      throw new Error(`Cannot cancel in transit of ${amount.value} because only ${this._inTransit.value} is in transit.`);
+    }
+    this._inTransit = this._inTransit.subtract(amount);
+    this.incrementVersion();
+  }
+
   reconcileStock(actualQuantity: Quantity): { expected: number; actual: number; variance: number } {
     const expected = this._quantity.value;
     const actual = actualQuantity.value;

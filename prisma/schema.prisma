@@ -302,3 +302,29 @@ model WarehouseLocation {
   @@unique([warehouseId, zone, aisle, rack, shelf, bin])
   @@map("warehouse_locations")
 }
+
+model StockTransfer {
+  id                    String              @id @db.Uuid
+  tenantId              String              @map("tenant_id")
+  sourceLocationId      String              @map("source_location_id")
+  destinationLocationId String              @map("destination_location_id")
+  status                String
+  referenceId           String?             @map("reference_id")
+  dispatchedAt          DateTime?           @map("dispatched_at") @db.Timestamptz
+  receivedAt            DateTime?           @map("received_at") @db.Timestamptz
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  items                 StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId  String        @map("transfer_id") @db.Uuid
+  variantId   String        @map("variant_id") @db.Uuid
+  quantity    Int
+  transfer    StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@unique([transferId, variantId])
+  @@map("stock_transfer_items")
+}
