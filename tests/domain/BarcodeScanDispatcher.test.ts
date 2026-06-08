@@ -29,11 +29,11 @@ describe('BarcodeScanDispatcher', () => {
     dispatcher.register(ScanContext.Receiving, mockHandler);
 
     const payload = { locationId: 'LOC-1' };
-    await dispatcher.dispatch('123456789012', ScanContext.Receiving, payload);
+    await dispatcher.dispatch('  123456789012-a  ', ScanContext.Receiving, payload);
 
     // registry upper-cases and trims
-    expect(mockRepo.findSkuByBarcodeValue).toHaveBeenCalledWith('123456789012');
-    expect(mockHandler.handle).toHaveBeenCalledWith(sku, '123456789012', payload);
+    expect(mockRepo.findSkuByBarcodeValue).toHaveBeenCalledWith('123456789012-A');
+    expect(mockHandler.handle).toHaveBeenCalledWith(sku, '  123456789012-a  ', payload);
   });
 
   it('should throw an error if no handler is registered for the context', async () => {
