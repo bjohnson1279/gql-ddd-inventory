@@ -34,14 +34,20 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
         where: { kitId: { in: kitIds as string[] } },
       });
 
-      return kitIds.map((id) =>
-        components
-          .filter((c) => c.kitId === id)
-          .map((c) => ({
-            variantId: c.variantId,
-            quantity: c.quantity,
-          }))
-      );
+      const componentsByKitId = new Map<string, any[]>();
+      for (const c of components) {
+        let arr = componentsByKitId.get(c.kitId);
+        if (!arr) {
+          arr = [];
+          componentsByKitId.set(c.kitId, arr);
+        }
+        arr.push({
+          variantId: c.variantId,
+          quantity: c.quantity,
+        });
+      }
+
+      return kitIds.map((id) => componentsByKitId.get(id) || []);
     }),
 
     costLayers: new DataLoader<string, any[]>(async (variantIds) => {
