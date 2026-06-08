@@ -48,13 +48,17 @@ export class WebhookWorker {
         take: 10,
       });
 
-      for (const event of events) {
-        // Mark as Processing
-        await prisma.webhookEvent.update({
-          where: { id: event.id },
-          data: { status: 'Processing' },
-        });
+      if (events.length === 0) {
+        return;
+      }
 
+      // Mark all as Processing in a single query
+      await prisma.webhookEvent.updateMany({
+        where: { id: { in: events.map((e: any) => e.id) } },
+        data: { status: 'Processing' },
+      });
+
+      for (const event of events) {
         try {
           const connection = await integrationRepository.findByStoreDomain(event.shopDomain);
           if (!connection || !connection.isActive) {
