@@ -53,6 +53,7 @@ import { SerialNumber } from '../../../src/domain/valueObjects/SerialNumber';
 import { SerializedItemStatus } from '../../../src/domain/enums/SerializedItemStatus';
 
 import { InventoryCostLayer, InventoryCostLayerId } from '../../../src/domain/entities/InventoryCostLayer';
+import { Lot } from '../../../src/domain/valueObjects/Lot';
 
 import { IntegrationConnection } from '../../../src/domain/integrations/aggregates/IntegrationConnection';
 import { IntegrationId } from '../../../src/domain/integrations/valueObjects/IntegrationId';
@@ -291,6 +292,30 @@ describe('Postgres Repositories', () => {
 
       await repo.save(layer);
       expect(prismaMock.inventoryCostLayer.upsert).toHaveBeenCalled();
+    });
+
+    it('should save cost layer with lot details', async () => {
+      const repo = new PostgresInventoryCostLayerRepository(prismaMock as unknown as PrismaClient);
+      const expiry = new Date('2026-12-31T00:00:00Z');
+      const layer = new InventoryCostLayer(
+        new InventoryCostLayerId('cl-1'),
+        new ProductVariantId('v-1'),
+        10,
+        100,
+        new Date(),
+        undefined,
+        new Lot('LOT-123', expiry)
+      );
+
+      await repo.save(layer);
+      expect(prismaMock.inventoryCostLayer.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            lotNumber: 'LOT-123',
+            expirationDate: expiry
+          })
+        })
+      );
     });
   });
 

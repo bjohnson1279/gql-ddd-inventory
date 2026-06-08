@@ -3,6 +3,7 @@ import { ProductId } from '../valueObjects/ProductId';
 import { Sku } from '../valueObjects/Sku';
 import { VariantAttributeSet } from '../valueObjects/VariantAttributeSet';
 import { VariantTrackingMode } from '../enums/VariantEnums';
+import { CostingMethod } from '../enums/AccountingEnums';
 
 export class ProductVariant {
   constructor(
@@ -12,6 +13,7 @@ export class ProductVariant {
     public readonly attributes: VariantAttributeSet,
     public trackingMode: VariantTrackingMode = VariantTrackingMode.Quantity,
     public readonly weightGrams: number = 0,
-    public readonly volumeCubicMeters: number = 0
+    public readonly volumeCubicMeters: number = 0,
+    public costingMethod: CostingMethod = CostingMethod.FIFO
   ) {}
 }

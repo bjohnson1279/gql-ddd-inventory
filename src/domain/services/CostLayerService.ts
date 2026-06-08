@@ -3,17 +3,36 @@ import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { CostBreakdown } from '../valueObjects/CostBreakdown';
 import { InventoryCostLayer } from '../entities/InventoryCostLayer';
 import { SerialNumber } from '../valueObjects/SerialNumber';
+import { CostingMethod } from '../enums/AccountingEnums';
 
 export class CostLayerService {
   constructor(private readonly layers: IInventoryCostLayerRepository) {}
 
-  async calculateFifoCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
-    const activeLayers = await this.layers.getActiveLayers(variantId, 'received_at ASC');
+  async calculateCost(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
+    if (method === CostingMethod.WeightedAverageCost) {
+      return this.calculateWeightedAverageCost(variantId, quantity);
+    }
+    const orderStr = method === CostingMethod.FEFO 
+      ? 'expiration_date ASC' 
+      : method === CostingMethod.LIFO 
+        ? 'received_at DESC' 
+        : 'received_at ASC';
+        
+    const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
     return this.calculateConsumedCost(activeLayers, quantity);
   }
 
-  async consumeFifoLayers(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
-    const activeLayers = await this.layers.getActiveLayers(variantId, 'received_at ASC');
+  async consumeLayers(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
+    if (method === CostingMethod.WeightedAverageCost) {
+      return this.consumeLayers(variantId, quantity, CostingMethod.FIFO);
+    }
+    const orderStr = method === CostingMethod.FEFO 
+      ? 'expiration_date ASC' 
+      : method === CostingMethod.LIFO 
+        ? 'received_at DESC' 
+        : 'received_at ASC';
+
+    const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
     const breakdown = this.calculateConsumedCost(activeLayers, quantity, true);
 
     for (const layer of activeLayers) {
@@ -23,27 +42,58 @@ export class CostLayerService {
     return breakdown;
   }
 
-  async consumeFifoLayersBatch(
-    items: { variantId: ProductVariantId; quantity: number }[]
+  async consumeLayersBatch(
+    items: { variantId: ProductVariantId; quantity: number }[],
+    methodsMap?: Map<string, CostingMethod>
   ): Promise<{ breakdowns: Map<string, CostBreakdown>; totalCostCents: number }> {
-    const variantIds = items.map(i => i.variantId);
-    const activeLayersMap = await this.layers.getActiveLayersBatch(variantIds, 'received_at ASC');
+    const methodGroups = new Map<CostingMethod, typeof items>();
+    for (const item of items) {
+      const method = methodsMap?.get(item.variantId.value) || CostingMethod.FIFO;
+      const list = methodGroups.get(method) || [];
+      list.push(item);
+      methodGroups.set(method, list);
+    }
 
     let totalCostCents = 0;
     const breakdowns = new Map<string, CostBreakdown>();
     const layersToSave: InventoryCostLayer[] = [];
 
-    for (const item of items) {
-      const activeLayers = activeLayersMap.get(item.variantId.value) || [];
-      const breakdown = this.calculateConsumedCost(activeLayers, item.quantity, true);
-      breakdowns.set(item.variantId.value, breakdown);
-      totalCostCents += breakdown.totalCostCents;
-      layersToSave.push(...activeLayers);
+    for (const [method, groupItems] of methodGroups.entries()) {
+      const variantIds = groupItems.map(i => i.variantId);
+      const orderStr = method === CostingMethod.FEFO 
+        ? 'expiration_date ASC' 
+        : method === CostingMethod.LIFO 
+          ? 'received_at DESC' 
+          : 'received_at ASC';
+
+      const activeLayersMap = await this.layers.getActiveLayersBatch(variantIds, orderStr);
+
+      for (const item of groupItems) {
+        const activeLayers = activeLayersMap.get(item.variantId.value) || [];
+        const breakdown = this.calculateConsumedCost(activeLayers, item.quantity, true);
+        breakdowns.set(item.variantId.value, breakdown);
+        totalCostCents += breakdown.totalCostCents;
+        layersToSave.push(...activeLayers);
+      }
     }
 
     await this.layers.saveBatch(layersToSave);
 
     return { breakdowns, totalCostCents };
+  }
+
+  async calculateFifoCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
+    return this.calculateCost(variantId, quantity, CostingMethod.FIFO);
+  }
+
+  async consumeFifoLayers(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
+    return this.consumeLayers(variantId, quantity, CostingMethod.FIFO);
+  }
+
+  async consumeFifoLayersBatch(
+    items: { variantId: ProductVariantId; quantity: number }[]
+  ): Promise<{ breakdowns: Map<string, CostBreakdown>; totalCostCents: number }> {
+    return this.consumeLayersBatch(items);
   }
 
   calculateWeightedAverageCostSync(activeLayers: InventoryCostLayer[], quantity: number, variantIdValue?: string): CostBreakdown {

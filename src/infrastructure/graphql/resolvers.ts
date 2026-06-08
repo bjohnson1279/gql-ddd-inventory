@@ -126,6 +126,15 @@ import { PutawaySuggester } from '../../domain/services/PutawaySuggester';
 import { PickingRouteOptimizer } from '../../domain/services/PickingRouteOptimizer';
 import { GetPutawayRecommendationsUseCase, OptimizePickingRouteUseCase } from '../../application/useCases/ManageWarehouseRouting';
 
+import { FEFOPickingSuggester } from '../../domain/services/FEFOPickingSuggester';
+import { ProductRecallService } from '../../domain/services/ProductRecallService';
+import {
+  UpdateVariantCostingMethodUseCase,
+  ReceiveStockWithLotUseCase,
+  SuggestFefoPickingUseCase,
+  TraceProductRecallUseCase
+} from '../../application/useCases/ManageFefoAndRecall';
+
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
@@ -288,6 +297,25 @@ const pickingRouteOptimizer = new PickingRouteOptimizer(warehouseLocationReposit
 const getPutawayRecommendationsUseCase = new GetPutawayRecommendationsUseCase(putawaySuggester);
 const optimizePickingRouteUseCase = new OptimizePickingRouteUseCase(pickingRouteOptimizer);
 
+// FEFO & Product Recall Services & Use Cases
+const fefoPickingSuggester = new FEFOPickingSuggester(
+  costLayerRepository,
+  ledgerRepository,
+  productRepository
+);
+const productRecallService = new ProductRecallService(ledgerRepository);
+
+const updateVariantCostingMethodUseCase = new UpdateVariantCostingMethodUseCase(productRepository);
+const receiveStockWithLotUseCase = new ReceiveStockWithLotUseCase(
+  inventoryRepository,
+  productRepository,
+  ledgerRepository,
+  costLayerRepository,
+  wmsCapacityService
+);
+const suggestFefoPickingUseCase = new SuggestFefoPickingUseCase(fefoPickingSuggester);
+const traceProductRecallUseCase = new TraceProductRecallUseCase(productRecallService);
+
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
@@ -393,6 +421,7 @@ export const resolvers = {
           id: v.id.value,
           sku: v.sku.value,
           trackingMode: v.trackingMode,
+          costingMethod: v.costingMethod,
           attributes: v.attributes.all().map(a => ({ name: a.name, value: a.value }))
         }))
       };
@@ -407,6 +436,7 @@ export const resolvers = {
           id: v.id.value,
           sku: v.sku.value,
           trackingMode: v.trackingMode,
+          costingMethod: v.costingMethod,
           attributes: v.attributes.all().map(a => ({ name: a.name, value: a.value }))
         }))
       }));
@@ -706,6 +736,36 @@ export const resolvers = {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         return await optimizePickingRouteUseCase.execute(auth.tenantId, items);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    suggestFefoPicking: async (_: any, { sku, quantity }: { sku: string; quantity: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const suggestions = await suggestFefoPickingUseCase.execute(sku, quantity);
+        return suggestions.map(s => ({
+          locationId: s.locationId,
+          lotNumber: s.lotNumber,
+          expirationDate: s.expirationDate.toISOString(),
+          quantity: s.quantity
+        }));
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    traceProductRecall: async (_: any, { lotNumber }: { lotNumber: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const dispatches = await traceProductRecallUseCase.execute(lotNumber);
+        return dispatches.map(d => ({
+          ledgerEntryId: d.ledgerEntryId,
+          locationId: d.locationId,
+          quantity: d.quantity,
+          referenceId: d.referenceId || null,
+          occurredAt: d.occurredAt.toISOString(),
+          actorId: d.actorId
+        }));
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -1095,6 +1155,49 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         return await cancelPurchaseOrderUseCase.execute(id);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    updateProductVariantCostingMethod: async (_: any, { sku, costingMethod }: { sku: string; costingMethod: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        const variant = await updateVariantCostingMethodUseCase.execute(sku, costingMethod);
+        return {
+          id: variant.id.value,
+          sku: variant.sku.value,
+          trackingMode: variant.trackingMode,
+          costingMethod: variant.costingMethod,
+          attributes: variant.attributes.all().map(a => ({ name: a.name, value: a.value }))
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    receiveStockWithLot: async (
+      _: any,
+      { sku, locationId, quantity, unitCostCents, lotNumber, expirationDate }: {
+        sku: string;
+        locationId: string;
+        quantity: number;
+        unitCostCents: number;
+        lotNumber: string;
+        expirationDate: string;
+      },
+      context: GraphQLContext
+    ) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        return await receiveStockWithLotUseCase.execute({
+          sku,
+          locationId,
+          quantity,
+          unitCostCents,
+          lotNumber,
+          expirationDate: new Date(expirationDate),
+          tenantId: auth.tenantId,
+          actorId: auth.actorId
+        });
       } catch (error: any) {
         throw new Error(error.message);
       }

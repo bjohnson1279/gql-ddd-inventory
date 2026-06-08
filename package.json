@@ -8,6 +8,9 @@
     "dev": "nodemon --watch \"src/**/*.ts\" --exec ts-node src/index.ts",
     "test": "jest"
   },
+  "overrides": {
+    "@hono/node-server": "^1.19.13"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

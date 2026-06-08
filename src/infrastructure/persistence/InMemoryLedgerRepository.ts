@@ -40,8 +40,16 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
     return quantities;
   }
 
-  async entriesFor(variantId: ProductVariantId, locationId: LocationId): Promise<LedgerEntry[]> {
-    return this.entries.filter(e => e.variantId.equals(variantId) && e.locationId.equals(locationId));
+  async entriesFor(variantId: ProductVariantId, locationId?: LocationId): Promise<LedgerEntry[]> {
+    return this.entries.filter(
+      (e) =>
+        e.variantId.equals(variantId) &&
+        (!locationId || e.locationId.equals(locationId))
+    );
+  }
+
+  async findRecallEntries(lotNumber: string): Promise<LedgerEntry[]> {
+    return this.entries.filter((e) => e.metadata?.lotNumber === lotNumber);
   }
 
   async hasAnyEntries(variantId: ProductVariantId, locationId: LocationId): Promise<boolean> {

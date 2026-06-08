@@ -61,6 +61,11 @@ export const typeDefs = `#graphql
     value: String!
   }
 
+  type Lot {
+    lotNumber: String!
+    expirationDate: String!
+  }
+
   type InventoryCostLayer {
     id: ID!
     variantId: ID!
@@ -69,6 +74,23 @@ export const typeDefs = `#graphql
     unitCostCents: Int!
     receivedAt: String!
     serialNumber: String
+    lot: Lot
+  }
+
+  type FefoPickSuggestion {
+    locationId: ID!
+    lotNumber: String!
+    expirationDate: String!
+    quantity: Int!
+  }
+
+  type ContaminatedDispatch {
+    ledgerEntryId: ID!
+    locationId: ID!
+    quantity: Int!
+    referenceId: String
+    occurredAt: String!
+    actorId: String!
   }
 
   type ExternalMapping {
@@ -85,6 +107,7 @@ export const typeDefs = `#graphql
     id: ID!
     sku: String!
     trackingMode: TrackingMode!
+    costingMethod: String!
     attributes: [VariantAttribute!]!
     costLayers: [InventoryCostLayer!]!
     externalMappings: [ExternalMapping!]!
@@ -466,6 +489,9 @@ export const typeDefs = `#graphql
 
     suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
     optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
+
+    suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
+    traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
   }
 
   type InventoryCountResult {
@@ -608,6 +634,9 @@ export const typeDefs = `#graphql
     placePurchaseOrder(id: ID!): PurchaseOrder!
     receivePurchaseOrder(id: ID!, actorId: ID!, tenantId: ID!): PurchaseOrder!
     cancelPurchaseOrder(id: ID!): PurchaseOrder!
+
+    updateProductVariantCostingMethod(sku: String!, costingMethod: String!): ProductVariant!
+    receiveStockWithLot(sku: String!, locationId: String!, quantity: Int!, unitCostCents: Int!, lotNumber: String!, expirationDate: String!): Boolean!
   }
 
   type Subscription {

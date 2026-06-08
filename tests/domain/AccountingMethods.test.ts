@@ -3,6 +3,8 @@ import { ProductVariantId } from '../../src/domain/valueObjects/ProductVariantId
 import { CostLayerService } from '../../src/domain/services/CostLayerService';
 import { IInventoryCostLayerRepository } from '../../src/domain/repositories/IInventoryCostLayerRepository';
 import { SerialNumber } from '../../src/domain/valueObjects/SerialNumber';
+import { Lot } from '../../src/domain/valueObjects/Lot';
+import { CostingMethod } from '../../src/domain/enums/AccountingEnums';
 
 class MockLayerRepo implements IInventoryCostLayerRepository {
   public layers: InventoryCostLayer[] = [];
@@ -10,8 +12,22 @@ class MockLayerRepo implements IInventoryCostLayerRepository {
   async saveBatch(layers: InventoryCostLayer[]): Promise<void> {}
   async getActiveLayers(variantId: ProductVariantId, orderBy?: string): Promise<InventoryCostLayer[]> {
     let result = this.layers.filter(l => l.variantId.equals(variantId) && !l.isFullyConsumed());
-    if (orderBy === 'received_at ASC') {
-      result.sort((a, b) => a.receivedAt.getTime() - b.receivedAt.getTime());
+    if (orderBy?.includes('expiration_date')) {
+      result.sort((a, b) => {
+        const expA = a.lot?.expirationDate.getTime() || Infinity;
+        const expB = b.lot?.expirationDate.getTime() || Infinity;
+        if (expA !== expB) {
+          return expA - expB;
+        }
+        return a.receivedAt.getTime() - b.receivedAt.getTime();
+      });
+    } else if (orderBy?.includes('received_at')) {
+      const isDesc = orderBy.includes('DESC');
+      result.sort((a, b) => {
+        const tA = a.receivedAt.getTime();
+        const tB = b.receivedAt.getTime();
+        return isDesc ? tB - tA : tA - tB;
+      });
     }
     return result;
   }
@@ -69,6 +85,34 @@ describe('Accounting Methods (Cost Layers)', () => {
     expect(cost.totalCostCents).toBe(2000);
     expect(l1.remainingQuantity()).toBe(0);
     expect(l2.remainingQuantity()).toBe(5);
+    expect(repo.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('should calculate FEFO cost correctly', async () => {
+    const repo = new MockLayerRepo();
+    repo.layers = [
+      new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'), undefined, new Lot('L-FAR', new Date('2026-12-31'))), // exp far, cost $1.00
+      new InventoryCostLayer(new InventoryCostLayerId('L2'), v1, 10, 200, new Date('2024-02-01'), undefined, new Lot('L-SOON', new Date('2026-06-30'))), // exp soon, cost $2.00
+    ];
+    const service = new CostLayerService(repo);
+
+    // Sale of 15 units under FEFO: 10 * $2.00 (soonest) + 5 * $1.00 (farthest) = 2000 + 500 = 2500 cents
+    const cost = await service.calculateCost(v1, 15, CostingMethod.FEFO);
+    expect(cost.totalCostCents).toBe(2500);
+  });
+
+  it('should consume FEFO layers correctly and persist changes', async () => {
+    const repo = new MockLayerRepo();
+    const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'), undefined, new Lot('L-FAR', new Date('2026-12-31')));
+    const l2 = new InventoryCostLayer(new InventoryCostLayerId('L2'), v1, 10, 200, new Date('2024-02-01'), undefined, new Lot('L-SOON', new Date('2026-06-30')));
+    repo.layers = [l1, l2];
+    repo.save = jest.fn().mockResolvedValue(undefined);
+    const service = new CostLayerService(repo);
+
+    const cost = await service.consumeLayers(v1, 15, CostingMethod.FEFO);
+    expect(cost.totalCostCents).toBe(2500);
+    expect(l2.remainingQuantity()).toBe(0); // Soonest expired fully consumed
+    expect(l1.remainingQuantity()).toBe(5);  // Farthest expired half consumed
     expect(repo.save).toHaveBeenCalledTimes(2);
   });
 

@@ -6,20 +6,55 @@ jest.mock('../../../src/infrastructure/persistence/PostgresProductRepository', (
   const { InMemoryProductRepository } = require('../../../src/infrastructure/persistence/InMemoryProductRepository');
   return { PostgresProductRepository: InMemoryProductRepository };
 });
+let mockLedgerRepoInstance: any;
 jest.mock('../../../src/infrastructure/persistence/PostgresLedgerRepository', () => {
   const { InMemoryLedgerRepository } = require('../../../src/infrastructure/persistence/InMemoryLedgerRepository');
-  return { PostgresLedgerRepository: InMemoryLedgerRepository };
+  return {
+    PostgresLedgerRepository: jest.fn().mockImplementation(() => {
+      const instance = new InMemoryLedgerRepository();
+      mockLedgerRepoInstance = instance;
+      return instance;
+    })
+  };
 });
 jest.mock('../../../src/infrastructure/persistence/PostgresSerializedItemRepository', () => {
   const { InMemorySerializedItemRepository } = require('../../../src/infrastructure/persistence/InMemorySerializedItemRepository');
   return { PostgresSerializedItemRepository: InMemorySerializedItemRepository };
 });
 jest.mock('../../../src/infrastructure/persistence/PostgresInventoryCostLayerRepository', () => {
-  return { PostgresInventoryCostLayerRepository: jest.fn().mockImplementation(() => ({
-    save: jest.fn(),
-    getActiveLayers: jest.fn().mockResolvedValue([]),
-    findBySerial: jest.fn().mockResolvedValue(null)
-  })) };
+  const layers: any[] = [];
+  return {
+    PostgresInventoryCostLayerRepository: jest.fn().mockImplementation(() => ({
+      save: jest.fn(async (layer) => {
+        const idx = layers.findIndex(l => l.id.equals(layer.id));
+        if (idx !== -1) {
+          layers[idx] = layer;
+        } else {
+          layers.push(layer);
+        }
+      }),
+      getActiveLayers: jest.fn(async (variantId, orderBy) => {
+        const filtered = layers.filter(l => l.variantId.equals(variantId) && l.consumedQuantity < l.initialQuantity);
+        const isExpiration = orderBy?.toLowerCase().includes('expiration');
+        const orderDirection = orderBy?.toLowerCase().includes('desc') ? 'desc' : 'asc';
+        return [...filtered].sort((a, b) => {
+          if (isExpiration) {
+            const expA = a.lot?.expirationDate?.getTime() || Infinity;
+            const expB = b.lot?.expirationDate?.getTime() || Infinity;
+            if (expA !== expB) {
+              return orderDirection === 'desc' ? expB - expA : expA - expB;
+            }
+          }
+          const timeA = a.receivedAt.getTime();
+          const timeB = b.receivedAt.getTime();
+          return orderDirection === 'desc' ? timeB - timeA : timeA - timeB;
+        });
+      }),
+      findBySerial: jest.fn(async (variantId, serialNumber) => {
+        return layers.find(l => l.variantId.equals(variantId) && l.serialNumber?.equals(serialNumber)) || null;
+      })
+    }))
+  };
 });
 jest.mock('../../../src/infrastructure/persistence/PostgresIntegrationRepository', () => {
   return { PostgresIntegrationRepository: jest.fn().mockImplementation(() => {
@@ -844,5 +879,89 @@ describe('GraphQL Resolvers', () => {
     // S-Shape route check: A01 is odd (asc), A02 is even (desc)
     expect(route[0].items[0].locationId).toBe('WH1-ambient-A01-R01-S01-B01');
     expect(route[0].items[1].locationId).toBe('WH1-ambient-A02-R01-S01-B01');
+  });
+
+  it('should manage FEFO costing and product recall via resolvers', async () => {
+    const context = { auth: { role: 'admin', tenantId: 'tenant-fefo', actorId: 'actor-fefo' } };
+
+    // 1. Create product & variant
+    await (resolvers.Mutation as any).createProduct(null, { id: 'p-fefo-1', name: 'FEFO Product' }, context);
+    await (resolvers.Mutation as any).addProductVariant(null, {
+      productId: 'p-fefo-1',
+      sku: 'SKU-FEFO-1',
+      attributes: [{ name: 'size', value: 'standard' }],
+      trackingMode: 'lot'
+    }, context);
+
+    // 2. Update costing method to FEFO
+    const variant = await (resolvers.Mutation as any).updateProductVariantCostingMethod(
+      null,
+      { sku: 'SKU-FEFO-1', costingMethod: 'fefo' },
+      context
+    );
+    expect(variant.costingMethod).toBe('fefo');
+
+    // 3. Receive stock with Lot
+    const expiry = new Date('2026-12-31T00:00:00.000Z');
+    const received = await (resolvers.Mutation as any).receiveStockWithLot(
+      null,
+      {
+        sku: 'SKU-FEFO-1',
+        locationId: 'LOC-FEFO-A',
+        quantity: 30,
+        unitCostCents: 600,
+        lotNumber: 'LOT-FEFO-X',
+        expirationDate: expiry.toISOString()
+      },
+      context
+    );
+    expect(received).toBe(true);
+
+    // 4. Query FEFO Pick Suggestion
+    const suggestions = await (resolvers.Query as any).suggestFefoPicking(
+      null,
+      { sku: 'SKU-FEFO-1', quantity: 15 },
+      context
+    );
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].lotNumber).toBe('LOT-FEFO-X');
+    expect(suggestions[0].locationId).toBe('LOC-FEFO-A');
+    expect(suggestions[0].quantity).toBe(15);
+
+    // 5. Trace recall: insert a simulated dispatch ledger entry directly into mock repository
+    const dbProduct = await productRepository.findBySku(new Sku('SKU-FEFO-1'));
+    expect(dbProduct).not.toBeNull();
+    const dbVariant = dbProduct!.variants.find(v => v.sku.value === 'SKU-FEFO-1');
+    expect(dbVariant).toBeDefined();
+
+    const { LedgerEntry } = require('../../../src/domain/entities/LedgerEntry');
+    const { LedgerEntryId } = require('../../../src/domain/valueObjects/LedgerEntryId');
+    const { TenantId } = require('../../../src/domain/valueObjects/TenantId');
+    const { LocationId } = require('../../../src/domain/valueObjects/LocationId');
+    const { ActorId } = require('../../../src/domain/valueObjects/ActorId');
+    const { ReasonCode } = require('../../../src/domain/enums/ReasonCode');
+
+    await mockLedgerRepoInstance.append(new LedgerEntry(
+      new LedgerEntryId('le-recall-dispatch-1'),
+      new TenantId('tenant-fefo'),
+      new LocationId('LOC-FEFO-A'),
+      dbVariant!.id,
+      -10, // Deduction/dispatch
+      ReasonCode.Sale,
+      new ActorId('actor-fefo'),
+      new Date(),
+      'ORDER-FEFO-1',
+      { lotNumber: 'LOT-FEFO-X' }
+    ));
+
+    const dispatches = await (resolvers.Query as any).traceProductRecall(
+      null,
+      { lotNumber: 'LOT-FEFO-X' },
+      context
+    );
+    expect(dispatches).toHaveLength(1);
+    expect(dispatches[0].ledgerEntryId).toBe('le-recall-dispatch-1');
+    expect(dispatches[0].quantity).toBe(10);
+    expect(dispatches[0].referenceId).toBe('ORDER-FEFO-1');
   });
 });

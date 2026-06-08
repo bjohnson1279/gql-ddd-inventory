@@ -34,6 +34,7 @@ model ProductVariant {
   productId           String               @map("product_id") @db.Uuid
   sku                 String               @unique
   trackingMode        String               @default("quantity") @map("tracking_mode")
+  costingMethod       String               @default("fifo") @map("costing_method")
   weightGrams         Int?                 @map("weight_grams")
   volumeCubicMeters   Float?               @map("volume_cubic_meters")
   createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
@@ -83,11 +84,15 @@ model InventoryCostLayer {
   unitCostCents    Int            @map("unit_cost_cents")
   receivedAt       DateTime       @map("received_at") @db.Timestamptz
   serialNumber     String?        @map("serial_number")
+  lotNumber        String?        @map("lot_number")
+  expirationDate   DateTime?      @map("expiration_date") @db.Timestamptz
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
   variant          ProductVariant @relation(fields: [variantId], references: [id])
 
   @@index([variantId, receivedAt])
   @@index([variantId, serialNumber])
+  @@index([variantId, expirationDate])
+  @@index([variantId, lotNumber])
   @@map("inventory_cost_layers")
 }
 
