@@ -49,7 +49,12 @@ describe('ReceiveStockUseCase standalone tests', () => {
 
     expect(result.sku).toBe('NEW-SKU');
     expect(result.quantity).toBe(10);
-    expect(mockRepo.save).toHaveBeenCalled();
+    expect(mockRepo.save).toHaveBeenCalledTimes(1);
+    const savedItem = mockRepo.save.mock.calls[0][0];
+    expect(savedItem.id).toEqual(expect.any(String));
+    expect(savedItem.sku.value).toBe('NEW-SKU');
+    expect(savedItem.locationId.value).toBe('LOC1');
+    expect(savedItem.quantity.value).toBe(10);
   });
 
   it('should propagate capacity service error', async () => {
