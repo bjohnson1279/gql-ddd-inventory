@@ -75,13 +75,20 @@ export class OutboxWorker {
         take: 20,
       });
 
-      for (const event of events) {
-        // Mark as Processing
-        await prisma.outboxEvent.update({
-          where: { id: event.id },
-          data: { status: 'Processing' },
-        });
+      if (events.length === 0) {
+        this.isRunning = false;
+        return;
+      }
 
+      const eventIds = events.map((e: any) => e.id);
+
+      // Mark as Processing in batch
+      await prisma.outboxEvent.updateMany({
+        where: { id: { in: eventIds } },
+        data: { status: 'Processing' },
+      });
+
+      for (const event of events) {
         try {
           const domainEvent = deserializeEvent(event.eventType, event.payload);
 
