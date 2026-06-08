@@ -11,7 +11,7 @@ describe('BarcodeRegistry', () => {
       findSkuByBarcodeValue: jest.fn(),
       findSetBySku: jest.fn(),
       save: jest.fn()
-    };
+    } as unknown as jest.Mocked<IBarcodeRepository>;
     registry = new BarcodeRegistry(mockRepository);
   });
 
