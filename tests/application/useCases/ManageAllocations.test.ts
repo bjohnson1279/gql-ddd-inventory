@@ -48,6 +48,31 @@ describe('ManageAllocations Use Cases', () => {
       );
       expect(mockRepo.save).not.toHaveBeenCalled();
     });
+
+    it('should create new item and allocate successfully if item does not exist but amount is 0', async () => {
+      mockRepo.findBySkuAndLocation.mockResolvedValue(null);
+
+      const useCase = new AllocateStockUseCase(mockRepo);
+      const result = await useCase.execute('NEW-SKU', 'LOC1', 0);
+
+      expect(result.sku).toBe('NEW-SKU');
+      expect(result.locationId).toBe('LOC1');
+      expect(result.allocated).toBe(0);
+      expect(result.available).toBe(0);
+      expect(mockRepo.save).toHaveBeenCalled();
+    });
+
+    it('should allocate 0 stock to existing item without modifying total available/allocated', async () => {
+      const item = new InventoryItem('2', new Sku('SKU2'), new LocationId('LOC2'), new Quantity(20));
+      mockRepo.findBySkuAndLocation.mockResolvedValue(item);
+
+      const useCase = new AllocateStockUseCase(mockRepo);
+      const result = await useCase.execute('SKU2', 'LOC2', 0);
+
+      expect(result.allocated).toBe(0);
+      expect(result.available).toBe(20);
+      expect(mockRepo.save).toHaveBeenCalledWith(item);
+    });
   });
 
   describe('ReleaseAllocationUseCase', () => {
