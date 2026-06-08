@@ -83,6 +83,11 @@ describe('SubmitInventoryCountUseCase', () => {
       expect(savedItems[1].quantity.value).toBe(7);
 
       expect(mockEventDispatcher.dispatch).toHaveBeenCalledTimes(2);
+      const dispatchedEvents = mockEventDispatcher.dispatch.mock.calls.flatMap(call => call[0]);
+      expect(dispatchedEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({ sku: 'SKU1', locationId: 'LOC1', expected: 10, actual: 8, variance: -2 }),
+        expect.objectContaining({ sku: 'SKU2', locationId: 'LOC2', expected: 5, actual: 7, variance: 2 }),
+      ]));
     });
 
     it('should create new inventory items if they do not exist', async () => {
