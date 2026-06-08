@@ -1,6 +1,5 @@
 import { UomConverter } from '../../../src/domain/services/UomConverter';
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
-import { UnitOfMeasure } from '../../../src/domain/valueObjects/UnitOfMeasure';
 import { ProductUomConfiguration } from '../../../src/domain/entities/ProductUomConfiguration';
 import { StandardUnits } from '../../../src/domain/services/StandardUnits';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
