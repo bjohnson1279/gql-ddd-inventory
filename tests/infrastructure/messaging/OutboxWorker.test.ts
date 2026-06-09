@@ -165,7 +165,7 @@ describe('Transactional Outbox Pattern', () => {
         where: { id: 'evt-1' },
         data: {
           status: 'Processed',
-          attempts: 1,
+          attempts: { increment: 1 },
           processedAt: expect.any(Date)
         }
       });

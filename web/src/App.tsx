@@ -924,7 +924,7 @@ function App() {
                   <div key={idx} className="items-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr auto' }}>
                     <div className="form-group">
                       <label>Variant UUID</label>
-                      <input 
+                      <input aria-label={`Variant UUID ${idx + 1}`}
                         value={item.variantId} 
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
@@ -937,7 +937,7 @@ function App() {
                     </div>
                     <div className="form-group">
                       <label>Quantity</label>
-                      <input 
+                      <input aria-label={`Quantity ${idx + 1}`}
                         type="number" 
                         value={item.quantity} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -950,7 +950,7 @@ function App() {
                     </div>
                     <div className="form-group">
                       <label>Unit Cost (¢)</label>
-                      <input 
+                      <input aria-label={`Unit Cost ${idx + 1}`}
                         type="number" 
                         value={item.unitCostCents} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -1064,12 +1064,12 @@ function App() {
                         <label>Variant Attributes (Colors, Sizes, etc.)</label>
                         {newVarAttrs.map((attr, idx) => (
                           <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                            <input aria-label="Attribute Name" placeholder="Attribute Name" value={attr.name} onChange={e => {
+                            <input aria-label={`Attribute Name ${idx + 1}`} placeholder="Attribute Name" value={attr.name} onChange={e => {
                               const updated = [...newVarAttrs];
                               updated[idx].name = e.target.value;
                               setNewVarAttrs(updated);
                             }} />
-                            <input aria-label="Attribute Value" placeholder="Value" value={attr.value} onChange={e => {
+                            <input aria-label={`Attribute Value ${idx + 1}`} placeholder="Value" value={attr.value} onChange={e => {
                               const updated = [...newVarAttrs];
                               updated[idx].value = e.target.value;
                               setNewVarAttrs(updated);
@@ -1125,7 +1125,7 @@ function App() {
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
                                       {(role === 'admin' || role === 'warehouse_operator') ? (
-                                        <button style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
+                                        <button aria-label={`Revoke barcode ${b.barcode.value}`} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
                                           Revoke
                                         </button>
                                       ) : <span></span>}
@@ -1291,12 +1291,12 @@ function App() {
               <h2 className="form-section-title">Manual Journal Ingestion</h2>
               <form onSubmit={handlePostJournal}>
                 <div className="form-group">
-                  <label>Entry Description</label>
-                  <input value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
+                  <label htmlFor="newJournalDesc">Entry Description</label>
+                  <input id="newJournalDesc" value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
                 </div>
                 <div className="form-group">
-                  <label>Accounting Method</label>
-                  <select value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
+                  <label htmlFor="newJournalMethod">Accounting Method</label>
+                  <select id="newJournalMethod" value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
                     <option value="accrual">Accrual-Basis Accounting</option>
                     <option value="cash">Cash-Basis Accounting</option>
                   </select>
@@ -1311,17 +1311,17 @@ function App() {
 
                 {newJournalLines.map((line, idx) => (
                   <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                    <input aria-label="Account Code" placeholder="Account Code" value={line.accountCode} onChange={e => {
+                    <input aria-label={`Account Code ${idx + 1}`} placeholder="Account Code" value={line.accountCode} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].accountCode = e.target.value;
                       setNewJournalLines(updated);
                     }} required />
-                    <input aria-label="Amount (Cents)" type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
+                    <input aria-label={`Amount (Cents) ${idx + 1}`} type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].amountCents = Number(e.target.value);
                       setNewJournalLines(updated);
                     }} required />
-                    <select aria-label="Transaction Type" value={line.type} onChange={e => {
+                    <select aria-label={`Transaction Type ${idx + 1}`} value={line.type} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].type = e.target.value as any;
                       setNewJournalLines(updated);
@@ -1329,7 +1329,7 @@ function App() {
                       <option value="debit">DEBIT</option>
                       <option value="credit">CREDIT</option>
                     </select>
-                    <input aria-label="Memo" placeholder="Memo" value={line.memo} onChange={e => {
+                    <input aria-label={`Memo ${idx + 1}`} placeholder="Memo" value={line.memo} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].memo = e.target.value;
                       setNewJournalLines(updated);
@@ -1440,16 +1440,16 @@ function App() {
               <h2 className="form-section-title">Connect Shopify Store</h2>
               <form onSubmit={handleConnectShopify}>
                 <div className="form-group">
-                  <label>Connection ID (UUID recommended)</label>
-                  <input value={newShopifyId} onChange={e => setNewShopifyId(e.target.value)} placeholder="e.g. conn-abc" required />
+                  <label htmlFor="newShopifyId">Connection ID (UUID recommended)</label>
+                  <input id="newShopifyId" value={newShopifyId} onChange={e => setNewShopifyId(e.target.value)} placeholder="e.g. conn-abc" required />
                 </div>
                 <div className="form-group">
-                  <label>Shopify Store Domain</label>
-                  <input value={newShopifyDomain} onChange={e => setNewShopifyDomain(e.target.value)} placeholder="e.g. customtee.myshopify.com" required />
+                  <label htmlFor="newShopifyDomain">Shopify Store Domain</label>
+                  <input id="newShopifyDomain" value={newShopifyDomain} onChange={e => setNewShopifyDomain(e.target.value)} placeholder="e.g. customtee.myshopify.com" required />
                 </div>
                 <div className="form-group">
-                  <label>Access Token</label>
-                  <input type="password" value={newShopifyToken} onChange={e => setNewShopifyToken(e.target.value)} placeholder="shpat_..." required />
+                  <label htmlFor="newShopifyToken">Access Token</label>
+                  <input id="newShopifyToken" type="password" value={newShopifyToken} onChange={e => setNewShopifyToken(e.target.value)} placeholder="shpat_..." required />
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Connect Store Domain</button>
               </form>

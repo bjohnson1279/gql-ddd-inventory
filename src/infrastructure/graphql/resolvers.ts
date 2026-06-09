@@ -23,8 +23,8 @@ if (process.env.NODE_ENV === 'test') {
   });
 }
 
-export const pubsub = pubsubInstance;
-export const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
+const pubsub = pubsubInstance;
+const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 
 import { ReceiveStockUseCase } from '../../application/useCases/ReceiveStock';
 import { DispatchStockUseCase } from '../../application/useCases/DispatchStock';
