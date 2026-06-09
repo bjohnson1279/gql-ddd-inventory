@@ -1,3 +1,3 @@
-## 2024-06-09 - Accessibility in dynamic forms
-**Learning:** Hardcoding static IDs inside dynamically generated components (like `.map()` loops) breaks accessibility since IDs must be unique across the entire DOM page. Using standard `aria-label`s on those dynamic fields resolves screen reader warnings without introducing duplicative ID errors.
-**Action:** When adding accessibility to mapped inputs or dynamically added array rows, inject the index into the `aria-label` (e.g. ``aria-label={`Quantity ${idx + 1}`}``) or utilize dynamic strings to ensure accessibility tools correctly announce the repeating fields context without violating DOM rules.
+## 2024-06-02 - Added ARIA Label and Title to Icon-only Remove Button
+**Learning:** Screen readers announce the `&times;` (×) HTML entity as "times," which can be misleading in the context of a remove/delete button for an onboarding variant item.
+**Action:** When using `&times;` or icon-only buttons for actions like removing or closing items, ensure to add `aria-label="Remove item"` for screen reader compatibility, and `title="Remove item"` for a native browser tooltip that helps sighted users understand the action.
