@@ -48,13 +48,19 @@ export class WebhookWorker {
         take: 10,
       });
 
-      for (const event of events) {
-        // Mark as Processing
-        await prisma.webhookEvent.update({
-          where: { id: event.id },
-          data: { status: 'Processing' },
-        });
+      if (events.length === 0) return;
 
+      const eventIds = events.map((e: any) => e.id);
+
+      // Mark all as Processing in batch
+      await prisma.webhookEvent.updateMany({
+        where: { id: { in: eventIds } },
+        data: { status: 'Processing' },
+      });
+
+      const processedEventIds: string[] = [];
+
+      for (const event of events) {
         try {
           const connection = await integrationRepository.findByStoreDomain(event.shopDomain);
           if (!connection || !connection.isActive) {
@@ -100,11 +106,8 @@ export class WebhookWorker {
             }
           });
 
-          // Mark as Processed
-          await prisma.webhookEvent.update({
-            where: { id: event.id },
-            data: { status: 'Processed', attempts: event.attempts + 1 },
-          });
+          // Track for batch update
+          processedEventIds.push(event.id);
           console.log(`[WebhookWorker] Successfully processed event ${event.id} (topic: ${event.topic})`);
         } catch (err: any) {
           console.error(`[WebhookWorker] Failed to process event ${event.id}:`, err);
@@ -117,6 +120,14 @@ export class WebhookWorker {
             },
           });
         }
+      }
+
+      // Mark all successful as Processed in batch
+      if (processedEventIds.length > 0) {
+        await prisma.webhookEvent.updateMany({
+          where: { id: { in: processedEventIds } },
+          data: { status: 'Processed', attempts: { increment: 1 } },
+        });
       }
     } catch (error) {
       console.error('[WebhookWorker] Error in background worker loop:', error);
