@@ -20,6 +20,7 @@ describe('SyncProductFromShopify', () => {
       findByIds: jest.fn(),
       findBySku: jest.fn(),
       findBySkus: jest.fn(),
+      findSkuByVariantId: jest.fn(),
       findAll: jest.fn(),
     };
     mappingRepo = {

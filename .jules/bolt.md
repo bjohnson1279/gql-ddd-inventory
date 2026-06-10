@@ -13,3 +13,10 @@
 ## 2024-06-07 - Avoid Hallucinated Repository Methods
 **Learning:** When attempting to optimize batch operations (e.g., using a non-existent `appendBatch` method on an interface like `ILedgerRepository`), always verify that the method is defined in the interface, implemented in the concrete classes, and correctly mocked in the test files. Assuming methods exist based on patterns elsewhere can lead to unmergeable code that breaks the TypeScript build.
 **Action:** Always verify the actual interface definition using \`cat\` or \`read_file\` before calling any batch methods, and ensure test mocks are updated if a new method is added.
+
+## 2024-05-13 - N+1 Query Optimization in OutboxWorker
+ **Learning:** When processing a batch of records (e.g., in a background worker), updating each record individually in a loop causes an N+1 query problem. This can be resolved by collecting the IDs of the processed records and executing a single bulk update.
+ **Action:** Always use batch operations like Prisma's `updateMany` for updating multiple records with the same status or simple atomic operations (like `increment`), rather than iterating and updating each one individually. Ensure test mocks reflect the change from `update` to `updateMany`.
+## 2024-06-09 - N+1 Catalog Hydration via Helper Methods
+**Learning:** Helper methods in domain use cases (like `findSkuForVariant` in `ManageStockTransfers`) that resolve relationships by calling `.findAll()` on repositories will cause severe N+1 memory and database bottlenecks when called within loops over items (e.g., iterating through transfer line items). The entire catalog is hydrated into memory for every item processed.
+**Action:** Always extend repository interfaces (e.g., `IProductRepository`) with targeted, index-backed lookup methods (like `findSkuByVariantId` mapped to `prisma.productVariant.findUnique( { select: { sku: true } } )`) instead of fetching entire collections for in-memory resolution. Ensure all mocked instances in test suites are updated to support the new targeted methods.

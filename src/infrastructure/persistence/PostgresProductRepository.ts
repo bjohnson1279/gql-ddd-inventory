@@ -181,6 +181,14 @@ export class PostgresProductRepository implements IProductRepository {
     return this.findByIds(productIds.map(id => new ProductId(id)));
   }
 
+  async findSkuByVariantId(variantId: string): Promise<string | null> {
+    const variantModel = await this.prisma.productVariant.findUnique({
+      where: { id: variantId },
+      select: { sku: true },
+    });
+    return variantModel ? variantModel.sku : null;
+  }
+
   async findAll(): Promise<Product[]> {
     const models = await this.prisma.product.findMany({
       include: {

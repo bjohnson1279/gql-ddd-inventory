@@ -46,6 +46,16 @@ export class InMemoryProductRepository implements IProductRepository {
     return results;
   }
 
+  async findSkuByVariantId(variantId: string): Promise<string | null> {
+    for (const product of this.products.values()) {
+      const variant = product.variants.find(v => v.id.value === variantId);
+      if (variant) {
+        return variant.sku.value;
+      }
+    }
+    return null;
+  }
+
   async findAll(): Promise<Product[]> {
     return Array.from(this.products.values());
   }
