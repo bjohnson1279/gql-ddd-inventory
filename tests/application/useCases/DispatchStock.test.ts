@@ -71,6 +71,33 @@ describe('DispatchStockUseCase', () => {
     expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
   });
 
+  it('should dispatch stock successfully when dispatching exactly the available amount (reaching 0)', async () => {
+    const initialQuantity = 5;
+    const amountToDispatch = 5;
+    const skuStr = 'SKU123';
+    const locationIdStr = 'LOC1';
+
+    const item = new InventoryItem(
+      'id1',
+      new Sku(skuStr),
+      new LocationId(locationIdStr),
+      new Quantity(initialQuantity)
+    );
+
+    mockInventoryRepository.findBySkuAndLocation.mockResolvedValue(item);
+
+    const useCase = new DispatchStockUseCase(mockInventoryRepository, mockEventDispatcher);
+    const result = await useCase.execute(skuStr, locationIdStr, amountToDispatch);
+
+    expect(mockInventoryRepository.findBySkuAndLocation).toHaveBeenCalledWith(skuStr, locationIdStr);
+    expect(mockInventoryRepository.save).toHaveBeenCalledWith(item);
+    expect(mockEventDispatcher.dispatch).toHaveBeenCalled();
+
+    expect(result.sku).toBe(skuStr);
+    expect(result.locationId).toBe(locationIdStr);
+    expect(result.quantity).toBe(0);
+  });
+
   it('should throw an error when there is insufficient stock', async () => {
     const initialQuantity = 3;
     const amountToDispatch = 5;
