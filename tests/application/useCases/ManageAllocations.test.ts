@@ -29,8 +29,11 @@ describe('ManageAllocations Use Cases', () => {
   describe('AllocateStockUseCase', () => {
     describe('Additional Scenarios', () => {
       it('should handle sequential stock allocations correctly', async () => {
-        const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(50));
-        mockRepo.findBySkuAndLocation.mockResolvedValue(item);
+        let savedItem = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(50));
+        mockRepo.findBySkuAndLocation.mockImplementation(async () => savedItem);
+        mockRepo.save.mockImplementation(async (item) => {
+          savedItem = item;
+        });
 
         const useCase = new AllocateStockUseCase(mockRepo);
 
