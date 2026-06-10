@@ -9,6 +9,5 @@ export interface IProductRepository {
   findBySku(sku: Sku): Promise<Product | null>;
   findBySkus(skus: Sku[]): Promise<Product[]>;
   findSkuByVariantId(variantId: string): Promise<string | null>;
-  findSkusByVariantIds(variantIds: string[]): Promise<Map<string, string>>;
   findAll(): Promise<Product[]>;
 }
