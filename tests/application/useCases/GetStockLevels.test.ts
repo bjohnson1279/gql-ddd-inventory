@@ -55,6 +55,26 @@ describe('GetStockLevels Use Cases', () => {
       expect(mockRepo.findAll).toHaveBeenCalledTimes(1);
       expect(result).toEqual([]);
     });
+
+    it('should retrieve all stock levels via findAll and map to DTO', async () => {
+      const items = [
+        new InventoryItem('3', new Sku('SKU3'), new LocationId('LOC3'), new Quantity(30)),
+        new InventoryItem('4', new Sku('SKU4'), new LocationId('LOC4'), new Quantity(40)),
+      ];
+      mockRepo.findAll.mockResolvedValue(items);
+
+      const useCase = new GetStockLevelsUseCase(mockRepo);
+      const result = await useCase.execute();
+
+      expect(mockRepo.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+      expect(result[0].sku).toBe('SKU3');
+      expect(result[0].locationId).toBe('LOC3');
+      expect(result[0].quantity).toBe(30);
+      expect(result[1].sku).toBe('SKU4');
+      expect(result[1].locationId).toBe('LOC4');
+      expect(result[1].quantity).toBe(40);
+    });
   });
 
   describe('GetStockLevelsBySkuUseCase', () => {
