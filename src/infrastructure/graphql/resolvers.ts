@@ -621,7 +621,7 @@ export const resolvers = {
       if (!product) {
         throw new Error(`Product variant with SKU ${sku} not found.`);
       }
-      const variant = product.variants.find(v => v.sku.value === sku);
+      const variant = product.findVariantBySku(sku);
       if (!variant) {
         throw new Error(`Product variant with SKU ${sku} not found.`);
       }

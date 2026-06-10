@@ -28,7 +28,7 @@ export class UpdateVariantCostingMethodUseCase {
     if (!product) {
       throw new Error(`Product with SKU ${sku} not found.`);
     }
-    const variant = product.variants.find(v => v.sku.value === sku);
+    const variant = product.findVariantBySku(sku);
     if (!variant) {
       throw new Error(`Variant with SKU ${sku} not found.`);
     }
@@ -64,7 +64,7 @@ export class ReceiveStockWithLotUseCase {
     if (!product) {
       throw new Error(`Product variant with SKU ${input.sku} not found.`);
     }
-    const variant = product.variants.find(v => v.sku.equals(skuObj));
+    const variant = product.findVariantBySku(skuObj);
     if (!variant) {
       throw new Error(`Product variant with SKU ${input.sku} not found.`);
     }

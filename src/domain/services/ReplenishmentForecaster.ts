@@ -21,7 +21,7 @@ export class DemandVelocityCalculator {
       return 0;
     }
 
-    const variant = product.variants.find((v) => v.sku.equals(sku));
+    const variant = product.findVariantBySku(sku);
     if (!variant) {
       return 0;
     }

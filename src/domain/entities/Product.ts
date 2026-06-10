@@ -9,6 +9,7 @@ import { VariantTrackingMode } from '../enums/VariantEnums';
 
 export class Product {
   private _variants: Map<string, ProductVariant>;
+  private _variantsBySku: Map<string, ProductVariant>;
 
   constructor(
     public readonly id: ProductId,
@@ -16,6 +17,12 @@ export class Product {
     variants?: Map<string, ProductVariant>
   ) {
     this._variants = variants ?? new Map<string, ProductVariant>();
+    this._variantsBySku = new Map<string, ProductVariant>();
+    if (variants) {
+      for (const variant of variants.values()) {
+        this._variantsBySku.set(variant.sku.value, variant);
+      }
+    }
   }
 
   addVariant(sku: Sku, attributes: VariantAttribute[], trackingMode: VariantTrackingMode = VariantTrackingMode.Quantity): ProductVariant {
@@ -37,12 +44,18 @@ export class Product {
     );
 
     this._variants.set(variant.id.value, variant);
+    this._variantsBySku.set(variant.sku.value, variant);
 
     return variant;
   }
 
   findVariant(id: ProductVariantId): ProductVariant | undefined {
     return this._variants.get(id.value);
+  }
+
+  findVariantBySku(sku: Sku | string): ProductVariant | undefined {
+    const skuStr = sku instanceof Sku ? sku.value : sku;
+    return this._variantsBySku.get(skuStr);
   }
 
   get variants(): ProductVariant[] {
