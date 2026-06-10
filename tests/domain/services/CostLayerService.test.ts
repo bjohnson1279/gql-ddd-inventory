@@ -184,6 +184,17 @@ describe('CostLayerService', () => {
       const cost = await service.calculateFifoCost(v1, 5);
       expect(cost.totalCostCents).toBe(500);
     });
+
+    it('should mathematically correctly calculate complex FIFO cost across multiple layers', async () => {
+      repo.layers = [
+        new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01')), // Older, $1
+        new InventoryCostLayer(new InventoryCostLayerId('L2'), v1, 10, 200, new Date('2024-02-01')), // Newer, $2
+        new InventoryCostLayer(new InventoryCostLayerId('L3'), v1, 10, 300, new Date('2024-03-01')), // Newest, $3
+      ];
+      // Need 25 units. FIFO: 10 * 100 + 10 * 200 + 5 * 300 = 1000 + 2000 + 1500 = 4500
+      const cost = await service.calculateFifoCost(v1, 25);
+      expect(cost.totalCostCents).toBe(4500);
+    });
   });
 
   describe('consumeFifoLayers', () => {
