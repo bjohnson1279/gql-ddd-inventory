@@ -1,6 +1,7 @@
 import { IProductRepository } from '../../domain/repositories/IProductRepository';
 import { Product } from '../../domain/entities/Product';
 import { ProductId } from '../../domain/valueObjects/ProductId';
+import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { Sku } from '../../domain/valueObjects/Sku';
 
 export class InMemoryProductRepository implements IProductRepository {
@@ -48,7 +49,7 @@ export class InMemoryProductRepository implements IProductRepository {
 
   async findSkuByVariantId(variantId: string): Promise<string | null> {
     for (const product of this.products.values()) {
-      const variant = product.variants.find(v => v.id.value === variantId);
+      const variant = product.findVariant(new ProductVariantId(variantId));
       if (variant) {
         return variant.sku.value;
       }

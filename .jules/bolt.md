@@ -20,3 +20,6 @@
 ## 2024-06-09 - N+1 Catalog Hydration via Helper Methods
 **Learning:** Helper methods in domain use cases (like `findSkuForVariant` in `ManageStockTransfers`) that resolve relationships by calling `.findAll()` on repositories will cause severe N+1 memory and database bottlenecks when called within loops over items (e.g., iterating through transfer line items). The entire catalog is hydrated into memory for every item processed.
 **Action:** Always extend repository interfaces (e.g., `IProductRepository`) with targeted, index-backed lookup methods (like `findSkuByVariantId` mapped to `prisma.productVariant.findUnique( { select: { sku: true } } )`) instead of fetching entire collections for in-memory resolution. Ensure all mocked instances in test suites are updated to support the new targeted methods.
+## 2026-06-10 - Optimize O(N) Array Allocations on Getters
+**Learning:** Calling `.find()` on dynamically generated array getters (like `Array.from(map.values())` inside `Product.variants`) causes continuous memory allocation and O(N) traversal overhead inside domain loop logic.
+**Action:** Maintain dedicated internal `Map` indexes (e.g., `_variantsBySku`) to provide native O(1) entity lookups instead of querying dynamic arrays.

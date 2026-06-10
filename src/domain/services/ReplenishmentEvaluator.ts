@@ -69,7 +69,7 @@ export class ReplenishmentEvaluator {
 
         // 2. Fetch variantId for SKU
         const product = await this.productRepo.findBySku(skuObj);
-        const variant = product?.variants.find((v) => v.sku.equals(skuObj));
+        const variant = product?.findVariantBySku(skuObj);
         if (!variant) {
           results.push({
             ruleId: rule.id.value,

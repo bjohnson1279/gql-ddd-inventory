@@ -99,7 +99,7 @@ export class AssembleKitUseCase {
     if (!kitProduct) {
       throw new Error(`Product variant for Kit SKU ${input.kitSku} not found.`);
     }
-    const kitVariant = kitProduct.variants.find(v => v.sku.equals(kitSku));
+    const kitVariant = kitProduct.findVariantBySku(kitSku);
     if (!kitVariant) {
       throw new Error(`Variant for Kit SKU ${input.kitSku} not found.`);
     }
@@ -244,7 +244,7 @@ export class DisassembleKitUseCase {
     if (!kitProduct) {
       throw new Error(`Product variant for Kit SKU ${input.kitSku} not found.`);
     }
-    const kitVariant = kitProduct.variants.find(v => v.sku.equals(kitSku));
+    const kitVariant = kitProduct.findVariantBySku(kitSku);
     if (!kitVariant) {
       throw new Error(`Variant for Kit SKU ${input.kitSku} not found.`);
     }

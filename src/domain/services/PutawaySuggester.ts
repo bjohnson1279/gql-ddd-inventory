@@ -28,7 +28,7 @@ export class PutawaySuggester {
       throw new Error(`Product variant with SKU ${sku.value} not found.`);
     }
 
-    const variant = product.variants.find(v => v.sku.equals(sku));
+    const variant = product.findVariantBySku(sku);
     if (!variant) {
       throw new Error(`Product variant with SKU ${sku.value} not found.`);
     }

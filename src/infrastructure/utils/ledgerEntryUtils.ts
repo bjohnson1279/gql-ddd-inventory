@@ -26,7 +26,7 @@ export async function appendStockLedgerEntry(
   context: LedgerMutationContext
 ): Promise<void> {
   const product = await productRepository.findBySku(new Sku(sku));
-  const variant = product?.variants.find(v => v.sku.value === sku);
+  const variant = product?.findVariantBySku(sku);
   if (!variant) return;
 
   const tenantId = new TenantId(context?.auth?.tenantId || 'default');
