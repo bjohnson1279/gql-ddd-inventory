@@ -1,10 +1,12 @@
 import crypto from 'crypto';
+import { ILedgerRepository } from '../../domain/repositories/ILedgerRepository';
 import { OpeningBalanceService } from '../../domain/services/OpeningBalanceService';
 import { StockOnboarding } from '../../domain/entities/StockOnboarding';
 import { StockOnboardingId } from '../../domain/valueObjects/StockOnboardingId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ActorId } from '../../domain/valueObjects/ActorId';
+import { Sku } from '../../domain/valueObjects/Sku';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 
 export interface OpeningBalanceItemInput {

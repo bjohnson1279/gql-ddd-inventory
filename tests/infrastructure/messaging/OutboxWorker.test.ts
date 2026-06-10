@@ -116,6 +116,7 @@ describe('Transactional Outbox Pattern', () => {
     beforeEach(() => {
       (prisma.outboxEvent.findMany as jest.Mock).mockClear();
       (prisma.outboxEvent.update as jest.Mock).mockClear();
+      (prisma.outboxEvent.updateMany as jest.Mock).mockClear();
       (prisma.outboxEvent.create as jest.Mock).mockClear();
     });
 
@@ -149,21 +150,22 @@ describe('Transactional Outbox Pattern', () => {
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
       updateMock.mockResolvedValue({});
+      updateManyMock.mockResolvedValue({});
 
       await OutboxWorker.processPendingEvents();
 
-      // Should mark as Processing, then process, then mark as Processed
-
-
-      expect(updateManyMock).toHaveBeenCalledWith({
+      // Should mark as Processing (batch), then process, then mark as Processed
+      expect(updateManyMock).toHaveBeenCalledTimes(1);
+      expect(updateManyMock.mock.calls[0][0]).toEqual({
         where: { id: { in: ['evt-1'] } },
         data: { status: 'Processing' }
       });
-      expect(updateManyMock).toHaveBeenCalledWith({
-        where: { id: { in: ['evt-1'] } },
+      expect(updateMock).toHaveBeenCalledTimes(1);
+      expect(updateMock.mock.calls[0][0]).toEqual({
+        where: { id: 'evt-1' },
         data: {
           status: 'Processed',
-          attempts: { increment: 1 },
+          attempts: 1,
           processedAt: expect.any(Date)
         }
       });
@@ -186,13 +188,14 @@ describe('Transactional Outbox Pattern', () => {
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
       updateMock.mockResolvedValue({});
+      updateManyMock.mockResolvedValue({});
 
       await OutboxWorker.processPendingEvents();
 
+      expect(updateManyMock).toHaveBeenCalledTimes(1);
+      expect(updateMock).toHaveBeenCalledTimes(1);
 
-
-      // Processing update first, then error update
-      expect(updateMock).toHaveBeenCalledWith({
+      expect(updateMock.mock.calls[0][0]).toEqual({
         where: { id: 'evt-2' },
         data: {
           status: 'Pending',
@@ -216,12 +219,13 @@ describe('Transactional Outbox Pattern', () => {
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
       updateMock.mockResolvedValue({});
+      updateManyMock.mockResolvedValue({});
 
       await OutboxWorker.processPendingEvents();
 
-
-
-      expect(updateMock).toHaveBeenCalledWith({
+      expect(updateManyMock).toHaveBeenCalledTimes(1);
+      expect(updateMock).toHaveBeenCalledTimes(1);
+      expect(updateMock.mock.calls[0][0]).toEqual({
         where: { id: 'evt-3' },
         data: {
           status: 'Failed',

@@ -16,21 +16,17 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
         include: { attributes: true },
       });
 
-      const variantsByProduct = new Map<string, any[]>();
-      for (const v of variants) {
-        if (!variantsByProduct.has(v.productId)) {
-          variantsByProduct.set(v.productId, []);
-        }
-        variantsByProduct.get(v.productId)!.push({
-          id: v.id,
-          sku: v.sku,
-          trackingMode: v.trackingMode,
-          costingMethod: v.costingMethod,
-          attributes: v.attributes.map((a) => ({ name: a.name, value: a.value })),
-        });
-      }
-
-      return productIds.map((id) => variantsByProduct.get(id) || []);
+      return productIds.map((id) =>
+        variants
+          .filter((v) => v.productId === id)
+          .map((v) => ({
+            id: v.id,
+            sku: v.sku,
+            trackingMode: v.trackingMode,
+            costingMethod: v.costingMethod,
+            attributes: v.attributes.map((a) => ({ name: a.name, value: a.value })),
+          }))
+      );
     }),
 
     kitComponents: new DataLoader<string, any[]>(async (kitIds) => {
@@ -38,18 +34,20 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
         where: { kitId: { in: kitIds as string[] } },
       });
 
-      const componentsByKit = new Map<string, any[]>();
+      const componentsByKitId = new Map<string, any[]>();
       for (const c of components) {
-        if (!componentsByKit.has(c.kitId)) {
-          componentsByKit.set(c.kitId, []);
+        let arr = componentsByKitId.get(c.kitId);
+        if (!arr) {
+          arr = [];
+          componentsByKitId.set(c.kitId, arr);
         }
-        componentsByKit.get(c.kitId)!.push({
+        arr.push({
           variantId: c.variantId,
           quantity: c.quantity,
         });
       }
 
-      return kitIds.map((id) => componentsByKit.get(id) || []);
+      return kitIds.map((id) => componentsByKitId.get(id) || []);
     }),
 
     costLayers: new DataLoader<string, any[]>(async (variantIds) => {
@@ -62,27 +60,23 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
         orderBy: { receivedAt: 'asc' },
       });
 
-      const layersByVariant = new Map<string, any[]>();
-      for (const l of layers) {
-        if (!layersByVariant.has(l.variantId)) {
-          layersByVariant.set(l.variantId, []);
-        }
-        layersByVariant.get(l.variantId)!.push({
-          id: l.id,
-          variantId: l.variantId,
-          initialQuantity: l.initialQuantity,
-          consumedQuantity: l.consumedQuantity,
-          unitCostCents: l.unitCostCents,
-          receivedAt: l.receivedAt.toISOString(),
-          serialNumber: l.serialNumber,
-          lot: l.lotNumber ? {
-            lotNumber: l.lotNumber,
-            expirationDate: l.expirationDate ? l.expirationDate.toISOString() : '',
-          } : null,
-        });
-      }
-
-      return variantIds.map((id) => layersByVariant.get(id) || []);
+      return variantIds.map((id) =>
+        layers
+          .filter((l) => l.variantId === id)
+          .map((l) => ({
+            id: l.id,
+            variantId: l.variantId,
+            initialQuantity: l.initialQuantity,
+            consumedQuantity: l.consumedQuantity,
+            unitCostCents: l.unitCostCents,
+            receivedAt: l.receivedAt.toISOString(),
+            serialNumber: l.serialNumber,
+            lot: l.lotNumber ? {
+              lotNumber: l.lotNumber,
+              expirationDate: l.expirationDate ? l.expirationDate.toISOString() : '',
+            } : null,
+          }))
+      );
     }),
 
     externalMappings: new DataLoader<string, any[]>(async (internalIds) => {
@@ -90,23 +84,19 @@ export function createDataLoaders(prisma: PrismaClient): DataLoaders {
         where: { internalId: { in: internalIds as string[] } },
       });
 
-      const mappingsByInternal = new Map<string, any[]>();
-      for (const m of mappings) {
-        if (!mappingsByInternal.has(m.internalId)) {
-          mappingsByInternal.set(m.internalId, []);
-        }
-        mappingsByInternal.get(m.internalId)!.push({
-          id: m.id,
-          tenantId: m.tenantId,
-          integrationId: m.integrationId,
-          entityType: m.entityType,
-          internalId: m.internalId,
-          externalId: m.externalId,
-          externalSecondaryId: m.externalSecondaryId,
-        });
-      }
-
-      return internalIds.map((id) => mappingsByInternal.get(id) || []);
+      return internalIds.map((id) =>
+        mappings
+          .filter((m) => m.internalId === id)
+          .map((m) => ({
+            id: m.id,
+            tenantId: m.tenantId,
+            integrationId: m.integrationId,
+            entityType: m.entityType,
+            internalId: m.internalId,
+            externalId: m.externalId,
+            externalSecondaryId: m.externalSecondaryId,
+          }))
+      );
     }),
   };
 }

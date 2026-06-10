@@ -48,17 +48,15 @@ export class WebhookWorker {
         take: 10,
       });
 
-      if (events.length === 0) return;
+      if (events.length === 0) {
+        return;
+      }
 
-      const eventIds = events.map((e: any) => e.id);
-
-      // Mark all as Processing in batch
+      // Mark all as Processing in a single query
       await prisma.webhookEvent.updateMany({
-        where: { id: { in: eventIds } },
+        where: { id: { in: events.map((e: any) => e.id) } },
         data: { status: 'Processing' },
       });
-
-      const processedEventIds: string[] = [];
 
       for (const event of events) {
         try {
@@ -106,8 +104,11 @@ export class WebhookWorker {
             }
           });
 
-          // Track for batch update
-          processedEventIds.push(event.id);
+          // Mark as Processed
+          await prisma.webhookEvent.update({
+            where: { id: event.id },
+            data: { status: 'Processed', attempts: event.attempts + 1 },
+          });
           console.log(`[WebhookWorker] Successfully processed event ${event.id} (topic: ${event.topic})`);
         } catch (err: any) {
           console.error(`[WebhookWorker] Failed to process event ${event.id}:`, err);
@@ -120,14 +121,6 @@ export class WebhookWorker {
             },
           });
         }
-      }
-
-      // Mark all successful as Processed in batch
-      if (processedEventIds.length > 0) {
-        await prisma.webhookEvent.updateMany({
-          where: { id: { in: processedEventIds } },
-          data: { status: 'Processed', attempts: { increment: 1 } },
-        });
       }
     } catch (error) {
       console.error('[WebhookWorker] Error in background worker loop:', error);

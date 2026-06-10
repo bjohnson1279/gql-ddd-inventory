@@ -924,7 +924,7 @@ function App() {
                   <div key={idx} className="items-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr auto' }}>
                     <div className="form-group">
                       <label>Variant UUID</label>
-                      <input 
+                      <input
                         value={item.variantId} 
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
@@ -937,7 +937,7 @@ function App() {
                     </div>
                     <div className="form-group">
                       <label>Quantity</label>
-                      <input 
+                      <input
                         type="number" 
                         value={item.quantity} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -950,7 +950,7 @@ function App() {
                     </div>
                     <div className="form-group">
                       <label>Unit Cost (¢)</label>
-                      <input 
+                      <input
                         type="number" 
                         value={item.unitCostCents} 
                         disabled={selectedOnboarding.status === 'submitted'}

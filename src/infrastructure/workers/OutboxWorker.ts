@@ -75,15 +75,18 @@ export class OutboxWorker {
         take: 20,
       });
 
-      if (events.length === 0) return;
+      if (events.length === 0) {
+        this.isRunning = false;
+        return;
+      }
 
       const eventIds = events.map((e: any) => e.id);
+
+      // Mark as Processing in batch
       await prisma.outboxEvent.updateMany({
         where: { id: { in: eventIds } },
         data: { status: 'Processing' },
       });
-
-      const processedIds: string[] = [];
 
       for (const event of events) {
         try {
@@ -92,7 +95,15 @@ export class OutboxWorker {
           // Publish event asynchronously to InMemoryEventBus
           eventBus.publish(domainEvent);
 
-          processedIds.push(event.id);
+          // Mark as Processed
+          await prisma.outboxEvent.update({
+            where: { id: event.id },
+            data: {
+              status: 'Processed',
+              attempts: event.attempts + 1,
+              processedAt: new Date(),
+            },
+          });
         } catch (err: any) {
           console.error(`[OutboxWorker] Failed to process outbox event ${event.id}:`, err);
           await prisma.outboxEvent.update({
@@ -104,17 +115,6 @@ export class OutboxWorker {
             },
           });
         }
-      }
-
-      if (processedIds.length > 0) {
-        await prisma.outboxEvent.updateMany({
-          where: { id: { in: processedIds } },
-          data: {
-            status: 'Processed',
-            attempts: { increment: 1 },
-            processedAt: new Date(),
-          },
-        });
       }
     } catch (error) {
       console.error('[OutboxWorker] Error in background worker loop:', error);
