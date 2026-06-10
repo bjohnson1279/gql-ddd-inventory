@@ -125,5 +125,15 @@ describe('SerializedInventoryService', () => {
         service.sell(serialNumber1, tenantId, saleId, actorId)
       ).rejects.toThrow();
     });
+
+  });
+
+  describe('event dispatch', () => {
+    it('should explicitly dispatch domain events upon receive', async () => {
+      await service.register(serialNumber1, variantId, tenantId, locationId, actorId);
+      eventDispatcher.mockClear();
+      await service.receive(serialNumber1, tenantId, locationId, 'PO-999', 1000, actorId);
+      expect(eventDispatcher).toHaveBeenCalled();
+    });
   });
 });
