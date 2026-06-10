@@ -42,6 +42,13 @@ describe('UomConverter', () => {
         converter.convert(qty, StandardUnits.kilogram(), config);
       }).toThrow('Cannot convert discrete to weight.');
     });
+
+    it('should convert a quantity of 0 correctly', () => {
+      const qty = new Quantity(0, StandardUnits.dozen());
+      const result = converter.convert(qty, StandardUnits.each(), config);
+      expect(result.amount).toBe(0);
+      expect(result.unit.equals(StandardUnits.each())).toBe(true);
+    });
   });
 
   describe('toBaseUnit()', () => {
@@ -69,6 +76,11 @@ describe('UomConverter', () => {
       // 120 cents per each -> 1440 cents per dozen
       const cost = converter.convertCost(120, StandardUnits.each(), StandardUnits.dozen(), config);
       expect(cost).toBe(1440);
+    });
+
+    it('should handle converting a cost of 0', () => {
+      const cost = converter.convertCost(0, StandardUnits.each(), StandardUnits.dozen(), config);
+      expect(cost).toBe(0);
     });
   });
 });
