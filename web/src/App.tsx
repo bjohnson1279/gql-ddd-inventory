@@ -925,6 +925,7 @@ function App() {
                     <div className="form-group">
                       <label>Variant UUID</label>
                       <input
+                        aria-label="Variant UUID"
                         value={item.variantId} 
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
@@ -938,6 +939,7 @@ function App() {
                     <div className="form-group">
                       <label>Quantity</label>
                       <input
+                        aria-label="Quantity"
                         type="number" 
                         value={item.quantity} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -951,6 +953,7 @@ function App() {
                     <div className="form-group">
                       <label>Unit Cost (¢)</label>
                       <input
+                        aria-label="Unit Cost (¢)"
                         type="number" 
                         value={item.unitCostCents} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -1440,16 +1443,16 @@ function App() {
               <h2 className="form-section-title">Connect Shopify Store</h2>
               <form onSubmit={handleConnectShopify}>
                 <div className="form-group">
-                  <label>Connection ID (UUID recommended)</label>
-                  <input value={newShopifyId} onChange={e => setNewShopifyId(e.target.value)} placeholder="e.g. conn-abc" required />
+                  <label htmlFor="newShopifyId">Connection ID (UUID recommended)</label>
+                  <input id="newShopifyId" value={newShopifyId} onChange={e => setNewShopifyId(e.target.value)} placeholder="e.g. conn-abc" required />
                 </div>
                 <div className="form-group">
-                  <label>Shopify Store Domain</label>
-                  <input value={newShopifyDomain} onChange={e => setNewShopifyDomain(e.target.value)} placeholder="e.g. customtee.myshopify.com" required />
+                  <label htmlFor="newShopifyDomain">Shopify Store Domain</label>
+                  <input id="newShopifyDomain" value={newShopifyDomain} onChange={e => setNewShopifyDomain(e.target.value)} placeholder="e.g. customtee.myshopify.com" required />
                 </div>
                 <div className="form-group">
-                  <label>Access Token</label>
-                  <input type="password" value={newShopifyToken} onChange={e => setNewShopifyToken(e.target.value)} placeholder="shpat_..." required />
+                  <label htmlFor="newShopifyToken">Access Token</label>
+                  <input id="newShopifyToken" type="password" value={newShopifyToken} onChange={e => setNewShopifyToken(e.target.value)} placeholder="shpat_..." required />
                 </div>
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Connect Store Domain</button>
               </form>
