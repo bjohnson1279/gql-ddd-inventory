@@ -28,4 +28,26 @@ describe('InMemoryEventBus', () => {
       done();
     });
   });
+
+  it('should test InMemoryEventBus publish error handling with a dummy handler', (done) => {
+    const bus = new InMemoryEventBus();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const testError = new Error('Publish error');
+
+    // dummy handler that throws
+    bus.subscribe<TestEvent>('TestEvent', async (event) => {
+      throw testError;
+    });
+
+    bus.publish(new TestEvent('test data 2'));
+
+    setImmediate(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `[InMemoryEventBus] Error handling event TestEvent:`,
+        testError
+      );
+      consoleErrorSpy.mockRestore();
+      done();
+    });
+  });
 });
