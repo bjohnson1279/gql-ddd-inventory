@@ -27,6 +27,35 @@ describe('ManageAllocations Use Cases', () => {
   });
 
   describe('AllocateStockUseCase', () => {
+    describe('Additional Scenarios', () => {
+      it('should handle sequential stock allocations correctly', async () => {
+        const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(50));
+        mockRepo.findBySkuAndLocation.mockResolvedValue(item);
+
+        const useCase = new AllocateStockUseCase(mockRepo);
+
+        const firstResult = await useCase.execute('SKU1', 'LOC1', 10);
+        expect(firstResult.allocated).toBe(10);
+        expect(firstResult.available).toBe(40);
+
+        const secondResult = await useCase.execute('SKU1', 'LOC1', 15);
+        expect(secondResult.allocated).toBe(25);
+        expect(secondResult.available).toBe(25);
+
+        expect(mockRepo.save).toHaveBeenCalledTimes(2);
+      });
+
+      it('should fail to allocate stock when requested amount exceeds available balance', async () => {
+        const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
+        mockRepo.findBySkuAndLocation.mockResolvedValue(item);
+
+        const useCase = new AllocateStockUseCase(mockRepo);
+        await expect(useCase.execute('SKU1', 'LOC1', 15)).rejects.toThrow(
+          'Insufficient available stock'
+        );
+      });
+    });
+
     it('should allocate stock to existing item', async () => {
       const item = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
       mockRepo.findBySkuAndLocation.mockResolvedValue(item);
