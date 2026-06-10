@@ -48,15 +48,6 @@ function toDTO(transfer: StockTransfer): StockTransferDTO {
   };
 }
 
-async function findSkuForVariant(productRepo: IProductRepository, variantId: string): Promise<string> {
-  const products = await productRepo.findAll();
-  for (const product of products) {
-    const variant = product.variants.find((v) => v.id.value === variantId);
-    if (variant) return variant.sku.value;
-  }
-  throw new Error(`Sku not found for variant ID: ${variantId}`);
-}
-
 export class CreateStockTransferUseCase {
   constructor(private readonly transferRepo: IStockTransferRepository) {}
 
@@ -100,7 +91,10 @@ export class DispatchStockTransferUseCase {
 
     // Perform stock decrements at source and set inTransit at destination
     for (const item of transfer.items) {
-      const sku = await findSkuForVariant(this.productRepo, item.variantId.value);
+      const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
+      if (!sku) {
+        throw new Error(`Sku not found for variant ID: ${item.variantId.value}`);
+      }
 
       // 1. Deduct from source warehouse
       let sourceItem = await this.inventoryRepo.findBySkuAndLocation(sku, transfer.sourceLocationId.value);
@@ -154,7 +148,10 @@ export class ReceiveStockTransferUseCase {
 
     // Receive stock at destination location
     for (const item of transfer.items) {
-      const sku = await findSkuForVariant(this.productRepo, item.variantId.value);
+      const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
+      if (!sku) {
+        throw new Error(`Sku not found for variant ID: ${item.variantId.value}`);
+      }
 
       let destItem = await this.inventoryRepo.findBySkuAndLocation(sku, transfer.destinationLocationId.value);
       if (!destItem) {
@@ -202,7 +199,10 @@ export class CancelStockTransferUseCase {
     // If it was already dispatched, we must reverse the stock adjustments
     if (previousStatus === StockTransferStatus.Dispatched) {
       for (const item of transfer.items) {
-        const sku = await findSkuForVariant(this.productRepo, item.variantId.value);
+        const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
+        if (!sku) {
+          throw new Error(`Sku not found for variant ID: ${item.variantId.value}`);
+        }
 
         // 1. Put quantity back at source
         let sourceItem = await this.inventoryRepo.findBySkuAndLocation(sku, transfer.sourceLocationId.value);

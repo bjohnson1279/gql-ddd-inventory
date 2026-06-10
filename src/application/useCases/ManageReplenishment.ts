@@ -82,15 +82,6 @@ function toPoDTO(po: PurchaseOrder): PurchaseOrderDTO {
   };
 }
 
-async function getSkuForVariant(productRepo: IProductRepository, variantId: string): Promise<string> {
-  const products = await productRepo.findAll();
-  for (const product of products) {
-    const variant = product.variants.find((v) => v.id.value === variantId);
-    if (variant) return variant.sku.value;
-  }
-  throw new Error(`Variant ${variantId} not found in product catalog.`);
-}
-
 export class CreateReplenishmentRuleUseCase {
   constructor(private readonly ruleRepo: IReplenishmentRuleRepository) {}
 
@@ -235,7 +226,10 @@ export class PlacePurchaseOrderUseCase {
 
     // Increment in-transit stock for items
     for (const item of po.items) {
-      const sku = await getSkuForVariant(this.productRepo, item.variantId.value);
+      const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
+      if (!sku) {
+        throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
+      }
       let invItem = await this.inventoryRepo.findBySkuAndLocation(sku, po.destinationLocationId.value);
       if (!invItem) {
         invItem = InventoryItem.createNew(crypto.randomUUID(), sku, po.destinationLocationId.value);
@@ -268,7 +262,10 @@ export class ReceivePurchaseOrderUseCase {
 
     // Deduct in-transit, increment physical stock, write ledger entry
     for (const item of po.items) {
-      const sku = await getSkuForVariant(this.productRepo, item.variantId.value);
+      const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
+      if (!sku) {
+        throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
+      }
       const invItem = await this.inventoryRepo.findBySkuAndLocation(sku, po.destinationLocationId.value);
       if (!invItem) {
         throw new Error(`Inventory record for SKU ${sku} at destination location ${po.destinationLocationId.value} not found.`);
@@ -314,7 +311,10 @@ export class CancelPurchaseOrderUseCase {
     // Revert in-transit if it was already ordered
     if (previousStatus === PurchaseOrderStatus.Ordered) {
       for (const item of po.items) {
-        const sku = await getSkuForVariant(this.productRepo, item.variantId.value);
+        const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
+        if (!sku) {
+          throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
+        }
         const invItem = await this.inventoryRepo.findBySkuAndLocation(sku, po.destinationLocationId.value);
         if (invItem) {
           invItem.cancelInTransit(new Quantity(item.quantity));
