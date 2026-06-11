@@ -18,7 +18,7 @@ import { PurchaseOrderStatus } from '../../domain/enums/PurchaseOrderStatus';
 import { ReplenishmentEvaluator, ReplenishmentEvaluationResult } from '../../domain/services/ReplenishmentEvaluator';
 import { Quantity } from '../../domain/valueObjects/Quantity';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
-import { appendStockLedgerEntry } from '../../infrastructure/utils/ledgerEntryUtils';
+import { appendStockLedgerEntries } from '../../infrastructure/utils/ledgerEntryUtils';
 import { ReasonCode } from '../../domain/enums/ReasonCode';
 
 export interface ReplenishmentRuleDTO {
@@ -224,19 +224,38 @@ export class PlacePurchaseOrderUseCase {
 
     po.place();
 
+    // Batch operations to fix N+1 query
+    const variantIds = po.items.map(i => i.variantId.value);
+    const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
+
+    const destPairs = po.items.map(item => {
+      const sku = variantSkus.get(item.variantId.value);
+      if (!sku) throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
+      return { sku, locationId: po.destinationLocationId.value };
+    });
+
+    const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
+    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
+
+    const itemsToSave: InventoryItem[] = [];
+
     // Increment in-transit stock for items
     for (const item of po.items) {
-      const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
-      if (!sku) {
-        throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
-      }
-      let invItem = await this.inventoryRepo.findBySkuAndLocation(sku, po.destinationLocationId.value);
+      const sku = variantSkus.get(item.variantId.value)!;
+      const key = `${sku}_${po.destinationLocationId.value}`;
+
+      let invItem = destItemsMap.get(key);
       if (!invItem) {
         invItem = InventoryItem.createNew(crypto.randomUUID(), sku, po.destinationLocationId.value);
+        destItemsMap.set(key, invItem);
       }
       invItem.createInTransit(new Quantity(item.quantity));
-      await this.inventoryRepo.save(invItem);
+      if (!itemsToSave.includes(invItem)) {
+        itemsToSave.push(invItem);
+      }
     }
+
+    await this.inventoryRepo.saveBatch(itemsToSave);
 
     await this.poRepo.save(po);
     return toPoDTO(po);
@@ -260,31 +279,50 @@ export class ReceivePurchaseOrderUseCase {
 
     po.receive();
 
+    // Batch operations to fix N+1 query
+    const variantIds = po.items.map(i => i.variantId.value);
+    const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
+
+    const destPairs = po.items.map(item => {
+      const sku = variantSkus.get(item.variantId.value);
+      if (!sku) throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
+      return { sku, locationId: po.destinationLocationId.value };
+    });
+
+    const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
+    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
+
+    const itemsToSave: InventoryItem[] = [];
+    const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
+
     // Deduct in-transit, increment physical stock, write ledger entry
     for (const item of po.items) {
-      const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
-      if (!sku) {
-        throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
-      }
-      const invItem = await this.inventoryRepo.findBySkuAndLocation(sku, po.destinationLocationId.value);
+      const sku = variantSkus.get(item.variantId.value)!;
+      const key = `${sku}_${po.destinationLocationId.value}`;
+
+      const invItem = destItemsMap.get(key);
       if (!invItem) {
         throw new Error(`Inventory record for SKU ${sku} at destination location ${po.destinationLocationId.value} not found.`);
       }
 
       invItem.receiveInTransit(new Quantity(item.quantity));
-      await this.inventoryRepo.save(invItem);
+      if (!itemsToSave.includes(invItem)) {
+        itemsToSave.push(invItem);
+      }
 
       // Append ledger receipt
-      await appendStockLedgerEntry(
-        this.productRepo,
-        this.ledgerRepo,
-        sku,
-        po.destinationLocationId.value,
-        item.quantity,
-        ReasonCode.PurchaseReceipt,
-        { auth: { tenantId, actorId } }
-      );
+      ledgerEntriesData.push({ sku, locationId: po.destinationLocationId.value, quantity: item.quantity });
     }
+
+    await this.inventoryRepo.saveBatch(itemsToSave);
+
+    await appendStockLedgerEntries(
+      this.productRepo,
+      this.ledgerRepo,
+      ledgerEntriesData,
+      ReasonCode.PurchaseReceipt,
+      { auth: { tenantId, actorId } }
+    );
 
     await this.poRepo.save(po);
     return toPoDTO(po);
@@ -310,17 +348,34 @@ export class CancelPurchaseOrderUseCase {
 
     // Revert in-transit if it was already ordered
     if (previousStatus === PurchaseOrderStatus.Ordered) {
+      // Batch operations to fix N+1 query
+      const variantIds = po.items.map(i => i.variantId.value);
+      const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
+
+      const destPairs = po.items.map(item => {
+        const sku = variantSkus.get(item.variantId.value);
+        if (!sku) throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
+        return { sku, locationId: po.destinationLocationId.value };
+      });
+
+      const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
+      const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
+
+      const itemsToSave: InventoryItem[] = [];
+
       for (const item of po.items) {
-        const sku = await this.productRepo.findSkuByVariantId(item.variantId.value);
-        if (!sku) {
-          throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
-        }
-        const invItem = await this.inventoryRepo.findBySkuAndLocation(sku, po.destinationLocationId.value);
+        const sku = variantSkus.get(item.variantId.value)!;
+        const key = `${sku}_${po.destinationLocationId.value}`;
+        const invItem = destItemsMap.get(key);
         if (invItem) {
           invItem.cancelInTransit(new Quantity(item.quantity));
-          await this.inventoryRepo.save(invItem);
+          if (!itemsToSave.includes(invItem)) {
+            itemsToSave.push(invItem);
+          }
         }
       }
+
+      await this.inventoryRepo.saveBatch(itemsToSave);
     }
 
     await this.poRepo.save(po);

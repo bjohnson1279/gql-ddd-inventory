@@ -43,6 +43,7 @@ describe('ManageKits Use Cases', () => {
       findBySku: jest.fn(),
       findBySkus: jest.fn(),
       findSkuByVariantId: jest.fn(),
+      findSkusByVariantIds: jest.fn(),
       findAll: jest.fn(),
     };
 
