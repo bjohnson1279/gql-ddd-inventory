@@ -81,7 +81,7 @@ describe('BarcodeScanDispatcher', () => {
       const rawScan = '123456789012';
       const error = new Error('Barcode not found');
 
-      mockRegistry.resolve = jest.fn().mockRejectedValue(error);
+      mockRegistry.resolve.mockRejectedValue(error);
       dispatcher.register(ScanContext.TransferOut, mockHandler);
 
       await expect(dispatcher.dispatch(rawScan, ScanContext.TransferOut)).rejects.toThrow('Barcode not found');
