@@ -39,7 +39,7 @@ describe('BarcodeScanDispatcher', () => {
       const sku = new Sku('TEST-SKU');
       const payload = { locationId: 'loc-1' };
 
-      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
+      mockRegistry.resolve.mockResolvedValue(sku);
 
       dispatcher.register(ScanContext.Receiving, mockHandler);
 
