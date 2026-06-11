@@ -1,7 +1,6 @@
 import { BarcodeScanDispatcher, ScanContext, IScanHandler } from '../../../src/domain/services/BarcodeScanDispatcher';
 import { BarcodeRegistry } from '../../../src/domain/services/BarcodeRegistry';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
-import { IBarcodeRepository } from '../../../src/domain/repositories/IBarcodeRepository';
 
 describe('BarcodeScanDispatcher', () => {
   let mockRegistry: jest.Mocked<BarcodeRegistry>;
