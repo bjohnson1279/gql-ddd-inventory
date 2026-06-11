@@ -72,6 +72,16 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
   // Set up Apollo Server
   const server = new ApolloServer({
     schema,
+    formatError: (formattedError: any) => {
+      // Security fix: Strip stack traces from error responses to prevent information leakage
+      if (formattedError.extensions) {
+        if (formattedError.extensions.exception) {
+          delete formattedError.extensions.exception.stacktrace;
+        }
+        delete formattedError.extensions.stacktrace;
+      }
+      return formattedError;
+    },
     validationRules: [
       depthLimitRule(5),
       complexityLimitRule(100)
