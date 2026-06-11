@@ -772,7 +772,7 @@ function App() {
               <label>Role</label>
               <span className="badge badge-warning" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', minWidth: '100px', textAlign: 'center', textTransform: 'capitalize' }}>{role.replace('_', ' ')}</span>
             </div>
-            <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', marginLeft: '1rem', cursor: 'pointer' }} onClick={handleLogout}>
+            <button className="btn btn-secondary" aria-label="Logout securely" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', marginLeft: '1rem', cursor: 'pointer' }} onClick={handleLogout}>
               Logout 🔓
             </button>
           </div>
@@ -1113,7 +1113,7 @@ function App() {
                               <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Barcodes</span>
                                 {(role === 'admin' || role === 'warehouse_operator') && (
-                                  <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)}>
+                                  <button className="btn btn-secondary" aria-label="Auto generate internal barcode" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)}>
                                     ⚡ Auto Gen Internal
                                   </button>
                                 )}
@@ -1128,7 +1128,7 @@ function App() {
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
                                       {(role === 'admin' || role === 'warehouse_operator') ? (
-                                        <button style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
+                                        <button aria-label={`Revoke barcode ${b.barcode.value}`} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
                                           Revoke
                                         </button>
                                       ) : <span></span>}
