@@ -187,5 +187,40 @@ describe('SubmitInventoryCountUseCase', () => {
       // Should not dispatch events if save fails
       expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
     });
+
+    it('should explicitly verify the submission logic that involves fetching variants and saving to a repository', async () => {
+      // Setup existing inventory
+      const existingItem = new InventoryItem('explicit-1', new Sku('TEST-SKU-1'), new LocationId('LOC-1'), new Quantity(10));
+      mockInventoryRepo.findBySkuAndLocationBatch.mockResolvedValue([existingItem]);
+
+      const counts: CountItemInputDTO[] = [
+        { sku: 'TEST-SKU-1', locationId: 'LOC-1', actualQuantity: 15 }, // Increase from 10 to 15
+      ];
+
+      const result = await useCase.execute(counts);
+
+      // Verify variant fetching logic
+      expect(mockInventoryRepo.findBySkuAndLocationBatch).toHaveBeenCalledWith([
+        { sku: 'TEST-SKU-1', locationId: 'LOC-1' },
+      ]);
+
+      // Verify results
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        sku: 'TEST-SKU-1',
+        locationId: 'LOC-1',
+        expected: 10,
+        actual: 15,
+        variance: 5,
+      });
+
+      // Verify saving to repository logic
+      expect(mockInventoryRepo.saveBatch).toHaveBeenCalledTimes(1);
+      const savedItems = mockInventoryRepo.saveBatch.mock.calls[0][0];
+      expect(savedItems).toHaveLength(1);
+      expect(savedItems[0].sku.value).toBe('TEST-SKU-1');
+      expect(savedItems[0].locationId.value).toBe('LOC-1');
+      expect(savedItems[0].quantity.value).toBe(15);
+    });
   });
 });
