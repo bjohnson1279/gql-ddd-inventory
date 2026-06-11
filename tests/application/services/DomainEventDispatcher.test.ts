@@ -46,4 +46,26 @@ describe('DomainEventDispatcher', () => {
 
     expect(eventBus.publish).not.toHaveBeenCalled();
   });
+
+  it('should dispatch events correctly using a mock event bus and mock events as explicitly requested', () => {
+    const localMockEventBus: IEventBus = {
+      publish: jest.fn(),
+      subscribe: jest.fn(),
+    };
+    const localDispatcher = new DomainEventDispatcher(localMockEventBus);
+
+    class LocalMockEvent implements DomainEvent {
+      occurredAt = new Date();
+      constructor(public id: string) {}
+    }
+
+    const localMockEvent1 = new LocalMockEvent('1');
+    const localMockEvent2 = new LocalMockEvent('2');
+
+    localDispatcher.dispatch([localMockEvent1, localMockEvent2]);
+
+    expect(localMockEventBus.publish).toHaveBeenCalledTimes(2);
+    expect(localMockEventBus.publish).toHaveBeenCalledWith(localMockEvent1);
+    expect(localMockEventBus.publish).toHaveBeenCalledWith(localMockEvent2);
+  });
 });

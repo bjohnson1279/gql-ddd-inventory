@@ -4,74 +4,106 @@ import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { IBarcodeRepository } from '../../../src/domain/repositories/IBarcodeRepository';
 
 describe('BarcodeScanDispatcher', () => {
+  let mockRegistry: jest.Mocked<BarcodeRegistry>;
   let dispatcher: BarcodeScanDispatcher;
-  let registry: BarcodeRegistry;
-  let mockRepo: jest.Mocked<IBarcodeRepository>;
+  let mockHandler: jest.Mocked<IScanHandler>;
+  let mockRepository: jest.Mocked<IBarcodeRepository>;
 
   beforeEach(() => {
-    mockRepo = {
+    mockRepository = {
       findSkuByBarcodeValue: jest.fn(),
       findSetBySku: jest.fn(),
-      save: jest.fn(),
+      save: jest.fn()
     } as unknown as jest.Mocked<IBarcodeRepository>;
-    registry = new BarcodeRegistry(mockRepo);
-    dispatcher = new BarcodeScanDispatcher(registry);
-  });
 
-  it('should dispatch to the registered handler when scan is resolved', async () => {
-    const sku = new Sku('TEST-SKU');
-    mockRepo.findSkuByBarcodeValue.mockResolvedValue(sku);
+    mockRegistry = new BarcodeRegistry(mockRepository) as jest.Mocked<BarcodeRegistry>;
+    jest.spyOn(mockRegistry, 'resolve');
 
-    const mockHandler: IScanHandler = {
+    dispatcher = new BarcodeScanDispatcher(mockRegistry);
+
+    mockHandler = {
       handle: jest.fn().mockResolvedValue(undefined),
     };
-
-    dispatcher.register(ScanContext.Receiving, mockHandler);
-
-    const payload = { locationId: 'LOC-1' };
-    await dispatcher.dispatch('  123456789012-a  ', ScanContext.Receiving, payload);
-
-    // registry upper-cases and trims
-    expect(mockRepo.findSkuByBarcodeValue).toHaveBeenCalledWith('123456789012-A');
-    expect(mockHandler.handle).toHaveBeenCalledWith(sku, '  123456789012-a  ', payload);
   });
 
-  it('should throw an error if no handler is registered for the context', async () => {
-    const sku = new Sku('TEST-SKU');
-    mockRepo.findSkuByBarcodeValue.mockResolvedValue(sku);
-
-    await expect(
-      dispatcher.dispatch('123456789012', ScanContext.PointOfSale)
-    ).rejects.toThrow('No handler registered for scan context: pos');
+  describe('register', () => {
+    it('should register a handler for a given context without throwing errors', () => {
+      expect(() => {
+        dispatcher.register(ScanContext.PointOfSale, mockHandler);
+      }).not.toThrow();
+    });
   });
 
-  it('should throw an error if the barcode cannot be resolved', async () => {
-    mockRepo.findSkuByBarcodeValue.mockResolvedValue(null);
+  describe('dispatch', () => {
+    it('should correctly resolve the sku and call the handler with the right arguments', async () => {
+      const rawScan = '123456789012';
+      const sku = new Sku('TEST-SKU');
+      const payload = { locationId: 'loc-1' };
 
-    const mockHandler: IScanHandler = {
-      handle: jest.fn().mockResolvedValue(undefined),
-    };
-    dispatcher.register(ScanContext.Receiving, mockHandler);
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
 
-    await expect(
-      dispatcher.dispatch('UNKNOWN', ScanContext.Receiving)
-    ).rejects.toThrow('No variant found for barcode: UNKNOWN');
+      dispatcher.register(ScanContext.Receiving, mockHandler);
 
-    expect(mockHandler.handle).not.toHaveBeenCalled();
-  });
+      await dispatcher.dispatch(rawScan, ScanContext.Receiving, payload);
 
-  it('should pass an empty payload if none is provided', async () => {
-    const sku = new Sku('TEST-SKU');
-    mockRepo.findSkuByBarcodeValue.mockResolvedValue(sku);
+      expect(mockRegistry.resolve).toHaveBeenCalledWith(rawScan);
+      expect(mockHandler.handle).toHaveBeenCalledWith(sku, rawScan, payload);
+    });
 
-    const mockHandler: IScanHandler = {
-      handle: jest.fn().mockResolvedValue(undefined),
-    };
+    it('should pass an empty payload if no payload is provided', async () => {
+      const rawScan = '123456789012';
+      const sku = new Sku('TEST-SKU');
 
-    dispatcher.register(ScanContext.CycleCount, mockHandler);
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
 
-    await dispatcher.dispatch('123456789012', ScanContext.CycleCount);
+      dispatcher.register(ScanContext.PointOfSale, mockHandler);
 
-    expect(mockHandler.handle).toHaveBeenCalledWith(sku, '123456789012', {});
+      await dispatcher.dispatch(rawScan, ScanContext.PointOfSale);
+
+      expect(mockRegistry.resolve).toHaveBeenCalledWith(rawScan);
+      expect(mockHandler.handle).toHaveBeenCalledWith(sku, rawScan, {});
+    });
+
+    it('should throw an error if no handler is registered for the context', async () => {
+      const rawScan = '123456789012';
+      const sku = new Sku('TEST-SKU');
+
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
+
+      await expect(dispatcher.dispatch(rawScan, ScanContext.CycleCount)).rejects.toThrow(
+        'No handler registered for scan context: cycle_count'
+      );
+
+      expect(mockRegistry.resolve).toHaveBeenCalledWith(rawScan);
+      expect(mockHandler.handle).not.toHaveBeenCalled();
+    });
+
+    it('should bubble up errors from the BarcodeRegistry', async () => {
+      const rawScan = '123456789012';
+      const error = new Error('Barcode not found');
+
+      mockRegistry.resolve = jest.fn().mockRejectedValue(error);
+      dispatcher.register(ScanContext.TransferOut, mockHandler);
+
+      await expect(dispatcher.dispatch(rawScan, ScanContext.TransferOut)).rejects.toThrow('Barcode not found');
+
+      expect(mockRegistry.resolve).toHaveBeenCalledWith(rawScan);
+      expect(mockHandler.handle).not.toHaveBeenCalled();
+    });
+
+    it('should bubble up errors from the handler', async () => {
+      const rawScan = '123456789012';
+      const sku = new Sku('TEST-SKU');
+      const error = new Error('Handler failed');
+
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
+      mockHandler.handle.mockRejectedValue(error);
+      dispatcher.register(ScanContext.TransferIn, mockHandler);
+
+      await expect(dispatcher.dispatch(rawScan, ScanContext.TransferIn)).rejects.toThrow('Handler failed');
+
+      expect(mockRegistry.resolve).toHaveBeenCalledWith(rawScan);
+      expect(mockHandler.handle).toHaveBeenCalledWith(sku, rawScan, {});
+    });
   });
 });

@@ -42,6 +42,13 @@ describe('BarcodeRegistry', () => {
       await expect(registry.resolve('  unknown  ')).rejects.toThrow('No variant found for barcode:   unknown  ');
       expect(mockRepository.findSkuByBarcodeValue).toHaveBeenCalledWith('UNKNOWN');
     });
+
+    it('should throw an error if barcode is an empty string', async () => {
+      mockRepository.findSkuByBarcodeValue.mockResolvedValue(null);
+
+      await expect(registry.resolve('')).rejects.toThrow('No variant found for barcode: ');
+      expect(mockRepository.findSkuByBarcodeValue).toHaveBeenCalledWith('');
+    });
   });
 
   describe('isRegistered', () => {
@@ -71,6 +78,15 @@ describe('BarcodeRegistry', () => {
       const result = await registry.isRegistered('UNKNOWN');
 
       expect(mockRepository.findSkuByBarcodeValue).toHaveBeenCalledWith('UNKNOWN');
+      expect(result).toBe(false);
+    });
+
+    it('should return false if barcode is an empty string', async () => {
+      mockRepository.findSkuByBarcodeValue.mockResolvedValue(null);
+
+      const result = await registry.isRegistered('');
+
+      expect(mockRepository.findSkuByBarcodeValue).toHaveBeenCalledWith('');
       expect(result).toBe(false);
     });
   });

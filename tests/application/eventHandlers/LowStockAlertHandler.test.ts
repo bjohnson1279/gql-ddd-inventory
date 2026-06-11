@@ -25,4 +25,16 @@ describe('LowStockAlertHandler', () => {
       '[LowStockAlertHandler] 🚨 ALERT: SKU SKU-123 at location LOC-A dropped to 5 items!'
     );
   });
+
+  it('should log a low stock alert when quantity reaches zero', async () => {
+    const handler = new LowStockAlertHandler();
+    const event = new LowStockAlertEvent('SKU-456', 'LOC-B', 0);
+
+    await handler.handle(event);
+
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[LowStockAlertHandler] 🚨 ALERT: SKU SKU-456 at location LOC-B dropped to 0 items!'
+    );
+  });
 });
