@@ -67,7 +67,7 @@ describe('BarcodeScanDispatcher', () => {
       const rawScan = '123456789012';
       const sku = new Sku('TEST-SKU');
 
-      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
+      mockRegistry.resolve.mockResolvedValue(sku);
 
       await expect(dispatcher.dispatch(rawScan, ScanContext.CycleCount)).rejects.toThrow(
         'No handler registered for scan context: cycle_count'
