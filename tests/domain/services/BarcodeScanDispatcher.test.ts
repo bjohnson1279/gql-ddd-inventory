@@ -95,7 +95,7 @@ describe('BarcodeScanDispatcher', () => {
       const sku = new Sku('TEST-SKU');
       const error = new Error('Handler failed');
 
-      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
+      mockRegistry.resolve.mockResolvedValue(sku);
       mockHandler.handle.mockRejectedValue(error);
       dispatcher.register(ScanContext.TransferIn, mockHandler);
 
