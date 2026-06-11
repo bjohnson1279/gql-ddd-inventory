@@ -20,11 +20,11 @@ describe('ReceiveStockUseCase', () => {
       saveBatch: jest.fn(),
       findAll: jest.fn(),
       findByLocation: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<IInventoryRepository>;
 
     mockCapacityService = {
       validateCapacity: jest.fn().mockResolvedValue(undefined),
-    } as any;
+    } as unknown as jest.Mocked<WMSCapacityService>;
   });
 
   it('should receive stock and call capacity service if provided', async () => {
