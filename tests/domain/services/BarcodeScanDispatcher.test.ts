@@ -1,6 +1,7 @@
 import { BarcodeScanDispatcher, ScanContext, IScanHandler } from '../../../src/domain/services/BarcodeScanDispatcher';
 import { BarcodeRegistry } from '../../../src/domain/services/BarcodeRegistry';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
+import { IBarcodeRepository } from '../../../src/domain/repositories/IBarcodeRepository';
 
 describe('BarcodeScanDispatcher', () => {
   let mockRegistry: jest.Mocked<BarcodeRegistry>;
@@ -39,7 +40,7 @@ describe('BarcodeScanDispatcher', () => {
       const sku = new Sku('TEST-SKU');
       const payload = { locationId: 'loc-1' };
 
-      mockRegistry.resolve.mockResolvedValue(sku);
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
 
       dispatcher.register(ScanContext.Receiving, mockHandler);
 
@@ -53,7 +54,7 @@ describe('BarcodeScanDispatcher', () => {
       const rawScan = '123456789012';
       const sku = new Sku('TEST-SKU');
 
-      mockRegistry.resolve.mockResolvedValue(sku);
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
 
       dispatcher.register(ScanContext.PointOfSale, mockHandler);
 
@@ -67,7 +68,7 @@ describe('BarcodeScanDispatcher', () => {
       const rawScan = '123456789012';
       const sku = new Sku('TEST-SKU');
 
-      mockRegistry.resolve.mockResolvedValue(sku);
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
 
       await expect(dispatcher.dispatch(rawScan, ScanContext.CycleCount)).rejects.toThrow(
         'No handler registered for scan context: cycle_count'
@@ -81,7 +82,7 @@ describe('BarcodeScanDispatcher', () => {
       const rawScan = '123456789012';
       const error = new Error('Barcode not found');
 
-      mockRegistry.resolve.mockRejectedValue(error);
+      mockRegistry.resolve = jest.fn().mockRejectedValue(error);
       dispatcher.register(ScanContext.TransferOut, mockHandler);
 
       await expect(dispatcher.dispatch(rawScan, ScanContext.TransferOut)).rejects.toThrow('Barcode not found');
@@ -95,7 +96,7 @@ describe('BarcodeScanDispatcher', () => {
       const sku = new Sku('TEST-SKU');
       const error = new Error('Handler failed');
 
-      mockRegistry.resolve.mockResolvedValue(sku);
+      mockRegistry.resolve = jest.fn().mockResolvedValue(sku);
       mockHandler.handle.mockRejectedValue(error);
       dispatcher.register(ScanContext.TransferIn, mockHandler);
 
