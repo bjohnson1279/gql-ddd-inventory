@@ -707,36 +707,36 @@ function App() {
             <div className="brand-name">GQL-DDD Inventory</div>
           </div>
           <nav className="nav-links">
-            <div className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+            <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('dashboard'); } }}>
               📊 Status Overview
             </div>
             {(role === 'admin' || role === 'accountant') && (
-              <div className={`nav-link ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')}>
+              <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('onboarding'); } }}>
                 📝 Opening Balances
               </div>
             )}
             {(role === 'admin' || role === 'warehouse_operator' || role === 'accountant' || role === 'viewer') && (
-              <div className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>
+              <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('products'); } }}>
                 🗂️ Product Catalog
               </div>
             )}
             {(role === 'admin' || role === 'warehouse_operator') && (
-              <div className={`nav-link ${activeTab === 'scanning' ? 'active' : ''}`} onClick={() => setActiveTab('scanning')}>
+              <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'scanning' ? 'active' : ''}`} onClick={() => setActiveTab('scanning')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('scanning'); } }}>
                 🚨 Scan Dispatcher
               </div>
             )}
             {(role === 'admin' || role === 'accountant') && (
-              <div className={`nav-link ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')}>
+              <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'ledger' ? 'active' : ''}`} onClick={() => setActiveTab('ledger')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('ledger'); } }}>
                 ⚖️ General Ledger
               </div>
             )}
             {(role === 'admin' || role === 'warehouse_operator' || role === 'viewer') && (
-              <div className={`nav-link ${activeTab === 'serials' ? 'active' : ''}`} onClick={() => setActiveTab('serials')}>
+              <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'serials' ? 'active' : ''}`} onClick={() => setActiveTab('serials')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('serials'); } }}>
                 🔍 Serial Tracking
               </div>
             )}
             {role === 'admin' && (
-              <div className={`nav-link ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')}>
+              <div role="button" tabIndex={0} className={`nav-link ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('shopify'); } }}>
                 🔌 Shopify Integrations
               </div>
             )}
