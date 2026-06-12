@@ -141,6 +141,11 @@ body {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.nav-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 .nav-link.active {
   color: #ffffff;
   background: rgba(99, 102, 241, 0.12);
@@ -367,6 +372,11 @@ input:focus, select:focus, textarea:focus {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid transparent;
   outline: none;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .btn-primary {
