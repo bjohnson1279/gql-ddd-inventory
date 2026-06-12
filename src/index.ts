@@ -3,6 +3,7 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express5';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import express from 'express';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import bodyParser from 'body-parser';
@@ -127,6 +128,12 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
     : [];
+  app.use(
+    helmet({
+      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    })
+  );
   app.use(
     '/graphql',
     apiLimiter,
