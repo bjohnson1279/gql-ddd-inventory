@@ -23,3 +23,7 @@
 ## 2026-06-10 - Optimize O(N) Array Allocations on Getters
 **Learning:** Calling `.find()` on dynamically generated array getters (like `Array.from(map.values())` inside `Product.variants`) causes continuous memory allocation and O(N) traversal overhead inside domain loop logic.
 **Action:** Maintain dedicated internal `Map` indexes (e.g., `_variantsBySku`) to provide native O(1) entity lookups instead of querying dynamic arrays.
+
+## 2026-06-11 - Avoid N+1 Queries in Putaway Suggestion Service
+**Learning:** Iterating over warehouse locations and performing isolated repository lookups (like `inventoryRepo.findByLocation` and `productRepo.findBySkus`) inside the loop creates an O(N) database bottleneck that scales linearly with the number of locations. This drastically slows down warehouse recommendation engines.
+**Action:** Hoist the data loading outside the loop using bulk repository lookups (`inventoryRepo.findAll()`) and map the records by location (`Map<LocationId, Item[]>`). Then compute the capacities in memory using O(1) lookups, completely eliminating the N+1 query overhead.

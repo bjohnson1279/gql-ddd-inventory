@@ -39,32 +39,44 @@ export class PutawaySuggester {
       return [];
     }
 
+    // Batch lookup: fetch all inventory items and needed variants once (fix N+1 query)
+    const allItems = await this.inventoryRepo.findAll();
+    const itemSkusMap = new Map<string, Sku>();
+    for (const item of allItems) {
+      itemSkusMap.set(item.sku.value, item.sku);
+    }
+
+    const itemVariantMap = new Map<string, ProductVariant>();
+    if (itemSkusMap.size > 0) {
+      const itemProducts = await this.productRepo.findBySkus(Array.from(itemSkusMap.values()));
+      for (const ip of itemProducts) {
+        for (const iv of ip.variants) {
+          itemVariantMap.set(iv.sku.value, iv);
+        }
+      }
+    }
+
+    // Map location items for fast O(1) lookups
+    const itemsByLocation = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      const locItems = itemsByLocation.get(item.locationId.value) || [];
+      locItems.push(item);
+      itemsByLocation.set(item.locationId.value, locItems);
+    }
+
     // For each location, calculate occupied weight & volume
     const locationCapacities = [];
     for (const loc of locations) {
-      // Find all inventory items in this location
-      const items = await this.inventoryRepo.findByLocation(loc.id.value);
+      const items = itemsByLocation.get(loc.id.value) || [];
       
-      // Load all product variants for these items to get their weights & volumes
       let occupiedWeight = 0;
       let occupiedVolume = 0;
 
-      if (items.length > 0) {
-        const itemSkus = items.map(i => i.sku);
-        const itemProducts = await this.productRepo.findBySkus(itemSkus);
-        const itemVariantMap = new Map<string, ProductVariant>();
-        for (const ip of itemProducts) {
-          for (const iv of ip.variants) {
-            itemVariantMap.set(iv.sku.value, iv);
-          }
-        }
-
-        for (const item of items) {
-          const v = itemVariantMap.get(item.sku.value);
-          if (v) {
-            occupiedWeight += item.quantity.value * v.weightGrams;
-            occupiedVolume += item.quantity.value * v.volumeCubicMeters;
-          }
+      for (const item of items) {
+        const v = itemVariantMap.get(item.sku.value);
+        if (v) {
+          occupiedWeight += item.quantity.value * v.weightGrams;
+          occupiedVolume += item.quantity.value * v.volumeCubicMeters;
         }
       }
 
