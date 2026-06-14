@@ -1343,7 +1343,7 @@ function App() {
                       setNewJournalLines(updated);
                     }} />
                     {newJournalLines.length > 2 && (
-                      <button type="button" className="btn btn-danger" aria-label="Remove line" title="Remove line" onClick={() => setNewJournalLines(newJournalLines.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
+                      <button type="button" className="btn btn-danger" aria-label="Remove line" title="Remove line" onClick={() => setNewJournalLines(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
                         &times;
                       </button>
                     )}
