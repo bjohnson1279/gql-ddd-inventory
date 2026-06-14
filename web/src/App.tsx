@@ -1078,7 +1078,7 @@ function App() {
                               setNewVarAttrs(updated);
                             }} />
                             {newVarAttrs.length > 1 && (
-                              <button type="button" className="btn btn-danger" aria-label="Remove attribute" title="Remove attribute" onClick={() => setNewVarAttrs(newVarAttrs.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
+                              <button type="button" className="btn btn-danger" aria-label="Remove attribute" title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
                                 &times;
                               </button>
                             )}
