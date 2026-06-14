@@ -45,6 +45,43 @@ export class ReplenishmentEvaluator {
     const rules = await this.ruleRepo.findAllByTenant(tenantId);
     const results: ReplenishmentEvaluationResult[] = [];
 
+    if (rules.length === 0) {
+      return results;
+    }
+
+    const activeRules = rules.filter(r => r.isActive);
+
+    // Pre-fetch related entities to avoid N+1 queries in the loop
+    const openPos = await this.poRepo.findAllByTenant(tenantId);
+    const openTransfers = await this.transferRepo.findAllByTenant(tenantId);
+
+    // Batch lookup inventory items
+    const inventoryPairs = activeRules.map(rule => ({
+      sku: rule.sku.value,
+      locationId: rule.locationId.value
+    }));
+    const inventoryMap = new Map<string, any>();
+    if (inventoryPairs.length > 0) {
+      const inventoryItems = await this.inventoryRepo.findBySkuAndLocationBatch(inventoryPairs);
+      for (const item of inventoryItems) {
+        inventoryMap.set(`${item.sku.value}_${item.locationId.value}`, item);
+      }
+    }
+
+    // Batch lookup products
+    const skuMap = new Map<string, Sku>();
+    for (const rule of activeRules) {
+      skuMap.set(rule.sku.value, rule.sku);
+    }
+    const skusToFetch = Array.from(skuMap.values());
+    const productMap = new Map<string, any>();
+    if (skusToFetch.length > 0) {
+      const products = await this.productRepo.findBySkus(skusToFetch);
+      for (const product of products) {
+        productMap.set(product.id.value, product);
+      }
+    }
+
     for (const rule of rules) {
       if (!rule.isActive) {
         continue;
@@ -68,8 +105,15 @@ export class ReplenishmentEvaluator {
         }
 
         // 2. Fetch variantId for SKU
-        const product = await this.productRepo.findBySku(skuObj);
-        const variant = product?.findVariantBySku(skuObj);
+        let variant;
+        for (const product of productMap.values()) {
+          const v = product.findVariantBySku(skuObj);
+          if (v) {
+            variant = v;
+            break;
+          }
+        }
+
         if (!variant) {
           results.push({
             ruleId: rule.id.value,
@@ -86,7 +130,6 @@ export class ReplenishmentEvaluator {
         const variantIdStr = variant.id.value;
 
         // 3. Check for existing open/draft Purchase Orders
-        const openPos = await this.poRepo.findAllByTenant(tenantId);
         const hasOpenPo = openPos.some((po) => {
           return (
             po.destinationLocationId.equals(locId) &&
@@ -109,7 +152,6 @@ export class ReplenishmentEvaluator {
         }
 
         // 4. Check for existing open/draft Stock Transfers
-        const openTransfers = await this.transferRepo.findAllByTenant(tenantId);
         const hasOpenTransfer = openTransfers.some((st) => {
           return (
             st.destinationLocationId.equals(locId) &&
@@ -132,7 +174,7 @@ export class ReplenishmentEvaluator {
         }
 
         // 5. Calculate inventory position
-        const invItem = await this.inventoryRepo.findBySkuAndLocation(skuObj.value, locId.value);
+        const invItem = inventoryMap.get(`${skuObj.value}_${locId.value}`);
         const onHand = invItem ? invItem.quantity.value : 0;
         const allocated = invItem ? invItem.allocated.value : 0;
         const inTransit = invItem ? invItem.inTransit.value : 0;
