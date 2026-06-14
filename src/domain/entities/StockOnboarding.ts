@@ -11,7 +11,7 @@ import { DomainEvent } from '../events/DomainEvent';
 export class StockOnboarding {
   private _status: StockOnboardingStatus;
   private _items: Map<string, StockOnboardingItem> = new Map();
-  private _itemsArray: StockOnboardingItem[] | null = null;
+  private _itemsArray: ReadonlyArray<StockOnboardingItem> | null = null;
   private _domainEvents: DomainEvent[] = [];
 
   constructor(
