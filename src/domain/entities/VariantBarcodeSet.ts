@@ -9,7 +9,7 @@ import { BarcodeAssigned, BarcodeRevoked } from '../events/BarcodeEvents';
 
 export class VariantBarcodeSet {
   private _assignments: Map<string, BarcodeAssignment> = new Map();
-  private _allAssignmentsArray: BarcodeAssignment[] | null = null;
+  private _allAssignmentsArray: ReadonlyArray<BarcodeAssignment> | null = null;
   private _domainEvents: DomainEvent[] = [];
 
   constructor(public readonly sku: Sku) {}
