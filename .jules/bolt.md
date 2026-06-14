@@ -27,3 +27,9 @@
 ## 2026-06-11 - Avoid N+1 Queries in Putaway Suggestion Service
 **Learning:** Iterating over warehouse locations and performing isolated repository lookups (like `inventoryRepo.findByLocation` and `productRepo.findBySkus`) inside the loop creates an O(N) database bottleneck that scales linearly with the number of locations. This drastically slows down warehouse recommendation engines.
 **Action:** Hoist the data loading outside the loop using bulk repository lookups (`inventoryRepo.findAll()`) and map the records by location (`Map<LocationId, Item[]>`). Then compute the capacities in memory using O(1) lookups, completely eliminating the N+1 query overhead.
+## 2026-06-14 - Optimize dynamic array allocations on getters
+**Learning:** Returning dynamically generated arrays from getters (like ) causes a new array to be allocated on every access, creating O(N) memory allocation overhead which impacts performance when iterated over repeatedly.
+**Action:** Implement lazy-evaluated caching for these arrays. Calculate the array once on first access and store it. Invalidate the cache (set to null) whenever the underlying map is mutated. Return the cached array as `ReadonlyArray<T>` to prevent accidental mutations by callers.
+## 2026-06-14 - Optimize dynamic array allocations on getters
+**Learning:** Returning dynamically generated arrays from getters (like `Array.from(map.values())`) causes a new array to be allocated on every access, creating O(N) memory allocation overhead which impacts performance when iterated over repeatedly.
+**Action:** Implement lazy-evaluated caching for these arrays. Calculate the array once on first access and store it. Invalidate the cache (set to null) whenever the underlying map is mutated. Return the cached array as `ReadonlyArray<T>` to prevent accidental mutations by callers.

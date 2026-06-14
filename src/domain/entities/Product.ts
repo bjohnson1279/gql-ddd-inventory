@@ -10,6 +10,7 @@ import { VariantTrackingMode } from '../enums/VariantEnums';
 export class Product {
   private _variants: Map<string, ProductVariant>;
   private _variantsBySku: Map<string, ProductVariant>;
+  private _variantsArray: ProductVariant[] | null = null;
 
   constructor(
     public readonly id: ProductId,
@@ -45,6 +46,7 @@ export class Product {
 
     this._variants.set(variant.id.value, variant);
     this._variantsBySku.set(variant.sku.value, variant);
+    this._variantsArray = null; // Invalidate cache
 
     return variant;
   }
@@ -58,8 +60,11 @@ export class Product {
     return this._variantsBySku.get(skuStr);
   }
 
-  get variants(): ProductVariant[] {
-    return Array.from(this._variants.values());
+  get variants(): ReadonlyArray<ProductVariant> {
+    if (this._variantsArray === null) {
+      this._variantsArray = Array.from(this._variants.values());
+    }
+    return this._variantsArray;
   }
 
   private generateId(): string {

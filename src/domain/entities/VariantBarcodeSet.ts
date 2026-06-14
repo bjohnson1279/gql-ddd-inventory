@@ -9,6 +9,7 @@ import { BarcodeAssigned, BarcodeRevoked } from '../events/BarcodeEvents';
 
 export class VariantBarcodeSet {
   private _assignments: Map<string, BarcodeAssignment> = new Map();
+  private _allAssignmentsArray: BarcodeAssignment[] | null = null;
   private _domainEvents: DomainEvent[] = [];
 
   constructor(public readonly sku: Sku) {}
@@ -47,6 +48,7 @@ export class VariantBarcodeSet {
     );
 
     this._assignments.set(assignment.id.value, assignment);
+    this._allAssignmentsArray = null; // Invalidate cache
     this._domainEvents.push(new BarcodeAssigned(this.sku.value, barcode.value));
 
     return assignment;
@@ -54,6 +56,7 @@ export class VariantBarcodeSet {
 
   loadAssignment(assignment: BarcodeAssignment): void {
     this._assignments.set(assignment.id.value, assignment);
+    this._allAssignmentsArray = null; // Invalidate cache
   }
 
   revoke(assignmentId: BarcodeAssignmentId): void {
@@ -71,6 +74,7 @@ export class VariantBarcodeSet {
     }
 
     this._assignments.delete(assignmentId.value);
+    this._allAssignmentsArray = null; // Invalidate cache
     this._domainEvents.push(new BarcodeRevoked(this.sku.value, assignment.barcode.value));
   }
 
@@ -83,8 +87,11 @@ export class VariantBarcodeSet {
     return undefined;
   }
 
-  get all(): BarcodeAssignment[] {
-    return Array.from(this._assignments.values());
+  get all(): ReadonlyArray<BarcodeAssignment> {
+    if (this._allAssignmentsArray === null) {
+      this._allAssignmentsArray = Array.from(this._assignments.values());
+    }
+    return this._allAssignmentsArray;
   }
 
   pullDomainEvents(): DomainEvent[] {
