@@ -10,7 +10,7 @@ import { VariantTrackingMode } from '../enums/VariantEnums';
 export class Product {
   private _variants: Map<string, ProductVariant>;
   private _variantsBySku: Map<string, ProductVariant>;
-  private _variantsArray: ProductVariant[] | null = null;
+  private _variantsArray: ReadonlyArray<ProductVariant> | null = null;
 
   constructor(
     public readonly id: ProductId,
