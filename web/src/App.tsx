@@ -480,6 +480,9 @@ function App() {
   };
 
   const handleRevokeBarcode = async (sku: string, assignmentId: string) => {
+    if (!window.confirm(`Are you sure you want to revoke this barcode from SKU ${sku}? This action cannot be undone.`)) {
+      return;
+    }
     try {
       await fetchGraphql(`mutation RevBC($input: RevokeBarcodeInput!) {
         revokeBarcode(input: $input)
@@ -532,6 +535,9 @@ function App() {
   };
 
   const handleSubmitOnboarding = async (onbId: string) => {
+    if (!window.confirm('Are you sure you want to lock and post this onboarding sheet? This will permanently post to the General Ledger and cannot be reversed.')) {
+      return;
+    }
     try {
       await fetchGraphql(`mutation SubmitOnb($id: ID!, $actor: ID!) {
         submitStockOnboarding(id: $id, actorId: $actor)
