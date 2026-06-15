@@ -1212,7 +1212,14 @@ export const resolvers = {
 
       // Security fix: verify password even in development/test to prevent unauthorized access
       const expectedPassword = process.env.DEV_PASSWORD;
-      if (!expectedPassword || password !== expectedPassword) {
+      if (!expectedPassword) {
+        throw new Error('DEV_PASSWORD environment variable is not set.');
+      }
+
+      const passwordHash = crypto.createHash('sha256').update(password || '').digest();
+      const expectedHash = crypto.createHash('sha256').update(expectedPassword).digest();
+
+      if (!crypto.timingSafeEqual(passwordHash, expectedHash)) {
         throw new Error('Invalid credentials.');
       }
 
