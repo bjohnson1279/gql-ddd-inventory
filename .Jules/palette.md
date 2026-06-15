@@ -1,3 +1,9 @@
 ## 2024-06-02 - Added ARIA Label and Title to Icon-only Remove Button
 **Learning:** Screen readers announce the `&times;` (×) HTML entity as "times," which can be misleading in the context of a remove/delete button for an onboarding variant item.
 **Action:** When using `&times;` or icon-only buttons for actions like removing or closing items, ensure to add `aria-label="Remove item"` for screen reader compatibility, and `title="Remove item"` for a native browser tooltip that helps sighted users understand the action.
+## 2024-06-03 - Added Remove Buttons for Required Dynamic Form Arrays
+**Learning:** In forms where users can dynamically add rows (e.g., variant attributes or journal lines) that contain `required` fields, failing to provide a way to remove accidentally added rows creates a severe UX trap. If a user adds an extra row by mistake, they cannot submit the form because the empty row fails validation, and they cannot remove it, forcing them to refresh the page and lose all entered data.
+**Action:** Always include a mechanism to remove dynamically added form rows, especially if the fields within them are marked as `required`. Ensure the remove buttons are accessible via `aria-label` and `title`. Add conditional rendering logic if there is a minimum required number of rows (e.g., minimum 2 lines for double-entry accounting).
+## 2026-06-15 - Added Confirmation Dialogs for Destructive Actions
+**Learning:** Destructive actions that permanently modify critical data, such as posting to a general ledger or revoking a barcode assignment, require explicit user confirmation to prevent accidental clicks from causing irreversible data changes.
+**Action:** Always wrap irreversible or destructive actions (e.g., delete, post, revoke) with a confirmation step, such as `window.confirm`, clearly explaining the consequences of the action.

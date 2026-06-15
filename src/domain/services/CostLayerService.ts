@@ -71,7 +71,20 @@ export class CostLayerService {
       for (const item of groupItems) {
         const activeLayers = activeLayersMap.get(item.variantId.value) || [];
         const breakdown = this.calculateConsumedCost(activeLayers, item.quantity, true);
-        breakdowns.set(item.variantId.value, breakdown);
+
+        const existingBreakdown = breakdowns.get(item.variantId.value);
+        if (existingBreakdown) {
+          breakdowns.set(
+            item.variantId.value,
+            new CostBreakdown(
+              existingBreakdown.quantity + breakdown.quantity,
+              existingBreakdown.totalCostCents + breakdown.totalCostCents
+            )
+          );
+        } else {
+          breakdowns.set(item.variantId.value, breakdown);
+        }
+
         totalCostCents += breakdown.totalCostCents;
         layersToSave.push(...activeLayers);
       }

@@ -86,6 +86,15 @@ describe('CostLayerService', () => {
       const cost = await service.calculateCost(v1, 5);
       expect(cost.totalCostCents).toBe(500); // 5 * $1
     });
+
+    it('should return 0 cost breakdown when calculating cost for 0 quantity', async () => {
+      repo.layers = [
+        new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01')),
+      ];
+      const cost = await service.calculateCost(v1, 0);
+      expect(cost.totalCostCents).toBe(0);
+      expect(cost.quantity).toBe(0);
+    });
   });
 
   describe('consumeLayers', () => {
@@ -166,6 +175,40 @@ describe('CostLayerService', () => {
       const { totalCostCents } = await service.consumeLayersBatch([{ variantId: v1, quantity: 5 }], methodsMap);
       expect(totalCostCents).toBe(1000); // 5 * 200 (L2)
     });
+
+    it('should properly track sequential consumptions of the same variant within the same batch and aggregate breakdowns', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 15, 100, new Date('2024-01-01'));
+      repo.layers = [l1];
+
+      // Request 10 units then 5 units sequentially
+      const items = [
+        { variantId: v1, quantity: 10 },
+        { variantId: v1, quantity: 5 }
+      ];
+
+      const { breakdowns, totalCostCents } = await service.consumeLayersBatch(items);
+
+      // We expect the first to consume 10, the second to consume 5
+      expect(totalCostCents).toBe(1500); // 15 * 100
+      expect(l1.remainingQuantity()).toBe(0);
+
+      // Because variantId is the same, breakdowns map should aggregate the results
+      // 10 units at 100 + 5 units at 100 = 1500 total cost and 15 total quantity
+      const combinedBreakdown = breakdowns.get(v1.value);
+      expect(combinedBreakdown?.totalCostCents).toBe(1500);
+      expect(combinedBreakdown?.quantity).toBe(15);
+    });
+
+    it('should throw an error and bubble it if there are insufficient layers in batch', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 5, 100, new Date('2024-01-01'));
+      repo.layers = [l1];
+
+      const items = [
+        { variantId: v1, quantity: 10 }
+      ];
+
+      await expect(service.consumeLayersBatch(items)).rejects.toThrow('Insufficient cost layers to cover the quantity.');
+    });
   });
 
   describe('calculateConsumedCost (private method, tested via calculateCost)', () => {
@@ -194,16 +237,58 @@ describe('CostLayerService', () => {
       // Need 25 units. FIFO: 10 * 100 + 10 * 200 + 5 * 300 = 1000 + 2000 + 1500 = 4500
       const cost = await service.calculateFifoCost(v1, 25);
       expect(cost.totalCostCents).toBe(4500);
+      expect(cost.quantity).toBe(25);
+    });
+
+    it('should not mutate layers when calculating FIFO cost', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'));
+      repo.layers = [l1];
+      await service.calculateFifoCost(v1, 5);
+      expect(l1.remainingQuantity()).toBe(10); // Still 10, not consumed
+    });
+
+    it('should calculate 0 cost when quantity is 0', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'));
+      repo.layers = [l1];
+      const cost = await service.calculateFifoCost(v1, 0);
+      expect(cost.totalCostCents).toBe(0);
+      expect(cost.quantity).toBe(0);
     });
   });
 
   describe('consumeFifoLayers', () => {
-    it('should call consumeLayers with FIFO method', async () => {
+    it('should call consumeLayers with FIFO method and save changes', async () => {
       const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'));
       repo.layers = [l1];
       const cost = await service.consumeFifoLayers(v1, 5);
       expect(cost.totalCostCents).toBe(500);
       expect(l1.remainingQuantity()).toBe(5);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      expect(repo.save).toHaveBeenCalledWith(l1);
+    });
+
+    it('should consume across multiple layers correctly and save all modified layers', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01')); // Older
+      const l2 = new InventoryCostLayer(new InventoryCostLayerId('L2'), v1, 10, 200, new Date('2024-02-01')); // Newer
+      repo.layers = [l1, l2];
+
+      const cost = await service.consumeFifoLayers(v1, 15);
+      expect(cost.totalCostCents).toBe(2000); // 10 * 100 + 5 * 200
+      expect(l1.remainingQuantity()).toBe(0);
+      expect(l2.remainingQuantity()).toBe(5);
+
+      expect(repo.save).toHaveBeenCalledTimes(2);
+      expect(repo.save).toHaveBeenCalledWith(l1);
+      expect(repo.save).toHaveBeenCalledWith(l2);
+    });
+
+    it('should throw error when trying to consume more than available layers', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'));
+      repo.layers = [l1];
+
+      await expect(service.consumeFifoLayers(v1, 15)).rejects.toThrow('Insufficient cost layers to cover the quantity.');
+      // Should not have saved any mutated layers if it failed
+      expect(repo.save).not.toHaveBeenCalled();
     });
   });
 

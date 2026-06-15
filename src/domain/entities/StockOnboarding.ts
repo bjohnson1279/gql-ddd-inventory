@@ -11,6 +11,7 @@ import { DomainEvent } from '../events/DomainEvent';
 export class StockOnboarding {
   private _status: StockOnboardingStatus;
   private _items: Map<string, StockOnboardingItem> = new Map();
+  private _itemsArray: ReadonlyArray<StockOnboardingItem> | null = null;
   private _domainEvents: DomainEvent[] = [];
 
   constructor(
@@ -30,19 +31,24 @@ export class StockOnboarding {
     return this._status === StockOnboardingStatus.Submitted;
   }
 
-  get items(): StockOnboardingItem[] {
-    return Array.from(this._items.values());
+  get items(): ReadonlyArray<StockOnboardingItem> {
+    if (this._itemsArray === null) {
+      this._itemsArray = Array.from(this._items.values());
+    }
+    return this._itemsArray;
   }
 
   setItem(variantId: ProductVariantId, quantity: number, unitCostCents: number): void {
     this.assertDraft();
 
     this._items.set(variantId.value, new StockOnboardingItem(variantId, quantity, unitCostCents));
+    this._itemsArray = null; // Invalidate cache
   }
 
   removeItem(variantId: ProductVariantId): void {
     this.assertDraft();
     this._items.delete(variantId.value);
+    this._itemsArray = null; // Invalidate cache
   }
 
   submit(): void {
