@@ -105,6 +105,7 @@ function App() {
   const [loginTenant, setLoginTenant] = useState('tenant-1');
   const [loginActor, setLoginActor] = useState('admin-user');
   const [loginRole, setLoginRole] = useState('admin');
+  const [loginPassword, setLoginPassword] = useState('');
   const [role, setRole] = useState('admin');
 
   const [tenantId, setTenantId] = useState('tenant-1');
@@ -222,9 +223,9 @@ function App() {
     e.preventDefault();
     try {
       setLoading(true);
-      const data = await fetchGraphql(`mutation Login($tenant: ID!, $actor: ID!, $role: String) {
-        login(tenantId: $tenant, actorId: $actor, role: $role)
-      }`, { tenant: loginTenant, actor: loginActor, role: loginRole }, 'NONE');
+      const data = await fetchGraphql(`mutation Login($tenant: ID!, $actor: ID!, $role: String, $password: String) {
+        login(tenantId: $tenant, actorId: $actor, role: $role, password: $password)
+      }`, { tenant: loginTenant, actor: loginActor, role: loginRole, password: loginPassword }, 'NONE');
 
       const jwtToken = data.login;
       localStorage.setItem('auth_token', jwtToken);
@@ -718,6 +719,10 @@ function App() {
             <div className="form-group">
               <label htmlFor="loginActor">User / Actor ID</label>
               <input id="loginActor" value={loginActor} onChange={e => setLoginActor(e.target.value)} required placeholder="e.g. admin-user" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="loginPassword">Password</label>
+              <input id="loginPassword" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required placeholder="Password" />
             </div>
             <div className="form-group">
               <label htmlFor="loginRole">Assign Role</label>

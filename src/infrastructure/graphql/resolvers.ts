@@ -1254,6 +1254,20 @@ export const resolvers = {
       if (!tenantId || !actorId) {
         throw new Error('Tenant ID and User ID are required.');
       }
+
+      // Security fix: verify password even in development/test to prevent unauthorized access
+      const expectedPassword = process.env.DEV_PASSWORD;
+      if (!expectedPassword) {
+        throw new Error('DEV_PASSWORD environment variable is not set.');
+      }
+
+      const passwordHash = crypto.createHash('sha256').update(password || '').digest();
+      const expectedHash = crypto.createHash('sha256').update(expectedPassword).digest();
+
+      if (!crypto.timingSafeEqual(passwordHash, expectedHash)) {
+        throw new Error('Invalid credentials.');
+      }
+
       const userRole = role || 'admin';
       return jwt.sign(
         { tenantId, actorId, role: userRole },
