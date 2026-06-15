@@ -409,6 +409,7 @@ function App() {
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await fetchGraphql(`mutation CreateProd($id: ID!, $name: String!) {
         createProduct(id: $id, name: $name)
@@ -419,12 +420,15 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddVariant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
+    setLoading(true);
     try {
       const attributes = newVarAttrs.filter(a => a.name !== '' && a.value !== '');
       await fetchGraphql(`mutation AddVar($productId: ID!, $sku: String!, $attributes: [AttributeInput!]!, $trackingMode: TrackingMode!) {
@@ -441,11 +445,14 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAssignBarcode = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await fetchGraphql(`mutation AssignBC($input: AssignBarcodeInput!) {
         assignBarcode(input: $input)
@@ -464,10 +471,13 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGenerateBarcode = async (sku: string) => {
+    setLoading(true);
     try {
       const data = await fetchGraphql(`mutation GenBC($sku: String!, $tenant: ID!) {
         generateInternalBarcode(sku: $sku, tenantId: $tenant)
@@ -476,6 +486,8 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -491,11 +503,14 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateOnboarding = async () => {
     const onbId = Math.random().toString(36).substring(2, 15);
+    setLoading(true);
     try {
       await fetchGraphql(`mutation CreateOnb($input: CreateStockOnboardingInput!) {
         createStockOnboarding(input: $input)
@@ -511,10 +526,13 @@ function App() {
       loadOnboardings();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSaveOnboardingItems = async (onbId: string) => {
+    setLoading(true);
     try {
       const items = onboardingItems.map(i => ({
         variantId: i.variantId,
@@ -531,6 +549,8 @@ function App() {
       setSelectedOnboarding(null);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -547,11 +567,14 @@ function App() {
       setSelectedOnboarding(null);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDispatchScan = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const payload: any = { locationId };
       if (scanContext === 'pos' || scanContext === 'receiving') {
@@ -576,12 +599,15 @@ function App() {
         ...scanHistory
       ]);
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleTraceSerial = async (e: React.FormEvent) => {
     e.preventDefault();
     setTracedItem(null);
+    setLoading(true);
     try {
       const data = await fetchGraphql(`query Trace($serial: String!, $tenant: ID!) {
         serializedItemBySerial(serialNumber: $serial, tenantId: $tenant) {
@@ -596,11 +622,14 @@ function App() {
       setTracedItem(data.serializedItemBySerial);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleConnectShopify = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await fetchGraphql(`mutation ConnectShopify($input: ConnectShopifyInput!) {
         connectShopifyStore(input: $input)
@@ -619,11 +648,14 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handlePostJournal = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const entryId = 'j-entry-' + Math.random().toString(36).substring(2, 10);
       const lines = newJournalLines.map(l => ({
@@ -655,6 +687,8 @@ function App() {
       loadDashboardData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -863,7 +897,7 @@ function App() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                 Stock onboarding sheets follow a strict workflow: Draft (add/remove items) → Submitted (processes and writes ledger entries).
               </p>
-              <button className="btn btn-primary" onClick={handleCreateOnboarding}>
+              <button className="btn btn-primary" onClick={handleCreateOnboarding} disabled={loading}>
                 + Create Draft Onboarding Sheet
               </button>
 
@@ -900,7 +934,7 @@ function App() {
                               }}>
                                 Edit
                               </button>
-                              <button className="btn btn-accent" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => handleSubmitOnboarding(o.id)}>
+                              <button className="btn btn-accent" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => handleSubmitOnboarding(o.id)} disabled={loading}>
                                 Lock & Post
                               </button>
                             </div>
@@ -983,7 +1017,7 @@ function App() {
                     <button className="btn btn-secondary" onClick={() => setOnboardingItems([...onboardingItems, { variantId: '', quantity: 0, unitCostCents: 0 }])}>
                       + Add Variant Item
                     </button>
-                    <button className="btn btn-primary" onClick={() => handleSaveOnboardingItems(selectedOnboarding.id)}>
+                    <button className="btn btn-primary" onClick={() => handleSaveOnboardingItems(selectedOnboarding.id)} disabled={loading}>
                       Save Draft Changes
                     </button>
                   </div>
@@ -1009,7 +1043,9 @@ function App() {
                       <label htmlFor="newProdName">Product Name</label>
                       <input id="newProdName" value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
                     </div>
-                    <button type="submit" className="btn btn-primary">Create Product</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                      Create Product
+                    </button>
                   </form>
                   <div style={{ height: '1.5rem' }}></div>
                 </>
@@ -1094,7 +1130,9 @@ function App() {
                           + Add Attribute Row
                         </button>
 
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Variant</button>
+                        <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                          Add Variant
+                        </button>
                       </form>
                     </div>
                   )}
@@ -1124,7 +1162,7 @@ function App() {
                               <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Barcodes</span>
                                 {(role === 'admin' || role === 'warehouse_operator') && (
-                                  <button className="btn btn-secondary" aria-label="Auto generate internal barcode" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)}>
+                                  <button className="btn btn-secondary" aria-label="Auto generate internal barcode" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)} disabled={loading}>
                                     ⚡ Auto Gen Internal
                                   </button>
                                 )}
@@ -1139,7 +1177,7 @@ function App() {
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
                                       {(role === 'admin' || role === 'warehouse_operator') ? (
-                                        <button aria-label={`Revoke barcode ${b.barcode.value}`} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)}>
+                                        <button aria-label={`Revoke barcode ${b.barcode.value}`} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }} onClick={() => handleRevokeBarcode(v.sku, b.id)} disabled={loading}>
                                           Revoke
                                         </button>
                                       ) : <span></span>}
@@ -1201,7 +1239,7 @@ function App() {
                                     </div>
                                   </div>
                                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                    <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                                    <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} disabled={loading}>
                                       Save Assignment
                                     </button>
                                     <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => setAssignSku('')}>
@@ -1273,7 +1311,9 @@ function App() {
                   </div>
                 )}
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Dispatch Scan Trigger</button>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                  Dispatch Scan Trigger
+                </button>
               </form>
             </div>
 
@@ -1356,7 +1396,7 @@ function App() {
                   </div>
                 ))}
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading}>
                   Post Balanced Journal Entry
                 </button>
               </form>
@@ -1404,7 +1444,9 @@ function App() {
                   <label htmlFor="traceSerialNum">Enter Serial Number</label>
                   <input id="traceSerialNum" autoFocus value={traceSerialNum} onChange={e => setTraceSerialNum(e.target.value)} placeholder="e.g. SN123" required />
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Trace History Timeline</button>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                  Trace History Timeline
+                </button>
               </form>
             </div>
 
@@ -1470,7 +1512,9 @@ function App() {
                   <label htmlFor="newShopifyToken">Access Token</label>
                   <input id="newShopifyToken" type="password" value={newShopifyToken} onChange={e => setNewShopifyToken(e.target.value)} placeholder="shpat_..." required />
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Connect Store Domain</button>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                  Connect Store Domain
+                </button>
               </form>
             </div>
 
