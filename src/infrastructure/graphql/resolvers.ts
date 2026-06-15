@@ -1202,13 +1202,20 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    login: async (_: any, { tenantId, actorId, role }: { tenantId: string; actorId: string; role?: string }) => {
+    login: async (_: any, { tenantId, actorId, role, password }: { tenantId: string; actorId: string; role?: string; password?: string }) => {
       if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
         throw new Error('Login mutation is only available in development or test environments.');
       }
       if (!tenantId || !actorId) {
         throw new Error('Tenant ID and User ID are required.');
       }
+
+      // Security fix: verify password even in development/test to prevent unauthorized access
+      const expectedPassword = process.env.DEV_PASSWORD;
+      if (!expectedPassword || password !== expectedPassword) {
+        throw new Error('Invalid credentials.');
+      }
+
       const userRole = role || 'admin';
       return jwt.sign(
         { tenantId, actorId, role: userRole },

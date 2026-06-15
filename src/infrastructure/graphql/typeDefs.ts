@@ -617,7 +617,7 @@ export const typeDefs = `#graphql
     createStockOnboarding(input: CreateStockOnboardingInput!): Boolean!
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
-    login(tenantId: ID!, actorId: ID!, role: String): String!
+    login(tenantId: ID!, actorId: ID!, role: String, password: String): String!
     createWarehouseLocation(input: CreateWarehouseLocationInput!): WarehouseLocation!
     deleteWarehouseLocation(id: ID!): Boolean!
 
