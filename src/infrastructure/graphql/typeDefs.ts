@@ -492,6 +492,7 @@ export const typeDefs = `#graphql
 
     suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
     traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
+    users(tenantId: ID!): [UserDTO!]!
   }
 
   type InventoryCountResult {
@@ -617,7 +618,10 @@ export const typeDefs = `#graphql
     createStockOnboarding(input: CreateStockOnboardingInput!): Boolean!
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
-    login(tenantId: ID!, actorId: ID!, role: String): String!
+    login(tenantId: ID!, actorId: ID, role: String, email: String, password: String): String!
+    setup(orgName: String!, tenantId: ID!, adminName: String!, adminEmail: String!, adminPassword: String!): Boolean!
+    inviteUser(tenantId: ID!, email: String!, role: String!): UserInvitationResult!
+    updateUserRole(tenantId: ID!, userId: ID!, role: String!): Boolean!
     createWarehouseLocation(input: CreateWarehouseLocationInput!): WarehouseLocation!
     deleteWarehouseLocation(id: ID!): Boolean!
 
@@ -650,6 +654,19 @@ export const typeDefs = `#graphql
     status: String!
     time: String!
     payload: String!
+  }
+
+  type UserDTO {
+    id: ID!
+    email: String!
+    name: String!
+    role: String!
+    active: Boolean!
+  }
+
+  type UserInvitationResult {
+    userId: ID!
+    temporaryPassword: String!
   }
 `;
 

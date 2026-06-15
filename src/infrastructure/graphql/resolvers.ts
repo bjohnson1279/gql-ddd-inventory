@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { hashPassword, verifyPassword } from '../utils/security';
 import { PubSub } from 'graphql-subscriptions';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import Redis from 'ioredis';
@@ -769,6 +770,24 @@ export const resolvers = {
       } catch (error: any) {
         throw new Error(error.message);
       }
+    },
+    users: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin'], tenantId);
+      const userList = await prisma.user.findMany({
+        where: { tenantId },
+        include: {
+          userRoles: {
+            include: { role: true }
+          }
+        }
+      });
+      return userList.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.userRoles.length > 0 ? u.userRoles[0].role.id : 'staff',
+        active: u.active
+      }));
     }
   },
   Mutation: {
@@ -1202,7 +1221,33 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    login: async (_: any, { tenantId, actorId, role }: { tenantId: string; actorId: string; role?: string }) => {
+    login: async (_: any, { tenantId, actorId, role, email, password }: { tenantId: string; actorId?: string; role?: string; email?: string; password?: string }) => {
+      if (email && password) {
+        const user = await prisma.user.findFirst({
+          where: { tenantId, email: email.toLowerCase().trim() },
+          include: {
+            userRoles: {
+              include: { role: true }
+            }
+          }
+        });
+        if (!user) {
+          throw new Error('Invalid credentials.');
+        }
+        if (!user.active) {
+          throw new Error('Account deactivated.');
+        }
+        if (!verifyPassword(password, user.passwordHash)) {
+          throw new Error('Invalid credentials.');
+        }
+        const userRole = user.userRoles.length > 0 ? user.userRoles[0].role.id : 'staff';
+        return jwt.sign(
+          { tenantId, actorId: user.id, role: userRole },
+          JWT_SECRET as string,
+          { expiresIn: '24h' }
+        );
+      }
+
       if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
         throw new Error('Login mutation is only available in development or test environments.');
       }
@@ -1215,6 +1260,139 @@ export const resolvers = {
         JWT_SECRET as string,
         { expiresIn: '24h' }
       );
+    },
+    setup: async (_: any, { orgName, tenantId, adminName, adminEmail, adminPassword }: { orgName: string; tenantId: string; adminName: string; adminEmail: string; adminPassword: string }) => {
+      try {
+        let tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+        if (!tenant) {
+          tenant = await prisma.tenant.create({
+            data: { id: tenantId, name: orgName }
+          });
+        }
+
+        const roles = ['admin', 'warehouse_operator', 'accountant', 'viewer'];
+        for (const r of roles) {
+          const roleExists = await prisma.role.findUnique({ where: { id: r } });
+          if (!roleExists) {
+            await prisma.role.create({
+              data: { id: r, name: r.replace('_', ' ') }
+            });
+          }
+        }
+
+        const email = adminEmail.toLowerCase().trim();
+        const existing = await prisma.user.findFirst({
+          where: { tenantId, email }
+        });
+        if (existing) {
+          throw new Error(`Admin user with email ${email} already exists for tenant.`);
+        }
+
+        const adminId = crypto.randomUUID();
+        const passwordHash = hashPassword(adminPassword);
+        const user = await prisma.user.create({
+          data: {
+            id: adminId,
+            tenantId,
+            email,
+            passwordHash,
+            name: adminName,
+            active: true
+          }
+        });
+
+        await prisma.userRole.create({
+          data: {
+            userId: adminId,
+            roleId: 'admin'
+          }
+        });
+
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    inviteUser: async (_: any, { tenantId, email, role }: { tenantId: string; email: string; role: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin'], tenantId);
+      try {
+        const normalizedEmail = email.toLowerCase().trim();
+        const existing = await prisma.user.findFirst({
+          where: { tenantId, email: normalizedEmail }
+        });
+        if (existing) {
+          throw new Error('User already exists.');
+        }
+
+        const userId = crypto.randomUUID();
+        const tempPassword = crypto.randomBytes(6).toString('hex');
+        const passwordHash = hashPassword(tempPassword);
+
+        await prisma.user.create({
+          data: {
+            id: userId,
+            tenantId,
+            email: normalizedEmail,
+            passwordHash,
+            name: normalizedEmail.split('@')[0],
+            active: true
+          }
+        });
+
+        const roleExists = await prisma.role.findUnique({ where: { id: role } });
+        if (!roleExists) {
+          await prisma.role.create({
+            data: { id: role, name: role.replace('_', ' ') }
+          });
+        }
+
+        await prisma.userRole.create({
+          data: {
+            userId,
+            roleId: role
+          }
+        });
+
+        return {
+          userId,
+          temporaryPassword: tempPassword
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    updateUserRole: async (_: any, { tenantId, userId, role }: { tenantId: string; userId: string; role: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin'], tenantId);
+      try {
+        const user = await prisma.user.findFirst({
+          where: { id: userId, tenantId }
+        });
+        if (!user) {
+          throw new Error('User not found.');
+        }
+
+        await prisma.userRole.deleteMany({
+          where: { userId }
+        });
+
+        const roleExists = await prisma.role.findUnique({ where: { id: role } });
+        if (!roleExists) {
+          await prisma.role.create({
+            data: { id: role, name: role.replace('_', ' ') }
+          });
+        }
+
+        await prisma.userRole.create({
+          data: {
+            userId,
+            roleId: role
+          }
+        });
+
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
     }
   },
   Subscription: {

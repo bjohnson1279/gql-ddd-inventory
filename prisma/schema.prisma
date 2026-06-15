@@ -378,3 +378,69 @@ model PurchaseOrderItem {
   @@unique([purchaseOrderId, variantId])
   @@map("purchase_order_items")
 }
+
+model Tenant {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  users     User[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String     @id
+  tenantId     String     @map("tenant_id")
+  email        String
+  passwordHash String     @map("password_hash")
+  name         String
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles    UserRole[]
+  apiTokens    ApiToken[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Role {
+  id              String           @id
+  name            String
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId     String @map("role_id")
+  permission String
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@map("role_permissions")
+}
+
+model ApiToken {
+  id         String   @id
+  userId     String   @map("user_id")
+  tenantId   String   @map("tenant_id")
+  tokenHash  String   @unique @map("token_hash")
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_tokens")
+}
+
