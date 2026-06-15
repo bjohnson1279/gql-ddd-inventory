@@ -964,4 +964,202 @@ describe('GraphQL Resolvers', () => {
     expect(dispatches[0].quantity).toBe(10);
     expect(dispatches[0].referenceId).toBe('ORDER-FEFO-1');
   });
+
+  describe('Authentication & User Management', () => {
+    let mockUsers: any[] = [];
+    let mockTenants: any[] = [];
+    let mockRoles: any[] = [];
+    let mockUserRoles: any[] = [];
+
+    beforeEach(() => {
+      mockUsers = [];
+      mockTenants = [];
+      mockRoles = [];
+      mockUserRoles = [];
+
+      jest.spyOn(prisma.tenant, 'findUnique').mockImplementation((args: any) => {
+        const id = args.where.id;
+        const tenant = mockTenants.find(t => t.id === id);
+        return Promise.resolve(tenant || null) as any;
+      });
+
+      jest.spyOn(prisma.tenant, 'create').mockImplementation((args: any) => {
+        const newTenant = args.data;
+        mockTenants.push(newTenant);
+        return Promise.resolve(newTenant) as any;
+      });
+
+      jest.spyOn(prisma.role, 'findUnique').mockImplementation((args: any) => {
+        const id = args.where.id;
+        const role = mockRoles.find(r => r.id === id);
+        return Promise.resolve(role || null) as any;
+      });
+
+      jest.spyOn(prisma.role, 'create').mockImplementation((args: any) => {
+        const newRole = args.data;
+        mockRoles.push(newRole);
+        return Promise.resolve(newRole) as any;
+      });
+
+      jest.spyOn(prisma.user, 'findFirst').mockImplementation((args: any) => {
+        const { tenantId, email, id } = args.where;
+        const user = mockUsers.find(u => {
+          if (tenantId && u.tenantId !== tenantId) return false;
+          if (email && u.email !== email) return false;
+          if (id && u.id !== id) return false;
+          return true;
+        });
+        if (!user) return Promise.resolve(null) as any;
+        const resUser = { ...user };
+        if (args.include?.userRoles) {
+          resUser.userRoles = mockUserRoles
+            .filter(ur => ur.userId === user.id)
+            .map(ur => ({
+              ...ur,
+              role: mockRoles.find(r => r.id === ur.roleId)
+            }));
+        }
+        return Promise.resolve(resUser) as any;
+      });
+
+      jest.spyOn(prisma.user, 'findMany').mockImplementation((args: any) => {
+        const { tenantId } = args.where;
+        const list = mockUsers.filter(u => u.tenantId === tenantId);
+        const mappedList = list.map(u => {
+          const resUser = { ...u };
+          if (args.include?.userRoles) {
+            resUser.userRoles = mockUserRoles
+              .filter(ur => ur.userId === u.id)
+              .map(ur => ({
+                ...ur,
+                role: mockRoles.find(r => r.id === ur.roleId)
+              }));
+          }
+          return resUser;
+        });
+        return Promise.resolve(mappedList) as any;
+      });
+
+      jest.spyOn(prisma.user, 'create').mockImplementation((args: any) => {
+        const newUser = { id: args.data.id || 'new-uuid', ...args.data };
+        mockUsers.push(newUser);
+        return Promise.resolve(newUser) as any;
+      });
+
+      jest.spyOn(prisma.userRole, 'create').mockImplementation((args: any) => {
+        const newUserRole = args.data;
+        mockUserRoles.push(newUserRole);
+        return Promise.resolve(newUserRole) as any;
+      });
+
+      jest.spyOn(prisma.userRole, 'deleteMany').mockImplementation((args: any) => {
+        const userId = args.where.userId;
+        const initialLength = mockUserRoles.length;
+        for (let i = mockUserRoles.length - 1; i >= 0; i--) {
+          if (mockUserRoles[i].userId === userId) {
+            mockUserRoles.splice(i, 1);
+          }
+        }
+        return Promise.resolve({ count: initialLength - mockUserRoles.length }) as any;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should setup a new organization and admin user', async () => {
+      const result = await (resolvers.Mutation as any).setup(null, {
+        orgName: 'Acme Org',
+        tenantId: 'tenant-acme',
+        adminName: 'Admin Alice',
+        adminEmail: 'alice@acme.com',
+        adminPassword: 'Password123!'
+      });
+
+      expect(result).toBe(true);
+      expect(mockTenants).toHaveLength(1);
+      expect(mockTenants[0].name).toBe('Acme Org');
+      expect(mockUsers).toHaveLength(1);
+      expect(mockUsers[0].name).toBe('Admin Alice');
+      expect(mockUserRoles).toHaveLength(1);
+      expect(mockUserRoles[0].roleId).toBe('admin');
+    });
+
+    it('should issue a JWT on successful login and fail on invalid credentials', async () => {
+      // Setup first
+      await (resolvers.Mutation as any).setup(null, {
+        orgName: 'Acme Org',
+        tenantId: 'tenant-acme',
+        adminName: 'Admin Alice',
+        adminEmail: 'alice@acme.com',
+        adminPassword: 'Password123!'
+      });
+
+      // Login success
+      process.env.JWT_SECRET = 'test-secret';
+      const token = await (resolvers.Mutation as any).login(null, {
+        tenantId: 'tenant-acme',
+        email: 'alice@acme.com',
+        password: 'Password123!'
+      });
+      expect(token).toBeDefined();
+      expect(typeof token).toBe('string');
+
+      // Login fail
+      await expect(
+        (resolvers.Mutation as any).login(null, {
+          tenantId: 'tenant-acme',
+          email: 'alice@acme.com',
+          password: 'WrongPassword!'
+        })
+      ).rejects.toThrow('Invalid credentials.');
+    });
+
+    it('should support inviting users and updating user roles', async () => {
+      const context = { auth: { role: 'admin', tenantId: 'tenant-acme' } };
+
+      // Invite user
+      const inviteResult = await (resolvers.Mutation as any).inviteUser(null, {
+        tenantId: 'tenant-acme',
+        email: 'bob@acme.com',
+        role: 'warehouse_operator'
+      }, context);
+
+      expect(inviteResult.userId).toBeDefined();
+      expect(inviteResult.temporaryPassword).toBeDefined();
+      expect(mockUsers).toHaveLength(1);
+      expect(mockUsers[0].email).toBe('bob@acme.com');
+      expect(mockUserRoles).toHaveLength(1);
+      expect(mockUserRoles[0].roleId).toBe('warehouse_operator');
+
+      // Update role
+      const updateResult = await (resolvers.Mutation as any).updateUserRole(null, {
+        tenantId: 'tenant-acme',
+        userId: inviteResult.userId,
+        role: 'accountant'
+      }, context);
+
+      expect(updateResult).toBe(true);
+      expect(mockUserRoles).toHaveLength(1);
+      expect(mockUserRoles[0].roleId).toBe('accountant');
+    });
+
+    it('should list users for a tenant', async () => {
+      const context = { auth: { role: 'admin', tenantId: 'tenant-acme' } };
+
+      // Invite user
+      const inviteResult = await (resolvers.Mutation as any).inviteUser(null, {
+        tenantId: 'tenant-acme',
+        email: 'bob@acme.com',
+        role: 'warehouse_operator'
+      }, context);
+
+      // Query users
+      const usersList = await (resolvers.Query as any).users(null, { tenantId: 'tenant-acme' }, context);
+      expect(usersList).toHaveLength(1);
+      expect(usersList[0].email).toBe('bob@acme.com');
+      expect(usersList[0].role).toBe('warehouse_operator');
+    });
+  });
 });
