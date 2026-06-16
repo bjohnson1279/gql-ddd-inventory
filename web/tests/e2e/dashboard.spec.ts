@@ -319,9 +319,6 @@ test.describe('GraphQL DDD Inventory Management Dashboard E2E Tests', () => {
     
     await accountCodeInputs.nth(1).fill('2020');
     await amountCentsInputs.nth(1).fill('20000');
-    // Set up dialog handler before triggering it
-    page.on("dialog", dialog => dialog.accept());
-
 
     // Post balanced entry
     await page.click('button:has-text("Post Balanced Journal Entry")');

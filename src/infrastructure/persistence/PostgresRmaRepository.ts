@@ -46,7 +46,7 @@ export class PostgresRmaRepository implements IRmaRepository {
 
   async findById(id: string): Promise<Rma | null> {
     const dbId = toUuid(id);
-    const record = await this.prisma.rma.findUnique({
+    const record = await (this.prisma as any).rma.findUnique({
       where: { id: dbId },
       include: { items: true },
     });
@@ -56,7 +56,7 @@ export class PostgresRmaRepository implements IRmaRepository {
   }
 
   async findByNumber(rmaNumber: string): Promise<Rma | null> {
-    const record = await this.prisma.rma.findUnique({
+    const record = await (this.prisma as any).rma.findUnique({
       where: { rmaNumber },
       include: { items: true },
     });
@@ -66,19 +66,19 @@ export class PostgresRmaRepository implements IRmaRepository {
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<Rma[]> {
-    const records = await this.prisma.rma.findMany({
+    const records = await (this.prisma as any).rma.findMany({
       where: { tenantId: tenantId.value },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
-    return records.map((record) => this.mapToDomain(record));
+    return records.map((record: any) => this.mapToDomain(record));
   }
 
   async save(rma: Rma): Promise<void> {
     const dbId = toUuid(rma.id);
     await this.prisma.$transaction(async (tx) => {
       // Upsert RMA aggregate root
-      await tx.rma.upsert({
+      await (tx as any).rma.upsert({
         where: { id: dbId },
         update: {
           status: rma.status,
@@ -102,7 +102,7 @@ export class PostgresRmaRepository implements IRmaRepository {
       // Upsert RMA items
       for (const item of rma.items) {
         const itemDbId = toUuid(item.id);
-        await tx.rmaItem.upsert({
+        await (tx as any).rmaItem.upsert({
           where: { id: itemDbId },
           update: {
             receivedQuantity: item.receivedQuantity,

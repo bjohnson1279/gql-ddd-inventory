@@ -33,7 +33,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
 
   async findById(id: string): Promise<QuarantineItem | null> {
     const dbId = toUuid(id);
-    const record = await this.prisma.quarantineItem.findUnique({
+    const record = await (this.prisma as any).quarantineItem.findUnique({
       where: { id: dbId },
     });
 
@@ -42,16 +42,16 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<QuarantineItem[]> {
-    const records = await this.prisma.quarantineItem.findMany({
+    const records = await (this.prisma as any).quarantineItem.findMany({
       where: { tenantId: tenantId.value },
       orderBy: { createdAt: 'desc' },
     });
-    return records.map((record) => this.mapToDomain(record));
+    return records.map((record: any) => this.mapToDomain(record));
   }
 
   async save(item: QuarantineItem): Promise<void> {
     const dbId = toUuid(item.id);
-    await this.prisma.quarantineItem.upsert({
+    await (this.prisma as any).quarantineItem.upsert({
       where: { id: dbId },
       update: {
         status: item.status,

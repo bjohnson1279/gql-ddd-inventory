@@ -7,6 +7,3 @@
 ## 2026-06-15 - Added Confirmation Dialogs for Destructive Actions
 **Learning:** Destructive actions that permanently modify critical data, such as posting to a general ledger or revoking a barcode assignment, require explicit user confirmation to prevent accidental clicks from causing irreversible data changes.
 **Action:** Always wrap irreversible or destructive actions (e.g., delete, post, revoke) with a confirmation step, such as `window.confirm`, clearly explaining the consequences of the action.
-## 2024-06-16 - Added Label Associations and Confirmation Dialog
-**Learning:** Adding explicit `htmlFor` and `id` attributes improves accessibility for screen readers and allows users to click the label to focus the input. Adding a `window.confirm` dialog to irreversible actions like posting a journal entry prevents accidental data changes. Also, remember to add dialog handling (`page.on('dialog', dialog => dialog.accept())`) in Playwright E2E tests when adding `window.confirm` to ensure tests don't hang.
-**Action:** Always associate labels with inputs using `htmlFor` and `id`. Add confirmation dialogs to irreversible actions and ensure E2E tests handle the dialogs appropriately.
