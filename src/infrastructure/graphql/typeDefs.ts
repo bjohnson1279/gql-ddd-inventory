@@ -11,6 +11,67 @@ export const typeDefs = `#graphql
     volume
   }
 
+  enum RMAStatus {
+    REQUESTED
+    AUTHORIZED
+    RECEIVED
+    COMPLETED
+    REJECTED
+  }
+
+  enum RMADisposition {
+    RESTOCK
+    SCRAP
+    QUARANTINE
+  }
+
+  enum RMAItemStatus {
+    PENDING
+    RECEIVED
+    REJECTED
+  }
+
+  enum QuarantineStatus {
+    QUARANTINED
+    RESTOCKED
+    SCRAPPED
+    RTV
+  }
+
+  type RmaItem {
+    id: ID!
+    variantId: ID!
+    quantity: Int!
+    receivedQuantity: Int!
+    unitCostCents: Int!
+    status: RMAItemStatus!
+    disposition: RMADisposition
+  }
+
+  type Rma {
+    id: ID!
+    rmaNumber: String!
+    tenantId: ID!
+    customerId: String!
+    locationId: ID!
+    status: RMAStatus!
+    items: [RmaItem!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type QuarantineItem {
+    id: ID!
+    variantId: ID!
+    quantity: Int!
+    reason: String!
+    status: QuarantineStatus!
+    locationId: ID!
+    tenantId: ID!
+    createdAt: String!
+    resolvedAt: String
+  }
+
   enum AccountingMethod {
     cash
     accrual
@@ -493,6 +554,10 @@ export const typeDefs = `#graphql
     suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
     traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
     users(tenantId: ID!): [UserDTO!]!
+    rma(id: ID!): Rma
+    rmas(tenantId: ID!): [Rma!]!
+    quarantineItem(id: ID!): QuarantineItem
+    quarantineItems(tenantId: ID!): [QuarantineItem!]!
   }
 
   type InventoryCountResult {
@@ -588,7 +653,38 @@ export const typeDefs = `#graphql
     lines: [JournalLineInput!]!
   }
 
+  input CreateRmaItemInput {
+    variantId: ID!
+    quantity: Int!
+    unitCostCents: Int!
+  }
+
+  input CreateRmaInput {
+    rmaNumber: String!
+    tenantId: ID!
+    customerId: String!
+    locationId: ID!
+    items: [CreateRmaItemInput!]!
+  }
+
+  input ReceiveRmaItemInput {
+    variantId: ID!
+    quantityReceived: Int!
+    disposition: RMADisposition!
+    serialNumbers: [String!]
+  }
+
+  input ReceiveRmaInput {
+    rmaId: ID!
+    items: [ReceiveRmaItemInput!]!
+  }
+
   type Mutation {
+    createRma(input: CreateRmaInput!): Rma!
+    authorizeRma(id: ID!): Boolean!
+    receiveRma(input: ReceiveRmaInput!): Boolean!
+    resolveQuarantineItem(id: ID!, resolution: String!): Boolean!
+
     receiveStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     dispatchStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     allocateStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!

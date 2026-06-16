@@ -135,6 +135,9 @@ import {
   SuggestFefoPickingUseCase,
   TraceProductRecallUseCase
 } from '../../application/useCases/ManageFefoAndRecall';
+import { PostgresRmaRepository } from '../persistence/PostgresRmaRepository';
+import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineRepository';
+import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
@@ -156,6 +159,8 @@ const uomRepository = new PostgresProductUomConfigurationRepository(prisma);
 const journalRepository = new PostgresJournalRepository(prisma);
 const kitRepository = new PostgresKitRepository(prisma);
 export const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
+const rmaRepository = new PostgresRmaRepository(prisma);
+const quarantineRepository = new PostgresQuarantineRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
@@ -316,6 +321,25 @@ const receiveStockWithLotUseCase = new ReceiveStockWithLotUseCase(
 );
 const suggestFefoPickingUseCase = new SuggestFefoPickingUseCase(fefoPickingSuggester);
 const traceProductRecallUseCase = new TraceProductRecallUseCase(productRecallService);
+
+const createRmaUseCase = new CreateRmaUseCase(rmaRepository);
+const authorizeRmaUseCase = new AuthorizeRmaUseCase(rmaRepository);
+const receiveRmaUseCase = new ReceiveRmaUseCase(
+  rmaRepository,
+  inventoryRepository,
+  costLayerRepository,
+  quarantineRepository,
+  journalRepository,
+  productRepository,
+  serializedItemRepository
+);
+const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
+  quarantineRepository,
+  inventoryRepository,
+  costLayerRepository,
+  journalRepository,
+  productRepository
+);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -788,6 +812,100 @@ export const resolvers = {
         role: u.userRoles.length > 0 ? u.userRoles[0].role.id : 'staff',
         active: u.active
       }));
+    },
+    rma: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const rma = await rmaRepository.findById(id);
+        if (!rma) return null;
+        return {
+          id: rma.id,
+          rmaNumber: rma.rmaNumber,
+          tenantId: rma.tenantId.value,
+          customerId: rma.customerId,
+          locationId: rma.locationId.value,
+          status: rma.status,
+          items: rma.items.map(item => ({
+            id: item.id,
+            variantId: item.variantId.value,
+            quantity: item.quantity,
+            receivedQuantity: item.receivedQuantity,
+            unitCostCents: item.unitCostCents,
+            status: item.status,
+            disposition: item.disposition || null
+          })),
+          createdAt: rma.createdAt.toISOString(),
+          updatedAt: rma.updatedAt.toISOString()
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    rmas: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+        const rmas = await rmaRepository.findAllByTenant(new TenantId(auth.tenantId));
+        return rmas.map(rma => ({
+          id: rma.id,
+          rmaNumber: rma.rmaNumber,
+          tenantId: rma.tenantId.value,
+          customerId: rma.customerId,
+          locationId: rma.locationId.value,
+          status: rma.status,
+          items: rma.items.map(item => ({
+            id: item.id,
+            variantId: item.variantId.value,
+            quantity: item.quantity,
+            receivedQuantity: item.receivedQuantity,
+            unitCostCents: item.unitCostCents,
+            status: item.status,
+            disposition: item.disposition || null
+          })),
+          createdAt: rma.createdAt.toISOString(),
+          updatedAt: rma.updatedAt.toISOString()
+        }));
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    quarantineItem: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const item = await quarantineRepository.findById(id);
+        if (!item) return null;
+        return {
+          id: item.id,
+          variantId: item.variantId.value,
+          quantity: item.quantity,
+          reason: item.reason,
+          status: item.status,
+          locationId: item.locationId.value,
+          tenantId: item.tenantId.value,
+          createdAt: item.createdAt.toISOString(),
+          resolvedAt: item.resolvedAt ? item.resolvedAt.toISOString() : null
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    quarantineItems: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+        const items = await quarantineRepository.findAllByTenant(new TenantId(auth.tenantId));
+        return items.map(item => ({
+          id: item.id,
+          variantId: item.variantId.value,
+          quantity: item.quantity,
+          reason: item.reason,
+          status: item.status,
+          locationId: item.locationId.value,
+          tenantId: item.tenantId.value,
+          createdAt: item.createdAt.toISOString(),
+          resolvedAt: item.resolvedAt ? item.resolvedAt.toISOString() : null
+        }));
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
     }
   },
   Mutation: {
@@ -1217,6 +1335,60 @@ export const resolvers = {
           tenantId: auth.tenantId,
           actorId: auth.actorId
         });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createRma: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        const rma = await createRmaUseCase.execute(input);
+        return {
+          id: rma.id,
+          rmaNumber: rma.rmaNumber,
+          tenantId: rma.tenantId.value,
+          customerId: rma.customerId,
+          locationId: rma.locationId.value,
+          status: rma.status,
+          items: rma.items.map(item => ({
+            id: item.id,
+            variantId: item.variantId.value,
+            quantity: item.quantity,
+            receivedQuantity: item.receivedQuantity,
+            unitCostCents: item.unitCostCents,
+            status: item.status,
+            disposition: item.disposition || null
+          })),
+          createdAt: rma.createdAt.toISOString(),
+          updatedAt: rma.updatedAt.toISOString()
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    authorizeRma: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        await authorizeRmaUseCase.execute(id);
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    receiveRma: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        await receiveRmaUseCase.execute(input);
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    resolveQuarantineItem: async (_: any, { id, resolution }: { id: string; resolution: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        await resolveQuarantineItemUseCase.execute({ quarantineItemId: id, resolution: resolution as any });
+        return true;
       } catch (error: any) {
         throw new Error(error.message);
       }

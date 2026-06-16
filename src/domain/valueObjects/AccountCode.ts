@@ -31,6 +31,10 @@ export class AccountCode {
     return new AccountCode('5000', 'Cost of Goods Sold', AccountCategory.Expense);
   }
 
+  static inventoryWriteOffExpense(): AccountCode {
+    return new AccountCode('5300', 'Inventory Write-Off Expense', AccountCategory.Expense);
+  }
+
   static fromCode(code: string): AccountCode {
     switch (code) {
       case '1000': return AccountCode.cash();
@@ -39,6 +43,7 @@ export class AccountCode {
       case '2000': return AccountCode.accountsPayable();
       case '4000': return AccountCode.salesRevenue();
       case '5000': return AccountCode.costOfGoodsSold();
+      case '5300': return AccountCode.inventoryWriteOffExpense();
       default:
         // Default category as Asset or custom depending on code prefix if desired
         const category = code.startsWith('2') ? AccountCategory.Liability 
