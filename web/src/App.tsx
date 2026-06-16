@@ -656,6 +656,9 @@ function App() {
 
   const handlePostJournal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!window.confirm('Are you sure you want to post this journal entry? This action will update the general ledger and cannot be reversed.')) {
+      return;
+    }
     setLoading(true);
     try {
       const entryId = 'j-entry-' + Math.random().toString(36).substring(2, 10);
@@ -1350,12 +1353,12 @@ function App() {
               <h2 className="form-section-title">Manual Journal Ingestion</h2>
               <form onSubmit={handlePostJournal}>
                 <div className="form-group">
-                  <label>Entry Description</label>
-                  <input value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
+                  <label htmlFor="entryDesc">Entry Description</label>
+                  <input id="entryDesc" value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
                 </div>
                 <div className="form-group">
-                  <label>Accounting Method</label>
-                  <select value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
+                  <label htmlFor="accountingMethod">Accounting Method</label>
+                  <select id="accountingMethod" value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
                     <option value="accrual">Accrual-Basis Accounting</option>
                     <option value="cash">Cash-Basis Accounting</option>
                   </select>
