@@ -91,7 +91,7 @@ export class AccountingJournalService {
       date,
       description,
       method,
-      referenceId
+      referenceId || undefined
     );
 
     for (const [account, amount, type, memo] of lines) {

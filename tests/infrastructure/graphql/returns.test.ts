@@ -107,6 +107,7 @@ import { resolvers, prisma, pool, productRepository } from '../../../src/infrast
 import { Product } from '../../../src/domain/entities/Product';
 import { ProductId } from '../../../src/domain/valueObjects/ProductId';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
+import { VariantAttribute } from '../../../src/domain/valueObjects/VariantAttribute';
 import { SerializedItem } from '../../../src/domain/entities/SerializedItem';
 import { SerialNumber } from '../../../src/domain/valueObjects/SerialNumber';
 import { TenantId } from '../../../src/domain/valueObjects/TenantId';
@@ -134,7 +135,9 @@ describe('GraphQL Returns and Quarantine Resolvers', () => {
   beforeAll(async () => {
     // Register product & variant in repository
     const product = new Product(new ProductId('prod-1'), 'Test Return Product');
-    const variant = product.addVariant(new Sku('SKU-RETURN-1'), []);
+    const variant = product.addVariant(new Sku('SKU-RETURN-1'), [
+      new VariantAttribute('temperatureZone', 'ambient')
+    ]);
     variantId = variant.id.value;
     await productRepository.save(product);
   });
