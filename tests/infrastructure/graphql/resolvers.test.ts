@@ -1,3 +1,28 @@
+jest.mock('pg', () => {
+  const mClient = {
+    connect: jest.fn().mockResolvedValue(undefined),
+    query: jest.fn().mockResolvedValue({ rows: [], fields: [], rowCount: 0 }),
+    end: jest.fn().mockResolvedValue(undefined),
+    on: jest.fn(),
+  };
+  const mPool = {
+    connect: jest.fn().mockResolvedValue(mClient),
+    query: jest.fn().mockResolvedValue({ rows: [], fields: [], rowCount: 0 }),
+    end: jest.fn().mockResolvedValue(undefined),
+    on: jest.fn(),
+  };
+  const mTypes = {
+    getTypeParser: jest.fn().mockReturnValue(() => {}),
+    setTypeParser: jest.fn(),
+    builtins: {},
+  };
+  return {
+    Pool: jest.fn(() => mPool),
+    Client: jest.fn(() => mClient),
+    types: mTypes,
+  };
+});
+
 jest.mock('../../../src/infrastructure/persistence/PostgresInventoryRepository', () => {
   const { InMemoryInventoryRepository } = require('../../../src/infrastructure/persistence/InMemoryInventoryRepository');
   return { PostgresInventoryRepository: InMemoryInventoryRepository };
@@ -155,10 +180,57 @@ import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { VariantAttribute } from '../../../src/domain/valueObjects/VariantAttribute';
 import { WarehouseLocation } from '../../../src/domain/entities/WarehouseLocation';
 
-// Mock the Prisma/Pool calls to prevent database connection attempts during test lifecycle
 jest.spyOn(prisma.inventoryItem, 'deleteMany').mockImplementation(() => Promise.resolve({ count: 0 }) as any);
+jest.spyOn(prisma, '$connect').mockImplementation(() => Promise.resolve());
 jest.spyOn(prisma, '$disconnect').mockImplementation(() => Promise.resolve());
-jest.spyOn(pool, 'end').mockImplementation(() => Promise.resolve());
+
+const mockNotifications: any[] = [];
+jest.spyOn(prisma.ledgerEntry, 'findFirst').mockResolvedValue({ tenantId: 'tenant-1' } as any);
+jest.spyOn(prisma.notification, 'findMany').mockImplementation(async (args?: any) => {
+  const tenantId = args?.where?.tenantId;
+  let list = mockNotifications;
+  if (tenantId) {
+    list = list.filter(n => n.tenantId === tenantId);
+  }
+  return list;
+});
+jest.spyOn(prisma.notification, 'create').mockImplementation(async (args: any) => {
+  const data = args.data;
+  const newNotification = {
+    id: data.id || 'notif-id',
+    tenantId: data.tenantId,
+    title: data.title,
+    message: data.message,
+    type: data.type || 'info',
+    isRead: data.isRead ?? false,
+    createdAt: new Date()
+  };
+  mockNotifications.push(newNotification);
+  return newNotification;
+});
+jest.spyOn(prisma.notification, 'update').mockImplementation(async (args: any) => {
+  const id = args.where.id;
+  const data = args.data;
+  const idx = mockNotifications.findIndex(n => n.id === id);
+  if (idx !== -1) {
+    mockNotifications[idx] = { ...mockNotifications[idx], ...data };
+    return mockNotifications[idx];
+  }
+  return null;
+});
+jest.spyOn(prisma.notification, 'updateMany').mockImplementation(async (args: any) => {
+  const tenantId = args?.where?.tenantId;
+  const isRead = args?.where?.isRead;
+  const data = args.data;
+  let count = 0;
+  mockNotifications.forEach((n, idx) => {
+    if ((!tenantId || n.tenantId === tenantId) && (isRead === undefined || n.isRead === isRead)) {
+      mockNotifications[idx] = { ...n, ...data };
+      count++;
+    }
+  });
+  return { count };
+});
 
 describe('GraphQL Resolvers', () => {
   beforeAll(async () => {
@@ -963,6 +1035,53 @@ describe('GraphQL Resolvers', () => {
     expect(dispatches[0].ledgerEntryId).toBe('le-recall-dispatch-1');
     expect(dispatches[0].quantity).toBe(10);
     expect(dispatches[0].referenceId).toBe('ORDER-FEFO-1');
+  });
+
+  describe('Notifications System', () => {
+    it('should query, mark as read, and mark all as read for notifications', async () => {
+      const context = { auth: { role: 'admin', tenantId: 'tenant-acme' } };
+
+      // Manually add a mock notification
+      mockNotifications.push({
+        id: 'notif-1',
+        tenantId: 'tenant-acme',
+        title: 'Low Stock Alert',
+        message: 'SKU SKU1 dropped to 5 items',
+        type: 'warning',
+        isRead: false,
+        createdAt: new Date()
+      });
+      mockNotifications.push({
+        id: 'notif-2',
+        tenantId: 'tenant-acme',
+        title: 'Inventory Reconciled',
+        message: 'Variance of 10 recorded',
+        type: 'info',
+        isRead: false,
+        createdAt: new Date()
+      });
+
+      // Query notifications
+      const notifs = await (resolvers.Query as any).notifications(null, { tenantId: 'tenant-acme' }, context);
+      expect(notifs).toHaveLength(2);
+      expect(notifs.some((n: any) => n.id === 'notif-1')).toBe(true);
+      expect(notifs.some((n: any) => n.id === 'notif-2')).toBe(true);
+
+      // Mark single notification as read
+      const markResult = await (resolvers.Mutation as any).markNotificationAsRead(null, { id: 'notif-1' }, context);
+      expect(markResult).toBe(true);
+
+      const notifsAfterMark = await (resolvers.Query as any).notifications(null, { tenantId: 'tenant-acme' }, context);
+      expect(notifsAfterMark.find((n: any) => n.id === 'notif-1')?.isRead).toBe(true);
+      expect(notifsAfterMark.find((n: any) => n.id === 'notif-2')?.isRead).toBe(false);
+
+      // Mark all notifications as read
+      const markAllResult = await (resolvers.Mutation as any).markAllNotificationsAsRead(null, { tenantId: 'tenant-acme' }, context);
+      expect(markAllResult).toBe(true);
+
+      const notifsAfterMarkAll = await (resolvers.Query as any).notifications(null, { tenantId: 'tenant-acme' }, context);
+      expect(notifsAfterMarkAll.every((n: any) => n.isRead)).toBe(true);
+    });
   });
 
   describe('Authentication & User Management', () => {

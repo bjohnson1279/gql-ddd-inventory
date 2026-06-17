@@ -25,6 +25,7 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
             'ExternalMapping',
             'JournalEntry',
             'StockOnboarding',
+            'Notification',
           ];
 
             if (modelsWithTenant.includes(model)) {

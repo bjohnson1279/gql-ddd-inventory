@@ -444,3 +444,15 @@ model ApiToken {
   @@map("api_tokens")
 }
 
+model Notification {
+  id        String   @id @db.Uuid
+  tenantId  String   @map("tenant_id")
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("notifications")
+}
+

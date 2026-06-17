@@ -1,3 +1,14 @@
+jest.mock('../../../src/infrastructure/persistence/prismaClient', () => ({
+  prisma: {
+    ledgerEntry: {
+      findFirst: jest.fn().mockResolvedValue({ tenantId: 'tenant-1' })
+    },
+    notification: {
+      create: jest.fn().mockResolvedValue({})
+    }
+  }
+}));
+
 import { LowStockAlertHandler } from '../../../src/application/eventHandlers/LowStockAlertHandler';
 import { LowStockAlertEvent } from '../../../src/domain/events/InventoryEvents';
 

@@ -1,30 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { hashPassword, verifyPassword } from '../utils/security';
-import { PubSub } from 'graphql-subscriptions';
-import { RedisPubSub } from 'graphql-redis-subscriptions';
-import Redis from 'ioredis';
+import { pubsub } from './pubsub';
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
-
-let pubsubInstance: any;
-
-if (process.env.NODE_ENV === 'test') {
-  pubsubInstance = new PubSub();
-} else {
-  const redisOptions = {
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: Number(process.env.REDIS_PORT) || 6379,
-    retryStrategy: (times: number) => Math.min(times * 50, 2000),
-  };
-
-  pubsubInstance = new RedisPubSub({
-    publisher: new Redis(redisOptions),
-    subscriber: new Redis(redisOptions),
-  });
-}
-
-const pubsub = pubsubInstance;
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 
 import { ReceiveStockUseCase } from '../../application/useCases/ReceiveStock';
@@ -906,9 +885,53 @@ export const resolvers = {
       } catch (error: any) {
         throw new Error(error.message);
       }
+    },
+    notifications: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+        const list = await prisma.notification.findMany({
+          where: { tenantId: auth.tenantId },
+          orderBy: { createdAt: 'desc' }
+        });
+        return list.map((item: any) => ({
+          id: item.id,
+          tenantId: item.tenantId,
+          title: item.title,
+          message: item.message,
+          type: item.type,
+          isRead: item.isRead,
+          createdAt: item.createdAt.toISOString()
+        }));
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
     }
   },
   Mutation: {
+    markNotificationAsRead: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        await prisma.notification.update({
+          where: { id },
+          data: { isRead: true }
+        });
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    markAllNotificationsAsRead: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+        await prisma.notification.updateMany({
+          where: { tenantId: auth.tenantId, isRead: false },
+          data: { isRead: true }
+        });
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
     receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);

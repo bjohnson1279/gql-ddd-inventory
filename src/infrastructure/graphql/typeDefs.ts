@@ -524,6 +524,16 @@ export const typeDefs = `#graphql
     locationId: ID!
   }
 
+  type Notification {
+    id: ID!
+    tenantId: ID!
+    title: String!
+    message: String!
+    type: String!
+    isRead: Boolean!
+    createdAt: String!
+  }
+
   type Query {
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
@@ -558,6 +568,7 @@ export const typeDefs = `#graphql
     rmas(tenantId: ID!): [Rma!]!
     quarantineItem(id: ID!): QuarantineItem
     quarantineItems(tenantId: ID!): [QuarantineItem!]!
+    notifications(tenantId: ID!): [Notification!]!
   }
 
   type InventoryCountResult {
@@ -737,6 +748,8 @@ export const typeDefs = `#graphql
 
     updateProductVariantCostingMethod(sku: String!, costingMethod: String!): ProductVariant!
     receiveStockWithLot(sku: String!, locationId: String!, quantity: Int!, unitCostCents: Int!, lotNumber: String!, expirationDate: String!): Boolean!
+    markNotificationAsRead(id: ID!): Boolean!
+    markAllNotificationsAsRead(tenantId: ID!): Boolean!
   }
 
   type Subscription {
