@@ -93,4 +93,4 @@
 ## 2024-06-17 - Fix unauthorized access to setup mutation
 **Vulnerability:** The `setup` GraphQL mutation allowed any unauthenticated user to create new tenant accounts and administrator users within those tenants. This open access posed a critical risk of DoS attacks (filling the database with bogus tenants) and potential unauthorized access if a tenant could overlap.
 **Learning:** Initial application bootstrap processes or setup scripts exposed via standard web/GraphQL APIs are commonly forgotten and left accessible to the public post-deployment.
-**Prevention:** Ensure that initial setup processes are either restricted exclusively to non-production environments (`NODE_ENV !== 'production'`) or properly secured with dedicated authentication tokens/secrets at the application boundary before deployment.
+**Prevention:** Ensure that initial setup processes are either restricted exclusively to known, non-production environments (e.g., by whitelisting `development` and `test`) or properly secured with dedicated authentication tokens/secrets at the application boundary before deployment.
