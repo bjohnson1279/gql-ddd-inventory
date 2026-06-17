@@ -90,8 +90,7 @@
 **Learning:** This exposes internal file paths and execution context to clients, potentially assisting attackers in footprinting the application infrastructure.
 **Prevention:** Implement a custom `formatError` hook in the ApolloServer options that explicitly strips stacktrace attributes from the `extensions` object before the error payload is returned to the client.
 
-## 2026-06-18 - Unauthenticated Setup Mutation Vulnerability
-
-**Vulnerability:** An unauthenticated `setup` GraphQL mutation was left exposed without any authorization checks, allowing an attacker to create new tenants, roles, and administrative users with arbitrary passwords on any environment, leading to a complete system compromise.
-**Learning:** Bootstrap or initialization scripts/mutations are extremely sensitive. When not restricted, they allow attackers to bypass all intended onboarding flows or hijack existing deployments by creating hidden super-admin users.
-**Prevention:** Always restrict setup operations. If adding token-based authentication is not feasible, restrict the execution to non-production environments explicitly (`if (process.env.NODE_ENV === 'production') throw new Error(...)`).
+## 2024-06-17 - Fix unauthorized access to setup mutation
+**Vulnerability:** The `setup` GraphQL mutation allowed any unauthenticated user to create new tenant accounts and administrator users within those tenants. This open access posed a critical risk of DoS attacks (filling the database with bogus tenants) and potential unauthorized access if a tenant could overlap.
+**Learning:** Initial application bootstrap processes or setup scripts exposed via standard web/GraphQL APIs are commonly forgotten and left accessible to the public post-deployment.
+**Prevention:** Ensure that initial setup processes are either restricted exclusively to known, non-production environments (e.g., by whitelisting `development` and `test`) or properly secured with dedicated authentication tokens/secrets at the application boundary before deployment.
