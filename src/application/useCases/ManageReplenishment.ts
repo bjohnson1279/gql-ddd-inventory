@@ -290,7 +290,7 @@ export class ReceivePurchaseOrderUseCase {
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-    const itemsToSave = new Set<InventoryItem>();
+    const itemsToSave = new Map<string, InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
     // Deduct in-transit, increment physical stock, write ledger entry
