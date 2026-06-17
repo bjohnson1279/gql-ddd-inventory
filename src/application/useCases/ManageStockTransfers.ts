@@ -267,7 +267,7 @@ export class CancelStockTransferUseCase {
       const sourceItemsMap = new Map(sourceItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
       const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-      const itemsToSave = new Set<InventoryItem>();
+      const itemsToSave = new Map<string, InventoryItem>();
       const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
       for (const item of transfer.items) {
