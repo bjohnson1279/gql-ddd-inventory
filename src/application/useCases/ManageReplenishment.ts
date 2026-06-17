@@ -237,7 +237,7 @@ export class PlacePurchaseOrderUseCase {
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-    const itemsToSave: InventoryItem[] = [];
+    const itemsToSave = new Set<InventoryItem>();
 
     // Increment in-transit stock for items
     for (const item of po.items) {
@@ -250,12 +250,10 @@ export class PlacePurchaseOrderUseCase {
         destItemsMap.set(key, invItem);
       }
       invItem.createInTransit(new Quantity(item.quantity));
-      if (!itemsToSave.includes(invItem)) {
-        itemsToSave.push(invItem);
-      }
+      itemsToSave.add(invItem);
     }
 
-    await this.inventoryRepo.saveBatch(itemsToSave);
+    await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
 
     await this.poRepo.save(po);
     return toPoDTO(po);
@@ -292,7 +290,7 @@ export class ReceivePurchaseOrderUseCase {
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-    const itemsToSave: InventoryItem[] = [];
+    const itemsToSave = new Set<InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
     // Deduct in-transit, increment physical stock, write ledger entry
@@ -306,15 +304,13 @@ export class ReceivePurchaseOrderUseCase {
       }
 
       invItem.receiveInTransit(new Quantity(item.quantity));
-      if (!itemsToSave.includes(invItem)) {
-        itemsToSave.push(invItem);
-      }
+      itemsToSave.add(invItem);
 
       // Append ledger receipt
       ledgerEntriesData.push({ sku, locationId: po.destinationLocationId.value, quantity: item.quantity });
     }
 
-    await this.inventoryRepo.saveBatch(itemsToSave);
+    await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
 
     await appendStockLedgerEntries(
       this.productRepo,
@@ -361,7 +357,7 @@ export class CancelPurchaseOrderUseCase {
       const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
       const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-      const itemsToSave: InventoryItem[] = [];
+      const itemsToSave = new Set<InventoryItem>();
 
       for (const item of po.items) {
         const sku = variantSkus.get(item.variantId.value)!;
@@ -369,13 +365,11 @@ export class CancelPurchaseOrderUseCase {
         const invItem = destItemsMap.get(key);
         if (invItem) {
           invItem.cancelInTransit(new Quantity(item.quantity));
-          if (!itemsToSave.includes(invItem)) {
-            itemsToSave.push(invItem);
-          }
+          itemsToSave.add(invItem);
         }
       }
 
-      await this.inventoryRepo.saveBatch(itemsToSave);
+      await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
     }
 
     await this.poRepo.save(po);

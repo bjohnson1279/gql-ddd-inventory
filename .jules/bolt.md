@@ -40,3 +40,6 @@
 ## 2026-06-14 - Avoid N+1 Queries inside Replenishment Rule Evaluator Loops
 **Learning:** Calling `poRepo.findAllByTenant`, `transferRepo.findAllByTenant`, `productRepo.findBySku`, and `inventoryRepo.findBySkuAndLocation` inside the `for (const rule of rules)` loop in `ReplenishmentEvaluator.ts` results in O(N) isolated database queries and redundant collections fetches, severely degrading performance when analyzing numerous active rules.
 **Action:** Extract database operations outside the rule loop by pre-fetching `openPos` and `openTransfers` upfront, and use batch repository methods (`productRepo.findBySkus`, `inventoryRepo.findBySkuAndLocationBatch`) mapped by `sku` or `sku_locationId` to allow fast O(1) in-memory resolution for every evaluated rule. Ensure test mocks reflect and support these batch operations properly.
+## 2026-06-15 - Optimize O(N^2) Unique Domain Object Tracking
+**Learning:** Checking `array.includes(item)` inside an iteration loop before doing `array.push(item)` (e.g., to batch items for `saveBatch`) causes an O(N^2) time complexity.
+**Action:** Always replace the `Array` with a `Set<T>` for collecting unique items to achieve O(1) lookups (`set.has`, `set.add`), and convert it back to an array using `Array.from(set)` when passing it to repository methods.
