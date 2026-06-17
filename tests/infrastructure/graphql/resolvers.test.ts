@@ -1068,6 +1068,21 @@ describe('GraphQL Resolvers', () => {
       jest.restoreAllMocks();
     });
 
+    it('should throw an error when setup is called in production environment', async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      await expect((resolvers.Mutation as any).setup(null, {
+        orgName: 'Acme Org',
+        tenantId: 'tenant-acme',
+        adminName: 'Admin Alice',
+        adminEmail: 'alice@acme.com',
+        adminPassword: 'Password123!'
+      })).rejects.toThrow('Setup mutation is disabled in production environments.');
+
+      process.env.NODE_ENV = originalNodeEnv;
+    });
+
     it('should setup a new organization and admin user', async () => {
       const result = await (resolvers.Mutation as any).setup(null, {
         orgName: 'Acme Org',
