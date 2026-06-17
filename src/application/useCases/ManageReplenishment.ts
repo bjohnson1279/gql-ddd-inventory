@@ -237,7 +237,7 @@ export class PlacePurchaseOrderUseCase {
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-    const itemsToSave = new Set<InventoryItem>();
+    const itemsToSave = new Map<string, InventoryItem>();
 
     // Increment in-transit stock for items
     for (const item of po.items) {
