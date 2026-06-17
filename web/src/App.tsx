@@ -1182,7 +1182,7 @@ function App() {
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
                                       {(role === 'admin' || role === 'warehouse_operator') ? (
-                                        <button className="btn btn-danger" aria-label={`Revoke barcode ${b.barcode.value}`} style={{ padding: '0.1rem 0.4rem', fontSize: '0.75rem', height: 'auto', marginLeft: '0.5rem' }} onClick={() => handleRevokeBarcode(v.sku, b.id)} disabled={loading}>
+                                        <button type="button" className="btn btn-danger" aria-label={"Revoke barcode " + b.barcode.value} style={{ padding: '0.1rem 0.4rem', fontSize: '0.75rem', height: 'auto', marginLeft: '0.5rem' }} onClick={() => handleRevokeBarcode(v.sku, b.id)} disabled={loading}>
                                           Revoke
                                         </button>
                                       ) : <span></span>}
