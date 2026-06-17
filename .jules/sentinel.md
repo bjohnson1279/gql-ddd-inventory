@@ -89,3 +89,9 @@
 **Vulnerability:** Apollo Server, by default, returns full stacktraces in its error responses under the `extensions.exception.stacktrace` or `extensions.stacktrace` object paths.
 **Learning:** This exposes internal file paths and execution context to clients, potentially assisting attackers in footprinting the application infrastructure.
 **Prevention:** Implement a custom `formatError` hook in the ApolloServer options that explicitly strips stacktrace attributes from the `extensions` object before the error payload is returned to the client.
+
+## 2026-06-18 - Unauthenticated Setup Mutation Vulnerability
+
+**Vulnerability:** An unauthenticated `setup` GraphQL mutation was left exposed without any authorization checks, allowing an attacker to create new tenants, roles, and administrative users with arbitrary passwords on any environment, leading to a complete system compromise.
+**Learning:** Bootstrap or initialization scripts/mutations are extremely sensitive. When not restricted, they allow attackers to bypass all intended onboarding flows or hijack existing deployments by creating hidden super-admin users.
+**Prevention:** Always restrict setup operations. If adding token-based authentication is not feasible, restrict the execution to non-production environments explicitly (`if (process.env.NODE_ENV === 'production') throw new Error(...)`).
