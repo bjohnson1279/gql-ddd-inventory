@@ -1448,6 +1448,9 @@ export const resolvers = {
       );
     },
     setup: async (_: any, { orgName, tenantId, adminName, adminEmail, adminPassword }: { orgName: string; tenantId: string; adminName: string; adminEmail: string; adminPassword: string }) => {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Setup mutation is disabled in production environments.');
+      }
       try {
         let tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
         if (!tenant) {
