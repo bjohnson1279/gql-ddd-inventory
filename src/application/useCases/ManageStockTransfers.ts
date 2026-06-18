@@ -113,7 +113,7 @@ export class DispatchStockTransferUseCase {
     const sourceItemsMap = new Map(sourceItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-    const itemsToSave: InventoryItem[] = [];
+    const itemsToSave = new Set<InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
     // Perform stock decrements at source and set inTransit at destination
@@ -127,9 +127,7 @@ export class DispatchStockTransferUseCase {
         throw new Error(`Inventory item for SKU ${sku} at source location ${transfer.sourceLocationId.value} not found.`);
       }
       sourceItem.dispatchStock(new Quantity(item.quantity));
-      if (!itemsToSave.includes(sourceItem)) {
-        itemsToSave.push(sourceItem);
-      }
+      itemsToSave.add(sourceItem);
 
       // Append to ledger at source (negative decrement)
       ledgerEntriesData.push({ sku, locationId: transfer.sourceLocationId.value, quantity: -item.quantity });
@@ -142,12 +140,10 @@ export class DispatchStockTransferUseCase {
         destItemsMap.set(destKey, destItem);
       }
       destItem.createInTransit(new Quantity(item.quantity));
-      if (!itemsToSave.includes(destItem)) {
-        itemsToSave.push(destItem);
-      }
+      itemsToSave.add(destItem);
     }
 
-    await this.inventoryRepo.saveBatch(itemsToSave);
+    await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
 
     await appendStockLedgerEntries(
       this.productRepo,
@@ -192,7 +188,7 @@ export class ReceiveStockTransferUseCase {
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-    const itemsToSave: InventoryItem[] = [];
+    const itemsToSave = new Set<InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
     // Receive stock at destination location
@@ -206,15 +202,13 @@ export class ReceiveStockTransferUseCase {
       }
 
       destItem.receiveInTransit(new Quantity(item.quantity));
-      if (!itemsToSave.includes(destItem)) {
-        itemsToSave.push(destItem);
-      }
+      itemsToSave.add(destItem);
 
       // Append ledger entry at destination (positive receipt)
       ledgerEntriesData.push({ sku, locationId: transfer.destinationLocationId.value, quantity: item.quantity });
     }
 
-    await this.inventoryRepo.saveBatch(itemsToSave);
+    await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
 
     await appendStockLedgerEntries(
       this.productRepo,
@@ -273,7 +267,7 @@ export class CancelStockTransferUseCase {
       const sourceItemsMap = new Map(sourceItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
       const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
-      const itemsToSave: InventoryItem[] = [];
+      const itemsToSave = new Set<InventoryItem>();
       const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
       for (const item of transfer.items) {
@@ -287,9 +281,7 @@ export class CancelStockTransferUseCase {
           sourceItemsMap.set(sourceKey, sourceItem);
         }
         sourceItem.receiveStock(new Quantity(item.quantity));
-        if (!itemsToSave.includes(sourceItem)) {
-          itemsToSave.push(sourceItem);
-        }
+        itemsToSave.add(sourceItem);
 
         // Append ledger adjustment back at source (positive transfer return)
         ledgerEntriesData.push({ sku, locationId: transfer.sourceLocationId.value, quantity: item.quantity });
@@ -299,13 +291,11 @@ export class CancelStockTransferUseCase {
         const destItem = destItemsMap.get(destKey);
         if (destItem) {
           destItem.cancelInTransit(new Quantity(item.quantity));
-          if (!itemsToSave.includes(destItem)) {
-            itemsToSave.push(destItem);
-          }
+          itemsToSave.add(destItem);
         }
       }
 
-      await this.inventoryRepo.saveBatch(itemsToSave);
+      await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
 
       await appendStockLedgerEntries(
         this.productRepo,
