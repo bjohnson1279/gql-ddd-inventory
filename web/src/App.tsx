@@ -656,6 +656,9 @@ function App() {
 
   const handlePostJournal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!window.confirm('Are you sure you want to post this journal entry? This will permanently post to the General Ledger and cannot be reversed.')) {
+      return;
+    }
     setLoading(true);
     try {
       const entryId = 'j-entry-' + Math.random().toString(36).substring(2, 10);
