@@ -320,6 +320,12 @@ test.describe('GraphQL DDD Inventory Management Dashboard E2E Tests', () => {
     await accountCodeInputs.nth(1).fill('2020');
     await amountCentsInputs.nth(1).fill('20000');
 
+    // Handle confirm dialog
+    page.once('dialog', dialog => {
+      expect(dialog.message()).toBe('Are you sure you want to post this journal entry? This will permanently post to the General Ledger and cannot be reversed.');
+      dialog.accept();
+    });
+
     // Post balanced entry
     await page.click('button:has-text("Post Balanced Journal Entry")');
 
