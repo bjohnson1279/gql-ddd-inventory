@@ -136,7 +136,7 @@ export class ReceiveRmaUseCase {
       existingItems.set(`${item.sku.value}_${item.locationId.value}`, item);
     }
 
-    const pendingAdjustments = new Map<string, { skuStr: string; targetLocationId: string; qty: number }>();
+    const itemsToSave = new Map<string, InventoryItem>();
 
     for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
@@ -163,7 +163,7 @@ export class ReceiveRmaUseCase {
         existingItems.set(invKey, invItem);
       }
       invItem.receiveStock(new Quantity(item.quantityReceived));
-      inventoryItemsToSave.set(invKey, invItem);
+      itemsToSave.set(invKey, invItem);
 
       // 4. Create Cost Layer
       const layerId = crypto.randomUUID();
@@ -202,7 +202,8 @@ export class ReceiveRmaUseCase {
 
       // 7. Handle immediate scrap write-off
       if (item.disposition === RMADisposition.Scrap) {
-        // Decrement stock level (no-op as net change is 0 and handled via deferred adjustments)
+        // Decrement stock level
+        invItem.dispatchStock(new Quantity(item.quantityReceived));
 
         // Consume the cost layer
         await this.costLayerService.consumeFifoLayers(new ProductVariantId(item.variantId), item.quantityReceived);
@@ -242,8 +243,8 @@ export class ReceiveRmaUseCase {
       }
     }
 
-    if (inventoryItemsToSave.size > 0) {
-      await this.inventoryRepository.saveBatch(Array.from(inventoryItemsToSave.values()));
+    if (itemsToSave.size > 0) {
+      await this.inventoryRepository.saveBatch(Array.from(itemsToSave.values()));
     }
 
     await this.rmaRepository.save(rma);
@@ -290,8 +291,8 @@ export class ResolveQuarantineItemUseCase {
     }
     invQuarantineItem.dispatchStock(new Quantity(qItem.quantity));
 
-    const inventoryItemsToSave = new Map<string, InventoryItem>();
-    inventoryItemsToSave.set(invQuarantineItem.id, invQuarantineItem);
+    const itemsToSave = new Map<string, InventoryItem>();
+    itemsToSave.set(invQuarantineItem.id, invQuarantineItem);
 
     const consumeQuarantineLayers = async (qty: number): Promise<number> => {
       const breakdown = await this.costLayerService.consumeFifoLayers(qItem.variantId, qty);
@@ -307,7 +308,7 @@ export class ResolveQuarantineItemUseCase {
         invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, qItem.locationId.value);
       }
       invItem.receiveStock(new Quantity(qItem.quantity));
-      inventoryItemsToSave.set(invItem.id, invItem);
+      itemsToSave.set(invItem.id, invItem);
     } else if (dto.resolution === 'SCRAP') {
       qItem.resolveScrap();
 
@@ -332,8 +333,8 @@ export class ResolveQuarantineItemUseCase {
       );
     }
 
-    if (inventoryItemsToSave.size > 0) {
-      await this.inventoryRepository.saveBatch(Array.from(inventoryItemsToSave.values()));
+    if (itemsToSave.size > 0) {
+      await this.inventoryRepository.saveBatch(Array.from(itemsToSave.values()));
     }
 
     await this.quarantineRepository.save(qItem);
