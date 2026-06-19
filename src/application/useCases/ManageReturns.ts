@@ -136,7 +136,7 @@ export class ReceiveRmaUseCase {
       existingItems.set(`${item.sku.value}_${item.locationId.value}`, item);
     }
 
-    const inventoryItemsToSave = new Map<string, InventoryItem>();
+    const pendingAdjustments = new Map<string, { skuStr: string; targetLocationId: string; qty: number }>();
 
     for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
