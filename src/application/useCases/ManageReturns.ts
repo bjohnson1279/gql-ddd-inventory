@@ -119,7 +119,26 @@ export class ReceiveRmaUseCase {
       throw new Error(`RMA with ID ${dto.rmaId} not found.`);
     }
 
-    await Promise.all(dto.items.map(async (item) => {
+    // Batch SKU Lookups
+    const variantIds = Array.from(new Set(dto.items.map(item => item.variantId)));
+    const skusByVariant = await this.productRepository.findSkusByVariantIds(variantIds);
+
+    // Batch Inventory Item Lookups
+    const pairs = dto.items.map(item => {
+      const skuStr = skusByVariant.get(item.variantId);
+      if (!skuStr) throw new Error(`SKU not found for variant ID ${item.variantId}`);
+      const targetLocationId = item.disposition === RMADisposition.Quarantine ? `${rma.locationId.value}-quarantine` : rma.locationId.value;
+      return { sku: skuStr, locationId: targetLocationId };
+    });
+    const existingItemsList = await this.inventoryRepository.findBySkuAndLocationBatch(pairs);
+    const existingItems = new Map<string, InventoryItem>();
+    for (const item of existingItemsList) {
+      existingItems.set(`${item.sku.value}_${item.locationId.value}`, item);
+    }
+
+    const itemsToSave = new Map<string, InventoryItem>();
+
+    for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
       if (!rmaItem) {
         throw new Error(`Item with variant ID ${item.variantId} not found in RMA.`);
@@ -134,18 +153,17 @@ export class ReceiveRmaUseCase {
           : rma.locationId.value;
 
       // 2. Lookup SKU for target variant
-      const skuStr = await this.productRepository.findSkuByVariantId(item.variantId);
-      if (!skuStr) {
-        throw new Error(`SKU not found for variant ID ${item.variantId}`);
-      }
+      const skuStr = skusByVariant.get(item.variantId)!;
 
       // 3. Increment stock level
-      let invItem = await this.inventoryRepository.findBySkuAndLocation(skuStr, targetLocationId);
+      const invKey = `${skuStr}_${targetLocationId}`;
+      let invItem = existingItems.get(invKey);
       if (!invItem) {
         invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, targetLocationId);
+        existingItems.set(invKey, invItem);
       }
       invItem.receiveStock(new Quantity(item.quantityReceived));
-      await this.inventoryRepository.save(invItem);
+      itemsToSave.set(invKey, invItem);
 
       // 4. Create Cost Layer
       const layerId = crypto.randomUUID();
@@ -186,7 +204,6 @@ export class ReceiveRmaUseCase {
       if (item.disposition === RMADisposition.Scrap) {
         // Decrement stock level
         invItem.dispatchStock(new Quantity(item.quantityReceived));
-        await this.inventoryRepository.save(invItem);
 
         // Consume the cost layer
         await this.costLayerService.consumeFifoLayers(new ProductVariantId(item.variantId), item.quantityReceived);
@@ -202,7 +219,7 @@ export class ReceiveRmaUseCase {
 
       // 8. Handle Serialized items transitions
       if (item.serialNumbers && this.serializedItemRepository) {
-        await Promise.all(item.serialNumbers.map(async (sn) => {
+        for (const sn of item.serialNumbers) {
           const serialObj = new SerialNumber(sn);
           const serialItem = await this.serializedItemRepository!.findBySerial(new ProductVariantId(item.variantId), serialObj);
           if (serialItem) {
@@ -222,9 +239,13 @@ export class ReceiveRmaUseCase {
             }
             await this.serializedItemRepository!.save(serialItem);
           }
-        }));
+        }
       }
-    }));
+    }
+
+    if (itemsToSave.size > 0) {
+      await this.inventoryRepository.saveBatch(Array.from(itemsToSave.values()));
+    }
 
     await this.rmaRepository.save(rma);
   }
@@ -269,7 +290,9 @@ export class ResolveQuarantineItemUseCase {
       throw new Error(`Quarantine stock not found for variant ${qItem.variantId.value} at ${quarantineLocId}.`);
     }
     invQuarantineItem.dispatchStock(new Quantity(qItem.quantity));
-    await this.inventoryRepository.save(invQuarantineItem);
+
+    const itemsToSave = new Map<string, InventoryItem>();
+    itemsToSave.set(invQuarantineItem.id, invQuarantineItem);
 
     const consumeQuarantineLayers = async (qty: number): Promise<number> => {
       const breakdown = await this.costLayerService.consumeFifoLayers(qItem.variantId, qty);
@@ -285,7 +308,7 @@ export class ResolveQuarantineItemUseCase {
         invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, qItem.locationId.value);
       }
       invItem.receiveStock(new Quantity(qItem.quantity));
-      await this.inventoryRepository.save(invItem);
+      itemsToSave.set(invItem.id, invItem);
     } else if (dto.resolution === 'SCRAP') {
       qItem.resolveScrap();
 
@@ -308,6 +331,10 @@ export class ResolveQuarantineItemUseCase {
         new Date(),
         qItem.tenantId.value
       );
+    }
+
+    if (itemsToSave.size > 0) {
+      await this.inventoryRepository.saveBatch(Array.from(itemsToSave.values()));
     }
 
     await this.quarantineRepository.save(qItem);
