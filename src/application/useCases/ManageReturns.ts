@@ -119,7 +119,36 @@ export class ReceiveRmaUseCase {
       throw new Error(`RMA with ID ${dto.rmaId} not found.`);
     }
 
-    await Promise.all(dto.items.map(async (item) => {
+    // Pre-fetch SKUs for all items
+    const variantIds = dto.items.map(item => item.variantId);
+    const skuMap = await this.productRepository.findSkusByVariantIds(variantIds);
+
+    // Pre-fetch all necessary inventory items
+    const inventoryPairs = [];
+    for (const item of dto.items) {
+      const skuStr = skuMap.get(item.variantId);
+      if (!skuStr) {
+        throw new Error(`SKU not found for variant ID ${item.variantId}`);
+      }
+      const targetLocationId =
+        item.disposition === RMADisposition.Quarantine
+          ? `${rma.locationId.value}-quarantine`
+          : rma.locationId.value;
+      inventoryPairs.push({ sku: skuStr, locationId: targetLocationId });
+    }
+
+    const fetchedItems = await this.inventoryRepository.findBySkuAndLocationBatch(inventoryPairs);
+    const invMap = new Map();
+    for (const inv of fetchedItems) {
+      invMap.set(`${inv.sku.value}_${inv.locationId.value}`, inv);
+    }
+
+    const costLayersToSave = [];
+    const quarantineItemsToSave = [];
+    const serialItemsToSave = [];
+
+    // Process each item sequentially in memory
+    for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
       if (!rmaItem) {
         throw new Error(`Item with variant ID ${item.variantId} not found in RMA.`);
@@ -134,18 +163,16 @@ export class ReceiveRmaUseCase {
           : rma.locationId.value;
 
       // 2. Lookup SKU for target variant
-      const skuStr = await this.productRepository.findSkuByVariantId(item.variantId);
-      if (!skuStr) {
-        throw new Error(`SKU not found for variant ID ${item.variantId}`);
-      }
+      const skuStr = skuMap.get(item.variantId);
 
       // 3. Increment stock level
-      let invItem = await this.inventoryRepository.findBySkuAndLocation(skuStr, targetLocationId);
+      const invKey = `${skuStr || ''}_${targetLocationId}`;
+      let invItem = invMap.get(invKey);
       if (!invItem) {
-        invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, targetLocationId);
+        invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr as string, targetLocationId);
+        invMap.set(invKey, invItem);
       }
       invItem.receiveStock(new Quantity(item.quantityReceived));
-      await this.inventoryRepository.save(invItem);
 
       // 4. Create Cost Layer
       const layerId = crypto.randomUUID();
@@ -156,7 +183,7 @@ export class ReceiveRmaUseCase {
         rmaItem.unitCostCents,
         new Date()
       );
-      await this.costLayerRepository.save(layer);
+      costLayersToSave.push(layer);
 
       // 5. Create Quarantine record if quarantined
       if (item.disposition === RMADisposition.Quarantine) {
@@ -169,7 +196,7 @@ export class ReceiveRmaUseCase {
           rma.locationId,
           rma.tenantId
         );
-        await this.quarantineRepository.save(quarantineItem);
+        quarantineItemsToSave.push(quarantineItem);
       }
 
       // 6. Post return journal entries
@@ -186,7 +213,6 @@ export class ReceiveRmaUseCase {
       if (item.disposition === RMADisposition.Scrap) {
         // Decrement stock level
         invItem.dispatchStock(new Quantity(item.quantityReceived));
-        await this.inventoryRepository.save(invItem);
 
         // Consume the cost layer
         await this.costLayerService.consumeFifoLayers(new ProductVariantId(item.variantId), item.quantityReceived);
@@ -202,9 +228,9 @@ export class ReceiveRmaUseCase {
 
       // 8. Handle Serialized items transitions
       if (item.serialNumbers && this.serializedItemRepository) {
-        await Promise.all(item.serialNumbers.map(async (sn) => {
+        for (const sn of item.serialNumbers) {
           const serialObj = new SerialNumber(sn);
-          const serialItem = await this.serializedItemRepository!.findBySerial(new ProductVariantId(item.variantId), serialObj);
+          const serialItem = await this.serializedItemRepository.findBySerial(new ProductVariantId(item.variantId), serialObj);
           if (serialItem) {
             const actor = new ActorId('system');
             const refId = `RMA-${rma.id}`;
@@ -220,11 +246,24 @@ export class ReceiveRmaUseCase {
             } else if (item.disposition === RMADisposition.Scrap) {
               serialItem.transitionTo(SerializedItemStatus.WrittenOff, 'Scrapped from RMA', actor, refId);
             }
-            await this.serializedItemRepository!.save(serialItem);
+            serialItemsToSave.push(serialItem);
           }
-        }));
+        }
       }
-    }));
+    }
+
+    await this.inventoryRepository.saveBatch(Array.from(invMap.values()));
+    await this.costLayerRepository.saveBatch(costLayersToSave);
+
+    for (const qItem of quarantineItemsToSave) {
+      await this.quarantineRepository.save(qItem);
+    }
+
+    if (this.serializedItemRepository) {
+      for (const sItem of serialItemsToSave) {
+        await this.serializedItemRepository.save(sItem);
+      }
+    }
 
     await this.rmaRepository.save(rma);
   }
