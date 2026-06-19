@@ -202,8 +202,7 @@ export class ReceiveRmaUseCase {
 
       // 7. Handle immediate scrap write-off
       if (item.disposition === RMADisposition.Scrap) {
-        // Decrement stock level
-        invItem.dispatchStock(new Quantity(item.quantityReceived));
+        // Decrement stock level (no-op as net change is 0 and handled via deferred adjustments)
 
         // Consume the cost layer
         await this.costLayerService.consumeFifoLayers(new ProductVariantId(item.variantId), item.quantityReceived);
