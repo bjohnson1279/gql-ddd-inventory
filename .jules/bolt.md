@@ -40,7 +40,3 @@
 ## 2026-06-14 - Avoid N+1 Queries inside Replenishment Rule Evaluator Loops
 **Learning:** Calling `poRepo.findAllByTenant`, `transferRepo.findAllByTenant`, `productRepo.findBySku`, and `inventoryRepo.findBySkuAndLocation` inside the `for (const rule of rules)` loop in `ReplenishmentEvaluator.ts` results in O(N) isolated database queries and redundant collections fetches, severely degrading performance when analyzing numerous active rules.
 **Action:** Extract database operations outside the rule loop by pre-fetching `openPos` and `openTransfers` upfront, and use batch repository methods (`productRepo.findBySkus`, `inventoryRepo.findBySkuAndLocationBatch`) mapped by `sku` or `sku_locationId` to allow fast O(1) in-memory resolution for every evaluated rule. Ensure test mocks reflect and support these batch operations properly.
-
-## 2026-06-19 - Ensure test mocks are updated when introducing new repository methods
-**Learning:** When introducing batching methods (e.g., `saveBatch`) to repository interfaces to fix N+1 query performance problems in a Use Case, the associated unit tests will fail with `TypeError: X is not a function` if the mock repositories used in tests are not updated to include these new methods.
-**Action:** Always `grep` for the affected repository injection across the `tests/` directory and update the `jest.mock` definitions to include implementations for any newly introduced methods before submitting a PR.
