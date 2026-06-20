@@ -138,9 +138,6 @@ export class ReceiveRmaUseCase {
     }
 
     const itemsToSave = new Map<string, InventoryItem>();
-    const costLayersToSave: InventoryCostLayer[] = [];
-    const quarantineItemsToSave: QuarantineItem[] = [];
-    const serialItemsToSave: SerializedItem[] = [];
 
     for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
@@ -178,7 +175,7 @@ export class ReceiveRmaUseCase {
         rmaItem.unitCostCents,
         new Date()
       );
-      costLayersToSave.push(layer);
+      await this.costLayerRepository.save(layer);
 
       // 5. Create Quarantine record if quarantined
       if (item.disposition === RMADisposition.Quarantine) {
@@ -191,7 +188,7 @@ export class ReceiveRmaUseCase {
           rma.locationId,
           rma.tenantId
         );
-        quarantineItemsToSave.push(quarantineItem);
+        await this.quarantineRepository.save(quarantineItem);
       }
 
       // 6. Post return journal entries
@@ -225,7 +222,7 @@ export class ReceiveRmaUseCase {
       if (item.serialNumbers && this.serializedItemRepository) {
         for (const sn of item.serialNumbers) {
           const serialObj = new SerialNumber(sn);
-          const serialItem = await this.serializedItemRepository.findBySerial(serialObj, rma.tenantId);
+          const serialItem = await this.serializedItemRepository!.findBySerial(new ProductVariantId(item.variantId), serialObj);
           if (serialItem) {
             const actor = new ActorId('system');
             const refId = `RMA-${rma.id}`;
@@ -241,7 +238,7 @@ export class ReceiveRmaUseCase {
             } else if (item.disposition === RMADisposition.Scrap) {
               serialItem.transitionTo(SerializedItemStatus.WrittenOff, 'Scrapped from RMA', actor, refId);
             }
-            serialItemsToSave.push(serialItem);
+            await this.serializedItemRepository!.save(serialItem);
           }
         }
       }
@@ -249,20 +246,6 @@ export class ReceiveRmaUseCase {
 
     if (itemsToSave.size > 0) {
       await this.inventoryRepository.saveBatch(Array.from(itemsToSave.values()));
-    }
-
-    if (costLayersToSave.length > 0) {
-      await this.costLayerRepository.saveBatch(costLayersToSave);
-    }
-
-    for (const qItem of quarantineItemsToSave) {
-      await this.quarantineRepository.save(qItem);
-    }
-
-    if (this.serializedItemRepository && serialItemsToSave.length > 0) {
-      for (const sItem of serialItemsToSave) {
-        await this.serializedItemRepository.save(sItem);
-      }
     }
 
     await this.rmaRepository.save(rma);

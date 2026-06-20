@@ -337,6 +337,12 @@ label {
   font-weight: 600;
 }
 
+.form-group:has(input[required]) label::after,
+.form-group:has(select[required]) label::after {
+  content: " *";
+  color: var(--error);
+}
+
 input, select, textarea {
   width: 100%;
   padding: 0.8rem 1rem;

@@ -6,6 +6,7 @@ import { LocationId } from '../valueObjects/LocationId';
 export class Rma {
   private _status: RMAStatus;
   private readonly _items: RmaItem[];
+  private _itemsArray: ReadonlyArray<RmaItem> | null = null;
 
   constructor(
     public readonly id: string,
@@ -26,8 +27,11 @@ export class Rma {
     return this._status;
   }
 
-  get items(): RmaItem[] {
-    return [...this._items];
+  get items(): ReadonlyArray<RmaItem> {
+    if (this._itemsArray === null) {
+      this._itemsArray = [...this._items];
+    }
+    return this._itemsArray;
   }
 
   authorize(): void {
