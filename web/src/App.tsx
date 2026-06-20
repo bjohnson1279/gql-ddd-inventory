@@ -709,7 +709,7 @@ function App() {
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>Enter credentials to generate authorization token</p>
 
           {message && (
-            <div className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ margin: 0 }}>
+            <div role="alert" aria-live="assertive" className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ margin: 0 }}>
               <strong>{message.type === 'success' ? '✓ Success: ' : '✗ Error: '}</strong> {message.text}
             </div>
           )}
@@ -828,7 +828,7 @@ function App() {
 
         {/* Global Messages */}
         {message && (
-          <div className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`}>
+          <div role="alert" aria-live="assertive" className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`}>
             <strong>{message.type === 'success' ? '✓ Success: ' : '✗ Error: '}</strong> {message.text}
           </div>
         )}
