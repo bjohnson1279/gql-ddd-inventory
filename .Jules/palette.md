@@ -10,3 +10,6 @@
 ## 2024-06-25 - [Add required field indicator]
 **Learning:** Found a missing visual indicator for required inputs. By leveraging CSS `:has()` pseudo-class with `[required]`, we can globally indicate required fields without changing JSX in dozens of places.
 **Action:** Used `:has()` selector in global CSS to append red asterisks to labels preceding required inputs/selects.
+## 2026-06-20 - Added role="alert" to dynamically rendered global messages
+**Learning:** React state-driven toast or alert messages (like success or error notifications) are not naturally announced by screen readers when they dynamically appear on the page. This leaves non-sighted users unaware of critical feedback, such as login failures or successful data submissions.
+**Action:** Always append `role="alert"` and `aria-live="assertive"` (or `polite` for non-critical updates) to dynamically rendered `<div className="alert-box">` elements so screen readers immediately announce their contents when they are added to the DOM.
