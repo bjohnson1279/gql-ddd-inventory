@@ -40,3 +40,7 @@
 ## 2026-06-14 - Avoid N+1 Queries inside Replenishment Rule Evaluator Loops
 **Learning:** Calling `poRepo.findAllByTenant`, `transferRepo.findAllByTenant`, `productRepo.findBySku`, and `inventoryRepo.findBySkuAndLocation` inside the `for (const rule of rules)` loop in `ReplenishmentEvaluator.ts` results in O(N) isolated database queries and redundant collections fetches, severely degrading performance when analyzing numerous active rules.
 **Action:** Extract database operations outside the rule loop by pre-fetching `openPos` and `openTransfers` upfront, and use batch repository methods (`productRepo.findBySkus`, `inventoryRepo.findBySkuAndLocationBatch`) mapped by `sku` or `sku_locationId` to allow fast O(1) in-memory resolution for every evaluated rule. Ensure test mocks reflect and support these batch operations properly.
+
+## 2026-06-20 - Cache spread array copies in getters
+**Learning:** Using the spread operator (e.g., `[...this._items]`) inside getters causes a new array to be allocated on every access, introducing unnecessary O(N) memory allocation overhead, similar to `Array.from()`.
+**Action:** Implement lazy-evaluated caching for these arrays as well. Calculate the array once on first access and store it in a private field (e.g., `_itemsArray`). Invalidate the cache by setting it to `null` whenever the underlying collection is modified. Return the cached array typed as `ReadonlyArray<T>`.

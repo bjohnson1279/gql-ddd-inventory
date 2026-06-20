@@ -7,3 +7,9 @@
 ## 2026-06-15 - Added Confirmation Dialogs for Destructive Actions
 **Learning:** Destructive actions that permanently modify critical data, such as posting to a general ledger or revoking a barcode assignment, require explicit user confirmation to prevent accidental clicks from causing irreversible data changes.
 **Action:** Always wrap irreversible or destructive actions (e.g., delete, post, revoke) with a confirmation step, such as `window.confirm`, clearly explaining the consequences of the action.
+## 2024-06-25 - [Add required field indicator]
+**Learning:** Found a missing visual indicator for required inputs. By leveraging CSS `:has()` pseudo-class with `[required]`, we can globally indicate required fields without changing JSX in dozens of places.
+**Action:** Used `:has()` selector in global CSS to append red asterisks to labels preceding required inputs/selects.
+## 2026-06-20 - Added role="alert" to dynamically rendered global messages
+**Learning:** React state-driven toast or alert messages (like success or error notifications) are not naturally announced by screen readers when they dynamically appear on the page. This leaves non-sighted users unaware of critical feedback, such as login failures or successful data submissions.
+**Action:** Always append `role="alert"` and `aria-live="assertive"` (or `polite` for non-critical updates) to dynamically rendered `<div className="alert-box">` elements so screen readers immediately announce their contents when they are added to the DOM.
