@@ -19,6 +19,7 @@ import { SerialNumber } from '../../domain/valueObjects/SerialNumber';
 import { ActorId } from '../../domain/valueObjects/ActorId';
 import { RMAStatus, RMADisposition, RMAItemStatus, QuarantineStatus } from '../../domain/enums/ReturnEnums';
 import { SerializedItemStatus } from '../../domain/enums/SerializedItemStatus';
+import { SerializedItem } from '../../domain/entities/SerializedItem';
 import { CostLayerService } from '../../domain/services/CostLayerService';
 import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
 
