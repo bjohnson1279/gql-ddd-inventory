@@ -2,6 +2,22 @@ import jwt from 'jsonwebtoken';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { pubsub } from './pubsub';
 import crypto from 'crypto';
+
+// Security fix: Track failed login attempts to prevent brute-force attacks
+const loginAttempts = new Map<string, { count: number; windowStart: number }>();
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+// Security fix: Periodically sweep expired entries to prevent memory exhaustion (DoS)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of loginAttempts.entries()) {
+    if (now - value.windowStart > LOGIN_ATTEMPT_WINDOW_MS) {
+      loginAttempts.delete(key);
+    }
+  }
+}, LOGIN_ATTEMPT_WINDOW_MS).unref();
+
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
@@ -1417,6 +1433,21 @@ export const resolvers = {
       }
     },
     login: async (_: any, { tenantId, actorId, role, email, password }: { tenantId: string; actorId?: string; role?: string; email?: string; password?: string }) => {
+
+      const emailKey = email ? email.toLowerCase().trim() : '';
+      const loginKey = `${tenantId}:${emailKey}`;
+      const now = Date.now();
+
+      const attempts = loginAttempts.get(loginKey) || { count: 0, windowStart: now };
+      if (now - attempts.windowStart > LOGIN_ATTEMPT_WINDOW_MS) {
+        attempts.count = 0;
+        attempts.windowStart = now;
+      }
+
+      if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+        throw new Error('Too many failed login attempts. Please try again later.');
+      }
+
       if (email && password) {
         const user = await prisma.user.findFirst({
           where: { tenantId, email: email.toLowerCase().trim() },
@@ -1427,14 +1458,21 @@ export const resolvers = {
           }
         });
         if (!user) {
+          attempts.count++;
+          loginAttempts.set(loginKey, attempts);
           throw new Error('Invalid credentials.');
         }
         if (!user.active) {
+          attempts.count++;
+          loginAttempts.set(loginKey, attempts);
           throw new Error('Account deactivated.');
         }
         if (!verifyPassword(password, user.passwordHash)) {
+          attempts.count++;
+          loginAttempts.set(loginKey, attempts);
           throw new Error('Invalid credentials.');
         }
+        loginAttempts.delete(loginKey);
         const userRole = user.userRoles.length > 0 ? user.userRoles[0].role.id : 'staff';
         return jwt.sign(
           { tenantId, actorId: user.id, role: userRole },
