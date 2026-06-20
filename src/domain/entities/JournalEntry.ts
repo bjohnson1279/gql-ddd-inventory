@@ -6,6 +6,7 @@ import { DebitCredit, AccountingMethod } from '../enums/AccountingEnums';
 
 export class JournalEntry {
   private _lines: JournalLine[] = [];
+  private _linesArray: ReadonlyArray<JournalLine> | null = null;
 
   constructor(
     public readonly id: JournalEntryId,
@@ -23,10 +24,14 @@ export class JournalEntry {
     memo: string = ''
   ): void {
     this._lines.push(new JournalLine(account, amountCents, type, memo));
+    this._linesArray = null;
   }
 
-  get lines(): JournalLine[] {
-    return [...this._lines];
+  get lines(): ReadonlyArray<JournalLine> {
+    if (this._linesArray === null) {
+      this._linesArray = [...this._lines];
+    }
+    return this._linesArray;
   }
 
   isBalanced(): boolean {
