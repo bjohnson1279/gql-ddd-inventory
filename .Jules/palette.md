@@ -13,3 +13,6 @@
 ## 2026-06-20 - Added role="alert" to dynamically rendered global messages
 **Learning:** React state-driven toast or alert messages (like success or error notifications) are not naturally announced by screen readers when they dynamically appear on the page. This leaves non-sighted users unaware of critical feedback, such as login failures or successful data submissions.
 **Action:** Always append `role="alert"` and `aria-live="assertive"` (or `polite` for non-critical updates) to dynamically rendered `<div className="alert-box">` elements so screen readers immediately announce their contents when they are added to the DOM.
+## 2024-07-28 - CSS :has() selector constraint for required fields in inline forms
+**Learning:** The global required field CSS logic (`.form-group:has(input[required]) label::after`) silently fails to render the required asterisk (`*`) when inputs are arranged in compact, inline flex layouts without the `.form-group` wrapper class.
+**Action:** When implementing inline or flex-based form inputs, always wrap each input/label pair with `className="form-group"` (and adjust margins as needed, e.g. `marginBottom: 0`) to ensure the global required indicator CSS trigger functions correctly.

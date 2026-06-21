@@ -971,9 +971,9 @@ function App() {
                 {onboardingItems.map((item, idx) => (
                   <div key={idx} className="items-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr auto' }}>
                     <div className="form-group">
-                      <label>Variant UUID</label>
+                      <label htmlFor={`onb-var-${idx}`}>Variant UUID</label>
                       <input
-                        aria-label="Variant UUID"
+                        id={`onb-var-${idx}`}
                         value={item.variantId} 
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
@@ -985,9 +985,9 @@ function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Quantity</label>
+                      <label htmlFor={`onb-qty-${idx}`}>Quantity</label>
                       <input
-                        aria-label="Quantity"
+                        id={`onb-qty-${idx}`}
                         type="number" 
                         value={item.quantity} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -999,9 +999,9 @@ function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Unit Cost (¢)</label>
+                      <label htmlFor={`onb-cost-${idx}`}>Unit Cost (¢)</label>
                       <input
-                        aria-label="Unit Cost (¢)"
+                        id={`onb-cost-${idx}`}
                         type="number" 
                         value={item.unitCostCents} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -1199,9 +1199,10 @@ function App() {
                               {assignSku === v.sku ? (
                                 <form onSubmit={handleAssignBarcode} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <div style={{ flex: 1 }}>
-                                      <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Barcode Value</label>
+                                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                      <label htmlFor={`assignVal-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Barcode Value</label>
                                       <input 
+                                        id={`assignVal-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
                                         value={assignVal} 
                                         onChange={e => setAssignVal(e.target.value)} 
@@ -1209,9 +1210,10 @@ function App() {
                                         required 
                                       />
                                     </div>
-                                    <div>
-                                      <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Symbology</label>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                      <label htmlFor={`assignSymbology-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Symbology</label>
                                       <select 
+                                        id={`assignSymbology-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
                                         value={assignSymbology} 
                                         onChange={e => setAssignSymbology(e.target.value)}
@@ -1224,9 +1226,10 @@ function App() {
                                     </div>
                                   </div>
                                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    <div style={{ flex: 1 }}>
-                                      <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Source</label>
+                                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                      <label htmlFor={`assignSource-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Source</label>
                                       <select 
+                                        id={`assignSource-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
                                         value={assignSource} 
                                         onChange={e => setAssignSource(e.target.value)}
@@ -1353,12 +1356,12 @@ function App() {
               <h2 className="form-section-title">Manual Journal Ingestion</h2>
               <form onSubmit={handlePostJournal}>
                 <div className="form-group">
-                  <label>Entry Description</label>
-                  <input value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
+                  <label htmlFor="journalDesc">Entry Description</label>
+                  <input id="journalDesc" value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
                 </div>
                 <div className="form-group">
-                  <label>Accounting Method</label>
-                  <select value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
+                  <label htmlFor="journalMethod">Accounting Method</label>
+                  <select id="journalMethod" value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
                     <option value="accrual">Accrual-Basis Accounting</option>
                     <option value="cash">Cash-Basis Accounting</option>
                   </select>
