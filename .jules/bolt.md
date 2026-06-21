@@ -44,3 +44,6 @@
 ## 2026-06-20 - Cache spread array copies in getters
 **Learning:** Using the spread operator (e.g., `[...this._items]`) inside getters causes a new array to be allocated on every access, introducing unnecessary O(N) memory allocation overhead, similar to `Array.from()`.
 **Action:** Implement lazy-evaluated caching for these arrays as well. Calculate the array once on first access and store it in a private field (e.g., `_itemsArray`). Invalidate the cache by setting it to `null` whenever the underlying collection is modified. Return the cached array typed as `ReadonlyArray<T>`.
+## 2026-06-21 - Avoid N+1 Queries in PickingRouteOptimizer
+**Learning:** Iterating over picking items and querying the warehouse location repository (`findById`) for each item creates a significant N+1 query bottleneck. This degrades performance as the number of items in a pick route increases.
+**Action:** Extract all unique `locationId`s from the pick items beforehand, execute a single batched repository query (`findByIds`), and use a `Map` to perform O(1) in-memory lookups instead. Always ensure corresponding repository interfaces and tests (e.g., `InMemoryWarehouseLocationRepository`) implement the batch lookup properly.
