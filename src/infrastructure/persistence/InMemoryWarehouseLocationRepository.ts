@@ -18,6 +18,18 @@ export class InMemoryWarehouseLocationRepository implements IWarehouseLocationRe
     this.locations.delete(id.value);
   }
 
+  async findByIds(ids: LocationId[]): Promise<WarehouseLocation[]> {
+    const result: WarehouseLocation[] = [];
+    const idStrings = ids.map(id => id.value);
+    for (const id of idStrings) {
+      const loc = this.locations.get(id);
+      if (loc) {
+        result.push(this.clone(loc));
+      }
+    }
+    return result;
+  }
+
   async findAll(): Promise<WarehouseLocation[]> {
     return Array.from(this.locations.values()).map(loc => this.clone(loc));
   }

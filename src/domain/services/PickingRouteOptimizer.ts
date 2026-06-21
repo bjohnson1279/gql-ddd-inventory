@@ -32,11 +32,15 @@ export class PickingRouteOptimizer {
       return [];
     }
 
-    // Load warehouse locations for all unique locationIds in the picking list
+    // Fixes N+1 query bottleneck by loading warehouse locations for all unique locationIds in a single batched query
+    const uniqueLocationIds = Array.from(new Set(items.map((item) => item.locationId)));
+    const locationIdsToFetch = uniqueLocationIds.map((id) => new LocationId(id));
+    const locations = await this.locationRepo.findByIds(locationIdsToFetch);
+    const locationMap = new Map(locations.map((loc) => [loc.id.value, loc]));
+
     const routeItems: PickRouteItem[] = [];
     for (const item of items) {
-      const locId = new LocationId(item.locationId);
-      const loc = await this.locationRepo.findById(locId);
+      const loc = locationMap.get(item.locationId);
       if (!loc) {
         throw new Error(`Warehouse location with ID ${item.locationId} not found.`);
       }
