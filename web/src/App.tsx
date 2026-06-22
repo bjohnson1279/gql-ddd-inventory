@@ -1122,9 +1122,9 @@ function App() {
                               updated[idx] = { ...updated[idx], name: e.target.value };
                               setNewVarAttrs(updated);
                             }} />
-                            <input aria-label={`Attribute Value ${idx + 1}`} placeholder="Value" value={attr.value} onChange={e => {
+                            <input aria-label={"Attribute Value " + (idx + 1)} placeholder="Value" value={attr.value} onChange={e => {
                               const updated = [...newVarAttrs];
-                              updated[idx].value = e.target.value;
+                              updated[idx] = { ...updated[idx], value: e.target.value };
                               setNewVarAttrs(updated);
                             }} />
                             {newVarAttrs.length > 1 && (
