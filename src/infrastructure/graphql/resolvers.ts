@@ -363,6 +363,9 @@ function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?:
     if (tenantId && context.auth.tenantId !== tenantId) {
       throw new Error('Forbidden: Cross-tenant access is not allowed.');
     }
+    if (actorId && context.auth.actorId !== actorId) {
+      throw new Error('Forbidden: Cross-actor access is not allowed.');
+    }
     return {
       tenantId: context.auth.tenantId || tenantId || 'tenant-1',
       actorId: context.auth.actorId || actorId || 'admin-user',
