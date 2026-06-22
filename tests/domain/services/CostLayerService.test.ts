@@ -116,7 +116,7 @@ describe('CostLayerService', () => {
       const cost = await service.consumeLayers(v1, 15, CostingMethod.LIFO);
       // LIFO: 10 * 200 + 5 * 100 = 2500
       expect(cost.totalCostCents).toBe(2500);
-      expect(repo.save).toHaveBeenCalledTimes(2);
+      expect(repo.saveBatch).toHaveBeenCalledWith([repo.layers[1], repo.layers[0]]);
       expect(repo.layers[1].remainingQuantity()).toBe(0); // L2 consumed first
       expect(repo.layers[0].remainingQuantity()).toBe(5);
     });
@@ -263,8 +263,7 @@ describe('CostLayerService', () => {
       const cost = await service.consumeFifoLayers(v1, 5);
       expect(cost.totalCostCents).toBe(500);
       expect(l1.remainingQuantity()).toBe(5);
-      expect(repo.save).toHaveBeenCalledTimes(1);
-      expect(repo.save).toHaveBeenCalledWith(l1);
+      expect(repo.saveBatch).toHaveBeenCalledWith([l1]);
     });
 
     it('should consume across multiple layers correctly and save all modified layers', async () => {
@@ -277,9 +276,7 @@ describe('CostLayerService', () => {
       expect(l1.remainingQuantity()).toBe(0);
       expect(l2.remainingQuantity()).toBe(5);
 
-      expect(repo.save).toHaveBeenCalledTimes(2);
-      expect(repo.save).toHaveBeenCalledWith(l1);
-      expect(repo.save).toHaveBeenCalledWith(l2);
+      expect(repo.saveBatch).toHaveBeenCalledWith([l1, l2]);
     });
 
     it('should throw error when trying to consume more than available layers', async () => {
@@ -288,7 +285,7 @@ describe('CostLayerService', () => {
 
       await expect(service.consumeFifoLayers(v1, 15)).rejects.toThrow('Insufficient cost layers to cover the quantity.');
       // Should not have saved any mutated layers if it failed
-      expect(repo.save).not.toHaveBeenCalled();
+      expect(repo.saveBatch).not.toHaveBeenCalled();
     });
   });
 

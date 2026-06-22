@@ -53,3 +53,6 @@
 ## 2026-06-21 - Avoid N+1 Queries in PickingRouteOptimizer
 **Learning:** Iterating over picking items and querying the warehouse location repository (`findById`) for each item creates a significant N+1 query bottleneck. This degrades performance as the number of items in a pick route increases.
 **Action:** Extract all unique `locationId`s from the pick items beforehand, execute a single batched repository query (`findByIds`), and use a `Map` to perform O(1) in-memory lookups instead. Always ensure corresponding repository interfaces and tests (e.g., `InMemoryWarehouseLocationRepository`) implement the batch lookup properly.
+## 2026-06-22 - Use saveBatch over save in loops within domain services
+**Learning:** Calling `.save(layer)` individually inside an array iteration (e.g. `for (const layer of activeLayers)`) causes unnecessary overhead and N+1 query patterns. This severely degrades performance when consuming numerous cost layers for an item.
+**Action:** When saving multiple entities of the same type within a service loop, collect them into an array and use a dedicated `.saveBatch(entities)` repository method outside the loop.
