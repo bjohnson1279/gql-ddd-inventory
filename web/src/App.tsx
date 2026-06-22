@@ -1394,9 +1394,9 @@ function App() {
                       <option value="debit">DEBIT</option>
                       <option value="credit">CREDIT</option>
                     </select>
-                    <input aria-label={`Memo for line ${idx + 1}`} placeholder="Memo" value={line.memo} onChange={e => {
+                    <input aria-label={"Memo for line " + (idx + 1)} placeholder="Memo" value={line.memo} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].memo = e.target.value;
+                      updated[idx] = { ...updated[idx], memo: e.target.value };
                       setNewJournalLines(updated);
                     }} />
                     {newJournalLines.length > 2 && (
