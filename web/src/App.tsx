@@ -1117,9 +1117,9 @@ function App() {
                         <label>Variant Attributes (Colors, Sizes, etc.)</label>
                         {newVarAttrs.map((attr, idx) => (
                           <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                            <input aria-label={`Attribute Name ${idx + 1}`} placeholder="Attribute Name" value={attr.name} onChange={e => {
+                            <input aria-label={"Attribute Name " + (idx + 1)} placeholder="Attribute Name" value={attr.name} onChange={e => {
                               const updated = [...newVarAttrs];
-                              updated[idx].name = e.target.value;
+                              updated[idx] = { ...updated[idx], name: e.target.value };
                               setNewVarAttrs(updated);
                             }} />
                             <input aria-label={`Attribute Value ${idx + 1}`} placeholder="Value" value={attr.value} onChange={e => {
