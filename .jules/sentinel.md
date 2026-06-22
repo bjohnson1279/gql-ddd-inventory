@@ -100,3 +100,13 @@
 **Vulnerability:** The `verifyPassword` function in `src/infrastructure/utils/security.ts` used a standard string equality operator (`===`) to compare the generated hash with the stored hash. This makes the comparison susceptible to timing attacks, where an attacker can measure the time taken to evaluate the comparison and potentially deduce the correct hash byte-by-byte.
 **Learning:** Comparing cryptographic hashes or secure tokens using non-constant time operations exposes a timing side-channel.
 **Prevention:** Always use `crypto.timingSafeEqual` (or a similar constant-time comparison utility) when comparing password hashes, API keys, HMAC signatures, or any other sensitive cryptographic values to prevent timing attacks. Ensure inputs to `timingSafeEqual` are buffers of the same length to prevent runtime errors.
+
+## 2026-06-11 - Brute-force Vulnerability on Login Endpoint
+
+**Vulnerability:** The `login` GraphQL mutation lacked brute-force protection and rate-limiting. A malicious actor could repeatedly test credentials against the endpoint without restriction, attempting to guess valid passwords (credential stuffing or dictionary attacks).
+**Learning:** Exposed authentication endpoints without rate limiting allow unchecked password guessing, posing a severe security risk even if passwords are computationally secure.
+**Prevention:** Implement endpoint-specific rate limiting (such as an in-memory or Redis-backed sliding window counter) specifically for authentication endpoints to block rapid, successive failed login attempts. Include periodic cleanup logic for in-memory limiters to prevent DoS via memory exhaustion.
+## 2024-06-21 - [Fix cross-tenant authorization bypass in enforceRole]
+**Vulnerability:** The `enforceRole` helper function, used universally for GraphQL authorization, allowed callers to arbitrarily bypass tenant boundaries by injecting a spoofed `tenantId` into the query variables, which overrode or ignored the `tenantId` securely verified from the JWT token.
+**Learning:** Even when a secure context exists (e.g., JWT `tenantId`), if downstream logic falls back to user-provided input without explicitly asserting a match, it creates a severe IDOR/Authorization bypass.
+**Prevention:** Always explicitly validate that user-provided scope variables (like target tenant IDs) strictly match the authorized scope derived from the authenticated context.

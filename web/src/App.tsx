@@ -709,7 +709,7 @@ function App() {
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>Enter credentials to generate authorization token</p>
 
           {message && (
-            <div className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ margin: 0 }}>
+            <div role="alert" aria-live="assertive" className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`} style={{ margin: 0 }}>
               <strong>{message.type === 'success' ? '✓ Success: ' : '✗ Error: '}</strong> {message.text}
             </div>
           )}
@@ -828,7 +828,7 @@ function App() {
 
         {/* Global Messages */}
         {message && (
-          <div className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`}>
+          <div role="alert" aria-live="assertive" className={`alert-box ${message.type === 'success' ? 'alert-success' : 'alert-error'}`}>
             <strong>{message.type === 'success' ? '✓ Success: ' : '✗ Error: '}</strong> {message.text}
           </div>
         )}
@@ -971,9 +971,9 @@ function App() {
                 {onboardingItems.map((item, idx) => (
                   <div key={idx} className="items-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr auto' }}>
                     <div className="form-group">
-                      <label>Variant UUID</label>
+                      <label htmlFor={`onb-var-${idx}`}>Variant UUID</label>
                       <input
-                        aria-label="Variant UUID"
+                        id={`onb-var-${idx}`}
                         value={item.variantId} 
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
@@ -985,9 +985,9 @@ function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Quantity</label>
+                      <label htmlFor={`onb-qty-${idx}`}>Quantity</label>
                       <input
-                        aria-label="Quantity"
+                        id={`onb-qty-${idx}`}
                         type="number" 
                         value={item.quantity} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -999,9 +999,9 @@ function App() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Unit Cost (¢)</label>
+                      <label htmlFor={`onb-cost-${idx}`}>Unit Cost (¢)</label>
                       <input
-                        aria-label="Unit Cost (¢)"
+                        id={`onb-cost-${idx}`}
                         type="number" 
                         value={item.unitCostCents} 
                         disabled={selectedOnboarding.status === 'submitted'}
@@ -1117,18 +1117,18 @@ function App() {
                         <label>Variant Attributes (Colors, Sizes, etc.)</label>
                         {newVarAttrs.map((attr, idx) => (
                           <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                            <input aria-label="Attribute Name" placeholder="Attribute Name" value={attr.name} onChange={e => {
+                            <input aria-label={"Attribute Name " + (idx + 1)} placeholder="Attribute Name" value={attr.name} onChange={e => {
                               const updated = [...newVarAttrs];
-                              updated[idx].name = e.target.value;
+                              updated[idx] = { ...updated[idx], name: e.target.value };
                               setNewVarAttrs(updated);
                             }} />
-                            <input aria-label="Attribute Value" placeholder="Value" value={attr.value} onChange={e => {
+                            <input aria-label={"Attribute Value " + (idx + 1)} placeholder="Value" value={attr.value} onChange={e => {
                               const updated = [...newVarAttrs];
-                              updated[idx].value = e.target.value;
+                              updated[idx] = { ...updated[idx], value: e.target.value };
                               setNewVarAttrs(updated);
                             }} />
                             {newVarAttrs.length > 1 && (
-                              <button type="button" className="btn btn-danger" aria-label="Remove attribute" title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
+                              <button type="button" className="btn btn-danger" aria-label={`Remove attribute ${idx + 1}`} title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
                                 &times;
                               </button>
                             )}
@@ -1199,9 +1199,10 @@ function App() {
                               {assignSku === v.sku ? (
                                 <form onSubmit={handleAssignBarcode} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <div style={{ flex: 1 }}>
-                                      <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Barcode Value</label>
+                                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                      <label htmlFor={`assignVal-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Barcode Value</label>
                                       <input 
+                                        id={`assignVal-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
                                         value={assignVal} 
                                         onChange={e => setAssignVal(e.target.value)} 
@@ -1209,9 +1210,10 @@ function App() {
                                         required 
                                       />
                                     </div>
-                                    <div>
-                                      <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Symbology</label>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                      <label htmlFor={`assignSymbology-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Symbology</label>
                                       <select 
+                                        id={`assignSymbology-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
                                         value={assignSymbology} 
                                         onChange={e => setAssignSymbology(e.target.value)}
@@ -1224,9 +1226,10 @@ function App() {
                                     </div>
                                   </div>
                                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    <div style={{ flex: 1 }}>
-                                      <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Source</label>
+                                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                      <label htmlFor={`assignSource-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Source</label>
                                       <select 
+                                        id={`assignSource-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
                                         value={assignSource} 
                                         onChange={e => setAssignSource(e.target.value)}
@@ -1353,12 +1356,12 @@ function App() {
               <h2 className="form-section-title">Manual Journal Ingestion</h2>
               <form onSubmit={handlePostJournal}>
                 <div className="form-group">
-                  <label>Entry Description</label>
-                  <input value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
+                  <label htmlFor="journalDesc">Entry Description</label>
+                  <input id="journalDesc" value={newJournalDesc} onChange={e => setNewJournalDesc(e.target.value)} placeholder="e.g. Post Month-End Inventory Adjustments" required />
                 </div>
                 <div className="form-group">
-                  <label>Accounting Method</label>
-                  <select value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
+                  <label htmlFor="journalMethod">Accounting Method</label>
+                  <select id="journalMethod" value={newJournalMethod} onChange={e => setNewJournalMethod(e.target.value as any)}>
                     <option value="accrual">Accrual-Basis Accounting</option>
                     <option value="cash">Cash-Basis Accounting</option>
                   </select>
@@ -1373,27 +1376,27 @@ function App() {
 
                 {newJournalLines.map((line, idx) => (
                   <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                    <input aria-label="Account Code" placeholder="Account Code" value={line.accountCode} onChange={e => {
+                    <input aria-label={"Account Code for line " + (idx + 1)} placeholder="Account Code" value={line.accountCode} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].accountCode = e.target.value;
+                      updated[idx] = { ...updated[idx], accountCode: e.target.value };
                       setNewJournalLines(updated);
                     }} required />
-                    <input aria-label="Amount (Cents)" type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
+                    <input aria-label={"Amount (Cents) for line " + (idx + 1)} type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].amountCents = Number(e.target.value);
+                      updated[idx] = { ...updated[idx], amountCents: Number(e.target.value) };
                       setNewJournalLines(updated);
                     }} required />
-                    <select aria-label="Transaction Type" value={line.type} onChange={e => {
+                    <select aria-label={"Transaction Type for line " + (idx + 1)} value={line.type} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].type = e.target.value as any;
+                      updated[idx] = { ...updated[idx], type: e.target.value as any };
                       setNewJournalLines(updated);
                     }}>
                       <option value="debit">DEBIT</option>
                       <option value="credit">CREDIT</option>
                     </select>
-                    <input aria-label="Memo" placeholder="Memo" value={line.memo} onChange={e => {
+                    <input aria-label={"Memo for line " + (idx + 1)} placeholder="Memo" value={line.memo} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].memo = e.target.value;
+                      updated[idx] = { ...updated[idx], memo: e.target.value };
                       setNewJournalLines(updated);
                     }} />
                     {newJournalLines.length > 2 && (

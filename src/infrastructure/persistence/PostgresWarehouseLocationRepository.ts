@@ -57,6 +57,26 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
     });
   }
 
+  async findByIds(ids: LocationId[]): Promise<WarehouseLocation[]> {
+    const models = await this.prisma.warehouseLocation.findMany({
+      where: { id: { in: ids.map((id) => id.value) } },
+    });
+    return models.map(
+      (model) =>
+        new WarehouseLocation(
+          new LocationId(model.id),
+          model.warehouseId,
+          model.zone,
+          model.aisle,
+          model.rack,
+          model.shelf,
+          model.bin,
+          model.maxWeightGrams,
+          model.maxVolumeCubicMeters
+        )
+    );
+  }
+
   async findAll(): Promise<WarehouseLocation[]> {
     const models = await this.prisma.warehouseLocation.findMany();
     return models.map(
