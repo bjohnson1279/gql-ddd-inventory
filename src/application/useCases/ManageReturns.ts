@@ -225,7 +225,7 @@ export class ReceiveRmaUseCase {
       if (item.serialNumbers && this.serializedItemRepository) {
         for (const sn of item.serialNumbers) {
           const serialObj = new SerialNumber(sn);
-          const serialItem = await this.serializedItemRepository.findBySerial(new ProductVariantId(item.variantId), serialObj);
+          const serialItem = await this.serializedItemRepository.findBySerial(serialObj, rma.tenantId);
           if (serialItem) {
             const actor = new ActorId('system');
             const refId = `RMA-${rma.id}`;
