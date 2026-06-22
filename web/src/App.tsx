@@ -1376,9 +1376,9 @@ function App() {
 
                 {newJournalLines.map((line, idx) => (
                   <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                    <input aria-label={`Account Code for line ${idx + 1}`} placeholder="Account Code" value={line.accountCode} onChange={e => {
+                    <input aria-label={"Account Code for line " + (idx + 1)} placeholder="Account Code" value={line.accountCode} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].accountCode = e.target.value;
+                      updated[idx] = { ...updated[idx], accountCode: e.target.value };
                       setNewJournalLines(updated);
                     }} required />
                     <input aria-label={`Amount (Cents) for line ${idx + 1}`} type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
