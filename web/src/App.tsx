@@ -1381,9 +1381,9 @@ function App() {
                       updated[idx] = { ...updated[idx], accountCode: e.target.value };
                       setNewJournalLines(updated);
                     }} required />
-                    <input aria-label={`Amount (Cents) for line ${idx + 1}`} type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
+                    <input aria-label={"Amount (Cents) for line " + (idx + 1)} type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].amountCents = Number(e.target.value);
+                      updated[idx] = { ...updated[idx], amountCents: Number(e.target.value) };
                       setNewJournalLines(updated);
                     }} required />
                     <select aria-label={"Transaction Type for line " + (idx + 1)} value={line.type} onChange={e => {
