@@ -360,6 +360,9 @@ function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?:
     if (!allowedRoles.includes(role)) {
       throw new Error(`Forbidden: You do not have permission to perform this action. Required role: one of [${allowedRoles.join(', ')}]. Current role: ${role}`);
     }
+    if (tenantId && context.auth.tenantId !== tenantId) {
+      throw new Error('Forbidden: Cross-tenant access is not allowed.');
+    }
     return {
       tenantId: context.auth.tenantId || tenantId || 'tenant-1',
       actorId: context.auth.actorId || actorId || 'admin-user',
