@@ -1,8 +1,7 @@
 ## 2026-06-04 - Improve code health by extracting DomainEvent interface
-
  **Learning:** Extracting inline interfaces or interfaces mixed with classes (like `DomainEvent` from `OnboardingEvents.ts`) to their own dedicated files improves code health, avoids circular dependencies, and increases maintainability. The original prompt stated the file had an `any` type on the event dispatcher in `InventoryService.ts`, which might have been a confusion in the prompt as the actual issue was that `DomainEvent` was poorly located and should be cleanly refactored. The issue was solved by cleanly extracting the interface and updating all imports.
-
  **Action:** Extract commonly shared interfaces (like event interfaces, shared value objects) into their own files early on to prevent tightly coupling unrelated modules or causing bloated imports.
+
 ## 2026-06-05 - Avoid N+1 queries by batching domain services
  **Learning:** Calling database-backed service methods (like `decrementForSale`) inside loops (e.g. iterating over order items) leads to severe N+1 performance bottlenecks because each iteration performs an isolated lookup and save.
  **Action:** Identify loops making individual domain service calls and replace them with a unified "batch" method (e.g. `decrementForSaleBatch`) that aggregates the inputs, performs batched repository lookups (`currentQuantities`), and saves the results collectively (`appendBatch`).
@@ -34,9 +33,11 @@
 ## 2026-06-14 - Optimize dynamic array allocations on getters
 **Learning:** Returning dynamically generated arrays from getters (like ) causes a new array to be allocated on every access, creating O(N) memory allocation overhead which impacts performance when iterated over repeatedly.
 **Action:** Implement lazy-evaluated caching for these arrays. Calculate the array once on first access and store it. Invalidate the cache (set to null) whenever the underlying map is mutated. Return the cached array as `ReadonlyArray<T>` to prevent accidental mutations by callers.
+
 ## 2026-06-14 - Optimize dynamic array allocations on getters
 **Learning:** Returning dynamically generated arrays from getters (like `Array.from(map.values())`) causes a new array to be allocated on every access, creating O(N) memory allocation overhead which impacts performance when iterated over repeatedly.
 **Action:** Implement lazy-evaluated caching for these arrays. Calculate the array once on first access and store it. Invalidate the cache (set to null) whenever the underlying map is mutated. Return the cached array as `ReadonlyArray<T>` to prevent accidental mutations by callers.
+
 ## 2026-06-14 - Avoid N+1 Queries inside Replenishment Rule Evaluator Loops
 **Learning:** Calling `poRepo.findAllByTenant`, `transferRepo.findAllByTenant`, `productRepo.findBySku`, and `inventoryRepo.findBySkuAndLocation` inside the `for (const rule of rules)` loop in `ReplenishmentEvaluator.ts` results in O(N) isolated database queries and redundant collections fetches, severely degrading performance when analyzing numerous active rules.
 **Action:** Extract database operations outside the rule loop by pre-fetching `openPos` and `openTransfers` upfront, and use batch repository methods (`productRepo.findBySkus`, `inventoryRepo.findBySkuAndLocationBatch`) mapped by `sku` or `sku_locationId` to allow fast O(1) in-memory resolution for every evaluated rule. Ensure test mocks reflect and support these batch operations properly.
@@ -44,6 +45,11 @@
 ## 2026-06-20 - Cache spread array copies in getters
 **Learning:** Using the spread operator (e.g., `[...this._items]`) inside getters causes a new array to be allocated on every access, introducing unnecessary O(N) memory allocation overhead, similar to `Array.from()`.
 **Action:** Implement lazy-evaluated caching for these arrays as well. Calculate the array once on first access and store it in a private field (e.g., `_itemsArray`). Invalidate the cache by setting it to `null` whenever the underlying collection is modified. Return the cached array typed as `ReadonlyArray<T>`.
+
+## 2026-06-25 - Avoid spreading internal arrays in getters
+**Learning:** Returning defensive copies of internal arrays using the spread operator (e.g., `[...this.attributes]`) inside getter methods (like `.all()`) causes O(N) memory allocation overhead on every access. If the class is strictly immutable or caller mutation is not a concern, this overhead is entirely unnecessary and can cause performance bottlenecks when called frequently within loops.
+**Action:** Return the internal array directly and type the return value as `ReadonlyArray<T>`. This allows TypeScript to enforce immutability strictly at the compiler level without incurring any runtime allocation costs.
+
 ## 2026-06-21 - Avoid N+1 Queries in PickingRouteOptimizer
 **Learning:** Iterating over picking items and querying the warehouse location repository (`findById`) for each item creates a significant N+1 query bottleneck. This degrades performance as the number of items in a pick route increases.
 **Action:** Extract all unique `locationId`s from the pick items beforehand, execute a single batched repository query (`findByIds`), and use a `Map` to perform O(1) in-memory lookups instead. Always ensure corresponding repository interfaces and tests (e.g., `InMemoryWarehouseLocationRepository`) implement the batch lookup properly.
