@@ -97,6 +97,30 @@ describe('ManageStockTransfers Use Cases', () => {
       expect(saved).not.toBeNull();
       expect(saved!.status).toBe(StockTransferStatus.Draft);
     });
+
+    it('should throw an error when source and destination locations are the same', async () => {
+      await expect(
+        createUseCase.execute({
+          tenantId,
+          sourceLocationId: sourceLoc,
+          destinationLocationId: sourceLoc,
+          items: [{ variantId: variantIdStr, quantity: 5 }],
+          referenceId: 'ref-123'
+        })
+      ).rejects.toThrow('Source and destination locations cannot be the same.');
+    });
+
+    it('should throw an error when items array is empty', async () => {
+      await expect(
+        createUseCase.execute({
+          tenantId,
+          sourceLocationId: sourceLoc,
+          destinationLocationId: destLoc,
+          items: [],
+          referenceId: 'ref-123'
+        })
+      ).rejects.toThrow('Stock transfer must contain at least one item.');
+    });
   });
 
   describe('DispatchStockTransferUseCase', () => {
