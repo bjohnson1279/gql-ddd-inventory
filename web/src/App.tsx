@@ -1117,18 +1117,18 @@ function App() {
                         <label>Variant Attributes (Colors, Sizes, etc.)</label>
                         {newVarAttrs.map((attr, idx) => (
                           <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                            <input aria-label="Attribute Name" placeholder="Attribute Name" value={attr.name} onChange={e => {
+                            <input aria-label={`Attribute Name ${idx + 1}`} placeholder="Attribute Name" value={attr.name} onChange={e => {
                               const updated = [...newVarAttrs];
                               updated[idx].name = e.target.value;
                               setNewVarAttrs(updated);
                             }} />
-                            <input aria-label="Attribute Value" placeholder="Value" value={attr.value} onChange={e => {
+                            <input aria-label={`Attribute Value ${idx + 1}`} placeholder="Value" value={attr.value} onChange={e => {
                               const updated = [...newVarAttrs];
                               updated[idx].value = e.target.value;
                               setNewVarAttrs(updated);
                             }} />
                             {newVarAttrs.length > 1 && (
-                              <button type="button" className="btn btn-danger" aria-label="Remove attribute" title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
+                              <button type="button" className="btn btn-danger" aria-label={`Remove attribute ${idx + 1}`} title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
                                 &times;
                               </button>
                             )}
@@ -1376,17 +1376,17 @@ function App() {
 
                 {newJournalLines.map((line, idx) => (
                   <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                    <input aria-label="Account Code" placeholder="Account Code" value={line.accountCode} onChange={e => {
+                    <input aria-label={`Account Code for line ${idx + 1}`} placeholder="Account Code" value={line.accountCode} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].accountCode = e.target.value;
                       setNewJournalLines(updated);
                     }} required />
-                    <input aria-label="Amount (Cents)" type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
+                    <input aria-label={`Amount (Cents) for line ${idx + 1}`} type="number" placeholder="Amount (Cents)" value={line.amountCents} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].amountCents = Number(e.target.value);
                       setNewJournalLines(updated);
                     }} required />
-                    <select aria-label="Transaction Type" value={line.type} onChange={e => {
+                    <select aria-label={`Transaction Type for line ${idx + 1}`} value={line.type} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].type = e.target.value as any;
                       setNewJournalLines(updated);
@@ -1394,7 +1394,7 @@ function App() {
                       <option value="debit">DEBIT</option>
                       <option value="credit">CREDIT</option>
                     </select>
-                    <input aria-label="Memo" placeholder="Memo" value={line.memo} onChange={e => {
+                    <input aria-label={`Memo for line ${idx + 1}`} placeholder="Memo" value={line.memo} onChange={e => {
                       const updated = [...newJournalLines];
                       updated[idx].memo = e.target.value;
                       setNewJournalLines(updated);
