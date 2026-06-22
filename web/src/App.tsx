@@ -1386,9 +1386,9 @@ function App() {
                       updated[idx].amountCents = Number(e.target.value);
                       setNewJournalLines(updated);
                     }} required />
-                    <select aria-label={`Transaction Type for line ${idx + 1}`} value={line.type} onChange={e => {
+                    <select aria-label={"Transaction Type for line " + (idx + 1)} value={line.type} onChange={e => {
                       const updated = [...newJournalLines];
-                      updated[idx].type = e.target.value as any;
+                      updated[idx] = { ...updated[idx], type: e.target.value as any };
                       setNewJournalLines(updated);
                     }}>
                       <option value="debit">DEBIT</option>
