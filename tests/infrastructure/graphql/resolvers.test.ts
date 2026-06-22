@@ -514,14 +514,14 @@ describe('GraphQL Resolvers', () => {
     expect(saveResult).toBe(true);
 
     // 3. Query the onboarding sheet
-    const onboarding = await (resolvers.Query as any).stockOnboarding(null, { id: onboardingId }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
+    const onboarding = await (resolvers.Query as any).stockOnboarding(null, { id: onboardingId }, { auth: { role: 'admin', tenantId: 'tenant-onb', actorId: 'actor-onb' } });
     expect(onboarding).not.toBeNull();
     expect(onboarding.status).toBe('draft');
     expect(onboarding.items).toHaveLength(2);
     expect(onboarding.items.find((i: any) => i.variantId === 'var-1')?.quantity).toBe(50);
 
     // 4. Query onboarding sheets by tenant
-    const tenantOnboardings = await (resolvers.Query as any).stockOnboardings(null, { tenantId: 'tenant-onb' }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
+    const tenantOnboardings = await (resolvers.Query as any).stockOnboardings(null, { tenantId: 'tenant-onb' }, { auth: { role: 'admin', tenantId: 'tenant-onb', actorId: 'actor-onb' } });
     expect(tenantOnboardings.length).toBeGreaterThanOrEqual(1);
     expect(tenantOnboardings.some((t: any) => t.id === onboardingId)).toBe(true);
 
@@ -529,11 +529,11 @@ describe('GraphQL Resolvers', () => {
     const submitResult = await (resolvers.Mutation as any).submitStockOnboarding(null, {
       id: onboardingId,
       actorId: 'actor-onb'
-    }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
+    }, { auth: { role: 'admin', tenantId: 'tenant-onb', actorId: 'actor-onb' } });
     expect(submitResult).toBe(true);
 
     // Verify it is submitted now
-    const submittedOnboarding = await (resolvers.Query as any).stockOnboarding(null, { id: onboardingId }, { auth: { role: 'admin', tenantId: 'tenant-onb' } });
+    const submittedOnboarding = await (resolvers.Query as any).stockOnboarding(null, { id: onboardingId }, { auth: { role: 'admin', tenantId: 'tenant-onb', actorId: 'actor-onb' } });
     expect(submittedOnboarding.status).toBe('submitted');
   });
 
