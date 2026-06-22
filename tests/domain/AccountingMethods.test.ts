@@ -78,14 +78,14 @@ describe('Accounting Methods (Cost Layers)', () => {
     const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'));
     const l2 = new InventoryCostLayer(new InventoryCostLayerId('L2'), v1, 10, 200, new Date('2024-02-01'));
     repo.layers = [l1, l2];
-    repo.save = jest.fn().mockResolvedValue(undefined);
+    repo.saveBatch = jest.fn().mockResolvedValue(undefined);
     const service = new CostLayerService(repo);
 
     const cost = await service.consumeFifoLayers(v1, 15);
     expect(cost.totalCostCents).toBe(2000);
     expect(l1.remainingQuantity()).toBe(0);
     expect(l2.remainingQuantity()).toBe(5);
-    expect(repo.save).toHaveBeenCalledTimes(2);
+    expect(repo.saveBatch).toHaveBeenCalledWith([l1, l2]);
   });
 
   it('should calculate FEFO cost correctly', async () => {
@@ -106,14 +106,14 @@ describe('Accounting Methods (Cost Layers)', () => {
     const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'), undefined, new Lot('L-FAR', new Date('2026-12-31')));
     const l2 = new InventoryCostLayer(new InventoryCostLayerId('L2'), v1, 10, 200, new Date('2024-02-01'), undefined, new Lot('L-SOON', new Date('2026-06-30')));
     repo.layers = [l1, l2];
-    repo.save = jest.fn().mockResolvedValue(undefined);
+    repo.saveBatch = jest.fn().mockResolvedValue(undefined);
     const service = new CostLayerService(repo);
 
     const cost = await service.consumeLayers(v1, 15, CostingMethod.FEFO);
     expect(cost.totalCostCents).toBe(2500);
     expect(l2.remainingQuantity()).toBe(0); // Soonest expired fully consumed
     expect(l1.remainingQuantity()).toBe(5);  // Farthest expired half consumed
-    expect(repo.save).toHaveBeenCalledTimes(2);
+    expect(repo.saveBatch).toHaveBeenCalledWith([l2, l1]);
   });
 
   it('should get cost for a specific serial number', async () => {

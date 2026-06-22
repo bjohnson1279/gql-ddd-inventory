@@ -35,8 +35,8 @@ export class CostLayerService {
     const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
     const breakdown = this.calculateConsumedCost(activeLayers, quantity, true);
 
-    for (const layer of activeLayers) {
-      await this.layers.save(layer);
+    if (activeLayers.length > 0) {
+      await this.layers.saveBatch(activeLayers);
     }
 
     return breakdown;
