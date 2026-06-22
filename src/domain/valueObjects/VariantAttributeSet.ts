@@ -19,8 +19,9 @@ export class VariantAttributeSet {
     return this.attributes.every((attr, i) => attr.equals(other.attributes[i]));
   }
 
-  all(): VariantAttribute[] {
-    return [...this.attributes];
+  // Return ReadonlyArray to avoid O(N) memory allocation overhead on every access while preventing mutations
+  all(): ReadonlyArray<VariantAttribute> {
+    return this.attributes;
   }
 
   toJSON() {
