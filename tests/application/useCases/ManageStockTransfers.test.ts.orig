@@ -97,30 +97,6 @@ describe('ManageStockTransfers Use Cases', () => {
       expect(saved).not.toBeNull();
       expect(saved!.status).toBe(StockTransferStatus.Draft);
     });
-
-    it('should throw an error when source and destination locations are the same', async () => {
-      await expect(
-        createUseCase.execute({
-          tenantId,
-          sourceLocationId: sourceLoc,
-          destinationLocationId: sourceLoc,
-          items: [{ variantId: variantIdStr, quantity: 5 }],
-          referenceId: 'ref-123'
-        })
-      ).rejects.toThrow('Source and destination locations cannot be the same.');
-    });
-
-    it('should throw an error when items array is empty', async () => {
-      await expect(
-        createUseCase.execute({
-          tenantId,
-          sourceLocationId: sourceLoc,
-          destinationLocationId: destLoc,
-          items: [],
-          referenceId: 'ref-123'
-        })
-      ).rejects.toThrow('Stock transfer must contain at least one item.');
-    });
   });
 
   describe('DispatchStockTransferUseCase', () => {
@@ -128,16 +104,6 @@ describe('ManageStockTransfers Use Cases', () => {
       await expect(
         dispatchUseCase.execute('non-existent', actorId, tenantId)
       ).rejects.toThrow('Stock transfer non-existent not found.');
-    });
-
-    it('should fail to dispatch with invalid transferId when repository returns null', async () => {
-      // Setup repository to return null for specific ID
-      const invalidId = 'invalid-id';
-      jest.spyOn(transferRepo, 'findById').mockResolvedValueOnce(null);
-
-      await expect(
-        dispatchUseCase.execute(invalidId, actorId, tenantId)
-      ).rejects.toThrow(`Stock transfer ${invalidId} not found.`);
     });
 
     it('should fail to dispatch if source inventory is missing or insufficient', async () => {
