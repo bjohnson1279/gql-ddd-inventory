@@ -164,6 +164,11 @@ describe('FEFO picking and Product Recall Domain Services', () => {
       await expect(service.traceProductRecall('')).rejects.toThrow('Lot number cannot be empty.');
     });
 
+    it('should throw error for empty lot number (whitespace)', async () => {
+      const service = new ProductRecallService(ledgerRepo);
+      await expect(service.traceProductRecall('   ')).rejects.toThrow('Lot number cannot be empty.');
+    });
+
     it('should trace only dispatch/deduction ledger entries carrying the lot number', async () => {
       // Append a purchase receipt (positive quantity)
       await ledgerRepo.append(new LedgerEntry(
