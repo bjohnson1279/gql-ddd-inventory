@@ -106,6 +106,16 @@ describe('ManageStockTransfers Use Cases', () => {
       ).rejects.toThrow('Stock transfer non-existent not found.');
     });
 
+    it('should fail to dispatch with invalid transferId when repository returns null', async () => {
+      // Setup repository to return null for specific ID
+      const invalidId = 'invalid-id';
+      jest.spyOn(transferRepo, 'findById').mockResolvedValueOnce(null);
+
+      await expect(
+        dispatchUseCase.execute(invalidId, actorId, tenantId)
+      ).rejects.toThrow(`Stock transfer ${invalidId} not found.`);
+    });
+
     it('should fail to dispatch if source inventory is missing or insufficient', async () => {
       const transfer = await createUseCase.execute({
         tenantId,
