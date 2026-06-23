@@ -1,21 +1,21 @@
 import { InternalBarcodeGenerator } from '../../../src/domain/services/InternalBarcodeGenerator';
 import { BarcodeRegistry } from '../../../src/domain/services/BarcodeRegistry';
-import { IBarcodeRepository } from '../../../src/domain/repositories/IBarcodeRepository';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { TenantId } from '../../../src/domain/valueObjects/TenantId';
+import { BarcodeSymbology } from '../../../src/domain/enums/BarcodeEnums';
+import { IBarcodeRepository } from '../../../src/domain/repositories/IBarcodeRepository';
 
 describe('InternalBarcodeGenerator', () => {
   let mockRegistry: jest.Mocked<BarcodeRegistry>;
   let generator: InternalBarcodeGenerator;
-  const sku = new Sku('TEST-SKU-1');
-  const tenantId = new TenantId('tenant-123');
+  const sku = new Sku('TEST-SKU-123');
+  const tenantId = new TenantId('tenant-1');
 
   beforeEach(() => {
-    const mockRepo = {} as unknown as jest.Mocked<IBarcodeRepository>;
-    mockRegistry = new BarcodeRegistry(mockRepo) as jest.Mocked<BarcodeRegistry>;
-
-    // We override isRegistered with a jest mock function to control its behavior
-    mockRegistry.isRegistered = jest.fn();
+    mockRegistry = {
+      resolve: jest.fn(),
+      isRegistered: jest.fn(),
+    } as unknown as jest.Mocked<BarcodeRegistry>;
 
     generator = new InternalBarcodeGenerator(mockRegistry);
   });
@@ -25,44 +25,46 @@ describe('InternalBarcodeGenerator', () => {
       // Simulate that the barcode is NOT registered yet
       mockRegistry.isRegistered.mockResolvedValue(false);
 
-      const result = await generator.generate(sku, tenantId);
+      const barcode = await generator.generate(sku, tenantId);
 
+      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
+      expect(barcode.value).toMatch(/^INV-[A-F0-9]{4}-[A-F0-9]{8}$/);
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(1);
-      expect(result.symbology).toBe('code_128');
-      expect(result.value).toMatch(/^INV-[A-F0-9]{4}-[A-F0-9]{8}$/);
     });
 
-    it('should generate a unique barcode successfully after multiple attempts', async () => {
-      // Simulate that the first 2 barcodes are registered, but the 3rd is free
+    it('should retry generating a barcode if a collision occurs', async () => {
       mockRegistry.isRegistered
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false);
+        .mockResolvedValueOnce(true) // First attempt collision
+        .mockResolvedValueOnce(false); // Second attempt success
 
-      const result = await generator.generate(sku, tenantId);
+      const barcode = await generator.generate(sku, tenantId);
 
-      expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(3);
-      expect(result.symbology).toBe('code_128');
-      expect(result.value).toMatch(/^INV-[A-F0-9]{4}-[A-F0-9]{8}$/);
+      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
+      expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(2);
     });
 
     it('should throw an error if it cannot generate a unique barcode after 5 attempts', async () => {
-      // Simulate that the barcode is always registered (collision limit)
-      mockRegistry.isRegistered.mockResolvedValue(true);
+      mockRegistry.isRegistered.mockResolvedValue(true); // Always collide
 
-      await expect(generator.generate(sku, tenantId)).rejects.toThrow('Could not generate a unique barcode after 5 attempts.');
-
-      // It should have tried exactly 6 times (0, 1, 2, 3, 4, 5) -> attempts becomes 6, > 5 check triggers
-      // Wait, let's see the code:
-      // do { value = build(); attempts++; if (attempts > 5) throw ... } while(await isRegistered(value))
-      // attempt 0: value=..., attempts=1, if(1 > 5) false, while(await isReg) -> true
-      // attempt 1: value=..., attempts=2, if(2 > 5) false, while(await isReg) -> true
-      // attempt 2: value=..., attempts=3, if(3 > 5) false, while(await isReg) -> true
-      // attempt 3: value=..., attempts=4, if(4 > 5) false, while(await isReg) -> true
-      // attempt 4: value=..., attempts=5, if(5 > 5) false, while(await isReg) -> true
-      // attempt 5: value=..., attempts=6, if(6 > 5) throws Error!
-      // So isRegistered is called 5 times.
+      await expect(generator.generate(sku, tenantId)).rejects.toThrow(
+        'Could not generate a unique barcode after 5 attempts.'
+      );
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(5);
+    });
+
+    it('should produce deterministic hashes for the same input and attempt', async () => {
+      mockRegistry.isRegistered.mockResolvedValue(false);
+
+      // Using a different instance to avoid any state sharing, although generator is stateless
+      const generator2 = new InternalBarcodeGenerator(mockRegistry);
+
+      const barcode1 = await generator.generate(sku, tenantId);
+
+      // reset the mock to start from attempt 0 again
+      mockRegistry.isRegistered.mockResolvedValue(false);
+      const barcode2 = await generator2.generate(sku, tenantId);
+
+      expect(barcode1.value).toBe(barcode2.value);
     });
   });
 });
