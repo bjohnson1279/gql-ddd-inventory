@@ -3,6 +3,7 @@ import { BarcodeRegistry } from '../../../src/domain/services/BarcodeRegistry';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { TenantId } from '../../../src/domain/valueObjects/TenantId';
 import { BarcodeSymbology } from '../../../src/domain/enums/BarcodeEnums';
+import { IBarcodeRepository } from '../../../src/domain/repositories/IBarcodeRepository';
 
 describe('InternalBarcodeGenerator', () => {
   let mockRegistry: jest.Mocked<BarcodeRegistry>;

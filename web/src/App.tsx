@@ -977,6 +977,7 @@ function App() {
                         value={item.variantId} 
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
+                        required
                         onChange={e => {
                           const updated = [...onboardingItems];
                           updated[idx].variantId = e.target.value;
@@ -991,6 +992,7 @@ function App() {
                         type="number" 
                         value={item.quantity} 
                         disabled={selectedOnboarding.status === 'submitted'}
+                        required
                         onChange={e => {
                           const updated = [...onboardingItems];
                           updated[idx].quantity = Number(e.target.value);
@@ -1005,6 +1007,7 @@ function App() {
                         type="number" 
                         value={item.unitCostCents} 
                         disabled={selectedOnboarding.status === 'submitted'}
+                        required
                         onChange={e => {
                           const updated = [...onboardingItems];
                           updated[idx].unitCostCents = Number(e.target.value);

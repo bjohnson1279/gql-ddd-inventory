@@ -16,3 +16,7 @@
 ## 2024-07-28 - CSS :has() selector constraint for required fields in inline forms
 **Learning:** The global required field CSS logic (`.form-group:has(input[required]) label::after`) silently fails to render the required asterisk (`*`) when inputs are arranged in compact, inline flex layouts without the `.form-group` wrapper class.
 **Action:** When implementing inline or flex-based form inputs, always wrap each input/label pair with `className="form-group"` (and adjust margins as needed, e.g. `marginBottom: 0`) to ensure the global required indicator CSS trigger functions correctly.
+
+## 2024-06-23 - Dynamic Grid Inputs Validation Visual Styling
+**Learning:** Dynamically mapped inputs inside grid layouts (like `onboardingItems.map`) that conditionally render visual headers must have the native `required` attribute. Without it, inline browser validation fails, and CSS `:has(input[required])` selectors for visual indications (like appending `*`) are not triggered, hiding requirement indicators from users.
+**Action:** Always add the native `required` attribute to dynamically mapped mandatory fields, which leverages browser form validation and triggers native/CSS-based required field visual indicators without complex React logic.
