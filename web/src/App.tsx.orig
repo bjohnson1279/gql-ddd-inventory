@@ -131,7 +131,7 @@ function App() {
   // --- Form Inputs ---
   const [newProdName, setNewProdName] = useState('');
   const [newProdId, setNewProdId] = useState('');
-  
+
   const [newVarSku, setNewVarSku] = useState('');
   const [newVarTracking, setNewVarTracking] = useState<'quantity' | 'serial' | 'lot'>('quantity');
   const [newVarAttrs, setNewVarAttrs] = useState<{ name: string; value: string }[]>([{ name: '', value: '' }]);
@@ -188,7 +188,7 @@ function App() {
     } else if (role === 'viewer') {
       allowedTabs.push('products', 'serials');
     }
-    
+
     if (!allowedTabs.includes(activeTab)) {
       setActiveTab('dashboard');
     }
@@ -252,16 +252,16 @@ function App() {
       const invData = await fetchGraphql(`query { inventoryItems { id sku locationId quantity version } }`);
       setInventoryItems(invData.inventoryItems || []);
 
-      const prodData = await fetchGraphql(`query { 
-        products { 
-          id name 
-          variants { 
-            id sku trackingMode 
-            attributes { name value } 
-          } 
-        } 
+      const prodData = await fetchGraphql(`query {
+        products {
+          id name
+          variants {
+            id sku trackingMode
+            attributes { name value }
+          }
+        }
       }`);
-      
+
       const rawProducts = prodData.products || [];
       // Resolve barcodes for each variant to complete details
       const enrichedProducts = await Promise.all(rawProducts.map(async (p: Product) => {
@@ -288,8 +288,8 @@ function App() {
       setShopifyConns(connData.shopifyConnections || []);
 
       const glData = await fetchGraphql(`query GetGL($tenant: ID!) {
-        journalEntries(tenantId: $tenant) { 
-          id tenantId date description method referenceId 
+        journalEntries(tenantId: $tenant) {
+          id tenantId date description method referenceId
           lines { accountCode amountCents type memo }
         }
       }`, { tenant: tenantId });
@@ -616,7 +616,7 @@ function App() {
           history { from to reason actor occurredAt referenceId }
         }
       }`, { serial: traceSerialNum, tenant: tenantId });
-      
+
       if (!data.serializedItemBySerial) {
         throw new Error(`No serialized item found for serial number ${traceSerialNum}`);
       }
@@ -704,7 +704,7 @@ function App() {
             <div className="brand-icon" style={{ fontSize: '2.5rem' }}>📦</div>
             <div className="brand-name" style={{ fontSize: '1.75rem' }}>DDD Inventory</div>
           </div>
-          
+
           <h2 style={{ textAlign: 'center', color: 'var(--text)', margin: 0, fontWeight: 600 }}>Secure Session Startup</h2>
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>Enter credentials to generate authorization token</p>
 
@@ -967,52 +967,49 @@ function App() {
                 <h2 className="form-section-title">
                   {selectedOnboarding.status === 'draft' ? 'Edit Draft: ' : 'View Sheet: '} {selectedOnboarding.id}
                 </h2>
-                
+
                 {onboardingItems.map((item, idx) => (
                   <div key={idx} className="items-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr auto' }}>
                     <div className="form-group">
                       <label htmlFor={`onb-var-${idx}`}>Variant UUID</label>
                       <input
                         id={`onb-var-${idx}`}
-                        value={item.variantId} 
+                        value={item.variantId}
                         disabled={selectedOnboarding.status === 'submitted'}
                         placeholder="Variant UUID"
-                        required
                         onChange={e => {
                           const updated = [...onboardingItems];
                           updated[idx].variantId = e.target.value;
                           setOnboardingItems(updated);
-                        }} 
+                        }}
                       />
                     </div>
                     <div className="form-group">
                       <label htmlFor={`onb-qty-${idx}`}>Quantity</label>
                       <input
                         id={`onb-qty-${idx}`}
-                        type="number" 
-                        value={item.quantity} 
+                        type="number"
+                        value={item.quantity}
                         disabled={selectedOnboarding.status === 'submitted'}
-                        required
                         onChange={e => {
                           const updated = [...onboardingItems];
                           updated[idx].quantity = Number(e.target.value);
                           setOnboardingItems(updated);
-                        }} 
+                        }}
                       />
                     </div>
                     <div className="form-group">
                       <label htmlFor={`onb-cost-${idx}`}>Unit Cost (¢)</label>
                       <input
                         id={`onb-cost-${idx}`}
-                        type="number" 
-                        value={item.unitCostCents} 
+                        type="number"
+                        value={item.unitCostCents}
                         disabled={selectedOnboarding.status === 'submitted'}
-                        required
                         onChange={e => {
                           const updated = [...onboardingItems];
                           updated[idx].unitCostCents = Number(e.target.value);
                           setOnboardingItems(updated);
-                        }} 
+                        }}
                       />
                     </div>
                     {selectedOnboarding.status === 'draft' && (
@@ -1116,7 +1113,7 @@ function App() {
                             <option value="lot">Lot tracking</option>
                           </select>
                         </div>
-                        
+
                         <label>Variant Attributes (Colors, Sizes, etc.)</label>
                         {newVarAttrs.map((attr, idx) => (
                           <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
@@ -1184,7 +1181,7 @@ function App() {
                                   {v.barcodes.map(b => (
                                     <div key={b.id} className="flex-between" style={{ background: 'rgba(0,0,0,0.2)', padding: '0.4rem 0.6rem', borderRadius: '6px', fontSize: '0.8rem' }}>
                                       <span>
-                                        <strong>{b.barcode.value}</strong> ({b.barcode.symbology}) 
+                                        <strong>{b.barcode.value}</strong> ({b.barcode.symbology})
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
                                       {(role === 'admin' || role === 'warehouse_operator') ? (
@@ -1204,21 +1201,21 @@ function App() {
                                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                                       <label htmlFor={`assignVal-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Barcode Value</label>
-                                      <input 
+                                      <input
                                         id={`assignVal-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
-                                        value={assignVal} 
-                                        onChange={e => setAssignVal(e.target.value)} 
-                                        placeholder="e.g. 123456789012" 
-                                        required 
+                                        value={assignVal}
+                                        onChange={e => setAssignVal(e.target.value)}
+                                        placeholder="e.g. 123456789012"
+                                        required
                                       />
                                     </div>
                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                       <label htmlFor={`assignSymbology-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Symbology</label>
-                                      <select 
+                                      <select
                                         id={`assignSymbology-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
-                                        value={assignSymbology} 
+                                        value={assignSymbology}
                                         onChange={e => setAssignSymbology(e.target.value)}
                                       >
                                         <option value="upc_a">UPC-A</option>
@@ -1231,10 +1228,10 @@ function App() {
                                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                     <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                                       <label htmlFor={`assignSource-${v.sku}`} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Source</label>
-                                      <select 
+                                      <select
                                         id={`assignSource-${v.sku}`}
                                         style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px' }}
-                                        value={assignSource} 
+                                        value={assignSource}
                                         onChange={e => setAssignSource(e.target.value)}
                                       >
                                         <option value="supplier">Supplier</option>
@@ -1243,11 +1240,11 @@ function App() {
                                       </select>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '1rem' }}>
-                                      <input 
-                                        type="checkbox" 
+                                      <input
+                                        type="checkbox"
                                         id={`primary-${v.sku}`}
-                                        checked={assignPrimary} 
-                                        onChange={e => setAssignPrimary(e.target.checked)} 
+                                        checked={assignPrimary}
+                                        onChange={e => setAssignPrimary(e.target.checked)}
                                       />
                                       <label htmlFor={`primary-${v.sku}`} style={{ fontSize: '0.75rem', cursor: 'pointer' }}>Primary</label>
                                     </div>
@@ -1428,7 +1425,7 @@ function App() {
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0' }}>
                       Date: {new Date(entry.date).toLocaleDateString()} | Reference: {entry.referenceId || 'N/A'}
                     </div>
-                    
+
                     <div style={{ marginTop: '0.75rem' }}>
                       {entry.lines.map((l, lIdx) => (
                         <div key={lIdx} className="flex-between" style={{ fontSize: '0.85rem', padding: '0.25rem 0', borderBottom: '1px dashed rgba(255,255,255,0.05)' }}>
