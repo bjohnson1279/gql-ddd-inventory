@@ -53,4 +53,21 @@ describe('AccountingJournalService', () => {
       expect(entry.isBalanced()).toBe(true);
     });
   });
+
+  describe('createEntry (private method)', () => {
+    it('should throw an error when attempting to create an unbalanced journal entry', async () => {
+      const tenantId = 'tenant-xyz';
+      const date = new Date('2023-10-01T10:00:00Z');
+      const description = 'Test unbalanced entry';
+      const method = AccountingMethod.Accrual;
+      const lines: [AccountCode, number, DebitCredit, string][] = [
+        [AccountCode.inventory(), 15000, DebitCredit.Debit, 'Debit amount'],
+        [AccountCode.costOfGoodsSold(), 10000, DebitCredit.Credit, 'Mismatched credit amount'],
+      ];
+
+      await expect(
+        (service as any).createEntry(tenantId, date, description, null, method, lines)
+      ).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
+    });
+  });
 });
