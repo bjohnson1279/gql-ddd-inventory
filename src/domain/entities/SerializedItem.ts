@@ -12,7 +12,6 @@ import { SerializedItemStatusChanged } from '../events/SerialEvents';
 export class SerializedItem {
   private _status: SerializedItemStatus;
   private _history: StatusTransition[] = [];
-  private _historyArray: ReadonlyArray<StatusTransition> | null = null;
   private _domainEvents: DomainEvent[] = [];
 
   constructor(
@@ -39,10 +38,7 @@ export class SerializedItem {
   }
 
   get history(): ReadonlyArray<StatusTransition> {
-    if (this._historyArray === null) {
-      this._historyArray = [...this._history];
-    }
-    return this._historyArray;
+    return this._history;
   }
 
   receive(location: LocationId, actor: ActorId, purchaseOrderId: string): void {
@@ -87,7 +83,6 @@ export class SerializedItem {
       new Date(),
       referenceId
     ));
-    this._historyArray = null;
 
     this._status = target;
     this._domainEvents.push(new SerializedItemStatusChanged(
