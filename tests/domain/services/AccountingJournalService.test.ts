@@ -17,6 +17,51 @@ describe('AccountingJournalService', () => {
     service = new AccountingJournalService(mockJournalRepo);
   });
 
+
+  describe('onStockReturned', () => {
+    it('should create and save a balanced journal entry for stock returned', async () => {
+      const variantId = 'VAR-123';
+      const totalCostCents = 25000;
+      const referenceId = 'RET-999';
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-xyz';
+
+      const entry = await service.onStockReturned(
+        variantId,
+        totalCostCents,
+        referenceId,
+        date,
+        tenantId
+      );
+
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockJournalRepo.save).toHaveBeenCalledWith(entry);
+
+      expect(entry.tenantId.value).toBe(tenantId);
+      expect(entry.date).toEqual(date);
+      expect(entry.description).toBe(`Inventory return receipt — variant ${variantId} — reference ${referenceId}`);
+      expect(entry.referenceId).toBe(referenceId);
+      expect(entry.method).toBe(AccountingMethod.Accrual);
+
+      const lines = entry.lines;
+      expect(lines).toHaveLength(2);
+
+      const inventoryLine = lines.find(l => l.account.code === AccountCode.inventory().code);
+      expect(inventoryLine).toBeDefined();
+      expect(inventoryLine?.amountCents).toBe(totalCostCents);
+      expect(inventoryLine?.type).toBe(DebitCredit.Debit);
+      expect(inventoryLine?.memo).toBe('Returned stock');
+
+      const cogsLine = lines.find(l => l.account.code === AccountCode.costOfGoodsSold().code);
+      expect(cogsLine).toBeDefined();
+      expect(cogsLine?.amountCents).toBe(totalCostCents);
+      expect(cogsLine?.type).toBe(DebitCredit.Credit);
+      expect(cogsLine?.memo).toBe('COGS reversal');
+
+      expect(entry.isBalanced()).toBe(true);
+    });
+  });
+
   describe('onReturnToVendor', () => {
     it('should create and save a balanced journal entry for returning to vendor', async () => {
       const referenceId = 'PO-12345';
