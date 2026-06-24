@@ -41,6 +41,27 @@ describe('ProductRecallService', () => {
       expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
     });
 
+    it('should return an empty array if only addition entries are found', async () => {
+      const additionEntry = {
+        id: { value: 'entry-1' },
+        tenantId: { value: 'tenant-1' },
+        locationId: { value: 'loc-1' },
+        variantId: { value: 'var-1' },
+        quantity: 100,
+        reason: ReasonCode.OpeningBalance,
+        actor: { value: 'actor-1' },
+        occurredAt: new Date(),
+        referenceId: 'ref-1',
+        isDeduction: false
+      } as unknown as LedgerEntry;
+
+      mockLedgerRepo.findRecallEntries.mockResolvedValue([additionEntry]);
+
+      const dispatches = await service.traceProductRecall('LOT123');
+      expect(dispatches).toEqual([]);
+      expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
+    });
+
     it('should filter only deductions and map them to ContaminatedDispatch', async () => {
       const now = new Date();
 
