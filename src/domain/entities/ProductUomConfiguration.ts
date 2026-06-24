@@ -8,7 +8,6 @@ import { StandardUnits } from '../services/StandardUnits';
 
 export class ProductUomConfiguration {
   private _conversionRules: ConversionRule[] = [];
-  private _conversionRulesArray: ReadonlyArray<ConversionRule> | null = null;
   private _purchaseUnit?: UnitOfMeasure;
   private _saleUnit?: UnitOfMeasure;
 
@@ -37,12 +36,10 @@ export class ProductUomConfiguration {
       factorToBase,
       label
     ));
-    this._conversionRulesArray = null;
   }
 
   removeConversionRule(unit: UnitOfMeasure): void {
     this._conversionRules = this._conversionRules.filter(r => !r.unit.equals(unit));
-    this._conversionRulesArray = null;
   }
 
   setPurchaseUnit(unit: UnitOfMeasure): void {
@@ -64,10 +61,7 @@ export class ProductUomConfiguration {
   }
 
   get conversionRules(): ReadonlyArray<ConversionRule> {
-    if (this._conversionRulesArray === null) {
-      this._conversionRulesArray = [...this._conversionRules];
-    }
-    return this._conversionRulesArray;
+    return this._conversionRules;
   }
 
   factorToBase(unit: UnitOfMeasure): number {

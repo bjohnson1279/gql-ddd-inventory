@@ -5,7 +5,6 @@ import { ProductVariantId } from '../valueObjects/ProductVariantId';
 
 export class Kit {
   private _components: KitComponent[] = [];
-  private _componentsArray: ReadonlyArray<KitComponent> | null = null;
 
   constructor(
     public readonly id: KitId,
@@ -21,14 +20,10 @@ export class Kit {
     } else {
       this._components.push(new KitComponent(variantId, quantity));
     }
-    this._componentsArray = null;
   }
 
   get components(): ReadonlyArray<KitComponent> {
-    if (this._componentsArray === null) {
-      this._componentsArray = [...this._components];
-    }
-    return this._componentsArray;
+    return this._components;
   }
 
   get isEmpty(): boolean {
