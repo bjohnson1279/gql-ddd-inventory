@@ -121,6 +121,29 @@ describe('ManageStockTransfers Use Cases', () => {
         })
       ).rejects.toThrow('Stock transfer must contain at least one item.');
     });
+
+    it('should create stock transfer without a referenceId', async () => {
+      const result = await createUseCase.execute({
+        tenantId,
+        sourceLocationId: sourceLoc,
+        destinationLocationId: destLoc,
+        items: [{ variantId: variantIdStr, quantity: 5 }]
+      });
+
+      expect(result.id).toBeDefined();
+      expect(result.referenceId).toBeNull();
+    });
+
+    it('should throw an error when item quantity is not positive', async () => {
+      await expect(
+        createUseCase.execute({
+          tenantId,
+          sourceLocationId: sourceLoc,
+          destinationLocationId: destLoc,
+          items: [{ variantId: variantIdStr, quantity: -1 }]
+        })
+      ).rejects.toThrow('Stock transfer item quantity must be positive.');
+    });
   });
 
   describe('DispatchStockTransferUseCase', () => {
