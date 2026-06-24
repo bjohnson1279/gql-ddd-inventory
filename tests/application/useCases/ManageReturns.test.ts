@@ -1,4 +1,4 @@
-import { ReceiveRmaUseCase } from '../../../src/application/useCases/ManageReturns';
+import { ReceiveRmaUseCase, AuthorizeRmaUseCase } from '../../../src/application/useCases/ManageReturns';
 import { IRmaRepository } from '../../../src/domain/repositories/IRmaRepository';
 import { IInventoryRepository } from '../../../src/domain/repositories/IInventoryRepository';
 import { IInventoryCostLayerRepository } from '../../../src/domain/repositories/IInventoryCostLayerRepository';
@@ -52,6 +52,39 @@ describe('ManageReturns Use Cases', () => {
       };
 
       await expect(useCase.execute(dto)).rejects.toThrow('RMA with ID invalid-id not found.');
+    });
+  });
+
+  describe('AuthorizeRmaUseCase', () => {
+    let mockRmaRepo: jest.Mocked<IRmaRepository>;
+
+    beforeEach(() => {
+      mockRmaRepo = {
+        save: jest.fn(),
+        findById: jest.fn(),
+      } as unknown as jest.Mocked<IRmaRepository>;
+    });
+
+    it('should throw an error if RMA is not found', async () => {
+      mockRmaRepo.findById.mockResolvedValue(null);
+
+      const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
+
+      await expect(useCase.execute('invalid-id')).rejects.toThrow('RMA with ID invalid-id not found.');
+    });
+
+    it('should successfully authorize an RMA and save it', async () => {
+      const mockRma = {
+        authorize: jest.fn(),
+      };
+      mockRmaRepo.findById.mockResolvedValue(mockRma as any);
+
+      const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
+      await useCase.execute('valid-id');
+
+      expect(mockRmaRepo.findById).toHaveBeenCalledWith('valid-id');
+      expect(mockRma.authorize).toHaveBeenCalled();
+      expect(mockRmaRepo.save).toHaveBeenCalledWith(mockRma);
     });
   });
 });
