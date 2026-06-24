@@ -154,7 +154,7 @@ describe('ManageStockTransfers Use Cases', () => {
     });
 
     it('should fail to dispatch with invalid transferId when repository returns null', async () => {
-      // Setup repository to return null for specific ID
+      // Test repository returning null for invalid dispatch
       const invalidId = 'invalid-id';
       jest.spyOn(transferRepo, 'findById').mockResolvedValueOnce(null);
 
