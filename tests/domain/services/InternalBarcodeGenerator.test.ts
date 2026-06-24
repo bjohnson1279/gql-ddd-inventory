@@ -66,5 +66,42 @@ describe('InternalBarcodeGenerator', () => {
 
       expect(barcode1.value).toBe(barcode2.value);
     });
+
+    it('should generate different barcodes for different SKUs', async () => {
+      mockRegistry.isRegistered.mockResolvedValue(false);
+
+      const sku1 = new Sku('TEST-SKU-123');
+      const sku2 = new Sku('TEST-SKU-456');
+
+      const barcode1 = await generator.generate(sku1, tenantId);
+      const barcode2 = await generator.generate(sku2, tenantId);
+
+      expect(barcode1.value).not.toBe(barcode2.value);
+    });
+
+    it('should generate different barcodes for different tenants', async () => {
+      mockRegistry.isRegistered.mockResolvedValue(false);
+
+      const tenantId1 = new TenantId('tenant-1');
+      const tenantId2 = new TenantId('tenant-2');
+
+      const barcode1 = await generator.generate(sku, tenantId1);
+      const barcode2 = await generator.generate(sku, tenantId2);
+
+      expect(barcode1.value).not.toBe(barcode2.value);
+    });
+
+    it('should generate a unique barcode successfully on the 5th attempt', async () => {
+      mockRegistry.isRegistered
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      const barcode = await generator.generate(sku, tenantId);
+      expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(5);
+      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
+    });
   });
 });
