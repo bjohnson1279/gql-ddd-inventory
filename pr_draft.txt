@@ -1,0 +1,8 @@
+Title: 🛡️ Sentinel: [HIGH] Fix User Enumeration Timing Attack and Leakage in Login
+
+Description:
+🚨 Severity: HIGH
+💡 Vulnerability: The `login` resolver returned early without invoking `verifyPassword` (which is slow due to PBKDF2) when an account was not found. This allowed an attacker to enumerate usernames by timing the response. Additionally, throwing "Account deactivated." directly informed the attacker of the exact state of valid users.
+🎯 Impact: Attackers could easily determine which email addresses exist in the system, narrowing the scope for subsequent targeted attacks or credential stuffing.
+🔧 Fix: I modified the error handling to use a dummy hash verification if the user doesn't exist, equalizing the processing time whether the user exists or not. I also replaced the specific "Account deactivated." error with a generic credential error response.
+✅ Verification: Tests run successfully, validating that the new constant execution path doesn't break functionality, and that all failed paths resolve to the `handleFailedAttempt()` function securely.
