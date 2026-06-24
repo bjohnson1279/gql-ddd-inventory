@@ -53,6 +53,20 @@ describe('AccountingJournalService', () => {
 
       expect(entry.isBalanced()).toBe(true);
     });
+
+    it('should throw an error for zero cost entries', async () => {
+      const variantId = 'var-123';
+      const totalCostCents = 0;
+      const referenceId = 'RET-ZERO';
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('onReturnToVendor', () => {
