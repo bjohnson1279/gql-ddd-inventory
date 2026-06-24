@@ -120,5 +120,19 @@ describe('AccountingJournalService', () => {
         (service as any).createEntry(tenantId, date, description, null, method, lines)
       ).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
     });
+
+    it('should throw an error when creating an entry with only one line', async () => {
+      const tenantId = 'tenant-xyz';
+      const date = new Date('2023-10-01T10:00:00Z');
+      const description = 'Test unbalanced entry with one line';
+      const method = AccountingMethod.Accrual;
+      const lines: [AccountCode, number, DebitCredit, string][] = [
+        [AccountCode.inventory(), 15000, DebitCredit.Debit, 'Debit amount']
+      ];
+
+      await expect(
+        (service as any).createEntry(tenantId, date, description, null, method, lines)
+      ).rejects.toThrow('Journal entry is unbalanced. Debits must equal Credits.');
+    });
   });
 });
