@@ -41,6 +41,11 @@ describe('InternalBarcodeGenerator', () => {
 
       expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(2);
+
+      const firstAttemptValue = mockRegistry.isRegistered.mock.calls[0][0];
+      const secondAttemptValue = mockRegistry.isRegistered.mock.calls[1][0];
+      expect(firstAttemptValue).not.toBe(secondAttemptValue);
+      expect(barcode.value).toBe(secondAttemptValue);
     });
 
     it('should throw an error if it cannot generate a unique barcode after 5 attempts', async () => {
@@ -102,6 +107,13 @@ describe('InternalBarcodeGenerator', () => {
       const barcode = await generator.generate(sku, tenantId);
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(5);
       expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
+
+      const lastAttemptValue = mockRegistry.isRegistered.mock.calls[4][0];
+      expect(barcode.value).toBe(lastAttemptValue);
+
+      // Verify all attempts had unique values
+      const attemptValues = new Set(mockRegistry.isRegistered.mock.calls.map(call => call[0]));
+      expect(attemptValues.size).toBe(5);
     });
   });
 });
