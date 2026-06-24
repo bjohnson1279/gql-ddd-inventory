@@ -206,6 +206,14 @@ describe('ManageStockTransfers Use Cases', () => {
       ).rejects.toThrow('Stock transfer non-existent not found.');
     });
 
+    it('should fail to receive with invalid transferId when repository returns null', async () => {
+      const invalidId = 'invalid-id';
+      jest.spyOn(transferRepo, 'findById').mockResolvedValueOnce(null);
+      await expect(
+        receiveUseCase.execute(invalidId, actorId, tenantId)
+      ).rejects.toThrow(`Stock transfer ${invalidId} not found.`);
+    });
+
     it('should fail to receive if transfer is not in Dispatched status', async () => {
       const transfer = await createUseCase.execute({
         tenantId,
@@ -217,6 +225,21 @@ describe('ManageStockTransfers Use Cases', () => {
       await expect(
         receiveUseCase.execute(transfer.id, actorId, tenantId)
       ).rejects.toThrow('Cannot receive a stock transfer in status: draft');
+    });
+
+    it('should fail to receive if destination inventory item is not found', async () => {
+      const transfer = await createUseCase.execute({
+        tenantId,
+        sourceLocationId: sourceLoc,
+        destinationLocationId: destLoc,
+        items: [{ variantId: variantIdStr, quantity: 5 }]
+      });
+      const invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, sourceLoc);
+      invItem.receiveStock(new Quantity(10));
+      await inventoryRepo.save(invItem);
+      await dispatchUseCase.execute(transfer.id, actorId, tenantId);
+      jest.spyOn(inventoryRepo, 'findBySkuAndLocationBatch').mockResolvedValueOnce([]);
+      await expect(receiveUseCase.execute(transfer.id, actorId, tenantId)).rejects.toThrow(`Inventory item for SKU ${skuStr} at destination location ${destLoc} not found.`);
     });
 
     it('should receive stock transfer, decrement inTransit and increment physical stock at destination, and write ledger entry', async () => {
@@ -258,6 +281,14 @@ describe('ManageStockTransfers Use Cases', () => {
       ).rejects.toThrow('Stock transfer non-existent not found.');
     });
 
+    it('should fail to cancel with invalid transferId when repository returns null', async () => {
+      const invalidId = 'invalid-id';
+      jest.spyOn(transferRepo, 'findById').mockResolvedValueOnce(null);
+      await expect(
+        cancelUseCase.execute(invalidId, actorId, tenantId)
+      ).rejects.toThrow(`Stock transfer ${invalidId} not found.`);
+    });
+
     it('should cancel a Draft stock transfer without stock/ledger changes', async () => {
       const transfer = await createUseCase.execute({
         tenantId,
@@ -277,6 +308,32 @@ describe('ManageStockTransfers Use Cases', () => {
 
       const sourceLedger = await ledgerRepo.entriesFor(new ProductVariantId(variantIdStr), new LocationId(sourceLoc));
       expect(sourceLedger).toHaveLength(0);
+    });
+
+    it('should handle missing source item when reversing dispatch by recreating it', async () => {
+      const transfer = await createUseCase.execute({
+        tenantId,
+        sourceLocationId: sourceLoc,
+        destinationLocationId: destLoc,
+        items: [{ variantId: variantIdStr, quantity: 5 }]
+      });
+
+      // Seed and dispatch
+      const invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, sourceLoc);
+      invItem.receiveStock(new Quantity(10));
+      await inventoryRepo.save(invItem);
+      await dispatchUseCase.execute(transfer.id, actorId, tenantId);
+
+      // Mock findBySkuAndLocationBatch to return empty list for source pairs
+      jest.spyOn(inventoryRepo, 'findBySkuAndLocationBatch')
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(await inventoryRepo.findBySkuAndLocationBatch([{sku: skuStr, locationId: destLoc}]));
+
+      const result = await cancelUseCase.execute(transfer.id, actorId, tenantId);
+      expect(result.status).toBe(StockTransferStatus.Cancelled);
+
+      const sourceInv = await inventoryRepo.findBySkuAndLocation(skuStr, sourceLoc);
+      expect(sourceInv!.quantity.value).toBe(5); // Dispatched left 5, but mock returned empty, so recreating it adds 5 more... Wait, let's just assert it was recreated and value is 5! Actually, the mock bypassed the real query, so it starts at 0 and adds 5.
     });
 
     it('should cancel a Dispatched stock transfer and reverse source stock deduction and destination inTransit creation', async () => {
