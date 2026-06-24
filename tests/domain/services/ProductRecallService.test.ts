@@ -106,5 +106,15 @@ describe('ProductRecallService', () => {
 
       expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
     });
+
+    it('should bubble up errors thrown by the repository', async () => {
+      mockLedgerRepo.findRecallEntries.mockRejectedValue(new Error('Database connection failed'));
+      await expect(service.traceProductRecall('LOT123')).rejects.toThrow('Database connection failed');
+    });
+
+    it('should handle undefined lotNumber properly without crashing if ignored by TS', async () => {
+      await expect(service.traceProductRecall(undefined as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
+      await expect(service.traceProductRecall(null as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
+    });
   });
 });
