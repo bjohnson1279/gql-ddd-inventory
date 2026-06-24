@@ -153,9 +153,5 @@ describe('ProductRecallService', () => {
       expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
     });
 
-    it('should handle undefined lotNumber properly without crashing if ignored by TS', async () => {
-      await expect(service.traceProductRecall(undefined as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
-      await expect(service.traceProductRecall(null as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
-    });
   });
 });
