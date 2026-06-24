@@ -79,4 +79,28 @@ describe('ReorderPointForecaster', () => {
     expect(rop).toBe(200);
     expect(velocityCalculator.calculateAverageDailySales).toHaveBeenCalledWith(sku, locationId, 60);
   });
+
+  it('should correctly calculate reorder point when lead time is 0', async () => {
+    const dailyRunrate = 10;
+    (velocityCalculator.calculateAverageDailySales as jest.Mock).mockResolvedValue(dailyRunrate);
+
+    const leadTimeDays = 0;
+    const safetyStock = 20;
+
+    const rop = await reorderPointForecaster.forecastReorderPoint(sku, locationId, leadTimeDays, safetyStock);
+
+    expect(rop).toBe(20);
+  });
+
+  it('should correctly calculate reorder point when safety stock is 0', async () => {
+    const dailyRunrate = 10;
+    (velocityCalculator.calculateAverageDailySales as jest.Mock).mockResolvedValue(dailyRunrate);
+
+    const leadTimeDays = 5;
+    const safetyStock = 0;
+
+    const rop = await reorderPointForecaster.forecastReorderPoint(sku, locationId, leadTimeDays, safetyStock);
+
+    expect(rop).toBe(50);
+  });
 });
