@@ -24,9 +24,12 @@ describe('PutawaySuggester', () => {
     suggester = new PutawaySuggester(inventoryRepo, productRepo, locationRepo);
   });
 
-  it('should throw an error if quantity to put away is zero or negative', async () => {
+  it('should throw an error if quantity to put away is zero', async () => {
     await expect(suggester.suggestPutaway(new Sku('TEST-SKU'), 0))
       .rejects.toThrow('Quantity to put away must be positive.');
+  });
+
+  it('should throw an error if quantity to put away is negative', async () => {
     await expect(suggester.suggestPutaway(new Sku('TEST-SKU'), -5))
       .rejects.toThrow('Quantity to put away must be positive.');
   });
