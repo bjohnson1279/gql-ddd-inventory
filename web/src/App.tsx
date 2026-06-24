@@ -1125,12 +1125,12 @@ function App() {
                                 const updated = [...newVarAttrs];
                                 updated[idx] = { ...updated[idx], name: e.target.value };
                                 setNewVarAttrs(updated);
-                              }} required />
+                              }} required={!!attr.value} />
                               <input aria-label={"Attribute Value " + (idx + 1)} placeholder="Value" value={attr.value} onChange={e => {
                                 const updated = [...newVarAttrs];
                                 updated[idx] = { ...updated[idx], value: e.target.value };
                                 setNewVarAttrs(updated);
-                              }} required />
+                              }} required={!!attr.name} />
                               {newVarAttrs.length > 1 && (
                                 <button type="button" className="btn btn-danger" aria-label={`Remove attribute ${idx + 1}`} title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
                                   &times;
