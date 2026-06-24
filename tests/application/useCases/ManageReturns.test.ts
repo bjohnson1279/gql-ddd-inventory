@@ -1,4 +1,8 @@
-import { ReceiveRmaUseCase } from '../../../src/application/useCases/ManageReturns';
+import { AuthorizeRmaUseCase, ReceiveRmaUseCase } from '../../../src/application/useCases/ManageReturns';
+import { Rma } from '../../../src/domain/entities/Rma';
+import { RMAStatus } from '../../../src/domain/enums/ReturnEnums';
+import { TenantId } from '../../../src/domain/valueObjects/TenantId';
+import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { IRmaRepository } from '../../../src/domain/repositories/IRmaRepository';
 import { IInventoryRepository } from '../../../src/domain/repositories/IInventoryRepository';
 import { IInventoryCostLayerRepository } from '../../../src/domain/repositories/IInventoryCostLayerRepository';
@@ -8,6 +12,37 @@ import { IProductRepository } from '../../../src/domain/repositories/IProductRep
 import { ISerializedItemRepository } from '../../../src/domain/repositories/ISerializedItemRepository';
 
 describe('ManageReturns Use Cases', () => {
+  describe('AuthorizeRmaUseCase', () => {
+    let mockRmaRepo: jest.Mocked<IRmaRepository>;
+
+    beforeEach(() => {
+      mockRmaRepo = {
+        save: jest.fn(),
+        findById: jest.fn(),
+        findByNumber: jest.fn(),
+        findAllByTenant: jest.fn(),
+      } as unknown as jest.Mocked<IRmaRepository>;
+    });
+
+    it('should throw an error if RMA is not found', async () => {
+      mockRmaRepo.findById.mockResolvedValue(null);
+      const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
+      await expect(useCase.execute('invalid-id')).rejects.toThrow('RMA with ID invalid-id not found.');
+    });
+
+    it('should authorize and save the RMA', async () => {
+      const mockRma = new Rma('rma-1', 'RMA-001', 't1' as unknown as TenantId, 'c1', 'l1' as unknown as LocationId);
+      mockRmaRepo.findById.mockResolvedValue(mockRma);
+
+      const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
+      await useCase.execute('rma-1');
+
+      expect(mockRmaRepo.findById).toHaveBeenCalledWith('rma-1');
+      expect(mockRma.status).toBe(RMAStatus.Authorized);
+      expect(mockRmaRepo.save).toHaveBeenCalledWith(mockRma);
+    });
+  });
+
   describe('ReceiveRmaUseCase', () => {
     let mockRmaRepo: jest.Mocked<IRmaRepository>;
     let mockInventoryRepo: jest.Mocked<IInventoryRepository>;
