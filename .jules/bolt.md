@@ -56,3 +56,6 @@
 ## 2026-06-22 - Use saveBatch over save in loops within domain services
 **Learning:** Calling `.save(layer)` individually inside an array iteration (e.g. `for (const layer of activeLayers)`) causes unnecessary overhead and N+1 query patterns. This severely degrades performance when consuming numerous cost layers for an item.
 **Action:** When saving multiple entities of the same type within a service loop, collect them into an array and use a dedicated `.saveBatch(entities)` repository method outside the loop.
+## 2024-06-25 - [Testing Coverage Gaps - Null Handling Mocks]
+ **Learning:** When a bug or feature request calls for testing a scenario where a repository returns `null` for a missing entity in a use case, ensure that identical null-handling branches in analogous use cases (e.g. `ReceiveStockTransferUseCase` and `CancelStockTransferUseCase` vs `DispatchStockTransferUseCase`) are also fully tested with the same `jest.spyOn(repo, 'findById').mockResolvedValueOnce(null)` pattern to maintain 100% test coverage.
+ **Action:** Proactively seek out and duplicate missing null-checking tests across all related use cases within the same context or domain file if they are missing.
