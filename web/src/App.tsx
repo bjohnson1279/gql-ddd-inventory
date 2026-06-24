@@ -1117,29 +1117,31 @@ function App() {
                           </select>
                         </div>
                         
-                        <label>Variant Attributes (Colors, Sizes, etc.)</label>
-                        {newVarAttrs.map((attr, idx) => (
-                          <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
-                            <input aria-label={"Attribute Name " + (idx + 1)} placeholder="Attribute Name" value={attr.name} onChange={e => {
-                              const updated = [...newVarAttrs];
-                              updated[idx] = { ...updated[idx], name: e.target.value };
-                              setNewVarAttrs(updated);
-                            }} />
-                            <input aria-label={"Attribute Value " + (idx + 1)} placeholder="Value" value={attr.value} onChange={e => {
-                              const updated = [...newVarAttrs];
-                              updated[idx] = { ...updated[idx], value: e.target.value };
-                              setNewVarAttrs(updated);
-                            }} />
-                            {newVarAttrs.length > 1 && (
-                              <button type="button" className="btn btn-danger" aria-label={`Remove attribute ${idx + 1}`} title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
-                                &times;
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginBottom: '1rem' }} onClick={() => setNewVarAttrs([...newVarAttrs, { name: '', value: '' }])}>
-                          + Add Attribute Row
-                        </button>
+                        <div className="form-group">
+                          <label>Variant Attributes (Colors, Sizes, etc.)</label>
+                          {newVarAttrs.map((attr, idx) => (
+                            <div key={idx} className="flex-gap-1" style={{ marginBottom: '0.5rem' }}>
+                              <input aria-label={"Attribute Name " + (idx + 1)} placeholder="Attribute Name" value={attr.name} onChange={e => {
+                                const updated = [...newVarAttrs];
+                                updated[idx] = { ...updated[idx], name: e.target.value };
+                                setNewVarAttrs(updated);
+                              }} required={!!attr.value} />
+                              <input aria-label={"Attribute Value " + (idx + 1)} placeholder="Value" value={attr.value} onChange={e => {
+                                const updated = [...newVarAttrs];
+                                updated[idx] = { ...updated[idx], value: e.target.value };
+                                setNewVarAttrs(updated);
+                              }} required={!!attr.name} />
+                              {newVarAttrs.length > 1 && (
+                                <button type="button" className="btn btn-danger" aria-label={`Remove attribute ${idx + 1}`} title="Remove attribute" onClick={() => setNewVarAttrs(prev => prev.filter((_, i) => i !== idx))} style={{ height: '42px', padding: '0 1rem' }}>
+                                  &times;
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginBottom: '1rem' }} onClick={() => setNewVarAttrs([...newVarAttrs, { name: '', value: '' }])}>
+                            + Add Attribute Row
+                          </button>
+                        </div>
 
                         <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
                           Add Variant
