@@ -53,6 +53,27 @@ describe('ManageReturns Use Cases', () => {
 
       await expect(useCase.execute(dto)).rejects.toThrow('RMA with ID invalid-id not found.');
     });
+
+    it('should throw an error for ReceiveRmaUseCase with invalid RMA ID', async () => {
+      mockRmaRepo.findById.mockResolvedValue(null);
+
+      const useCase = new ReceiveRmaUseCase(
+        mockRmaRepo,
+        mockInventoryRepo,
+        mockCostLayerRepo,
+        mockQuarantineRepo,
+        mockJournalRepo,
+        mockProductRepo,
+        mockSerializedItemRepo
+      );
+
+      const dto = {
+        rmaId: 'non-existent-rma-id',
+        items: []
+      };
+
+      await expect(useCase.execute(dto)).rejects.toThrow('RMA with ID non-existent-rma-id not found.');
+    });
     it('should throw an error if SKU is not found for variant ID', async () => {
       mockRmaRepo.findById.mockResolvedValue({
         locationId: { value: 'LOC-1' }
