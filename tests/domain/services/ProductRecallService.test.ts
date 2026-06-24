@@ -32,7 +32,7 @@ describe('ProductRecallService', () => {
       await expect(service.traceProductRecall('')).rejects.toThrow("Lot number cannot be empty.");
     });
 
-    it('should throw an error if the lot number is just whitespace', async () => {
+    it('should throw an error if the lot number contains only whitespace', async () => {
       await expect(service.traceProductRecall('   ')).rejects.toThrow("Lot number cannot be empty.");
     });
 
@@ -142,6 +142,15 @@ describe('ProductRecallService', () => {
     it('should bubble up errors thrown by the repository', async () => {
       mockLedgerRepo.findRecallEntries.mockRejectedValue(new Error('Database connection failed'));
       await expect(service.traceProductRecall('LOT123')).rejects.toThrow('Database connection failed');
+    });
+
+
+    it('should return an empty array if repository returns an empty array for entries', async () => {
+      mockLedgerRepo.findRecallEntries.mockResolvedValue([]);
+
+      const dispatches = await service.traceProductRecall('LOT123');
+      expect(dispatches).toEqual([]);
+      expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
     });
 
   });

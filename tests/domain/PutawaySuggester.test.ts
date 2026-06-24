@@ -29,9 +29,12 @@ describe('PutawaySuggester', () => {
       .rejects.toThrow('Quantity to put away must be positive.');
   });
 
-  it('should throw an error if quantity to put away is negative', async () => {
+  it('should throw an error if quantity to put away is negative (-1)', async () => {
     await expect(suggester.suggestPutaway(new Sku('TEST-SKU'), -1))
       .rejects.toThrow('Quantity to put away must be positive.');
+  });
+
+  it('should throw an error if quantity to put away is negative (-5)', async () => {
     await expect(suggester.suggestPutaway(new Sku('TEST-SKU'), -5))
       .rejects.toThrow('Quantity to put away must be positive.');
   });

@@ -4,6 +4,78 @@ import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { IProductRepository } from '../../../src/domain/repositories/IProductRepository';
 import { ILedgerRepository } from '../../../src/domain/repositories/ILedgerRepository';
 
+import { ReasonCode } from '../../../src/domain/enums/ReasonCode';
+
+describe('DemandVelocityCalculator', () => {
+  const sku = new Sku('SKU-123');
+  const locationId = new LocationId('LOC-1');
+
+  let productRepoMock: jest.Mocked<IProductRepository>;
+  let ledgerRepoMock: jest.Mocked<ILedgerRepository>;
+  let velocityCalculator: DemandVelocityCalculator;
+
+  beforeEach(() => {
+    productRepoMock = {
+      findBySku: jest.fn(),
+    } as unknown as jest.Mocked<IProductRepository>;
+
+    ledgerRepoMock = {
+      entriesFor: jest.fn(),
+    } as unknown as jest.Mocked<ILedgerRepository>;
+
+    velocityCalculator = new DemandVelocityCalculator(productRepoMock, ledgerRepoMock);
+  });
+
+  it('should return 0 if product is not found', async () => {
+    productRepoMock.findBySku.mockResolvedValue(null);
+    const result = await velocityCalculator.calculateAverageDailySales(sku, locationId);
+    expect(result).toBe(0);
+    expect(productRepoMock.findBySku).toHaveBeenCalledWith(sku);
+  });
+
+  it('should return 0 if variant is not found in product', async () => {
+    const mockProduct = {
+      findVariantBySku: jest.fn().mockReturnValue(undefined)
+    };
+    productRepoMock.findBySku.mockResolvedValue(mockProduct as any);
+
+    const result = await velocityCalculator.calculateAverageDailySales(sku, locationId);
+    expect(result).toBe(0);
+    expect(mockProduct.findVariantBySku).toHaveBeenCalledWith(sku);
+  });
+
+  it('should calculate average daily sales correctly', async () => {
+    const mockVariant = { id: 'variant-1' };
+    const mockProduct = {
+      findVariantBySku: jest.fn().mockReturnValue(mockVariant)
+    };
+    productRepoMock.findBySku.mockResolvedValue(mockProduct as any);
+
+    const now = new Date();
+    const validDate = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000)); // 5 days ago
+    const outsideWindowDate = new Date(now.getTime() - (40 * 24 * 60 * 60 * 1000)); // 40 days ago
+
+    const mockEntries = [
+      // Valid sales within 30-day window
+      { occurredAt: validDate, quantity: -10, reason: ReasonCode.Sale },
+      { occurredAt: validDate, quantity: -5, reason: ReasonCode.KitSale },
+
+      // Invalid entries that should be ignored
+      { occurredAt: validDate, quantity: 10, reason: ReasonCode.Sale }, // Positive quantity
+      { occurredAt: validDate, quantity: -20, reason: ReasonCode.Transfer }, // Not a sale reason
+      { occurredAt: outsideWindowDate, quantity: -50, reason: ReasonCode.Sale } // Outside 30-day window
+    ];
+    ledgerRepoMock.entriesFor.mockResolvedValue(mockEntries as any);
+
+    const result = await velocityCalculator.calculateAverageDailySales(sku, locationId, 30);
+
+    // Valid total quantity = |-10| + |-5| = 15
+    // Average daily = 15 / 30 = 0.5
+    expect(result).toBe(0.5);
+    expect(ledgerRepoMock.entriesFor).toHaveBeenCalledWith('variant-1', locationId);
+  });
+});
+
 describe('ReorderPointForecaster', () => {
   const sku = new Sku('SKU-123');
   const locationId = new LocationId('LOC-1');
