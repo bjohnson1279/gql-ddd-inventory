@@ -30,8 +30,17 @@ describe('ProductRecallService', () => {
   describe('traceProductRecall', () => {
     it('should throw an error if the lot number is empty', async () => {
       await expect(service.traceProductRecall('')).rejects.toThrow("Lot number cannot be empty.");
+    });
+
+    it('should throw an error if the lot number is just whitespace', async () => {
       await expect(service.traceProductRecall('   ')).rejects.toThrow("Lot number cannot be empty.");
+    });
+
+    it('should throw an error if the lot number is null', async () => {
       await expect(service.traceProductRecall(null as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
+    });
+
+    it('should throw an error if the lot number is undefined', async () => {
       await expect(service.traceProductRecall(undefined as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
     });
 
@@ -135,9 +144,5 @@ describe('ProductRecallService', () => {
       await expect(service.traceProductRecall('LOT123')).rejects.toThrow('Database connection failed');
     });
 
-    it('should handle undefined lotNumber properly without crashing if ignored by TS', async () => {
-      await expect(service.traceProductRecall(undefined as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
-      await expect(service.traceProductRecall(null as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
-    });
   });
 });
