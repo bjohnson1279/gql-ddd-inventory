@@ -144,6 +144,17 @@ describe('ManageStockTransfers Use Cases', () => {
         })
       ).rejects.toThrow('Stock transfer item quantity must be positive.');
     });
+
+    it('should throw an error when item quantity is not an integer', async () => {
+      await expect(
+        createUseCase.execute({
+          tenantId,
+          sourceLocationId: sourceLoc,
+          destinationLocationId: destLoc,
+          items: [{ variantId: variantIdStr, quantity: 1.5 }]
+        })
+      ).rejects.toThrow('Stock transfer item quantity must be an integer.');
+    });
   });
 
   describe('DispatchStockTransferUseCase', () => {
