@@ -21,7 +21,7 @@ The system is split into distinct domain-driven bounded contexts. Technical spec
 
 *   **Node.js**: `v20.x` or later
 *   **Docker & Docker Compose** (for persistent containerization)
-*   **PostgreSQL 15** (local instance or Docker container)
+*   **PostgreSQL 15 with TimescaleDB Extension** (local instance or Docker container)
 
 ---
 
@@ -70,7 +70,7 @@ You can run the entire environment (API backend, React frontend on Nginx, Postgr
 # Launch all services
 docker compose up -d --build
 ```
-Refer to the [docker-compose.yml](file:///C:/Users/johns/DEV/gql-ddd-inventory/docker-compose.yml) configuration for service port mappings (`5433` for DB, `4000` for GraphQL API, `80` for Frontend Web).
+Refer to the [docker-compose.yml](file:///C:/Users/johns/DEV/gql-ddd-inventory/docker-compose.yml) configuration for service port mappings (`5433` for DB, `4000` for GraphQL API, `80` for Frontend Web). The database service runs the TimescaleDB image (`timescale/timescaledb:latest-pg15`), converting `ledger_entries` into a hypertable partitioned by `occurred_at`.
 
 ---
 
