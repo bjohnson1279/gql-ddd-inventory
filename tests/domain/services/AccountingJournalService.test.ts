@@ -18,38 +18,51 @@ describe('AccountingJournalService', () => {
   });
 
   describe('onStockReturned', () => {
-    it('should create and save a balanced journal entry for stock return', async () => {
-      const variantId = 'var-123';
-      const totalCostCents = 25000;
-      const referenceId = 'RET-999';
-      const date = new Date('2023-10-02T10:00:00Z');
-      const tenantId = 'tenant-xyz';
+    const variantId = 'var-123';
+    const totalCostCents = 25000;
+    const referenceId = 'RET-999';
+    const date = new Date('2023-10-02T10:00:00Z');
+    const tenantId = 'tenant-xyz';
 
+    it('should save the journal entry to the repository', async () => {
       const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
 
       expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
       expect(mockJournalRepo.save).toHaveBeenCalledWith(entry);
+    });
+
+    it('should set the basic properties of the journal entry', async () => {
+      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
 
       expect(entry.tenantId.value).toBe(tenantId);
       expect(entry.date).toEqual(date);
       expect(entry.description).toBe(`Inventory return receipt — variant ${variantId} — reference ${referenceId}`);
       expect(entry.referenceId).toBe(referenceId);
       expect(entry.method).toBe(AccountingMethod.Accrual);
+    });
 
-      const lines = entry.lines;
-      expect(lines).toHaveLength(2);
+    it('should create an Inventory debit line', async () => {
+      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
 
-      const inventoryLine = lines.find(l => l.account.code === AccountCode.inventory().code);
+      const inventoryLine = entry.lines.find(l => l.account.code === AccountCode.inventory().code);
       expect(inventoryLine).toBeDefined();
       expect(inventoryLine?.amountCents).toBe(totalCostCents);
       expect(inventoryLine?.type).toBe(DebitCredit.Debit);
       expect(inventoryLine?.memo).toBe('Returned stock');
+    });
 
-      const cogsLine = lines.find(l => l.account.code === AccountCode.costOfGoodsSold().code);
+    it('should create a COGS credit line', async () => {
+      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
+
+      const cogsLine = entry.lines.find(l => l.account.code === AccountCode.costOfGoodsSold().code);
       expect(cogsLine).toBeDefined();
       expect(cogsLine?.amountCents).toBe(totalCostCents);
       expect(cogsLine?.type).toBe(DebitCredit.Credit);
       expect(cogsLine?.memo).toBe('COGS reversal');
+    });
+
+    it('should result in a balanced journal entry', async () => {
+      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
 
       expect(entry.isBalanced()).toBe(true);
     });
@@ -66,6 +79,47 @@ describe('AccountingJournalService', () => {
       ).rejects.toThrow('Journal line amount must be positive.');
 
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error for negative cost entries', async () => {
+      const variantId = 'var-123';
+      const totalCostCents = -500;
+      const referenceId = 'RET-NEG';
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should successfully create an entry with an empty referenceId', async () => {
+      const variantId = 'var-123';
+      const totalCostCents = 1000;
+      const referenceId = '';
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
+
+      expect(entry.referenceId).toBeUndefined();
+      expect(entry.description).toBe(`Inventory return receipt — variant ${variantId} — reference `);
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should successfully create an entry with an empty variantId', async () => {
+      const variantId = '';
+      const totalCostCents = 1000;
+      const referenceId = 'RET-123';
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
+
+      expect(entry.description).toBe(`Inventory return receipt — variant  — reference ${referenceId}`);
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
     });
   });
 
