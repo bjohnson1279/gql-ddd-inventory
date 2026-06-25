@@ -22,14 +22,21 @@ describe('InternalBarcodeGenerator', () => {
 
   describe('generate', () => {
     it('should generate a unique barcode successfully on the first attempt', async () => {
-      // Simulate that the barcode is NOT registered yet
       mockRegistry.isRegistered.mockResolvedValue(false);
-
-      const barcode = await generator.generate(sku, tenantId);
-
-      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
-      expect(barcode.value).toMatch(/^INV-[A-F0-9]{4}-[A-F0-9]{8}$/);
+      await generator.generate(sku, tenantId);
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(1);
+    });
+
+    it('should assign CODE_128 symbology to the generated barcode', async () => {
+      mockRegistry.isRegistered.mockResolvedValue(false);
+      const barcode = await generator.generate(sku, tenantId);
+      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
+    });
+
+    it('should format the barcode value with the correct prefix and hash pattern', async () => {
+      mockRegistry.isRegistered.mockResolvedValue(false);
+      const barcode = await generator.generate(sku, tenantId);
+      expect(barcode.value).toMatch(/^INV-[A-F0-9]{4}-[A-F0-9]{8}$/);
     });
 
     it('should retry generating a barcode if a collision occurs', async () => {
@@ -37,10 +44,16 @@ describe('InternalBarcodeGenerator', () => {
         .mockResolvedValueOnce(true) // First attempt collision
         .mockResolvedValueOnce(false); // Second attempt success
 
-      const barcode = await generator.generate(sku, tenantId);
-
-      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
+      await generator.generate(sku, tenantId);
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(2);
+    });
+
+    it('should generate a different barcode value on each retry attempt to ensure uniqueness', async () => {
+      mockRegistry.isRegistered
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      const barcode = await generator.generate(sku, tenantId);
 
       const firstAttemptValue = mockRegistry.isRegistered.mock.calls[0][0];
       const secondAttemptValue = mockRegistry.isRegistered.mock.calls[1][0];
@@ -106,14 +119,41 @@ describe('InternalBarcodeGenerator', () => {
 
       const barcode = await generator.generate(sku, tenantId);
       expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(5);
-      expect(barcode.symbology).toBe(BarcodeSymbology.CODE_128);
-
       const lastAttemptValue = mockRegistry.isRegistered.mock.calls[4][0];
       expect(barcode.value).toBe(lastAttemptValue);
+    });
 
-      // Verify all attempts had unique values
+    it('should generate completely unique barcode values across all 5 collision attempts', async () => {
+      mockRegistry.isRegistered
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await generator.generate(sku, tenantId);
+
       const attemptValues = new Set(mockRegistry.isRegistered.mock.calls.map(call => call[0]));
       expect(attemptValues.size).toBe(5);
+    });
+
+    it('should change the skuFragment in the barcode exactly based on the attempt salt', async () => {
+      const testSku = new Sku('TEST');
+      const testTenantId = new TenantId('TENANT');
+
+      mockRegistry.isRegistered
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      const barcode = await generator.generate(testSku, testTenantId);
+
+      const attempt0 = mockRegistry.isRegistered.mock.calls[0][0];
+      const attempt1 = mockRegistry.isRegistered.mock.calls[1][0];
+
+      expect(attempt0).toBe('INV-3F87-3864B69A');
+      expect(attempt1).toBe('INV-3F87-DB03FA33');
+      expect(barcode.value).toBe('INV-3F87-261D684F');
     });
   });
 });
