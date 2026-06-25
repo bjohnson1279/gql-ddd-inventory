@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+
 -- Initial Schema for Inventory System
 
 -- 1. Products and Variants
@@ -25,7 +27,7 @@ CREATE TABLE variant_attributes (
 
 -- 2. Ledger and Stock
 CREATE TABLE ledger_entries (
-    id UUID PRIMARY KEY,
+    id UUID NOT NULL,
     tenant_id TEXT NOT NULL,
     location_id TEXT NOT NULL,
     variant_id UUID REFERENCES product_variants(id),
@@ -35,8 +37,11 @@ CREATE TABLE ledger_entries (
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
     reference_id TEXT,
     metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, occurred_at)
 );
+
+SELECT create_hypertable('ledger_entries', 'occurred_at', if_not_exists => TRUE);
 
 CREATE INDEX idx_ledger_variant_location ON ledger_entries(variant_id, location_id);
 
