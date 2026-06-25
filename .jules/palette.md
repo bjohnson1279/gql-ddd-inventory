@@ -23,3 +23,7 @@
 ## 2024-06-24 - Required Form Fields Need Explicit Required Attributes in Mapped React Components
 **Learning:** When generating multiple input rows in a dynamic form (e.g. using `array.map()`), the `required` attribute must be strictly attached to the newly rendered `<input>` and `<select>` elements. Doing this triggers native browser validation but crucially also allows existing UX design systems to function properly (like appending an asterisk `*` for required fields via CSS pseudo-class logic `.form-group:has(input[required])`). Mapped rows are often skipped over during initial layout building and lead to broken required styling and reduced accessibility.
 **Action:** When adding rows dynamically to forms in React, ensure to map each specific required prop to the generated child inputs and wrap the inline flex elements in a `.form-group` container (even with `marginBottom: 0`) to correctly leverage CSS `:has` logic.
+
+## 2026-06-25 - Handling Time-Series Data in UI Components
+**Learning:** Displaying time-series historical data (like ledger entries or stock transactions) requires clean sorting and efficient pagination to prevent DOM bloat and layout shift when huge lists are loaded.
+**Action:** Always implement server-side pagination, sorting by timestamp, and clear date/time formatters in UI displays of ledger, transaction, or dispatch lists. Ensure that dynamic alert messages or state loading components (like fetching older history chunks) use appropriate ARIA live regions to notify the user of background updates.

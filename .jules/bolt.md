@@ -59,3 +59,10 @@
 ## 2024-06-25 - [Testing Coverage Gaps - Null Handling Mocks]
  **Learning:** When a bug or feature request calls for testing a scenario where a repository returns `null` for a missing entity in a use case, ensure that identical null-handling branches in analogous use cases (e.g. `ReceiveStockTransferUseCase` and `CancelStockTransferUseCase` vs `DispatchStockTransferUseCase`) are also fully tested with the same `jest.spyOn(repo, 'findById').mockResolvedValueOnce(null)` pattern to maintain 100% test coverage.
  **Action:** Proactively seek out and duplicate missing null-checking tests across all related use cases within the same context or domain file if they are missing.
+
+## 2026-06-25 - TimescaleDB Hypertables and Composite Primary Keys
+**Learning:** Standard single-column primary keys (e.g. `id UUID PRIMARY KEY`) are incompatible with TimescaleDB hypertables, which require any primary key or unique constraint to include the time-partitioning column.
+**Action:** When working with append-only time-series tables (like `ledger_entries`, `inventory_transactions`, or `dispatch_records`):
+- Ensure that the primary key is defined as a composite key containing both the unique ID and the timestamp column (e.g. `PRIMARY KEY (id, occurred_at)` or `@@id([id, occurredAt])`).
+- Convert the table to a hypertable immediately upon creation/migration using `SELECT create_hypertable('table_name', 'time_column', if_not_exists => TRUE);`.
+- For Node.js/Prisma setups, ensure the datasource provider is set to PostgreSQL (not SQLite) to maintain database parity across all service variants.

@@ -118,3 +118,11 @@
 **Vulnerability:** The login mutation exhibited a timing attack vulnerability that allowed user enumeration because it bypassed `verifyPassword` entirely when an account didn't exist, returning much faster than for a valid username. It also leaked account existence directly by throwing "Account deactivated." for inactive accounts.
 **Learning:** Returning early on "user not found" checks allows an attacker to measure the timing difference between invalid usernames (fast) and valid ones (slow due to PBKDF2). In addition, informative error messages for different failure states (like "Account deactivated.") help attackers narrow down active vs. inactive users.
 **Prevention:** To prevent user enumeration via timing attacks, ensure the response time is consistent regardless of user existence by performing a dummy hash verification (`verifyPassword` against a predefined dummy hash) when the account is not found. Similarly, avoid leaking exact account states by throwing generic "Invalid credentials." errors for all failure modes, including deactivated accounts.
+
+## 2026-06-25 - TimescaleDB Setup and Database Parity Constraints
+**Learning:** In multi-variant backends (GraphQL, Express, Laravel), switching database engines (e.g., reverting the Express backend to SQLite or using mock local SQLite files) breaks TimescaleDB hypertable features and causes database drift. Additionally, database connection configuration must be securely validated.
+**Action:** 
+- Maintain database engine parity across all service variants by strictly using PostgreSQL for physical datastores.
+- Do not run `prisma db push` during automated npm package installation (`postinstall`) in CI or production build environments, as it will fail due to the absence of a running database. Limit postinstall steps to `prisma generate` and execute migrations/pushes in dedicated pipeline steps or deployment startup phases.
+- Ensure that any dynamic database connection strings (like `DATABASE_URL` built from separate components) are validated on server startup and fallback safely to trusted local defaults for development environments.
+- Protect raw SQL queries used to enable the `timescaledb` extension or initialize hypertables from SQL injection vulnerabilities by using parameterized queries or strict schema names.
