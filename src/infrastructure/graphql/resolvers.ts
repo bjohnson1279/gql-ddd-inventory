@@ -135,6 +135,8 @@ import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineR
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
+import { PostgresDemandForecastRepository } from '../persistence/PostgresDemandForecastRepository';
+import { DemandForecaster } from '../../domain/services/DemandForecaster';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
@@ -156,6 +158,7 @@ const kitRepository = new PostgresKitRepository(prisma);
 export const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
 const rmaRepository = new PostgresRmaRepository(prisma);
 const quarantineRepository = new PostgresQuarantineRepository(prisma);
+export const demandForecastRepository = new PostgresDemandForecastRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
@@ -275,6 +278,13 @@ const replenishmentEvaluator = new ReplenishmentEvaluator(
   stockTransferRepository,
   purchaseOrderRepository,
   reorderPointForecaster
+);
+const demandForecaster = new DemandForecaster(
+  productRepository,
+  inventoryRepository,
+  ledgerRepository,
+  replenishmentRuleRepository,
+  demandForecastRepository
 );
 
 // Replenishment Use Cases
@@ -923,6 +933,54 @@ export const resolvers = {
           type: item.type,
           isRead: item.isRead,
           createdAt: item.createdAt.toISOString()
+        }));
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const forecast = await demandForecaster.generateDemandForecast(
+          new Sku(sku),
+          new LocationId(locationId),
+          forecastDays || 30,
+          trendMultiplier || 1.0
+        );
+        return {
+          id: forecast.id.value,
+          sku: forecast.sku.value,
+          locationId: forecast.locationId.value,
+          forecastedQuantity: forecast.forecastedQuantity,
+          periodStart: forecast.periodStart.toISOString(),
+          periodEnd: forecast.periodEnd.toISOString(),
+          confidenceLevel: forecast.confidenceLevel,
+          createdAt: forecast.createdAt.toISOString()
+        };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    demandPlanningReport: async (_: any, { locationId }: { locationId: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const report = await demandForecaster.getDemandPlanningReport(new LocationId(locationId));
+        return report.map(r => ({
+          sku: r.sku,
+          locationId: r.locationId,
+          currentStock: r.currentStock,
+          averageDailySales7d: r.averageDailySales7d,
+          averageDailySales30d: r.averageDailySales30d,
+          averageDailySales90d: r.averageDailySales90d,
+          daysOfCover: r.daysOfCover === Infinity ? null : r.daysOfCover,
+          runOutDate: r.runOutDate ? r.runOutDate.toISOString() : null,
+          reorderPoint: r.reorderPoint,
+          reorderQuantity: r.reorderQuantity,
+          safetyStock: r.safetyStock,
+          forecastedDemand30d: r.forecastedDemand30d,
+          confidenceLevel: r.confidenceLevel,
+          actionRequired: r.actionRequired,
+          recommendedOrderQuantity: r.recommendedOrderQuantity
         }));
       } catch (error: any) {
         throw new Error(error.message);

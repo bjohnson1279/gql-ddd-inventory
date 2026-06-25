@@ -457,3 +457,19 @@ model Notification {
   @@map("notifications")
 }
 
+model DemandForecast {
+  id                 String   @id @db.Uuid
+  sku                String
+  locationId         String   @map("location_id")
+  forecastedQuantity Int      @map("forecasted_quantity")
+  periodStart        DateTime @map("period_start") @db.Timestamptz
+  periodEnd          DateTime @map("period_end") @db.Timestamptz
+  confidenceLevel    Float    @map("confidence_level")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([sku, locationId, periodStart, periodEnd])
+  @@map("demand_forecasts")
+}
+
+
