@@ -69,6 +69,56 @@ describe('AccountingJournalService', () => {
     });
   });
 
+  describe('onInventoryWriteOff', () => {
+    const referenceId = 'WO-12345';
+    const totalCostCents = 15000;
+    const date = new Date('2023-10-01T10:00:00Z');
+    const tenantId = 'tenant-xyz';
+
+    it('should create and save a balanced journal entry for inventory write-off', async () => {
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockJournalRepo.save).toHaveBeenCalledWith(entry);
+
+      expect(entry.tenantId.value).toBe(tenantId);
+      expect(entry.date).toEqual(date);
+      expect(entry.description).toBe(`Inventory Write-Off — Ref ${referenceId}`);
+      expect(entry.referenceId).toBe(referenceId);
+      expect(entry.method).toBe(AccountingMethod.Accrual);
+
+      const lines = entry.lines;
+      expect(lines).toHaveLength(2);
+
+      const expenseLine = lines.find(l => l.account.code === AccountCode.inventoryWriteOffExpense().code);
+      expect(expenseLine).toBeDefined();
+      expect(expenseLine?.amountCents).toBe(totalCostCents);
+      expect(expenseLine?.type).toBe(DebitCredit.Debit);
+      expect(expenseLine?.memo).toBe('Inventory write-off');
+
+      const inventoryLine = lines.find(l => l.account.code === AccountCode.inventory().code);
+      expect(inventoryLine).toBeDefined();
+      expect(inventoryLine?.amountCents).toBe(totalCostCents);
+      expect(inventoryLine?.type).toBe(DebitCredit.Credit);
+      expect(inventoryLine?.memo).toBe('Inventory reduction');
+
+      expect(entry.isBalanced()).toBe(true);
+    });
+
+    it('should throw an error for zero cost entries', async () => {
+      const referenceId = 'WO-ZERO';
+      const totalCostCents = 0;
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('onReturnToVendor', () => {
     const referenceId = 'PO-12345';
     const totalCostCents = 15000;
