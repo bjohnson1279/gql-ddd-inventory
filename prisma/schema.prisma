@@ -60,7 +60,7 @@ model VariantAttribute {
 }
 
 model LedgerEntry {
-  id          String         @id @db.Uuid
+  id          String         @db.Uuid
   tenantId    String         @map("tenant_id")
   locationId  String         @map("location_id")
   variantId   String         @map("variant_id") @db.Uuid
@@ -73,6 +73,7 @@ model LedgerEntry {
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
   variant     ProductVariant @relation(fields: [variantId], references: [id])
 
+  @@id([id, occurredAt])
   @@map("ledger_entries")
 }
 
