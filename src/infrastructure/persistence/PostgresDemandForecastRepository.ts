@@ -4,7 +4,7 @@ import { DemandForecast } from '../../domain/entities/DemandForecast';
 import { DemandForecastId } from '../../domain/valueObjects/DemandForecastId';
 import { Sku } from '../../domain/valueObjects/Sku';
 import { LocationId } from '../../domain/valueObjects/LocationId';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 function toUuid(id: string): string {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

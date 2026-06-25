@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { pubsub } from './pubsub';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
