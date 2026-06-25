@@ -69,6 +69,57 @@ describe('AccountingJournalService', () => {
     });
   });
 
+
+  describe('onInventoryWriteOff', () => {
+    it('should create and save a balanced journal entry for inventory write-off', async () => {
+      const referenceId = 'WO-123';
+      const totalCostCents = 5000;
+      const date = new Date('2023-11-01T10:00:00Z');
+      const tenantId = 'tenant-xyz';
+
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockJournalRepo.save).toHaveBeenCalledWith(entry);
+
+      expect(entry.tenantId.value).toBe(tenantId);
+      expect(entry.date).toEqual(date);
+      expect(entry.description).toBe(`Inventory Write-Off — Ref ${referenceId}`);
+      expect(entry.referenceId).toBe(referenceId);
+      expect(entry.method).toBe(AccountingMethod.Accrual);
+
+      const lines = entry.lines;
+      expect(lines).toHaveLength(2);
+
+      const expLine = lines.find(l => l.account.code === AccountCode.inventoryWriteOffExpense().code);
+      expect(expLine).toBeDefined();
+      expect(expLine?.amountCents).toBe(totalCostCents);
+      expect(expLine?.type).toBe(DebitCredit.Debit);
+      expect(expLine?.memo).toBe('Inventory write-off');
+
+      const invLine = lines.find(l => l.account.code === AccountCode.inventory().code);
+      expect(invLine).toBeDefined();
+      expect(invLine?.amountCents).toBe(totalCostCents);
+      expect(invLine?.type).toBe(DebitCredit.Credit);
+      expect(invLine?.memo).toBe('Inventory reduction');
+
+      expect(entry.isBalanced()).toBe(true);
+    });
+
+    it('should throw an error for zero cost entries', async () => {
+      const referenceId = 'WO-ZERO';
+      const totalCostCents = 0;
+      const date = new Date('2023-11-01T10:00:00Z');
+      const tenantId = 'tenant-xyz';
+
+      await expect(
+        service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('onReturnToVendor', () => {
     const referenceId = 'PO-12345';
     const totalCostCents = 15000;
