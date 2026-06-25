@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { IInventoryRepository } from '../repositories/IInventoryRepository';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { IReplenishmentRuleRepository } from '../repositories/IReplenishmentRuleRepository';
@@ -81,9 +81,9 @@ export class DemandForecaster {
     const sum30d = history30d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
     const sum90d = history90d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
 
-    const ads7d = parseFloat((sum7d / 7).toFixed(3));
-    const ads30d = parseFloat((sum30d / 30).toFixed(3));
-    const ads90d = parseFloat((sum90d / 90).toFixed(3));
+    const ads7d = Number.parseFloat((sum7d / 7).toFixed(3));
+    const ads30d = Number.parseFloat((sum30d / 30).toFixed(3));
+    const ads90d = Number.parseFloat((sum90d / 90).toFixed(3));
 
     let daysOfCover = Infinity;
     let runOutDate: Date | null = null;
@@ -109,7 +109,7 @@ export class DemandForecaster {
     sku: Sku,
     locationId: LocationId,
     forecastDays: number,
-    trendMultiplier: number = 1.0
+    trendMultiplier: number = 1
   ): Promise<DemandForecast> {
     const velocity = await this.calculateSalesVelocity(sku, locationId);
     const baseQuantity = velocity.averageDailySales30d * forecastDays;
@@ -118,7 +118,7 @@ export class DemandForecaster {
     const periodStart = new Date();
     const periodEnd = new Date(periodStart.getTime() + forecastDays * 24 * 60 * 60 * 1000);
 
-    const confidenceLevel = velocity.averageDailySales30d > 0 ? 0.85 : 0.50;
+    const confidenceLevel = velocity.averageDailySales30d > 0 ? 0.85 : 0.5;
 
     const id = new DemandForecastId(crypto.randomUUID());
 
@@ -165,7 +165,8 @@ export class DemandForecaster {
       );
 
       const forecastedDemand30d = activeForecast ? activeForecast.forecastedQuantity : Math.ceil(velocity.averageDailySales30d * 30);
-      const confidenceLevel = activeForecast ? activeForecast.confidenceLevel : (velocity.averageDailySales30d > 0 ? 0.70 : 0.50);
+      const defaultConfidence = velocity.averageDailySales30d > 0 ? 0.7 : 0.5;
+      const confidenceLevel = activeForecast ? activeForecast.confidenceLevel : defaultConfidence;
 
       const actionRequired = item.quantity.value <= reorderPoint;
       const recommendedOrderQuantity = actionRequired ? reorderQuantity : 0;
