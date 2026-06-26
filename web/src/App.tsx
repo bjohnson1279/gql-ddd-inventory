@@ -736,7 +736,7 @@ function App() {
                 <option value="viewer">Viewer (Read-Only)</option>
               </select>
             </div>
-            <button type="submit" className={"btn btn-primary" + (loading ? " btn-loading" : "")} style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }} disabled={loading}>
+            <button type="submit" className={"btn btn-primary" + (loginLoading ? " btn-loading" : "")} style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }} disabled={loginLoading}>
               Sign In & Verify
             </button>
           </form>
