@@ -31,7 +31,8 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
   async saveBatch(layers: InventoryCostLayer[]): Promise<void> {
     if (layers.length === 0) return;
 
-    const layerIds = layers.map((l) => l.id.value);
+    const uniqueLayers = Array.from(new Map(layers.map((l) => [l.id.value, l])).values());
+    const layerIds = uniqueLayers.map((l) => l.id.value);
 
     await this.prisma.$transaction(async (tx) => {
       // Fetch existing layer IDs to separate inserts from updates within the transaction
