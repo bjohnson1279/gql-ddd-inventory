@@ -46,7 +46,7 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
       const layersToCreate: any[] = [];
       const layersToUpdate: InventoryCostLayer[] = [];
 
-      for (const layer of layers) {
+      for (const layer of uniqueLayers) {
         if (existingIds.has(layer.id.value)) {
           layersToUpdate.push(layer);
         } else {
