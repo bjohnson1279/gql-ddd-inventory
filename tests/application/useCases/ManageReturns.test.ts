@@ -125,6 +125,24 @@ describe('ManageReturns Use Cases', () => {
       const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
       await expect(useCase.execute('invalid-id')).rejects.toThrow('RMA with ID invalid-id not found.');
     });
+
+    it('should authorize and save the RMA', async () => {
+      const mockRma = {
+        authorize: jest.fn(),
+      };
+
+      const mockRmaRepo = {
+        findById: jest.fn().mockResolvedValue(mockRma),
+        save: jest.fn().mockResolvedValue(undefined),
+      } as unknown as jest.Mocked<IRmaRepository>;
+
+      const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
+      await useCase.execute('valid-id');
+
+      expect(mockRmaRepo.findById).toHaveBeenCalledWith('valid-id');
+      expect(mockRma.authorize).toHaveBeenCalled();
+      expect(mockRmaRepo.save).toHaveBeenCalledWith(mockRma);
+    });
   });
 
   describe('ResolveQuarantineItemUseCase', () => {
