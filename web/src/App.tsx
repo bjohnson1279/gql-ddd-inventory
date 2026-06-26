@@ -1060,9 +1060,8 @@ function App() {
                     <div className="form-group">
                       <label htmlFor="newProdName">Product Name</label>
                       <input id="newProdName" value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
-                    </div>
                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                      {loading ? <Spinner /> : null} Create Product
+                      {loading ? <><Spinner /> Creating...</> : 'Create Product'}
                     </button>
                   </form>
                   <div style={{ height: '1.5rem' }}></div>
