@@ -194,15 +194,6 @@ describe('ProductRecallService', () => {
       expect(dispatches).toHaveLength(1);
       const dispatch = dispatches[0];
 
-      // Assert on each property explicitly
-      expect(dispatch).toHaveProperty('ledgerEntryId', mockEntryId);
-      expect(dispatch).toHaveProperty('locationId', mockLocationId);
-      expect(dispatch).toHaveProperty('quantity', 42); // Absolute value of -42
-      expect(dispatch).toHaveProperty('referenceId', mockReferenceId);
-      expect(dispatch).toHaveProperty('occurredAt', now);
-      expect(dispatch).toHaveProperty('actorId', mockActorId);
-
-      // Also do strict deep equality check
       expect(dispatch).toStrictEqual({
         ledgerEntryId: mockEntryId,
         locationId: mockLocationId,
