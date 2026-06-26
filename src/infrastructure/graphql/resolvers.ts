@@ -1549,6 +1549,42 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
+    purchaseShippingLabel: async (
+      _: any,
+      { sku, quantity, destinationAddress, carrier, locationId, tenantId }: {
+        sku: string;
+        quantity: number;
+        destinationAddress: string;
+        carrier: string;
+        locationId: string;
+        tenantId: string;
+      },
+      context: GraphQLContext
+    ) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
+        const result = await purchaseShippingLabelUseCase.execute({
+          sku,
+          quantity,
+          destinationAddress,
+          carrier,
+          locationId,
+          tenantId: auth.tenantId
+        });
+        return result;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    updateShipmentStatus: async (_: any, { shipmentId, status }: { shipmentId: string; status: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        await updateShipmentStatusUseCase.execute({ shipmentId, status });
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
     login: async (_: any, { tenantId, actorId, role, email, password }: { tenantId: string; actorId?: string; role?: string; email?: string; password?: string }) => {
       if (email && password) {
         const emailLower = email.toLowerCase().trim();
