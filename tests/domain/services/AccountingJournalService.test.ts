@@ -183,6 +183,26 @@ describe('AccountingJournalService', () => {
 
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
     });
+
+    it('should correctly handle missing referenceId', async () => {
+      const entry = await service.onReturnToVendor('', totalCostCents, date, tenantId);
+
+      expect(entry.description).toBe('Return to Vendor — Ref ');
+      expect(entry.referenceId).toBeUndefined();
+    });
+
+    it('should correctly handle negative cost entries', async () => {
+      const referenceId = 'PO-NEGATIVE';
+      const negativeCostCents = -15000;
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onReturnToVendor(referenceId, negativeCostCents, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('createEntry (private method)', () => {

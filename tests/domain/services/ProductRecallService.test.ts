@@ -145,12 +145,14 @@ describe('ProductRecallService', () => {
     });
 
 
-    it('should return an empty array if repository returns an empty array for entries', async () => {
+    it('should ensure no false positives are returned when repository is mocked to return an empty array', async () => {
       mockLedgerRepo.findRecallEntries.mockResolvedValue([]);
 
       const dispatches = await service.traceProductRecall('LOT123');
+
       expect(dispatches).toEqual([]);
       expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
+      expect(dispatches.length).toBe(0);
     });
 
   });
