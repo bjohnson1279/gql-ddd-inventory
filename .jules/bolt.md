@@ -66,3 +66,6 @@
 - Ensure that the primary key is defined as a composite key containing both the unique ID and the timestamp column (e.g. `PRIMARY KEY (id, occurred_at)` or `@@id([id, occurredAt])`).
 - Convert the table to a hypertable immediately upon creation/migration using `SELECT create_hypertable('table_name', 'time_column', if_not_exists => TRUE);`.
 - For Node.js/Prisma setups, ensure the datasource provider is set to PostgreSQL (not SQLite) to maintain database parity across all service variants.
+## 2026-06-26 - Optimized PostgresInventoryCostLayerRepository saveBatch
+**Learning:** Using Prisma `upsert` in an array mapped inside `$transaction` results in high overhead for batch saves as it generates separate queries for each record without benefiting from true database bulk upsert optimizations.
+**Action:** Always pre-fetch existing records using `findMany`, partition items into new vs existing, and use `createMany` for new items alongside individual `update` queries for existing ones within the transaction.
