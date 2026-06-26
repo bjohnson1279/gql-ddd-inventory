@@ -149,6 +149,7 @@ describe('InternalBarcodeGenerator', () => {
 
       const barcode = await generator.generate(testSku, testTenantId);
 
+      expect(mockRegistry.isRegistered).toHaveBeenCalledTimes(3);
       const attempt0 = mockRegistry.isRegistered.mock.calls[0][0];
       const attempt1 = mockRegistry.isRegistered.mock.calls[1][0];
 
