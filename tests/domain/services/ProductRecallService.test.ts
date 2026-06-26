@@ -44,6 +44,35 @@ describe('ProductRecallService', () => {
       await expect(service.traceProductRecall(undefined as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
     });
 
+    it('should throw an error if the lot number contains only newline characters', async () => {
+      await expect(service.traceProductRecall('\n\n')).rejects.toThrow("Lot number cannot be empty.");
+    });
+
+    it('should properly handle lots with different leading/trailing whitespace correctly given truthy trim() result', async () => {
+      // Setup a valid ledger entry
+      const now = new Date();
+      const deductionEntry = new LedgerEntry(
+        new LedgerEntryId('entry-2'),
+        new TenantId('tenant-1'),
+        new LocationId('loc-2'),
+        new ProductVariantId('var-1'),
+        -20, // deduction
+        ReasonCode.Sale,
+        new ActorId('actor-2'),
+        now,
+        'ref-2'
+      );
+      mockLedgerRepo.findRecallEntries.mockResolvedValue([deductionEntry]);
+
+      const dispatches = await service.traceProductRecall('  LOT-ABC  \n');
+      expect(dispatches).toHaveLength(1);
+      expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('  LOT-ABC  \n');
+    });
+
+    it('should throw an error if the lot number contains mixed whitespace characters', async () => {
+      await expect(service.traceProductRecall(' \t \n ')).rejects.toThrow("Lot number cannot be empty.");
+    });
+
     it('should return an empty array if no recall entries are found', async () => {
       mockLedgerRepo.findRecallEntries.mockResolvedValue([]);
 
@@ -137,6 +166,51 @@ describe('ProductRecallService', () => {
       });
 
       expect(mockLedgerRepo.findRecallEntries).toHaveBeenCalledWith('LOT123');
+    });
+
+    it('should properly map properties from LedgerEntry to ContaminatedDispatch including absolute quantity', async () => {
+      const now = new Date('2023-01-01T12:00:00Z');
+      const mockLocationId = 'loc-test-123';
+      const mockEntryId = 'entry-test-123';
+      const mockActorId = 'actor-test-123';
+      const mockReferenceId = 'ref-test-123';
+
+      const deductionEntry = new LedgerEntry(
+        new LedgerEntryId(mockEntryId),
+        new TenantId('tenant-1'),
+        new LocationId(mockLocationId),
+        new ProductVariantId('var-1'),
+        -42, // deduction
+        ReasonCode.Sale,
+        new ActorId(mockActorId),
+        now,
+        mockReferenceId
+      );
+
+      mockLedgerRepo.findRecallEntries.mockResolvedValue([deductionEntry]);
+
+      const dispatches = await service.traceProductRecall('LOT123');
+
+      expect(dispatches).toHaveLength(1);
+      const dispatch = dispatches[0];
+
+      // Assert on each property explicitly
+      expect(dispatch).toHaveProperty('ledgerEntryId', mockEntryId);
+      expect(dispatch).toHaveProperty('locationId', mockLocationId);
+      expect(dispatch).toHaveProperty('quantity', 42); // Absolute value of -42
+      expect(dispatch).toHaveProperty('referenceId', mockReferenceId);
+      expect(dispatch).toHaveProperty('occurredAt', now);
+      expect(dispatch).toHaveProperty('actorId', mockActorId);
+
+      // Also do strict deep equality check
+      expect(dispatch).toStrictEqual({
+        ledgerEntryId: mockEntryId,
+        locationId: mockLocationId,
+        quantity: 42,
+        referenceId: mockReferenceId,
+        occurredAt: now,
+        actorId: mockActorId
+      });
     });
 
     it('should bubble up errors thrown by the repository', async () => {
