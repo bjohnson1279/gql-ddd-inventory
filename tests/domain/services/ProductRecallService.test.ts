@@ -36,6 +36,10 @@ describe('ProductRecallService', () => {
       await expect(service.traceProductRecall('   ')).rejects.toThrow("Lot number cannot be empty.");
     });
 
+    it('should throw an error if the lot number contains only tabs and newlines', async () => {
+      await expect(service.traceProductRecall('\t\n')).rejects.toThrow("Lot number cannot be empty.");
+    });
+
     it('should throw an error if the lot number is null', async () => {
       await expect(service.traceProductRecall(null as unknown as string)).rejects.toThrow("Lot number cannot be empty.");
     });
