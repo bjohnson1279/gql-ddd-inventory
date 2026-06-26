@@ -95,18 +95,18 @@ describe('AccountingJournalService', () => {
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should successfully create an entry with an empty referenceId', async () => {
+    it('should throw an error when referenceId is empty', async () => {
       const variantId = 'var-123';
       const totalCostCents = 1000;
       const referenceId = '';
       const date = new Date('2023-10-02T10:00:00Z');
       const tenantId = 'tenant-abc';
 
-      const entry = await service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
+      await expect(
+        service.onStockReturned(variantId, totalCostCents, referenceId, date, tenantId)
+      ).rejects.toThrow('Reference ID cannot be empty.');
 
-      expect(entry.referenceId).toBeUndefined();
-      expect(entry.description).toBe(`Inventory return receipt — variant ${variantId} — reference `);
-      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
     });
 
     it('should successfully create an entry with an empty variantId', async () => {
