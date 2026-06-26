@@ -174,6 +174,7 @@ describe('ManageStockTransfers Use Cases', () => {
       expect(result.referenceId).toBe('multi-item-ref');
 
       const saved = await transferRepo.findById(new StockTransferId(result.id));
+      expect(saved).not.toBeNull();
       expect(saved!.items).toHaveLength(2);
       expect(saved!.items[0].quantity).toBe(5);
       expect(saved!.items[1].quantity).toBe(10);
