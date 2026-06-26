@@ -912,7 +912,7 @@ function App() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                 Stock onboarding sheets follow a strict workflow: Draft (add/remove items) → Submitted (processes and writes ledger entries).
               </p>
-              <button className="btn btn-primary" onClick={handleCreateOnboarding} disabled={loading}>
+              <button className={"btn btn-primary" + (loading ? " btn-loading" : "")} onClick={handleCreateOnboarding} disabled={loading}>
                 + Create Draft Onboarding Sheet
               </button>
 
@@ -949,7 +949,7 @@ function App() {
                               }}>
                                 Edit
                               </button>
-                              <button className="btn btn-accent" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => handleSubmitOnboarding(o.id)} disabled={loading}>
+                              <button className={"btn btn-accent" + (loading ? " btn-loading" : "")} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => handleSubmitOnboarding(o.id)} disabled={loading}>
                                 Lock & Post
                               </button>
                             </div>
@@ -1035,7 +1035,7 @@ function App() {
                     <button className="btn btn-secondary" onClick={() => setOnboardingItems([...onboardingItems, { variantId: '', quantity: 0, unitCostCents: 0 }])}>
                       + Add Variant Item
                     </button>
-                    <button className="btn btn-primary" onClick={() => handleSaveOnboardingItems(selectedOnboarding.id)} disabled={loading}>
+                    <button className={"btn btn-primary" + (loading ? " btn-loading" : "")} onClick={() => handleSaveOnboardingItems(selectedOnboarding.id)} disabled={loading}>
                       Save Draft Changes
                     </button>
                   </div>
@@ -1150,7 +1150,7 @@ function App() {
                           </button>
                         </div>
 
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                        <button type="submit" className={"btn btn-primary" + (loading ? " btn-loading" : "")} style={{ width: '100%' }} disabled={loading}>
                           Add Variant
                         </button>
                       </form>
@@ -1182,7 +1182,7 @@ function App() {
                               <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>Barcodes</span>
                                 {(role === 'admin' || role === 'warehouse_operator') && (
-                                  <button className="btn btn-secondary" aria-label="Auto generate internal barcode" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)} disabled={loading}>
+                                  <button className={"btn btn-secondary" + (loading ? " btn-loading" : "")} aria-label="Auto generate internal barcode" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => handleGenerateBarcode(v.sku)} disabled={loading}>
                                     ⚡ Auto Gen Internal
                                   </button>
                                 )}
@@ -1197,7 +1197,7 @@ function App() {
                                         {b.isPrimary && <span className="badge badge-success" style={{ marginLeft: '0.5rem', padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}>Primary</span>}
                                       </span>
                                       {(role === 'admin' || role === 'warehouse_operator') ? (
-                                        <button type="button" className="btn btn-danger" aria-label={"Revoke barcode " + b.barcode.value} style={{ padding: '0.1rem 0.4rem', fontSize: '0.75rem', height: 'auto', marginLeft: '0.5rem' }} onClick={() => handleRevokeBarcode(v.sku, b.id)} disabled={loading}>
+                                        <button type="button" className={"btn btn-danger" + (loading ? " btn-loading" : "")} aria-label={"Revoke barcode " + b.barcode.value} style={{ padding: '0.1rem 0.4rem', fontSize: '0.75rem', height: 'auto', marginLeft: '0.5rem' }} onClick={() => handleRevokeBarcode(v.sku, b.id)} disabled={loading}>
                                           Revoke
                                         </button>
                                       ) : <span></span>}
@@ -1262,7 +1262,7 @@ function App() {
                                     </div>
                                   </div>
                                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                    <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} disabled={loading}>
+                                    <button type="submit" className={"btn btn-primary" + (loading ? " btn-loading" : "")} style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} disabled={loading}>
                                       Save Assignment
                                     </button>
                                     <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }} onClick={() => setAssignSku('')}>
@@ -1467,7 +1467,7 @@ function App() {
                   <label htmlFor="traceSerialNum">Enter Serial Number</label>
                   <input id="traceSerialNum" autoFocus value={traceSerialNum} onChange={e => setTraceSerialNum(e.target.value)} placeholder="e.g. SN123" required />
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                <button type="submit" className={"btn btn-primary" + (loading ? " btn-loading" : "")} style={{ width: '100%' }} disabled={loading}>
                   Trace History Timeline
                 </button>
               </form>
@@ -1535,7 +1535,7 @@ function App() {
                   <label htmlFor="newShopifyToken">Access Token</label>
                   <input id="newShopifyToken" type="password" value={newShopifyToken} onChange={e => setNewShopifyToken(e.target.value)} placeholder="shpat_..." required />
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                <button type="submit" className={"btn btn-primary" + (loading ? " btn-loading" : "")} style={{ width: '100%' }} disabled={loading}>
                   Connect Store Domain
                 </button>
               </form>

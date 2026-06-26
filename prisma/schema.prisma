@@ -457,3 +457,77 @@ model Notification {
   @@map("notifications")
 }
 
+model DemandForecast {
+  id                 String   @id @db.Uuid
+  sku                String
+  locationId         String   @map("location_id")
+  forecastedQuantity Int      @map("forecasted_quantity")
+  periodStart        DateTime @map("period_start") @db.Timestamptz
+  periodEnd          DateTime @map("period_end") @db.Timestamptz
+  confidenceLevel    Float    @map("confidence_level")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([sku, locationId, periodStart, periodEnd])
+  @@map("demand_forecasts")
+}
+
+model Rma {
+  id         String    @id @db.Uuid
+  rmaNumber  String    @unique @map("rma_number")
+  tenantId   String    @map("tenant_id")
+  customerId String    @map("customer_id")
+  locationId String    @map("location_id")
+  status     String
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  items      RmaItem[]
+
+  @@map("rmas")
+}
+
+model RmaItem {
+  id               String  @id @db.Uuid
+  rmaId            String  @map("rma_id") @db.Uuid
+  variantId        String  @map("variant_id") @db.Uuid
+  quantity         Int
+  receivedQuantity Int     @default(0) @map("received_quantity")
+  unitCostCents    Int     @map("unit_cost_cents")
+  status           String
+  disposition      String?
+  rma              Rma     @relation(fields: [rmaId], references: [id], onDelete: Cascade)
+
+  @@map("rma_items")
+}
+
+model QuarantineItem {
+  id         String    @id @db.Uuid
+  variantId  String    @map("variant_id") @db.Uuid
+  quantity   Int
+  reason     String
+  status     String
+  locationId String    @map("location_id")
+  tenantId   String    @map("tenant_id")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz
+
+  @@map("quarantine_items")
+}
+
+model Shipment {
+  id                 String   @id @db.Uuid
+  sku                String
+  quantity           Int
+  destinationAddress String   @map("destination_address")
+  carrier            String
+  trackingNumber     String?  @map("tracking_number")
+  labelUrl           String?  @map("label_url")
+  shippingRateCents  Int      @map("shipping_rate_cents")
+  status             String
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("shipments")
+}
+
+

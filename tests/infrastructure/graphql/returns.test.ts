@@ -80,30 +80,76 @@ jest.mock('../../../src/infrastructure/persistence/PostgresJournalRepository', (
     };
   }) };
 });
-let mockRmaRepoInstance: any;
-jest.mock('../../../src/infrastructure/persistence/PostgresRmaRepository', () => {
-  const { InMemoryRmaRepository } = require('../../../src/infrastructure/persistence/InMemoryRmaRepository');
-  return {
-    PostgresRmaRepository: jest.fn().mockImplementation(() => {
-      const instance = new InMemoryRmaRepository();
-      mockRmaRepoInstance = instance;
-      return instance;
-    })
-  };
-});
-let mockQuarantineRepoInstance: any;
-jest.mock('../../../src/infrastructure/persistence/PostgresQuarantineRepository', () => {
-  const { InMemoryQuarantineRepository } = require('../../../src/infrastructure/persistence/InMemoryQuarantineRepository');
-  return {
-    PostgresQuarantineRepository: jest.fn().mockImplementation(() => {
-      const instance = new InMemoryQuarantineRepository();
-      mockQuarantineRepoInstance = instance;
-      return instance;
-    })
-  };
-});
+const dbRmas: any[] = [];
+const dbQuarantineItems: any[] = [];
 
 import { resolvers, prisma, pool, productRepository } from '../../../src/infrastructure/graphql/resolvers';
+
+jest.spyOn(prisma, '$transaction').mockImplementation(async (cb: any) => cb(prisma));
+
+jest.spyOn((prisma as any).rma, 'findUnique').mockImplementation(async (args: any) => {
+  const { id, rmaNumber } = args.where;
+  const match = dbRmas.find(r => r.id === id || r.rmaNumber === rmaNumber);
+  if (!match) return null;
+  return { ...match };
+});
+
+jest.spyOn((prisma as any).rma, 'findMany').mockImplementation(async (args: any) => {
+  const { tenantId } = args.where;
+  return dbRmas.filter(r => r.tenantId === tenantId).map(r => ({ ...r }));
+});
+
+jest.spyOn((prisma as any).rma, 'upsert').mockImplementation(async (args: any) => {
+  const { id } = args.where;
+  const idx = dbRmas.findIndex(r => r.id === id);
+  const data = idx !== -1 ? { ...dbRmas[idx], ...args.update } : { ...args.create, items: [] };
+  if (idx !== -1) {
+    dbRmas[idx] = data;
+  } else {
+    dbRmas.push(data);
+  }
+  return { ...data };
+});
+
+jest.spyOn((prisma as any).rmaItem, 'upsert').mockImplementation(async (args: any) => {
+  const { id } = args.where;
+  const rmaId = args.create ? args.create.rmaId : undefined;
+  const rma = dbRmas.find(r => r.id === rmaId || rmaId === undefined);
+  if (rma) {
+    rma.items = rma.items || [];
+    const idx = rma.items.findIndex((item: any) => item.id === id);
+    if (idx !== -1) {
+      rma.items[idx] = { ...rma.items[idx], ...args.update };
+    } else {
+      rma.items.push({ ...args.create });
+    }
+  }
+  return { ...args.create };
+});
+
+jest.spyOn((prisma as any).quarantineItem, 'findUnique').mockImplementation(async (args: any) => {
+  const { id } = args.where;
+  const match = dbQuarantineItems.find(q => q.id === id);
+  if (!match) return null;
+  return { ...match };
+});
+
+jest.spyOn((prisma as any).quarantineItem, 'findMany').mockImplementation(async (args: any) => {
+  const { tenantId } = args.where;
+  return dbQuarantineItems.filter(q => q.tenantId === tenantId).map(q => ({ ...q }));
+});
+
+jest.spyOn((prisma as any).quarantineItem, 'upsert').mockImplementation(async (args: any) => {
+  const { id } = args.where;
+  const idx = dbQuarantineItems.findIndex(q => q.id === id);
+  const data = idx !== -1 ? { ...dbQuarantineItems[idx], ...args.update } : { ...args.create };
+  if (idx !== -1) {
+    dbQuarantineItems[idx] = data;
+  } else {
+    dbQuarantineItems.push(data);
+  }
+  return { ...data };
+});
 import { Product } from '../../../src/domain/entities/Product';
 import { ProductId } from '../../../src/domain/valueObjects/ProductId';
 import { Sku } from '../../../src/domain/valueObjects/Sku';

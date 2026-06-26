@@ -31,11 +31,26 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
   async saveBatch(layers: InventoryCostLayer[]): Promise<void> {
     if (layers.length === 0) return;
 
-    await this.prisma.$transaction(
-      layers.map((layer) =>
-        this.prisma.inventoryCostLayer.upsert({
-          where: { id: layer.id.value },
-          create: {
+    const uniqueLayers = Array.from(new Map(layers.map((l) => [l.id.value, l])).values());
+    const layerIds = uniqueLayers.map((l) => l.id.value);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Fetch existing layer IDs to separate inserts from updates within the transaction
+      const existingRecords = await tx.inventoryCostLayer.findMany({
+        where: { id: { in: layerIds } },
+        select: { id: true },
+      });
+
+      const existingIds = new Set(existingRecords.map((r) => r.id));
+
+      const layersToCreate: any[] = [];
+      const layersToUpdate: InventoryCostLayer[] = [];
+
+      for (const layer of uniqueLayers) {
+        if (existingIds.has(layer.id.value)) {
+          layersToUpdate.push(layer);
+        } else {
+          layersToCreate.push({
             id: layer.id.value,
             variantId: layer.variantId.value,
             initialQuantity: layer.initialQuantity,
@@ -45,13 +60,26 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
             serialNumber: layer.serialNumber?.value || null,
             lotNumber: layer.lot?.lotNumber || null,
             expirationDate: layer.lot?.expirationDate || null,
-          },
-          update: {
-            consumedQuantity: layer.consumedQuantity,
-          },
-        })
-      )
-    );
+          });
+        }
+      }
+
+      if (layersToCreate.length > 0) {
+        await tx.inventoryCostLayer.createMany({
+          data: layersToCreate,
+        });
+      }
+
+      if (layersToUpdate.length > 0) {
+        // Prisma doesn't support bulk update with different values per row, so we map updates
+        for (const layer of layersToUpdate) {
+          await tx.inventoryCostLayer.update({
+            where: { id: layer.id.value },
+            data: { consumedQuantity: layer.consumedQuantity },
+          });
+        }
+      }
+    });
   }
 
   async getActiveLayers(
