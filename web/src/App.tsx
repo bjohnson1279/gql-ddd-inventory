@@ -1332,9 +1332,8 @@ function App() {
                     <input id="scanActualQty" type="number" value={scanActualQty} onChange={e => setScanActualQty(Number(e.target.value))} min={0} required />
                   </div>
                 )}
-
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-                  {loading ? <Spinner /> : null} Dispatch Scan Trigger
+                  {loading ? <><Spinner /> Dispatching...</> : 'Dispatch Scan Trigger'}
                 </button>
               </form>
             </div>
