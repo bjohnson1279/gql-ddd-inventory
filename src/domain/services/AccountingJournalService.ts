@@ -3,7 +3,7 @@ import { JournalEntry } from '../entities/JournalEntry';
 import { JournalEntryId } from '../valueObjects/JournalEntryId';
 import { TenantId } from '../valueObjects/TenantId';
 import { AccountCode } from '../valueObjects/AccountCode';
-import { DebitCredit, AccountingMethod } from '../enums/AccountingEnums';
+import { DebitCredit, AccountingMethod, AccountCategory } from '../enums/AccountingEnums';
 import crypto from 'crypto';
 
 export class AccountingJournalService {
@@ -73,6 +73,30 @@ export class AccountingJournalService {
           `AP cleared — return to vendor`,
         ],
         [AccountCode.inventory(), totalCostCents, DebitCredit.Credit, `Inventory reduction`],
+      ]
+    );
+  }
+
+  public async onShippingLabelPurchased(
+    tenantId: string,
+    shipmentId: string,
+    rateCents: number,
+    carrier: string,
+    trackingNumber: string,
+    date: Date
+  ): Promise<JournalEntry> {
+    const freightExpense = new AccountCode('5400', 'Shipping & Freight Expense', AccountCategory.Expense);
+    const freightLiability = new AccountCode('2100', 'Accrued Shipping Liabilities', AccountCategory.Liability);
+
+    return this.createEntry(
+      tenantId,
+      date,
+      `Shipping carrier label purchased: ${carrier} ${trackingNumber}`,
+      shipmentId,
+      AccountingMethod.Accrual,
+      [
+        [freightExpense, rateCents, DebitCredit.Debit, 'Carrier shipping expense'],
+        [freightLiability, rateCents, DebitCredit.Credit, 'Accrued carrier liabilities'],
       ]
     );
   }

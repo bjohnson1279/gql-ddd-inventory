@@ -38,6 +38,40 @@ export const typeDefs = `#graphql
     RTV
   }
 
+  enum ShipmentStatus {
+    label_generated
+    in_transit
+    delivered
+    failed
+  }
+
+  type Shipment {
+    id: ID!
+    sku: String!
+    quantity: Int!
+    destinationAddress: String!
+    carrier: String!
+    trackingNumber: String
+    labelUrl: String
+    shippingRateCents: Int!
+    status: ShipmentStatus!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type CarrierRate {
+    carrier: String!
+    rateCents: Int!
+    estimatedDays: Int!
+  }
+
+  type PurchaseLabelResult {
+    shipmentId: ID!
+    trackingNumber: String!
+    labelUrl: String!
+    rateCents: Int!
+  }
+
   type RmaItem {
     id: ID!
     variantId: ID!
@@ -571,6 +605,8 @@ export const typeDefs = `#graphql
     notifications(tenantId: ID!): [Notification!]!
     generateDemandForecast(sku: String!, locationId: String!, forecastDays: Int, trendMultiplier: Float): DemandForecast!
     demandPlanningReport(locationId: String!): [DemandPlanningReportItem!]!
+    shippingRates(sku: String!, quantity: Int!, destinationAddress: String!): [CarrierRate!]!
+    shipments: [Shipment!]!
   }
 
   type InventoryCountResult {
@@ -697,6 +733,8 @@ export const typeDefs = `#graphql
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
     resolveQuarantineItem(id: ID!, resolution: String!): Boolean!
+    purchaseShippingLabel(sku: String!, quantity: Int!, destinationAddress: String!, carrier: String!, locationId: String!, tenantId: ID!): PurchaseLabelResult!
+    updateShipmentStatus(shipmentId: ID!, status: ShipmentStatus!): Boolean!
 
     receiveStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     dispatchStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!

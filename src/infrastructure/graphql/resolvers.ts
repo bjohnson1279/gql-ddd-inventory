@@ -133,6 +133,16 @@ import {
 import { PostgresRmaRepository } from '../persistence/PostgresRmaRepository';
 import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineRepository';
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
+import { PostgresShipmentRepository } from '../persistence/PostgresShipmentRepository';
+import { MockCarrierService } from '../shipping/MockCarrierService';
+import {
+  CalculateShippingRatesUseCase,
+  PurchaseShippingLabelUseCase,
+  UpdateShipmentStatusUseCase,
+  GetShipmentsUseCase
+} from '../../application/useCases/ManageShipping';
+import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
+
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { PostgresDemandForecastRepository } from '../persistence/PostgresDemandForecastRepository';
@@ -158,6 +168,8 @@ const kitRepository = new PostgresKitRepository(prisma);
 export const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
 const rmaRepository = new PostgresRmaRepository(prisma);
 const quarantineRepository = new PostgresQuarantineRepository(prisma);
+const shipmentRepository = new PostgresShipmentRepository(prisma);
+const carrierService = new MockCarrierService();
 export const demandForecastRepository = new PostgresDemandForecastRepository(prisma);
 
 // Domain Services
@@ -345,6 +357,18 @@ const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
   journalRepository,
   productRepository
 );
+
+const calculateShippingRatesUseCase = new CalculateShippingRatesUseCase(carrierService);
+const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
+  shipmentRepository,
+  carrierService,
+  inventoryRepository,
+  new AccountingJournalService(journalRepository),
+  eventDispatcher
+);
+const updateShipmentStatusUseCase = new UpdateShipmentStatusUseCase(shipmentRepository, eventDispatcher);
+const getShipmentsUseCase = new GetShipmentsUseCase(shipmentRepository);
+
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -981,6 +1005,35 @@ export const resolvers = {
           confidenceLevel: r.confidenceLevel,
           actionRequired: r.actionRequired,
           recommendedOrderQuantity: r.recommendedOrderQuantity
+        }));
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    shippingRates: async (_: any, { sku, quantity, destinationAddress }: { sku: string; quantity: number; destinationAddress: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        return await calculateShippingRatesUseCase.execute({ sku, quantity, destinationAddress });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    shipments: async (_: any, __: any, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const list = await getShipmentsUseCase.execute();
+        return list.map(s => ({
+          id: s.id,
+          sku: s.sku,
+          quantity: s.quantity,
+          destinationAddress: s.destinationAddress,
+          carrier: s.carrier,
+          trackingNumber: s.trackingNumber,
+          labelUrl: s.labelUrl,
+          shippingRateCents: s.shippingRateCents,
+          status: s.status,
+          createdAt: s.createdAt.toISOString(),
+          updatedAt: s.updatedAt.toISOString()
         }));
       } catch (error: any) {
         throw new Error(error.message);

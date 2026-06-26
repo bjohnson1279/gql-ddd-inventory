@@ -112,3 +112,51 @@ CREATE TABLE external_mappings (
     UNIQUE(integration_id, entity_type, internal_id),
     UNIQUE(integration_id, entity_type, external_id)
 );
+
+CREATE TABLE rmas (
+    id UUID PRIMARY KEY,
+    rma_number TEXT NOT NULL UNIQUE,
+    tenant_id TEXT NOT NULL,
+    customer_id TEXT NOT NULL,
+    location_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE rma_items (
+    id UUID PRIMARY KEY,
+    rma_id UUID NOT NULL REFERENCES rmas(id) ON DELETE CASCADE,
+    variant_id UUID NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL,
+    received_quantity INTEGER NOT NULL DEFAULT 0,
+    unit_cost_cents INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    disposition TEXT
+);
+
+CREATE TABLE quarantine_items (
+    id UUID PRIMARY KEY,
+    variant_id UUID NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL,
+    location_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE shipments (
+    id UUID PRIMARY KEY,
+    sku TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    destination_address TEXT NOT NULL,
+    carrier TEXT NOT NULL,
+    tracking_number TEXT,
+    label_url TEXT,
+    shipping_rate_cents INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

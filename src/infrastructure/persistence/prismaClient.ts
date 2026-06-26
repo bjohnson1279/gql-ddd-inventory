@@ -26,6 +26,8 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
             'JournalEntry',
             'StockOnboarding',
             'Notification',
+            'Rma',
+            'QuarantineItem',
           ];
 
             if (modelsWithTenant.includes(model)) {
