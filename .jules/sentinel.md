@@ -126,3 +126,8 @@
 - Do not run `prisma db push` during automated npm package installation (`postinstall`) in CI or production build environments, as it will fail due to the absence of a running database. Limit postinstall steps to `prisma generate` and execute migrations/pushes in dedicated pipeline steps or deployment startup phases.
 - Ensure that any dynamic database connection strings (like `DATABASE_URL` built from separate components) are validated on server startup and fallback safely to trusted local defaults for development environments.
 - Protect raw SQL queries used to enable the `timescaledb` extension or initialize hypertables from SQL injection vulnerabilities by using parameterized queries or strict schema names.
+
+## 2026-06-25 - Prototype Pollution in OutboxWorker Deserialization
+**Vulnerability:** The `deserializeEvent` function in `OutboxWorker` utilized `Object.assign` to copy properties from a parsed JSON payload onto a newly created object. This permitted an attacker who injects malicious JSON containing a `__proto__` key to pollute the prototype chain.
+**Learning:** Dynamically assigning properties from an untrusted, parsed JSON string directly onto objects via `Object.assign` exposes the application to Prototype Pollution, which can lead to property injection and potential remote code execution or authorization bypass.
+**Prevention:** When dynamically assigning properties to objects, always iterate through the payload keys and explicitly block or sanitize dangerous keys like `__proto__`, `constructor`, and `prototype`.
