@@ -69,14 +69,13 @@ describe('AccountingJournalService', () => {
     });
   });
 
-
   describe('onInventoryWriteOff', () => {
-    it('should create and save a balanced journal entry for inventory write-off', async () => {
-      const referenceId = 'WO-123';
-      const totalCostCents = 5000;
-      const date = new Date('2023-11-01T10:00:00Z');
-      const tenantId = 'tenant-xyz';
+    const referenceId = 'WO-12345';
+    const totalCostCents = 15000;
+    const date = new Date('2023-10-01T10:00:00Z');
+    const tenantId = 'tenant-xyz';
 
+    it('should create and save a balanced journal entry for inventory write-off', async () => {
       const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
 
       expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
@@ -91,29 +90,32 @@ describe('AccountingJournalService', () => {
       const lines = entry.lines;
       expect(lines).toHaveLength(2);
 
-      const expLine = lines.find(l => l.account.code === AccountCode.inventoryWriteOffExpense().code);
-      expect(expLine).toBeDefined();
-      expect(expLine?.amountCents).toBe(totalCostCents);
-      expect(expLine?.type).toBe(DebitCredit.Debit);
-      expect(expLine?.memo).toBe('Inventory write-off');
+      const expenseLine = lines.find(l => l.account.code === AccountCode.inventoryWriteOffExpense().code);
+      expect(expenseLine).toBeDefined();
+      expect(expenseLine?.amountCents).toBe(totalCostCents);
+      expect(expenseLine?.type).toBe(DebitCredit.Debit);
+      expect(expenseLine?.memo).toBe('Inventory write-off');
 
-      const invLine = lines.find(l => l.account.code === AccountCode.inventory().code);
-      expect(invLine).toBeDefined();
-      expect(invLine?.amountCents).toBe(totalCostCents);
-      expect(invLine?.type).toBe(DebitCredit.Credit);
-      expect(invLine?.memo).toBe('Inventory reduction');
+      const inventoryLine = lines.find(l => l.account.code === AccountCode.inventory().code);
+      expect(inventoryLine).toBeDefined();
+      expect(inventoryLine?.amountCents).toBe(totalCostCents);
+      expect(inventoryLine?.type).toBe(DebitCredit.Credit);
+      expect(inventoryLine?.memo).toBe('Inventory reduction');
 
       expect(entry.isBalanced()).toBe(true);
     });
 
-    it('should throw an error for zero cost entries', async () => {
-      const referenceId = 'WO-ZERO';
-      const totalCostCents = 0;
-      const date = new Date('2023-11-01T10:00:00Z');
-      const tenantId = 'tenant-xyz';
+    it('should throw an error for zero or negative cost entries', async () => {
+      const referenceId = 'WO-INVALID';
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
 
       await expect(
-        service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId)
+        service.onInventoryWriteOff(referenceId, 0, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      await expect(
+        service.onInventoryWriteOff(referenceId, -15000, date, tenantId)
       ).rejects.toThrow('Journal line amount must be positive.');
 
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
