@@ -69,6 +69,89 @@ describe('AccountingJournalService', () => {
     });
   });
 
+  describe('onInventoryWriteOff', () => {
+    const referenceId = 'WO-12345';
+    const totalCostCents = 15000;
+    const date = new Date('2023-10-01T10:00:00Z');
+    const tenantId = 'tenant-xyz';
+
+    it('should save the journal entry to the repository', async () => {
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      expect(mockJournalRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockJournalRepo.save).toHaveBeenCalledWith(entry);
+    });
+
+    it('should set the basic properties of the journal entry', async () => {
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      expect(entry.tenantId.value).toBe(tenantId);
+      expect(entry.date).toEqual(date);
+      expect(entry.description).toBe(`Inventory Write-Off — Ref ${referenceId}`);
+      expect(entry.referenceId).toBe(referenceId);
+      expect(entry.method).toBe(AccountingMethod.Accrual);
+    });
+
+    it('should create an Inventory Write-Off Expense debit line', async () => {
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      const expenseLine = entry.lines.find(l => l.account.code === AccountCode.inventoryWriteOffExpense().code);
+      expect(expenseLine).toBeDefined();
+      expect(expenseLine?.amountCents).toBe(totalCostCents);
+      expect(expenseLine?.type).toBe(DebitCredit.Debit);
+      expect(expenseLine?.memo).toBe('Inventory write-off');
+    });
+
+    it('should create an Inventory credit line', async () => {
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      const inventoryLine = entry.lines.find(l => l.account.code === AccountCode.inventory().code);
+      expect(inventoryLine).toBeDefined();
+      expect(inventoryLine?.amountCents).toBe(totalCostCents);
+      expect(inventoryLine?.type).toBe(DebitCredit.Credit);
+      expect(inventoryLine?.memo).toBe('Inventory reduction');
+    });
+
+    it('should result in a balanced journal entry', async () => {
+      const entry = await service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+
+      expect(entry.isBalanced()).toBe(true);
+    });
+
+    it('should throw an error for zero cost entries', async () => {
+      const referenceId = 'WO-ZERO';
+      const totalCostCents = 0;
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onInventoryWriteOff(referenceId, totalCostCents, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should correctly handle missing referenceId', async () => {
+      const entry = await service.onInventoryWriteOff('', totalCostCents, date, tenantId);
+
+      expect(entry.description).toBe('Inventory Write-Off — Ref ');
+      expect(entry.referenceId).toBeUndefined();
+    });
+
+    it('should correctly handle negative cost entries', async () => {
+      const referenceId = 'WO-NEGATIVE';
+      const negativeCostCents = -15000;
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onInventoryWriteOff(referenceId, negativeCostCents, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('onReturnToVendor', () => {
     const referenceId = 'PO-12345';
     const totalCostCents = 15000;
@@ -126,6 +209,26 @@ describe('AccountingJournalService', () => {
 
       await expect(
         service.onReturnToVendor(referenceId, totalCostCents, date, tenantId)
+      ).rejects.toThrow('Journal line amount must be positive.');
+
+      expect(mockJournalRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should correctly handle missing referenceId', async () => {
+      const entry = await service.onReturnToVendor('', totalCostCents, date, tenantId);
+
+      expect(entry.description).toBe('Return to Vendor — Ref ');
+      expect(entry.referenceId).toBeUndefined();
+    });
+
+    it('should correctly handle negative cost entries', async () => {
+      const referenceId = 'PO-NEGATIVE';
+      const negativeCostCents = -15000;
+      const date = new Date('2023-10-02T10:00:00Z');
+      const tenantId = 'tenant-abc';
+
+      await expect(
+        service.onReturnToVendor(referenceId, negativeCostCents, date, tenantId)
       ).rejects.toThrow('Journal line amount must be positive.');
 
       expect(mockJournalRepo.save).not.toHaveBeenCalled();
