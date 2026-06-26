@@ -1416,9 +1416,8 @@ function App() {
                     )}
                   </div>
                 ))}
-
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading}>
-                  {loading ? <Spinner /> : null} Post Balanced Journal Entry
+                  {loading ? <><Spinner /> Posting...</> : 'Post Balanced Journal Entry'}
                 </button>
               </form>
             </div>
