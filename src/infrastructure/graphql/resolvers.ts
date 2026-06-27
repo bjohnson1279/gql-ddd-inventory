@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { pubsub } from './pubsub';
-import crypto from 'node:crypto';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
@@ -133,20 +133,8 @@ import {
 import { PostgresRmaRepository } from '../persistence/PostgresRmaRepository';
 import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineRepository';
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
-import { PostgresShipmentRepository } from '../persistence/PostgresShipmentRepository';
-import { MockCarrierService } from '../shipping/MockCarrierService';
-import {
-  CalculateShippingRatesUseCase,
-  PurchaseShippingLabelUseCase,
-  UpdateShipmentStatusUseCase,
-  GetShipmentsUseCase
-} from '../../application/useCases/ManageShipping';
-import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
-
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
-import { PostgresDemandForecastRepository } from '../persistence/PostgresDemandForecastRepository';
-import { DemandForecaster } from '../../domain/services/DemandForecaster';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
@@ -168,9 +156,6 @@ const kitRepository = new PostgresKitRepository(prisma);
 export const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
 const rmaRepository = new PostgresRmaRepository(prisma);
 const quarantineRepository = new PostgresQuarantineRepository(prisma);
-const shipmentRepository = new PostgresShipmentRepository(prisma);
-const carrierService = new MockCarrierService();
-export const demandForecastRepository = new PostgresDemandForecastRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
@@ -291,13 +276,6 @@ const replenishmentEvaluator = new ReplenishmentEvaluator(
   purchaseOrderRepository,
   reorderPointForecaster
 );
-const demandForecaster = new DemandForecaster(
-  productRepository,
-  inventoryRepository,
-  ledgerRepository,
-  replenishmentRuleRepository,
-  demandForecastRepository
-);
 
 // Replenishment Use Cases
 const createReplenishmentRuleUseCase = new CreateReplenishmentRuleUseCase(replenishmentRuleRepository);
@@ -357,18 +335,6 @@ const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
   journalRepository,
   productRepository
 );
-
-const calculateShippingRatesUseCase = new CalculateShippingRatesUseCase(carrierService);
-const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
-  shipmentRepository,
-  carrierService,
-  inventoryRepository,
-  new AccountingJournalService(journalRepository),
-  eventDispatcher
-);
-const updateShipmentStatusUseCase = new UpdateShipmentStatusUseCase(shipmentRepository, eventDispatcher);
-const getShipmentsUseCase = new GetShipmentsUseCase(shipmentRepository);
-
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -961,83 +927,6 @@ export const resolvers = {
       } catch (error: any) {
         throw new Error(error.message);
       }
-    },
-    generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-        const forecast = await demandForecaster.generateDemandForecast(
-          new Sku(sku),
-          new LocationId(locationId),
-          forecastDays || 30,
-          trendMultiplier || 1.0
-        );
-        return {
-          id: forecast.id.value,
-          sku: forecast.sku.value,
-          locationId: forecast.locationId.value,
-          forecastedQuantity: forecast.forecastedQuantity,
-          periodStart: forecast.periodStart.toISOString(),
-          periodEnd: forecast.periodEnd.toISOString(),
-          confidenceLevel: forecast.confidenceLevel,
-          createdAt: forecast.createdAt.toISOString()
-        };
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    demandPlanningReport: async (_: any, { locationId }: { locationId: string }, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-        const report = await demandForecaster.getDemandPlanningReport(new LocationId(locationId));
-        return report.map(r => ({
-          sku: r.sku,
-          locationId: r.locationId,
-          currentStock: r.currentStock,
-          averageDailySales7d: r.averageDailySales7d,
-          averageDailySales30d: r.averageDailySales30d,
-          averageDailySales90d: r.averageDailySales90d,
-          daysOfCover: r.daysOfCover === Infinity ? null : r.daysOfCover,
-          runOutDate: r.runOutDate ? r.runOutDate.toISOString() : null,
-          reorderPoint: r.reorderPoint,
-          reorderQuantity: r.reorderQuantity,
-          safetyStock: r.safetyStock,
-          forecastedDemand30d: r.forecastedDemand30d,
-          confidenceLevel: r.confidenceLevel,
-          actionRequired: r.actionRequired,
-          recommendedOrderQuantity: r.recommendedOrderQuantity
-        }));
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    shippingRates: async (_: any, { sku, quantity, destinationAddress }: { sku: string; quantity: number; destinationAddress: string }, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-        return await calculateShippingRatesUseCase.execute({ sku, quantity, destinationAddress });
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    shipments: async (_: any, __: any, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-        const list = await getShipmentsUseCase.execute();
-        return list.map(s => ({
-          id: s.id,
-          sku: s.sku,
-          quantity: s.quantity,
-          destinationAddress: s.destinationAddress,
-          carrier: s.carrier,
-          trackingNumber: s.trackingNumber,
-          labelUrl: s.labelUrl,
-          shippingRateCents: s.shippingRateCents,
-          status: s.status,
-          createdAt: s.createdAt.toISOString(),
-          updatedAt: s.updatedAt.toISOString()
-        }));
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
     }
   },
   Mutation: {
@@ -1544,42 +1433,6 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
         await resolveQuarantineItemUseCase.execute({ quarantineItemId: id, resolution: resolution as any });
-        return true;
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    purchaseShippingLabel: async (
-      _: any,
-      { sku, quantity, destinationAddress, carrier, locationId, tenantId }: {
-        sku: string;
-        quantity: number;
-        destinationAddress: string;
-        carrier: string;
-        locationId: string;
-        tenantId: string;
-      },
-      context: GraphQLContext
-    ) => {
-      try {
-        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
-        const result = await purchaseShippingLabelUseCase.execute({
-          sku,
-          quantity,
-          destinationAddress,
-          carrier,
-          locationId,
-          tenantId: auth.tenantId
-        });
-        return result;
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    updateShipmentStatus: async (_: any, { shipmentId, status }: { shipmentId: string; status: any }, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
-        await updateShipmentStatusUseCase.execute({ shipmentId, status });
         return true;
       } catch (error: any) {
         throw new Error(error.message);

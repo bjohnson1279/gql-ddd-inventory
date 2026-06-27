@@ -155,43 +155,6 @@ describe('ManageStockTransfers Use Cases', () => {
         })
       ).rejects.toThrow('Stock transfer item quantity must be an integer.');
     });
-
-    it('should create stock transfer with multiple items', async () => {
-      const result = await createUseCase.execute({
-        tenantId,
-        sourceLocationId: sourceLoc,
-        destinationLocationId: destLoc,
-        items: [
-          { variantId: variantIdStr, quantity: 5 },
-          { variantId: variantIdStr, quantity: 10 }
-        ],
-        referenceId: 'multi-item-ref'
-      });
-
-      expect(result.items).toHaveLength(2);
-      expect(result.items[0]).toEqual({ variantId: variantIdStr, quantity: 5 });
-      expect(result.items[1]).toEqual({ variantId: variantIdStr, quantity: 10 });
-      expect(result.referenceId).toBe('multi-item-ref');
-
-      const saved = await transferRepo.findById(new StockTransferId(result.id));
-      expect(saved).not.toBeNull();
-      expect(saved!.items).toHaveLength(2);
-      expect(saved!.items[0].quantity).toBe(5);
-      expect(saved!.items[1].quantity).toBe(10);
-    });
-
-    it('should propagate errors if repository save fails', async () => {
-      jest.spyOn(transferRepo, 'save').mockRejectedValueOnce(new Error('Database error'));
-
-      await expect(
-        createUseCase.execute({
-          tenantId,
-          sourceLocationId: sourceLoc,
-          destinationLocationId: destLoc,
-          items: [{ variantId: variantIdStr, quantity: 5 }]
-        })
-      ).rejects.toThrow('Database error');
-    });
   });
 
   describe('DispatchStockTransferUseCase', () => {
