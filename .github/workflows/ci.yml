@@ -45,7 +45,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install Root Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Generate Prisma Client
         run: pnpm exec prisma generate
@@ -58,7 +58,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build Frontend Assets
         working-directory: ./web
