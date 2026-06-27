@@ -6,4 +6,5 @@ export interface IStockTransferRepository {
   findById(id: StockTransferId): Promise<StockTransfer | null>;
   findAllByTenant(tenantId: TenantId): Promise<StockTransfer[]>;
   save(transfer: StockTransfer): Promise<void>;
+  saveBatch(transfers: StockTransfer[]): Promise<void>;
 }

@@ -1,4 +1,5 @@
 import { IReplenishmentRuleRepository } from '../repositories/IReplenishmentRuleRepository';
+import { ReplenishmentRule } from '../entities/ReplenishmentRule';
 import { IInventoryRepository } from '../repositories/IInventoryRepository';
 import { IProductRepository } from '../repositories/IProductRepository';
 import { IStockTransferRepository } from '../repositories/IStockTransferRepository';
@@ -51,6 +52,10 @@ export class ReplenishmentEvaluator {
 
     const activeRules = rules.filter(r => r.isActive);
 
+    const rulesToSave: ReplenishmentRule[] = [];
+    const transfersToSave: StockTransfer[] = [];
+    const posToSave: PurchaseOrder[] = [];
+
     // Pre-fetch related entities to avoid N+1 queries in the loop
     const openPos = await this.poRepo.findAllByTenant(tenantId);
     const openTransfers = await this.transferRepo.findAllByTenant(tenantId);
@@ -101,7 +106,7 @@ export class ReplenishmentEvaluator {
             windowDays
           );
           rule.updateReorderPoint(forecastedRop);
-          await this.ruleRepo.save(rule);
+          rulesToSave.push(rule);
         }
 
         // 2. Fetch variantId for SKU
@@ -198,7 +203,7 @@ export class ReplenishmentEvaluator {
               `Replenishment Triggered (Rule: ${rule.id.value})`
             );
 
-            await this.transferRepo.save(stockTransfer);
+            transfersToSave.push(stockTransfer);
           } else {
             actionType = 'SUPPLIER';
             actionId = crypto.randomUUID();
@@ -211,7 +216,7 @@ export class ReplenishmentEvaluator {
               [new PurchaseOrderItem(new ProductVariantId(variantIdStr), rule.reorderQuantity)]
             );
 
-            await this.poRepo.save(purchaseOrder);
+            posToSave.push(purchaseOrder);
           }
 
           results.push({
@@ -246,6 +251,16 @@ export class ReplenishmentEvaluator {
           inventoryPosition: 0,
         });
       }
+    }
+
+    if (rulesToSave.length > 0) {
+      await this.ruleRepo.saveBatch(rulesToSave);
+    }
+    if (transfersToSave.length > 0) {
+      await this.transferRepo.saveBatch(transfersToSave);
+    }
+    if (posToSave.length > 0) {
+      await this.poRepo.saveBatch(posToSave);
     }
 
     return results;

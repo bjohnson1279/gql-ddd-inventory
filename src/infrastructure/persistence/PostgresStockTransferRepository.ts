@@ -79,6 +79,49 @@ export class PostgresStockTransferRepository implements IStockTransferRepository
     });
   }
 
+  async saveBatch(transfers: StockTransfer[]): Promise<void> {
+    if (transfers.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const transfer of transfers) {
+        const dbId = toUuid(transfer.id.value);
+        await tx.stockTransfer.upsert({
+          where: { id: dbId },
+          create: {
+            id: dbId,
+            tenantId: transfer.tenantId.value,
+            sourceLocationId: transfer.sourceLocationId.value,
+            destinationLocationId: transfer.destinationLocationId.value,
+            status: transfer.status,
+            referenceId: transfer.referenceId,
+            dispatchedAt: transfer.dispatchedAt,
+            receivedAt: transfer.receivedAt,
+            createdAt: transfer.createdAt,
+          },
+          update: {
+            status: transfer.status,
+            dispatchedAt: transfer.dispatchedAt,
+            receivedAt: transfer.receivedAt,
+          },
+        });
+
+        await tx.stockTransferItem.deleteMany({
+          where: { transferId: dbId },
+        });
+
+        if (transfer.items.length > 0) {
+          await tx.stockTransferItem.createMany({
+            data: transfer.items.map((item) => ({
+              transferId: dbId,
+              variantId: toUuid(item.variantId.value),
+              quantity: item.quantity,
+            })),
+          });
+        }
+      }
+    });
+  }
+
   async save(transfer: StockTransfer): Promise<void> {
     const dbId = toUuid(transfer.id.value);
 

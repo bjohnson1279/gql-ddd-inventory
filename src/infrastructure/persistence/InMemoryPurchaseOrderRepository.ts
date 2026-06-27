@@ -26,6 +26,12 @@ export class InMemoryPurchaseOrderRepository implements IPurchaseOrderRepository
     this.orders.set(order.id.value, order);
   }
 
+  async saveBatch(orders: PurchaseOrder[]): Promise<void> {
+    for (const order of orders) {
+      this.orders.set(order.id.value, order);
+    }
+  }
+
   async findById(id: PurchaseOrderId): Promise<PurchaseOrder | null> {
     const order = this.orders.get(id.value);
     return order ? this.cloneOrder(order) : null;
