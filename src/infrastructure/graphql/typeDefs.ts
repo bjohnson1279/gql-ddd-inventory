@@ -919,6 +919,54 @@ export const typeDefs = `#graphql
     userId: ID!
     temporaryPassword: String!
   }
+
+  type DemandForecast {
+    id: ID!
+    sku: String!
+    locationId: String!
+    forecastedQuantity: Int!
+    periodStart: String!
+    periodEnd: String!
+    confidenceLevel: Float!
+    createdAt: String!
+  }
+
+  type DemandPlanningReportItem {
+    sku: String!
+    locationId: String!
+    currentStock: Int!
+    averageDailySales7d: Float!
+    averageDailySales30d: Float!
+    averageDailySales90d: Float!
+    daysOfCover: Float
+    runOutDate: String
+    reorderPoint: Int!
+    reorderQuantity: Int!
+    safetyStock: Int!
+    forecastedDemand30d: Int!
+    confidenceLevel: Float!
+    actionRequired: Boolean!
+    recommendedOrderQuantity: Int!
+  }
+
+  type CarrierRate {
+    carrier: String!
+    serviceName: String!
+    rateCents: Int!
+    deliveryDays: Int!
+  }
+
+  type Shipment {
+    id: ID!
+    tenantId: ID!
+    variantId: ID!
+    quantity: Int!
+    status: String!
+    trackingNumber: String
+    carrier: String
+    labelUrl: String
+    createdAt: String!
+  }
 `;
 
 

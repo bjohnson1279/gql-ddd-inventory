@@ -530,6 +530,34 @@ model Shipment {
   @@map("shipments")
 }
 
+model NetsuiteJournalMapping {
+  id                 String   @id @db.Uuid
+  journalEntryId     String   @unique @map("journal_entry_id") @db.Uuid
+  netsuiteJournalId  String   @unique @map("netsuite_journal_id")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("netsuite_journal_mappings")
+}
+
+model XeroJournalMapping {
+  id                 String   @id @db.Uuid
+  journalEntryId     String   @unique @map("journal_entry_id") @db.Uuid
+  xeroJournalId      String   @unique @map("xero_journal_id")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("xero_journal_mappings")
+}
+
+model QuickbooksJournalMapping {
+  id                 String   @id @db.Uuid
+  journalEntryId     String   @unique @map("journal_entry_id") @db.Uuid
+  quickbooksJournalId String  @unique @map("quickbooks_journal_id")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("quickbooks_journal_mappings")
+}
+
+
 model TenantAccountingConfig {
   tenantId         String @id @map("tenant_id")
   accountingMethod String @default("accrual") @map("accounting_method")

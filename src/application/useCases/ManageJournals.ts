@@ -4,6 +4,8 @@ import { JournalEntryId } from '../../domain/valueObjects/JournalEntryId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { AccountCode } from '../../domain/valueObjects/AccountCode';
 import { AccountingMethod, DebitCredit } from '../../domain/enums/AccountingEnums';
+import { DomainEventDispatcher } from '../services/DomainEventDispatcher';
+import { JournalEntryCreatedEvent } from '../../domain/events/JournalEntryCreatedEvent';
 
 export interface JournalLineInput {
   accountCode: string;
@@ -23,7 +25,10 @@ export interface CreateJournalEntryInput {
 }
 
 export class CreateJournalEntryUseCase {
-  constructor(private readonly journalRepo: IJournalRepository) {}
+  constructor(
+    private readonly journalRepo: IJournalRepository,
+    private readonly eventDispatcher?: DomainEventDispatcher
+  ) {}
 
   async execute(input: CreateJournalEntryInput): Promise<boolean> {
     const entry = new JournalEntry(
@@ -49,9 +54,35 @@ export class CreateJournalEntryUseCase {
     }
 
     await this.journalRepo.save(entry);
+
+    const eventLines = input.lines.map(line => ({
+      accountCode: line.accountCode,
+      amountCents: line.amountCents,
+      type: line.type as 'debit' | 'credit',
+      memo: line.memo || ''
+    }));
+
+    if (this.eventDispatcher) {
+      this.eventDispatcher.dispatch([
+        new JournalEntryCreatedEvent(
+          input.id,
+          input.tenantId,
+          input.description,
+          input.date,
+          input.method,
+          input.referenceId || null,
+          eventLines.map(el => ({
+            ...el,
+            accountName: AccountCode.fromCode(el.accountCode).name
+          }))
+        )
+      ]);
+    }
+
     return true;
   }
 }
+
 
 export class GetJournalEntriesUseCase {
   constructor(private readonly journalRepo: IJournalRepository) {}

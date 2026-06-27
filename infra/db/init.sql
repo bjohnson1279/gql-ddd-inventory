@@ -112,3 +112,25 @@ CREATE TABLE external_mappings (
     UNIQUE(integration_id, entity_type, internal_id),
     UNIQUE(integration_id, entity_type, external_id)
 );
+
+CREATE TABLE netsuite_journal_mappings (
+    id UUID PRIMARY KEY,
+    journal_entry_id UUID UNIQUE NOT NULL,
+    netsuite_journal_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE xero_journal_mappings (
+    id UUID PRIMARY KEY,
+    journal_entry_id UUID UNIQUE NOT NULL,
+    xero_journal_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE quickbooks_journal_mappings (
+    id UUID PRIMARY KEY,
+    journal_entry_id UUID UNIQUE NOT NULL,
+    quickbooks_journal_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+

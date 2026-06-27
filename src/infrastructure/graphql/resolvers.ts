@@ -134,6 +134,8 @@ import {
 } from '../../application/useCases/ManageReplenishment';
 import { DemandVelocityCalculator, ReorderPointForecaster } from '../../domain/services/ReplenishmentForecaster';
 import { ReplenishmentEvaluator } from '../../domain/services/ReplenishmentEvaluator';
+import { DemandForecaster } from '../../domain/services/DemandForecaster';
+import { PostgresDemandForecastRepository } from '../persistence/PostgresDemandForecastRepository';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { ReplenishmentType } from '../../domain/enums/ReplenishmentType';
 
@@ -153,6 +155,15 @@ import { PostgresRmaRepository } from '../persistence/PostgresRmaRepository';
 import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineRepository';
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
 import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
+import { SyncJournalListeners } from '../../application/eventHandlers/SyncJournalListeners';
+import {
+  NetSuiteJournalSync,
+  XeroJournalSync,
+  QuickBooksJournalSync,
+  NetSuiteMappingRepository,
+  XeroMappingRepository,
+  QuickBooksMappingRepository
+} from '../../application/services/AccountingSyncService';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
@@ -215,6 +226,25 @@ eventBus.subscribe('InventoryReconciledEvent', reconciledHandler.handle.bind(rec
 
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
+// Accounting Sync Initialization
+const netsuiteSync = new NetSuiteJournalSync(process.env.NETSUITE_ACCOUNT_ID || 'mock', process.env.NETSUITE_TOKEN || 'mock');
+const netsuiteMappings = new NetSuiteMappingRepository(prisma);
+const xeroSync = new XeroJournalSync(process.env.XERO_TENANT_ID || 'mock', process.env.XERO_ACCESS_TOKEN || 'mock');
+const xeroMappings = new XeroMappingRepository(prisma);
+const quickbooksSync = new QuickBooksJournalSync(process.env.QUICKBOOKS_REALM_ID || 'mock', process.env.QUICKBOOKS_ACCESS_TOKEN || 'mock');
+const quickbooksMappings = new QuickBooksMappingRepository(prisma);
+
+const syncJournalListeners = new SyncJournalListeners(
+  netsuiteSync,
+  netsuiteMappings,
+  xeroSync,
+  xeroMappings,
+  quickbooksSync,
+  quickbooksMappings
+);
+
+eventBus.subscribe('JournalEntryCreatedEvent', syncJournalListeners.handle.bind(syncJournalListeners));
+
 // Use Cases
 const receiveStockUseCase = new ReceiveStockUseCase(inventoryRepository, wmsCapacityService);
 const dispatchStockUseCase = new DispatchStockUseCase(inventoryRepository, eventDispatcher);
@@ -267,7 +297,7 @@ const getProductUomConfigurationByIdUseCase = new GetProductUomConfigurationById
 const addUomConversionRuleUseCase = new AddUomConversionRuleUseCase(uomRepository);
 const removeUomConversionRuleUseCase = new RemoveUomConversionRuleUseCase(uomRepository);
 const setUomUnitsUseCase = new SetUomUnitsUseCase(uomRepository);
-const createJournalEntryUseCase = new CreateJournalEntryUseCase(journalRepository);
+const createJournalEntryUseCase = new CreateJournalEntryUseCase(journalRepository, eventDispatcher);
 const getJournalEntriesUseCase = new GetJournalEntriesUseCase(journalRepository);
 
 // Barcode Repositories & Services
@@ -313,6 +343,16 @@ const getStockTransferByIdUseCase = new GetStockTransferByIdUseCase(stockTransfe
 // Replenishment Repositories
 export const replenishmentRuleRepository = new PostgresReplenishmentRuleRepository(prisma);
 export const purchaseOrderRepository = new PostgresPurchaseOrderRepository(prisma);
+const demandForecastRepository = new PostgresDemandForecastRepository(prisma);
+
+// Demand Forecasting Services
+const demandForecaster = new DemandForecaster(
+  productRepository,
+  inventoryRepository,
+  ledgerRepository,
+  replenishmentRuleRepository,
+  demandForecastRepository
+);
 
 // Replenishment Services
 const demandVelocityCalculator = new DemandVelocityCalculator(productRepository, ledgerRepository);
@@ -1096,6 +1136,46 @@ export const resolvers = {
         lastError: e.lastError || null,
         createdAt: e.createdAt.toISOString(),
         processedAt: e.processedAt ? e.processedAt.toISOString() : null
+      }));
+    },
+    generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const forecast = await demandForecaster.generateDemandForecast(
+        new Sku(sku),
+        new LocationId(locationId),
+        forecastDays || 30,
+        trendMultiplier || 1.0
+      );
+      return {
+        id: forecast.id.value,
+        sku: forecast.sku.value,
+        locationId: forecast.locationId.value,
+        forecastedQuantity: forecast.forecastedQuantity,
+        periodStart: forecast.periodStart.toISOString(),
+        periodEnd: forecast.periodEnd.toISOString(),
+        confidenceLevel: forecast.confidenceLevel,
+        createdAt: forecast.createdAt.toISOString()
+      };
+    },
+    demandPlanningReport: async (_: any, { locationId }: { locationId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const report = await demandForecaster.getDemandPlanningReport(new LocationId(locationId));
+      return report.map(item => ({
+        sku: item.sku,
+        locationId: item.locationId,
+        currentStock: item.currentStock,
+        averageDailySales7d: item.averageDailySales7d,
+        averageDailySales30d: item.averageDailySales30d,
+        averageDailySales90d: item.averageDailySales90d,
+        daysOfCover: isFinite(item.daysOfCover) ? item.daysOfCover : null,
+        runOutDate: item.runOutDate ? item.runOutDate.toISOString() : null,
+        reorderPoint: item.reorderPoint,
+        reorderQuantity: item.reorderQuantity,
+        safetyStock: item.safetyStock,
+        forecastedDemand30d: item.forecastedDemand30d,
+        confidenceLevel: item.confidenceLevel,
+        actionRequired: item.actionRequired,
+        recommendedOrderQuantity: item.recommendedOrderQuantity
       }));
     },
   },
