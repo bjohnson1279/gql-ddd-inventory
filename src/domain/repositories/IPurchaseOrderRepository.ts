@@ -6,4 +6,5 @@ export interface IPurchaseOrderRepository {
   save(order: PurchaseOrder): Promise<void>;
   findById(id: PurchaseOrderId): Promise<PurchaseOrder | null>;
   findAllByTenant(tenantId: TenantId): Promise<PurchaseOrder[]>;
+  saveBatch(orders: PurchaseOrder[]): Promise<void>;
 }

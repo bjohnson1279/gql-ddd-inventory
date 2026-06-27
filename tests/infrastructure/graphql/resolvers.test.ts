@@ -171,11 +171,6 @@ jest.mock('../../../src/infrastructure/persistence/PostgresPurchaseOrderReposito
   const { InMemoryPurchaseOrderRepository } = require('../../../src/infrastructure/persistence/InMemoryPurchaseOrderRepository');
   return { PostgresPurchaseOrderRepository: InMemoryPurchaseOrderRepository };
 });
-jest.mock('../../../src/infrastructure/persistence/PostgresDemandForecastRepository', () => {
-  const { InMemoryDemandForecastRepository } = require('../../../src/infrastructure/persistence/InMemoryDemandForecastRepository');
-  return { PostgresDemandForecastRepository: InMemoryDemandForecastRepository };
-});
-
 
 import { setTimeout } from 'timers';
 import { resolvers, prisma, pool, productRepository, warehouseLocationRepository } from '../../../src/infrastructure/graphql/resolvers';

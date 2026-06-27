@@ -38,4 +38,10 @@ export class InMemoryStockTransferRepository implements IStockTransferRepository
   async save(transfer: StockTransfer): Promise<void> {
     this.transfers.set(transfer.id.value, transfer);
   }
+
+  async saveBatch(transfers: StockTransfer[]): Promise<void> {
+    for (const transfer of transfers) {
+      this.transfers.set(transfer.id.value, transfer);
+    }
+  }
 }

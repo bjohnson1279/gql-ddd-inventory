@@ -99,6 +99,13 @@ interface InventoryItem {
 
 type Tab = 'dashboard' | 'onboarding' | 'products' | 'scanning' | 'ledger' | 'serials' | 'shopify';
 
+const Spinner = () => (
+  <svg className="spinner" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle className="spinner-track" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
+    <path className="spinner-head" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+  </svg>
+);
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
@@ -737,7 +744,7 @@ function App() {
               </select>
             </div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }} disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign In & Verify'}
+              {loading ? <><Spinner /> Authenticating...</> : 'Sign In & Verify'}
             </button>
           </form>
         </div>
@@ -1055,7 +1062,7 @@ function App() {
                       <input id="newProdName" value={newProdName} onChange={e => setNewProdName(e.target.value)} placeholder="e.g. Premium Cotton Tee" required />
                     </div>
                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                      Create Product
+                      {loading ? <Spinner /> : null} Create Product
                     </button>
                   </form>
                   <div style={{ height: '1.5rem' }}></div>
@@ -1328,7 +1335,7 @@ function App() {
                 )}
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-                  Dispatch Scan Trigger
+                  {loading ? <Spinner /> : null} Dispatch Scan Trigger
                 </button>
               </form>
             </div>
@@ -1413,7 +1420,7 @@ function App() {
                 ))}
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading}>
-                  Post Balanced Journal Entry
+                  {loading ? <Spinner /> : null} Post Balanced Journal Entry
                 </button>
               </form>
             </div>

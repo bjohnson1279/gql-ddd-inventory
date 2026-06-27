@@ -38,40 +38,6 @@ export const typeDefs = `#graphql
     RTV
   }
 
-  enum ShipmentStatus {
-    label_generated
-    in_transit
-    delivered
-    failed
-  }
-
-  type Shipment {
-    id: ID!
-    sku: String!
-    quantity: Int!
-    destinationAddress: String!
-    carrier: String!
-    trackingNumber: String
-    labelUrl: String
-    shippingRateCents: Int!
-    status: ShipmentStatus!
-    createdAt: String!
-    updatedAt: String!
-  }
-
-  type CarrierRate {
-    carrier: String!
-    rateCents: Int!
-    estimatedDays: Int!
-  }
-
-  type PurchaseLabelResult {
-    shipmentId: ID!
-    trackingNumber: String!
-    labelUrl: String!
-    rateCents: Int!
-  }
-
   type RmaItem {
     id: ID!
     variantId: ID!
@@ -857,8 +823,6 @@ export const typeDefs = `#graphql
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
     resolveQuarantineItem(id: ID!, resolution: String!): Boolean!
-    purchaseShippingLabel(sku: String!, quantity: Int!, destinationAddress: String!, carrier: String!, locationId: String!, tenantId: ID!): PurchaseLabelResult!
-    updateShipmentStatus(shipmentId: ID!, status: ShipmentStatus!): Boolean!
 
     receiveStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     dispatchStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
@@ -954,35 +918,6 @@ export const typeDefs = `#graphql
   type UserInvitationResult {
     userId: ID!
     temporaryPassword: String!
-  }
-
-  type DemandForecast {
-    id: ID!
-    sku: String!
-    locationId: String!
-    forecastedQuantity: Int!
-    periodStart: String!
-    periodEnd: String!
-    confidenceLevel: Float!
-    createdAt: String!
-  }
-
-  type DemandPlanningReportItem {
-    sku: String!
-    locationId: String!
-    currentStock: Int!
-    averageDailySales7d: Float!
-    averageDailySales30d: Float!
-    averageDailySales90d: Float!
-    daysOfCover: Float
-    runOutDate: String
-    reorderPoint: Int!
-    reorderQuantity: Int!
-    safetyStock: Int!
-    forecastedDemand30d: Int!
-    confidenceLevel: Float!
-    actionRequired: Boolean!
-    recommendedOrderQuantity: Int!
   }
 `;
 
