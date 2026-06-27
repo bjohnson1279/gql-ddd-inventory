@@ -167,6 +167,7 @@ import {
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
+import { KafkaEventBus } from '../messaging/KafkaEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
 
@@ -217,7 +218,9 @@ const wmsCapacityService = new WMSCapacityService(
 );
 
 // Messaging & Event Bus
-export const eventBus = new InMemoryEventBus();
+export const eventBus = process.env.KAFKA_URL
+  ? new KafkaEventBus(process.env.KAFKA_URL)
+  : new InMemoryEventBus();
 const lowStockHandler = new LowStockAlertHandler();
 const reconciledHandler = new InventoryReconciledHandler();
 
