@@ -218,7 +218,7 @@ const wmsCapacityService = new WMSCapacityService(
 );
 
 // Messaging & Event Bus
-export const eventBus = process.env.KAFKA_URL
+export const eventBus = (process.env.KAFKA_URL && process.env.NODE_ENV !== 'test')
   ? new KafkaEventBus(process.env.KAFKA_URL)
   : new InMemoryEventBus();
 const lowStockHandler = new LowStockAlertHandler();
