@@ -608,3 +608,21 @@ tr:hover td {
   border-color: rgba(239, 68, 68, 0.25);
   color: #fca5a5;
 }
+
+/* Spinner Animation */
+.spinner {
+  width: 1em;
+  height: 1em;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

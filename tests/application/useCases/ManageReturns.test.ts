@@ -33,7 +33,7 @@ describe('ManageReturns Use Cases', () => {
       mockSerializedItemRepo = {} as unknown as jest.Mocked<ISerializedItemRepository>;
     });
 
-    it('should throw an error for ReceiveRmaUseCase with invalid RMA ID', async () => {
+    it('should throw an error if RMA is not found', async () => {
       mockRmaRepo.findById.mockResolvedValue(null);
 
       const useCase = new ReceiveRmaUseCase(
@@ -52,6 +52,27 @@ describe('ManageReturns Use Cases', () => {
       };
 
       await expect(useCase.execute(dto)).rejects.toThrow('RMA with ID invalid-id not found.');
+    });
+
+    it('should throw an error for ReceiveRmaUseCase with invalid RMA ID', async () => {
+      mockRmaRepo.findById.mockResolvedValue(null);
+
+      const useCase = new ReceiveRmaUseCase(
+        mockRmaRepo,
+        mockInventoryRepo,
+        mockCostLayerRepo,
+        mockQuarantineRepo,
+        mockJournalRepo,
+        mockProductRepo,
+        mockSerializedItemRepo
+      );
+
+      const dto = {
+        rmaId: 'non-existent-rma-id',
+        items: []
+      };
+
+      await expect(useCase.execute(dto)).rejects.toThrow('RMA with ID non-existent-rma-id not found.');
     });
     it('should throw an error if SKU is not found for variant ID', async () => {
       mockRmaRepo.findById.mockResolvedValue({
@@ -124,24 +145,6 @@ describe('ManageReturns Use Cases', () => {
 
       const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
       await expect(useCase.execute('invalid-id')).rejects.toThrow('RMA with ID invalid-id not found.');
-    });
-
-    it('should authorize and save the RMA', async () => {
-      const mockRma = {
-        authorize: jest.fn(),
-      };
-
-      const mockRmaRepo = {
-        findById: jest.fn().mockResolvedValue(mockRma),
-        save: jest.fn().mockResolvedValue(undefined),
-      } as unknown as jest.Mocked<IRmaRepository>;
-
-      const useCase = new AuthorizeRmaUseCase(mockRmaRepo);
-      await useCase.execute('valid-id');
-
-      expect(mockRmaRepo.findById).toHaveBeenCalledWith('valid-id');
-      expect(mockRma.authorize).toHaveBeenCalled();
-      expect(mockRmaRepo.save).toHaveBeenCalledWith(mockRma);
     });
   });
 

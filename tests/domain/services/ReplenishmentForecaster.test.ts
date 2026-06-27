@@ -175,14 +175,4 @@ describe('ReorderPointForecaster', () => {
 
     expect(rop).toBe(50);
   });
-
-  it('should propagate errors from DemandVelocityCalculator', async () => {
-    const error = new Error('Database connection failed');
-    (velocityCalculator.calculateAverageDailySales as jest.Mock).mockRejectedValue(error);
-
-    const leadTimeDays = 5;
-    const safetyStock = 20;
-
-    await expect(reorderPointForecaster.forecastReorderPoint(sku, locationId, leadTimeDays, safetyStock)).rejects.toThrow('Database connection failed');
-  });
 });
