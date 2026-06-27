@@ -20,6 +20,7 @@ describe('ManageBarcodes Use Cases', () => {
     barcodeRepo = {
       findSkuByBarcodeValue: jest.fn(),
       findSetBySku: jest.fn(),
+      findAllAssignments: jest.fn(),
       save: jest.fn(),
     };
   });

@@ -12,6 +12,7 @@ describe('BarcodeScanDispatcher', () => {
     mockRepo = {
       findSkuByBarcodeValue: jest.fn(),
       findSetBySku: jest.fn(),
+      findAllAssignments: jest.fn(),
       save: jest.fn(),
     };
     registry = new BarcodeRegistry(mockRepo);

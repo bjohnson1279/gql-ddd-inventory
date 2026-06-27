@@ -152,6 +152,7 @@ import {
 import { PostgresRmaRepository } from '../persistence/PostgresRmaRepository';
 import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineRepository';
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
+import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
@@ -161,6 +162,24 @@ import { InventoryReconciledHandler } from '../../application/eventHandlers/Inve
 import { prisma, pool } from '../persistence/prismaClient';
 export { prisma, pool };
 
+// ── Shipping Stubs ────────────────────────────────────────────────────────────
+// These are lightweight stubs for shipping functionality.
+// They will be replaced once the full ManageShipping use case module is implemented.
+class _ShipmentRepository {
+  async save(_: any): Promise<void> {}
+  async findById(_: any): Promise<any> { return null; }
+  async findAll(): Promise<any[]> { return []; }
+  async update(_: any): Promise<void> {}
+}
+class _CarrierService {
+  async getRates(_sku: string, _qty: number, _dest: string): Promise<any[]> { return []; }
+  async purchaseLabel(_: any): Promise<any> { return { trackingNumber: '', labelUrl: '', cost: 0 }; }
+}
+const CalculateShippingRatesUseCase = class { constructor(private s: any) {} execute = async (sku: string, qty: number, dest: string) => this.s.getRates(sku, qty, dest); };
+const PurchaseShippingLabelUseCase = class { constructor(private r: any, private s: any, private i: any, private j: any, private e: any) {} execute = async (i: any) => this.s.purchaseLabel(i); };
+const UpdateShipmentStatusUseCase = class { constructor(private r: any, private e: any) {} execute = async (id: string, status: string) => { await this.r.update({ id, status }); return true; }; };
+const GetShipmentsUseCase = class { constructor(private r: any) {} execute = async () => this.r.findAll(); };
+// ─────────────────────────────────────────────────────────────────────────────
 // DB Repositories
 const inventoryRepository = new PostgresInventoryRepository(prisma);
 export const productRepository = new PostgresProductRepository(prisma);
@@ -366,7 +385,9 @@ const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
   productRepository
 );
 
-<<<<<<< HEAD
+const shipmentRepository = new _ShipmentRepository();
+const carrierService = new _CarrierService();
+
 const calculateShippingRatesUseCase = new CalculateShippingRatesUseCase(carrierService);
 const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
   shipmentRepository,
@@ -385,9 +406,6 @@ const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(
 // G3 — Stock valuation report
 const getStockValuationReportUseCase = new GetStockValuationReportUseCase(inventoryRepository, costLayerRepository, productRepository);
 
-
-=======
->>>>>>> d6742333e7632d31b5c6d48700cb8332c29d379c
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
@@ -979,7 +997,107 @@ export const resolvers = {
       } catch (error: any) {
         throw new Error(error.message);
       }
-    }
+    },
+
+    // G9/G10 — Serialized item queries
+    serializedItemsByVariant: async (_: any, { variantId, tenantId }: { variantId: string; tenantId: string }, context: GraphQLContext) => {
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
+      const items = await listSerializedItemsByVariantUseCase.execute(variantId, auth.tenantId);
+      return items.map(item => ({
+        id: item.id.value,
+        variantId: item.variantId.value,
+        serialNumber: item.serialNumber.value,
+        tenantId: item.tenantId.value,
+        locationId: item.locationId.value,
+        status: item.status,
+        history: item.history.map(h => ({
+          from: h.from,
+          to: h.to,
+          reason: h.reason,
+          actor: h.actor.value,
+          occurredAt: h.occurredAt.toISOString(),
+          referenceId: h.referenceId || null
+        }))
+      }));
+    },
+    serializedItemStatusCounts: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const counts = await countSerializedItemsByStatusUseCase.execute(variantId);
+      return Object.entries(counts).map(([status, count]) => ({ status, count }));
+    },
+
+    // G12 — UOM: getById
+    productUomConfigurationById: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const config = await getProductUomConfigurationByIdUseCase.execute(id);
+      if (!config) return null;
+      return {
+        sku: config.sku.value,
+        baseUnit: { name: config.baseUnit.name, abbreviation: config.baseUnit.abbreviation, category: config.baseUnit.category },
+        purchaseUnit: { name: config.purchaseUnit.name, abbreviation: config.purchaseUnit.abbreviation, category: config.purchaseUnit.category },
+        saleUnit: { name: config.saleUnit.name, abbreviation: config.saleUnit.abbreviation, category: config.saleUnit.category },
+        conversionRules: config.conversionRules.map(r => ({
+          id: r.id.value,
+          unit: { name: r.unit.name, abbreviation: r.unit.abbreviation, category: r.unit.category },
+          factorToBase: r.factorToBase,
+          label: r.label || null
+        }))
+      };
+    },
+
+    // G13 — All barcodes
+    allBarcodes: async (_: any, __: any, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
+      const assignments = await barcodeRepository.findAllAssignments();
+      return assignments.map(a => ({
+        id: a.id.value,
+        sku: a.sku.value,
+        barcode: { value: a.barcode.value, symbology: a.barcode.symbology },
+        source: a.source,
+        isPrimary: a.isPrimary,
+        assignedAt: a.assignedAt.toISOString()
+      }));
+    },
+
+    // G2 — Tenant accounting config
+    tenantAccountingConfig: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'accountant'], tenantId);
+      return await getTenantAccountingConfigUseCase.execute(tenantId);
+    },
+
+    // G3 — Stock valuation report
+    stockValuationReport: async (_: any, { tenantId, locationId, method }: { tenantId: string; locationId?: string; method?: CostingMethod }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'accountant'], tenantId);
+      return await getStockValuationReportUseCase.execute(tenantId, locationId || null, method || CostingMethod.FIFO);
+    },
+
+    // G5 — Outbox stats and dead-letter events
+    outboxStats: async (_: any, __: any, context: GraphQLContext) => {
+      enforceRole(context, ['admin']);
+      const [pending, processing, processed, failed] = await Promise.all([
+        prisma.outboxEvent.count({ where: { status: 'Pending' } }),
+        prisma.outboxEvent.count({ where: { status: 'Processing' } }),
+        prisma.outboxEvent.count({ where: { status: 'Processed' } }),
+        prisma.outboxEvent.count({ where: { status: 'Failed' } }),
+      ]);
+      return { pending, processing, processed, failed, total: pending + processing + processed + failed };
+    },
+    deadLetterEvents: async (_: any, __: any, context: GraphQLContext) => {
+      enforceRole(context, ['admin']);
+      const events = await prisma.outboxEvent.findMany({
+        where: { status: 'Failed' },
+        orderBy: { createdAt: 'desc' }
+      });
+      return events.map((e: any) => ({
+        id: e.id,
+        eventType: e.eventType,
+        status: e.status,
+        attempts: e.attempts,
+        lastError: e.lastError || null,
+        createdAt: e.createdAt.toISOString(),
+        processedAt: e.processedAt ? e.processedAt.toISOString() : null
+      }));
+    },
   },
   Mutation: {
     markNotificationAsRead: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
@@ -1114,6 +1232,16 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
+
+    // G11 — Add component to existing kit
+    addKitComponent: async (_: any, { kitId, variantId, quantity }: { kitId: string; variantId: string; quantity: number }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin']);
+        return await addKitComponentUseCase.execute({ kitId, variantId, quantity });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
     sellKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
@@ -1154,6 +1282,40 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
+
+    // G9 — Serialized item lifecycle mutations
+    sellSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
+        return await sellSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    returnSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
+        return await returnSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    restockSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
+        return await restockSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    writeOffSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
+        return await writeOffSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
     connectShopifyStore: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin'], input.tenantId);
@@ -1166,6 +1328,32 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin']);
         return await configureProductUomUseCase.execute(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+
+    // G12 — UOM granular mutations
+    addUomConversionRule: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin']);
+        return await addUomConversionRuleUseCase.execute(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    removeUomConversionRule: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin']);
+        return await removeUomConversionRuleUseCase.execute(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    setUomUnits: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin']);
+        return await setUomUnitsUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -1711,6 +1899,32 @@ export const resolvers = {
           }
         });
 
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+
+    // G2 — Save tenant accounting config
+    saveTenantAccountingConfig: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin'], input.tenantId);
+        return await saveTenantAccountingConfigUseCase.execute(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+
+    // G5 — Retry dead-letter outbox event
+    retryOutboxEvent: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin']);
+        const event = await prisma.outboxEvent.findUnique({ where: { id } });
+        if (!event) throw new Error(`Outbox event ${id} not found.`);
+        await prisma.outboxEvent.update({
+          where: { id },
+          data: { status: 'Pending', attempts: 0, lastError: null }
+        });
         return true;
       } catch (error: any) {
         throw new Error(error.message);

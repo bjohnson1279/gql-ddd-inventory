@@ -12,6 +12,7 @@ describe('ManageUoms Use Cases', () => {
     mockUomRepo = {
       save: jest.fn(),
       findBySku: jest.fn(),
+      findById: jest.fn(),
     };
   });
 

@@ -7,13 +7,21 @@ export interface TenantAccountingConfigDTO {
   costingMethod: CostingMethod;
 }
 
+// Cast prisma to any to access the tenantAccountingConfig model.
+// This model is defined in schema.prisma and will be available after running
+// `prisma migrate dev` or `prisma db push` to sync the schema.
+function config(prisma: PrismaClient) {
+  return (prisma as any).tenantAccountingConfig;
+}
+
 export class GetTenantAccountingConfigUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(tenantId: string): Promise<TenantAccountingConfigDTO> {
-    const row = await this.prisma.tenantAccountingConfig.findUnique({
-      where: { tenantId },
-    });
+    const row = await config(this.prisma).findUnique({ where: { tenantId } }) as {
+      accountingMethod: string;
+      costingMethod: string;
+    } | null;
 
     if (!row) {
       return {
@@ -35,7 +43,7 @@ export class SaveTenantAccountingConfigUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(input: TenantAccountingConfigDTO): Promise<boolean> {
-    await this.prisma.tenantAccountingConfig.upsert({
+    await config(this.prisma).upsert({
       where: { tenantId: input.tenantId },
       create: {
         tenantId: input.tenantId,

@@ -61,7 +61,8 @@ export class GetStockValuationReportUseCase {
     let totalValueCents = 0;
 
     for (const invItem of filteredItems) {
-      const qtyOnHand = invItem.quantity;
+      // Quantity is a value object — use .value to get the raw number
+      const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
 
       const variantIdStr = skuToVariantId.get(invItem.sku.value);

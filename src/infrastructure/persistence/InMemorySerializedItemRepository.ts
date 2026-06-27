@@ -28,4 +28,20 @@ export class InMemorySerializedItemRepository implements ISerializedItemReposito
   async countByStatus(variantId: ProductVariantId, status: SerializedItemStatus): Promise<number> {
     return this.items.filter(i => i.variantId.equals(variantId) && i.status === status).length;
   }
+
+  async findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null> {
+    return this.items.find(i => i.serialNumber.equals(serialNumber) && i.variantId.equals(variantId)) || null;
+  }
+
+  async findByVariantId(variantId: ProductVariantId, tenantId: TenantId): Promise<SerializedItem[]> {
+    return this.items.filter(i => i.variantId.equals(variantId) && i.tenantId.equals(tenantId));
+  }
+
+  async countAllStatuses(variantId: ProductVariantId): Promise<Record<SerializedItemStatus, number>> {
+    const result = {} as Record<SerializedItemStatus, number>;
+    for (const status of Object.values(SerializedItemStatus)) {
+      result[status] = this.items.filter(i => i.variantId.equals(variantId) && i.status === status).length;
+    }
+    return result;
+  }
 }
