@@ -580,6 +580,16 @@ export const resolvers = {
         }))
       }));
     },
+    stockVelocityReport: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const results = await context.prisma!.$queryRawUnsafe(`
+        SELECT bucket::text, units_dispatched as "unitsDispatched", units_received as "unitsReceived", transaction_count as "transactionCount"
+        FROM stock_velocity_report
+        WHERE variant_id = $1::uuid
+        ORDER BY bucket DESC
+      `, variantId);
+      return results;
+    },
     serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: GraphQLContext) => {
       const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
       const item = await getSerializedItemBySerialUseCase.execute(serialNumber, auth.tenantId);

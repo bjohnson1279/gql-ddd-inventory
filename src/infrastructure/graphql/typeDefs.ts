@@ -617,6 +617,7 @@ export const typeDefs = `#graphql
     replenishmentRules(tenantId: ID!): [ReplenishmentRule!]!
     purchaseOrder(id: ID!): PurchaseOrder
     purchaseOrders(tenantId: ID!): [PurchaseOrder!]!
+    stockVelocityReport(variantId: ID!): [StockVelocityBucket!]!
 
     suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
     optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
@@ -966,6 +967,13 @@ export const typeDefs = `#graphql
     carrier: String
     labelUrl: String
     createdAt: String!
+  }
+
+  type StockVelocityBucket {
+    bucket: String!
+    unitsDispatched: Int!
+    unitsReceived: Int!
+    transactionCount: Int!
   }
 `;
 
