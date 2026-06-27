@@ -419,3 +419,18 @@ export class CreateKitUseCase {
     return true;
   }
 }
+
+export class AddKitComponentUseCase {
+  constructor(private readonly kitRepo: IKitRepository) {}
+
+  async execute(input: { kitId: string; variantId: string; quantity: number }): Promise<boolean> {
+    const kit = await this.kitRepo.findById(new KitId(input.kitId));
+    if (!kit) {
+      throw new Error(`Kit with ID '${input.kitId}' not found.`);
+    }
+
+    kit.addComponent(new ProductVariantId(input.variantId), input.quantity);
+    await this.kitRepo.save(kit);
+    return true;
+  }
+}

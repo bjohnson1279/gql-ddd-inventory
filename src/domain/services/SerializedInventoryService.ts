@@ -109,6 +109,69 @@ export class SerializedInventoryService {
     this.dispatchEvents(item);
   }
 
+  async return(
+    serialNumber: SerialNumber,
+    tenantId: TenantId,
+    referenceId: string,
+    actor: ActorId
+  ): Promise<void> {
+    const item = await this.serials.findBySerial(serialNumber, tenantId);
+    if (!item) {
+      throw new Error(`Serial number ${serialNumber.value} not found.`);
+    }
+
+    item.transitionTo(SerializedItemStatus.Returned, `Returned — ref ${referenceId}`, actor, referenceId);
+
+    const entry = new LedgerEntry(
+      new LedgerEntryId(this.generateId()),
+      tenantId,
+      item.locationId,
+      item.variantId,
+      1,
+      ReasonCode.Return,
+      actor,
+      new Date(),
+      referenceId,
+      { serialNumber: serialNumber.value }
+    );
+
+    await this.ledger.append(entry);
+    await this.serials.save(item);
+    this.dispatchEvents(item);
+  }
+
+  async restock(
+    serialNumber: SerialNumber,
+    tenantId: TenantId,
+    locationId: LocationId,
+    referenceId: string,
+    actor: ActorId
+  ): Promise<void> {
+    const item = await this.serials.findBySerial(serialNumber, tenantId);
+    if (!item) {
+      throw new Error(`Serial number ${serialNumber.value} not found.`);
+    }
+
+    item.transitionTo(SerializedItemStatus.InStock, `Restocked — ref ${referenceId}`, actor, referenceId);
+
+    const entry = new LedgerEntry(
+      new LedgerEntryId(this.generateId()),
+      tenantId,
+      locationId,
+      item.variantId,
+      1,
+      ReasonCode.PurchaseReceipt,
+      actor,
+      new Date(),
+      referenceId,
+      { serialNumber: serialNumber.value }
+    );
+
+    await this.ledger.append(entry);
+    await this.serials.save(item);
+    this.dispatchEvents(item);
+  }
+
   private dispatchEvents(item: SerializedItem): void {
     const events = item.pullDomainEvents();
     for (const event of events) {

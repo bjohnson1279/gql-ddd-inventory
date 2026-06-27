@@ -109,4 +109,22 @@ export class PostgresBarcodeRepository implements IBarcodeRepository {
       }
     });
   }
+
+  async findAllAssignments(): Promise<BarcodeAssignment[]> {
+    const barcodes = await this.prisma.barcode.findMany({
+      include: { variant: true },
+      orderBy: { assignedAt: 'desc' },
+    });
+
+    return barcodes.map((b) =>
+      new BarcodeAssignment(
+        new BarcodeAssignmentId(b.id),
+        new Sku(b.variant.sku),
+        new Barcode(b.symbology as BarcodeSymbology, b.value),
+        b.source as BarcodeSource,
+        b.isPrimary ?? false,
+        b.assignedAt
+      )
+    );
+  }
 }

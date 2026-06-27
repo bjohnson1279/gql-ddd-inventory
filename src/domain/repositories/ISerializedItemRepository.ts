@@ -7,6 +7,9 @@ import { SerializedItemStatus } from '../enums/SerializedItemStatus';
 export interface ISerializedItemRepository {
   save(item: SerializedItem): Promise<void>;
   findBySerial(serialNumber: SerialNumber, tenantId: TenantId): Promise<SerializedItem | null>;
+  findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null>;
+  findByVariantId(variantId: ProductVariantId, tenantId: TenantId): Promise<SerializedItem[]>;
   isRegistered(serialNumber: SerialNumber, tenantId: TenantId): Promise<boolean>;
   countByStatus(variantId: ProductVariantId, status: SerializedItemStatus): Promise<number>;
+  countAllStatuses(variantId: ProductVariantId): Promise<Record<SerializedItemStatus, number>>;
 }

@@ -112,4 +112,101 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
       },
     });
   }
+
+  async findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null> {
+    const model = await this.prisma.serializedItem.findFirst({
+      where: {
+        serialNumber: serialNumber.value,
+        variantId: variantId.value,
+      },
+      include: {
+        history: { orderBy: { occurredAt: 'asc' } },
+      },
+    });
+
+    if (!model) return null;
+
+    const item = new SerializedItem(
+      new SerializedItemId(model.id),
+      new ProductVariantId(model.variantId),
+      new SerialNumber(model.serialNumber),
+      new TenantId(model.tenantId),
+      new LocationId(model.locationId),
+      model.status as SerializedItemStatus
+    );
+
+    (item as any)._history = model.history.map(
+      (h) =>
+        new StatusTransition(
+          h.fromStatus as SerializedItemStatus,
+          h.toStatus as SerializedItemStatus,
+          h.reason || '',
+          new ActorId(h.actorId),
+          h.occurredAt,
+          h.referenceId || undefined
+        )
+    );
+
+    return item;
+  }
+
+  async findByVariantId(variantId: ProductVariantId, tenantId: TenantId): Promise<SerializedItem[]> {
+    const models = await this.prisma.serializedItem.findMany({
+      where: {
+        variantId: variantId.value,
+        tenantId: tenantId.value,
+      },
+      include: {
+        history: { orderBy: { occurredAt: 'asc' } },
+      },
+      orderBy: { serialNumber: 'asc' },
+    });
+
+    return models.map((model) => {
+      const item = new SerializedItem(
+        new SerializedItemId(model.id),
+        new ProductVariantId(model.variantId),
+        new SerialNumber(model.serialNumber),
+        new TenantId(model.tenantId),
+        new LocationId(model.locationId),
+        model.status as SerializedItemStatus
+      );
+
+      (item as any)._history = model.history.map(
+        (h) =>
+          new StatusTransition(
+            h.fromStatus as SerializedItemStatus,
+            h.toStatus as SerializedItemStatus,
+            h.reason || '',
+            new ActorId(h.actorId),
+            h.occurredAt,
+            h.referenceId || undefined
+          )
+      );
+
+      return item;
+    });
+  }
+
+  async countAllStatuses(variantId: ProductVariantId): Promise<Record<SerializedItemStatus, number>> {
+    const rows = await this.prisma.serializedItem.groupBy({
+      by: ['status'],
+      where: { variantId: variantId.value },
+      _count: { status: true },
+    });
+
+    const result: Partial<Record<SerializedItemStatus, number>> = {};
+    for (const row of rows) {
+      result[row.status as SerializedItemStatus] = row._count.status;
+    }
+
+    // Fill missing statuses with 0
+    for (const status of Object.values(SerializedItemStatus)) {
+      if (!(status in result)) {
+        result[status] = 0;
+      }
+    }
+
+    return result as Record<SerializedItemStatus, number>;
+  }
 }

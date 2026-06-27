@@ -63,3 +63,78 @@ export class GetProductUomConfigurationUseCase {
     return await this.uomRepo.findBySku(new Sku(sku));
   }
 }
+
+export class GetProductUomConfigurationByIdUseCase {
+  constructor(private readonly uomRepo: IProductUomConfigurationRepository) {}
+
+  async execute(id: string): Promise<ProductUomConfiguration | null> {
+    return await this.uomRepo.findById(id);
+  }
+}
+
+export class AddUomConversionRuleUseCase {
+  constructor(private readonly uomRepo: IProductUomConfigurationRepository) {}
+
+  async execute(input: { sku: string; unit: UnitInput; factorToBase: number; label?: string }): Promise<boolean> {
+    const config = await this.uomRepo.findBySku(new Sku(input.sku));
+    if (!config) {
+      throw new Error(`UOM configuration for SKU '${input.sku}' not found.`);
+    }
+
+    config.addConversionRule(
+      new UnitOfMeasure(input.unit.name, input.unit.abbreviation, input.unit.category),
+      input.factorToBase,
+      input.label
+    );
+
+    await this.uomRepo.save(config);
+    return true;
+  }
+}
+
+export class RemoveUomConversionRuleUseCase {
+  constructor(private readonly uomRepo: IProductUomConfigurationRepository) {}
+
+  async execute(input: { sku: string; unitName: string }): Promise<boolean> {
+    const config = await this.uomRepo.findBySku(new Sku(input.sku));
+    if (!config) {
+      throw new Error(`UOM configuration for SKU '${input.sku}' not found.`);
+    }
+
+    // Find the unit by name among existing rules
+    const existingRule = (config.conversionRules as any[]).find((r: any) => r.unit.name === input.unitName);
+    if (!existingRule) {
+      throw new Error(`No conversion rule found for unit '${input.unitName}'.`);
+    }
+
+    config.removeConversionRule(existingRule.unit);
+    await this.uomRepo.save(config);
+    return true;
+  }
+}
+
+export class SetUomUnitsUseCase {
+  constructor(private readonly uomRepo: IProductUomConfigurationRepository) {}
+
+  async execute(input: { sku: string; purchaseUnit?: UnitInput; saleUnit?: UnitInput }): Promise<boolean> {
+    const config = await this.uomRepo.findBySku(new Sku(input.sku));
+    if (!config) {
+      throw new Error(`UOM configuration for SKU '${input.sku}' not found.`);
+    }
+
+    if (input.purchaseUnit) {
+      config.setPurchaseUnit(
+        new UnitOfMeasure(input.purchaseUnit.name, input.purchaseUnit.abbreviation, input.purchaseUnit.category)
+      );
+    }
+
+    if (input.saleUnit) {
+      config.setSaleUnit(
+        new UnitOfMeasure(input.saleUnit.name, input.saleUnit.abbreviation, input.saleUnit.category)
+      );
+    }
+
+    await this.uomRepo.save(config);
+    return true;
+  }
+}

@@ -36,11 +36,30 @@ import {
 } from '../../application/useCases/ManageAllocations';
 
 import { CreateProductUseCase, AddProductVariantUseCase, GetProductsUseCase, GetProductByIdUseCase } from '../../application/useCases/ManageProducts';
-import { SellKitUseCase, AssembleKitUseCase, DisassembleKitUseCase, CreateKitUseCase } from '../../application/useCases/ManageKits';
-import { ReceiveSerializedItemUseCase, GetSerializedItemBySerialUseCase } from '../../application/useCases/ManageSerializedItems';
+import { SellKitUseCase, AssembleKitUseCase, DisassembleKitUseCase, CreateKitUseCase, AddKitComponentUseCase } from '../../application/useCases/ManageKits';
+import {
+  ReceiveSerializedItemUseCase,
+  SellSerializedItemUseCase,
+  ReturnSerializedItemUseCase,
+  RestockSerializedItemUseCase,
+  WriteOffSerializedItemUseCase,
+  GetSerializedItemBySerialUseCase,
+  ListSerializedItemsByVariantUseCase,
+  CountSerializedItemsByStatusUseCase
+} from '../../application/useCases/ManageSerializedItems';
 import { ConnectShopifyStoreUseCase, GetShopifyConnectionsUseCase } from '../../application/useCases/ManageShopifyConnections';
-import { ConfigureProductUomUseCase, GetProductUomConfigurationUseCase } from '../../application/useCases/ManageUoms';
+import {
+  ConfigureProductUomUseCase,
+  GetProductUomConfigurationUseCase,
+  GetProductUomConfigurationByIdUseCase,
+  AddUomConversionRuleUseCase,
+  RemoveUomConversionRuleUseCase,
+  SetUomUnitsUseCase
+} from '../../application/useCases/ManageUoms';
 import { CreateJournalEntryUseCase, GetJournalEntriesUseCase } from '../../application/useCases/ManageJournals';
+import { GetTenantAccountingConfigUseCase, SaveTenantAccountingConfigUseCase } from '../../application/useCases/ManageTenantAccountingConfig';
+import { GetStockValuationReportUseCase } from '../../application/useCases/GetStockValuationReport';
+import { CostingMethod } from '../../domain/enums/AccountingEnums';
 import {
   CreateStockOnboardingUseCase,
   SaveStockOnboardingItemsUseCase,
@@ -212,6 +231,7 @@ const getProductsUseCase = new GetProductsUseCase(productRepository);
 const getProductByIdUseCase = new GetProductByIdUseCase(productRepository);
 const sellKitUseCase = new SellKitUseCase(inventoryService);
 const createKitUseCase = new CreateKitUseCase(kitRepository);
+const addKitComponentUseCase = new AddKitComponentUseCase(kitRepository);
 const assembleKitUseCase = new AssembleKitUseCase(
   kitRepository,
   productRepository,
@@ -227,12 +247,22 @@ const disassembleKitUseCase = new DisassembleKitUseCase(
   journalRepository
 );
 const receiveSerializedItemUseCase = new ReceiveSerializedItemUseCase(serializedInventoryService, serializedItemRepository);
+const sellSerializedItemUseCase = new SellSerializedItemUseCase(serializedInventoryService);
+const returnSerializedItemUseCase = new ReturnSerializedItemUseCase(serializedItemRepository);
+const restockSerializedItemUseCase = new RestockSerializedItemUseCase(serializedItemRepository);
+const writeOffSerializedItemUseCase = new WriteOffSerializedItemUseCase(serializedItemRepository, costLayerRepository, journalRepository);
 const getSerializedItemBySerialUseCase = new GetSerializedItemBySerialUseCase(serializedItemRepository);
+const listSerializedItemsByVariantUseCase = new ListSerializedItemsByVariantUseCase(serializedItemRepository);
+const countSerializedItemsByStatusUseCase = new CountSerializedItemsByStatusUseCase(serializedItemRepository);
 const connectShopifyStoreUseCase = new ConnectShopifyStoreUseCase(integrationRepository);
 const getShopifyConnectionsUseCase = new GetShopifyConnectionsUseCase(integrationRepository);
 
 const configureProductUomUseCase = new ConfigureProductUomUseCase(uomRepository);
 const getProductUomConfigurationUseCase = new GetProductUomConfigurationUseCase(uomRepository);
+const getProductUomConfigurationByIdUseCase = new GetProductUomConfigurationByIdUseCase(uomRepository);
+const addUomConversionRuleUseCase = new AddUomConversionRuleUseCase(uomRepository);
+const removeUomConversionRuleUseCase = new RemoveUomConversionRuleUseCase(uomRepository);
+const setUomUnitsUseCase = new SetUomUnitsUseCase(uomRepository);
 const createJournalEntryUseCase = new CreateJournalEntryUseCase(journalRepository);
 const getJournalEntriesUseCase = new GetJournalEntriesUseCase(journalRepository);
 
@@ -368,6 +398,13 @@ const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
 );
 const updateShipmentStatusUseCase = new UpdateShipmentStatusUseCase(shipmentRepository, eventDispatcher);
 const getShipmentsUseCase = new GetShipmentsUseCase(shipmentRepository);
+
+// G2 — Tenant accounting configuration
+const getTenantAccountingConfigUseCase = new GetTenantAccountingConfigUseCase(prisma);
+const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(prisma);
+
+// G3 — Stock valuation report
+const getStockValuationReportUseCase = new GetStockValuationReportUseCase(inventoryRepository, costLayerRepository, productRepository);
 
 
 const JWT_SECRET = process.env.JWT_SECRET;

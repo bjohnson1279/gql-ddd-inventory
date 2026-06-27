@@ -111,9 +111,65 @@ export const typeDefs = `#graphql
     accrual
   }
 
+  enum CostingMethod {
+    fifo
+    lifo
+    weighted_average_cost
+    specific_identification
+    fefo
+  }
+
   enum DebitCredit {
     debit
     credit
+  }
+
+  type TenantAccountingConfig {
+    tenantId: ID!
+    accountingMethod: AccountingMethod!
+    costingMethod: CostingMethod!
+  }
+
+  type StockValuationLineItem {
+    sku: String!
+    variantId: ID!
+    locationId: String!
+    quantityOnHand: Int!
+    unitCostCents: Int!
+    totalValueCents: Int!
+    costingMethod: String!
+  }
+
+  type StockValuationReport {
+    tenantId: ID!
+    locationId: String
+    method: CostingMethod!
+    generatedAt: String!
+    totalValueCents: Int!
+    lineItems: [StockValuationLineItem!]!
+  }
+
+  type SerialStatusCount {
+    status: String!
+    count: Int!
+  }
+
+  type OutboxStats {
+    pending: Int!
+    processing: Int!
+    processed: Int!
+    failed: Int!
+    total: Int!
+  }
+
+  type OutboxEvent {
+    id: ID!
+    eventType: String!
+    status: String!
+    attempts: Int!
+    lastError: String
+    createdAt: String!
+    processedAt: String
   }
 
   enum StockOnboardingStatus {
@@ -575,11 +631,15 @@ export const typeDefs = `#graphql
     product(id: ID!): Product
     products: [Product!]!
     serializedItemBySerial(serialNumber: String!, tenantId: ID!): SerializedItem
+    serializedItemsByVariant(variantId: ID!, tenantId: ID!): [SerializedItem!]!
+    serializedItemStatusCounts(variantId: ID!): [SerialStatusCount!]!
     shopifyConnections(tenantId: ID!): [ShopifyConnection!]!
-    
+
     productUomConfiguration(sku: String!): ProductUomConfiguration
+    productUomConfigurationById(id: ID!): ProductUomConfiguration
     journalEntries(tenantId: ID!): [JournalEntry!]!
     barcodeSet(sku: String!): VariantBarcodeSet
+    allBarcodes: [BarcodeAssignment!]!
     lookupBarcode(barcodeValue: String!): String
     stockOnboarding(id: ID!): StockOnboarding
     stockOnboardings(tenantId: ID!): [StockOnboarding!]!
@@ -607,6 +667,16 @@ export const typeDefs = `#graphql
     demandPlanningReport(locationId: String!): [DemandPlanningReportItem!]!
     shippingRates(sku: String!, quantity: Int!, destinationAddress: String!): [CarrierRate!]!
     shipments: [Shipment!]!
+
+    # G2 — Tenant accounting configuration
+    tenantAccountingConfig(tenantId: ID!): TenantAccountingConfig!
+
+    # G3 — Stock valuation report (FIFO / LIFO / WAC)
+    stockValuationReport(tenantId: ID!, locationId: String, method: CostingMethod): StockValuationReport!
+
+    # G5 — Outbox management
+    outboxStats: OutboxStats!
+    deadLetterEvents: [OutboxEvent!]!
   }
 
   type InventoryCountResult {
@@ -728,6 +798,60 @@ export const typeDefs = `#graphql
     items: [ReceiveRmaItemInput!]!
   }
 
+  input SellSerializedInput {
+    serialNumber: String!
+    tenantId: ID!
+    saleId: String!
+    actorId: ID!
+  }
+
+  input ReturnSerializedInput {
+    serialNumber: String!
+    tenantId: ID!
+    referenceId: String!
+    actorId: ID!
+  }
+
+  input RestockSerializedInput {
+    serialNumber: String!
+    tenantId: ID!
+    locationId: ID!
+    referenceId: String!
+    actorId: ID!
+  }
+
+  input WriteOffSerializedInput {
+    serialNumber: String!
+    variantId: ID!
+    tenantId: ID!
+    reason: String!
+    actorId: ID!
+  }
+
+  input SaveTenantAccountingConfigInput {
+    tenantId: ID!
+    accountingMethod: AccountingMethod!
+    costingMethod: CostingMethod!
+  }
+
+  input AddUomConversionRuleInput {
+    sku: String!
+    unit: UnitInput!
+    factorToBase: Float!
+    label: String
+  }
+
+  input RemoveUomConversionRuleInput {
+    sku: String!
+    unitName: String!
+  }
+
+  input SetUomUnitsInput {
+    sku: String!
+    purchaseUnit: UnitInput
+    saleUnit: UnitInput
+  }
+
   type Mutation {
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
@@ -745,18 +869,26 @@ export const typeDefs = `#graphql
     receiveInTransit(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     submitInventoryCount(counts: [InventoryCountInput!]!): [InventoryCountResult!]!
     submitOpeningBalance(input: SubmitOpeningBalanceInput!): Boolean!
-    
+
     createProduct(id: ID!, name: String!): Boolean!
     addProductVariant(productId: ID!, sku: String!, attributes: [AttributeInput!]!, trackingMode: TrackingMode!): Boolean!
     createKit(id: ID!, sku: String!, name: String!, components: [KitComponentInput!]!): Boolean!
+    addKitComponent(kitId: ID!, variantId: ID!, quantity: Int!): Boolean!
     sellKit(input: SellKitInput!): Boolean!
     assembleKit(input: AssembleKitInput!): Boolean!
     disassembleKit(input: DisassembleKitInput!): Boolean!
-    
+
     receiveSerializedItem(input: ReceiveSerializedInput!): Boolean!
+    sellSerializedItem(input: SellSerializedInput!): Boolean!
+    returnSerializedItem(input: ReturnSerializedInput!): Boolean!
+    restockSerializedItem(input: RestockSerializedInput!): Boolean!
+    writeOffSerializedItem(input: WriteOffSerializedInput!): Boolean!
     connectShopifyStore(input: ConnectShopifyInput!): Boolean!
-    
+
     configureProductUom(input: ConfigureUomInput!): Boolean!
+    addUomConversionRule(input: AddUomConversionRuleInput!): Boolean!
+    removeUomConversionRule(input: RemoveUomConversionRuleInput!): Boolean!
+    setUomUnits(input: SetUomUnitsInput!): Boolean!
     createJournalEntry(input: CreateJournalEntryInput!): Boolean!
     assignBarcode(input: AssignBarcodeInput!): Boolean!
     revokeBarcode(input: RevokeBarcodeInput!): Boolean!
@@ -790,6 +922,12 @@ export const typeDefs = `#graphql
     receiveStockWithLot(sku: String!, locationId: String!, quantity: Int!, unitCostCents: Int!, lotNumber: String!, expirationDate: String!): Boolean!
     markNotificationAsRead(id: ID!): Boolean!
     markAllNotificationsAsRead(tenantId: ID!): Boolean!
+
+    # G2 — Tenant accounting configuration
+    saveTenantAccountingConfig(input: SaveTenantAccountingConfigInput!): Boolean!
+
+    # G5 — Outbox management
+    retryOutboxEvent(id: ID!): Boolean!
   }
 
   type Subscription {

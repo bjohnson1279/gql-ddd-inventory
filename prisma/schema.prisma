@@ -530,4 +530,10 @@ model Shipment {
   @@map("shipments")
 }
 
+model TenantAccountingConfig {
+  tenantId         String @id @map("tenant_id")
+  accountingMethod String @default("accrual") @map("accounting_method")
+  costingMethod    String @default("fifo") @map("costing_method")
 
+  @@map("tenant_accounting_configs")
+}

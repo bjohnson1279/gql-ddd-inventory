@@ -125,4 +125,9 @@ export class PostgresProductUomConfigurationRepository implements IProductUomCon
 
     return config;
   }
+
+  async findById(id: string): Promise<ProductUomConfiguration | null> {
+    // The UOM configuration's primary key IS the sku, so id === sku
+    return this.findBySku(new Sku(id));
+  }
 }
