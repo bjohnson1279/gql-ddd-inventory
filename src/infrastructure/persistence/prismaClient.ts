@@ -18,6 +18,14 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          if (tenantId && process.env.NODE_ENV !== 'test') {
+            try {
+              await basePrisma.$executeRawUnsafe(`SELECT set_config('app.current_tenant_id', $1, false)`, tenantId);
+            } catch (err: any) {
+              console.error("[PrismaExtension] Failed to set app.current_tenant_id:", err.message);
+            }
+          }
+
           const modelsWithTenant = [
             'LedgerEntry',
             'SerializedItem',
