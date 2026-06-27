@@ -32,6 +32,12 @@ export class InMemoryReplenishmentRuleRepository implements IReplenishmentRuleRe
     this.rules.set(rule.id.value, rule);
   }
 
+  async saveBatch(rules: ReplenishmentRule[]): Promise<void> {
+    for (const rule of rules) {
+      this.rules.set(rule.id.value, rule);
+    }
+  }
+
   async findById(id: ReplenishmentRuleId): Promise<ReplenishmentRule | null> {
     const rule = this.rules.get(id.value);
     return rule ? this.cloneRule(rule) : null;

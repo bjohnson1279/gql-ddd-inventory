@@ -18,6 +18,42 @@ function toUuid(id: string): string {
 export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async saveBatch(rules: ReplenishmentRule[]): Promise<void> {
+    if (rules.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const rule of rules) {
+        const dbId = toUuid(rule.id.value);
+        await tx.replenishmentRule.upsert({
+          where: { id: dbId },
+          create: {
+            id: dbId,
+            tenantId: rule.tenantId.value,
+            sku: rule.sku.value,
+            locationId: rule.locationId.value,
+            reorderPoint: rule.reorderPoint,
+            reorderQuantity: rule.reorderQuantity,
+            safetyStock: rule.safetyStock,
+            leadTimeDays: rule.leadTimeDays,
+            replenishmentType: rule.replenishmentType,
+            sourceLocationId: rule.sourceLocationId ? rule.sourceLocationId.value : null,
+            supplierId: rule.supplierId,
+            isActive: rule.isActive,
+            dynamicRopEnabled: rule.dynamicRopEnabled,
+          },
+          update: {
+            reorderPoint: rule.reorderPoint,
+            reorderQuantity: rule.reorderQuantity,
+            safetyStock: rule.safetyStock,
+            leadTimeDays: rule.leadTimeDays,
+            isActive: rule.isActive,
+            dynamicRopEnabled: rule.dynamicRopEnabled,
+          },
+        });
+      }
+    });
+  }
+
   async save(rule: ReplenishmentRule): Promise<void> {
     const dbId = toUuid(rule.id.value);
 

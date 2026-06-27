@@ -19,6 +19,46 @@ function toUuid(id: string): string {
 export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async saveBatch(orders: PurchaseOrder[]): Promise<void> {
+    if (orders.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const order of orders) {
+        const dbId = toUuid(order.id.value);
+        await tx.purchaseOrder.upsert({
+          where: { id: dbId },
+          create: {
+            id: dbId,
+            tenantId: order.tenantId.value,
+            supplierId: order.supplierId,
+            destinationLocationId: order.destinationLocationId.value,
+            status: order.status,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+          },
+          update: {
+            status: order.status,
+            updatedAt: order.updatedAt,
+          },
+        });
+
+        await tx.purchaseOrderItem.deleteMany({
+          where: { purchaseOrderId: dbId },
+        });
+
+        if (order.items.length > 0) {
+          await tx.purchaseOrderItem.createMany({
+            data: order.items.map((item) => ({
+              purchaseOrderId: dbId,
+              variantId: toUuid(item.variantId.value),
+              quantity: item.quantity,
+            })),
+          });
+        }
+      }
+    });
+  }
+
   async save(order: PurchaseOrder): Promise<void> {
     const dbId = toUuid(order.id.value);
 
