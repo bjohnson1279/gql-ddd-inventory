@@ -66,3 +66,7 @@
 - Ensure that the primary key is defined as a composite key containing both the unique ID and the timestamp column (e.g. `PRIMARY KEY (id, occurred_at)` or `@@id([id, occurredAt])`).
 - Convert the table to a hypertable immediately upon creation/migration using `SELECT create_hypertable('table_name', 'time_column', if_not_exists => TRUE);`.
 - For Node.js/Prisma setups, ensure the datasource provider is set to PostgreSQL (not SQLite) to maintain database parity across all service variants.
+
+## 2026-06-28 - Avoid N+1 database queries when creating journal entries in batches
+ **Learning:** In operations that process multiple items iteratively (like `ReceiveRmaUseCase`), calling `await this.journalRepo.save(entry)` individually for each item creates severe N+1 database INSERT query overhead.
+ **Action:** Introduce a `saveBatch` method to `IJournalRepository` (backed by a single Prisma `$transaction` handling `upsert` and `createMany`), expose synchronous journal entry creation methods (e.g., `createStockReturnedEntrySync`) in `AccountingJournalService`, and collect entries in an array during loop execution to save them all concurrently outside the loop.
