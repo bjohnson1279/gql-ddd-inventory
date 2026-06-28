@@ -822,7 +822,6 @@ export const typeDefs = `#graphql
   }
 
   type Mutation {
-    retryOutboxEvent(id: ID!): Boolean!
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
