@@ -1716,6 +1716,9 @@ export const resolvers = {
           tenantId: auth.tenantId,
           actorId: auth.actorId
         });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
     },
     retryOutboxEvent: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
