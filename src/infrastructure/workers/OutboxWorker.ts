@@ -70,7 +70,12 @@ export class OutboxWorker {
 
     try {
       const events = await prisma.outboxEvent.findMany({
-        where: { status: 'Pending' },
+        where: {
+          status: 'Pending',
+          nextAttemptAt: {
+            lte: new Date()
+          }
+        },
         orderBy: { createdAt: 'asc' },
         take: 20,
       });
@@ -94,13 +99,19 @@ export class OutboxWorker {
 
           processedIds.push(event.id);
         } catch (err: any) {
+          const nextAttempts = event.attempts + 1;
+          const backoffMs = Math.min(Math.pow(2, nextAttempts) * 1000, 24 * 60 * 60 * 1000);
+          const nextAttemptAt = new Date(Date.now() + backoffMs);
+          const nextStatus = nextAttempts >= 5 ? 'Failed' : 'Pending';
+
           console.error(`[OutboxWorker] Failed to process outbox event ${event.id}:`, err);
           await prisma.outboxEvent.update({
             where: { id: event.id },
             data: {
-              status: event.attempts >= 3 ? 'Failed' : 'Pending',
-              attempts: event.attempts + 1,
+              status: nextStatus,
+              attempts: nextAttempts,
               lastError: err.message,
+              nextAttemptAt,
             },
           });
         }

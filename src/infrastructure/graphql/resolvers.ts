@@ -1135,20 +1135,23 @@ export const resolvers = {
       ]);
       return { pending, processing, processed, failed, total: pending + processing + processed + failed };
     },
-    deadLetterEvents: async (_: any, __: any, context: GraphQLContext) => {
+    deadLetterEvents: async (_: any, { limit }: { limit?: number }, context: GraphQLContext) => {
       enforceRole(context, ['admin']);
       const events = await prisma.outboxEvent.findMany({
         where: { status: 'Failed' },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: limit || undefined
       });
       return events.map((e: any) => ({
         id: e.id,
         eventType: e.eventType,
+        payload: e.payload,
         status: e.status,
         attempts: e.attempts,
         lastError: e.lastError || null,
         createdAt: e.createdAt.toISOString(),
-        processedAt: e.processedAt ? e.processedAt.toISOString() : null
+        processedAt: e.processedAt ? e.processedAt.toISOString() : null,
+        nextAttemptAt: e.nextAttemptAt.toISOString()
       }));
     },
     generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
@@ -1713,6 +1716,20 @@ export const resolvers = {
           tenantId: auth.tenantId,
           actorId: auth.actorId
         });
+    },
+    retryOutboxEvent: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin']);
+        await prisma.outboxEvent.update({
+          where: { id },
+          data: {
+            status: 'Pending',
+            attempts: 0,
+            lastError: null,
+            nextAttemptAt: new Date(),
+          },
+        });
+        return true;
       } catch (error: any) {
         throw new Error(error.message);
       }

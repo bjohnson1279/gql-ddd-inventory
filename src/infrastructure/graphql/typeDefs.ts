@@ -131,11 +131,13 @@ export const typeDefs = `#graphql
   type OutboxEvent {
     id: ID!
     eventType: String!
+    payload: String!
     status: String!
     attempts: Int!
     lastError: String
     createdAt: String!
     processedAt: String
+    nextAttemptAt: String!
   }
 
   enum StockOnboardingStatus {
@@ -643,7 +645,7 @@ export const typeDefs = `#graphql
 
     # G5 — Outbox management
     outboxStats: OutboxStats!
-    deadLetterEvents: [OutboxEvent!]!
+    deadLetterEvents(limit: Int): [OutboxEvent!]!
   }
 
   type InventoryCountResult {
@@ -820,6 +822,7 @@ export const typeDefs = `#graphql
   }
 
   type Mutation {
+    retryOutboxEvent(id: ID!): Boolean!
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
