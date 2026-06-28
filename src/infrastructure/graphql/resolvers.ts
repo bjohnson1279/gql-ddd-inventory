@@ -1720,23 +1720,6 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    retryOutboxEvent: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin']);
-        await prisma.outboxEvent.update({
-          where: { id },
-          data: {
-            status: 'Pending',
-            attempts: 0,
-            lastError: null,
-            nextAttemptAt: new Date(),
-          },
-        });
-        return true;
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
     createRma: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator']);
@@ -2036,7 +2019,12 @@ export const resolvers = {
         if (!event) throw new Error(`Outbox event ${id} not found.`);
         await prisma.outboxEvent.update({
           where: { id },
-          data: { status: 'Pending', attempts: 0, lastError: null }
+          data: {
+            status: 'Pending',
+            attempts: 0,
+            lastError: null,
+            nextAttemptAt: new Date()
+          }
         });
         return true;
       } catch (error: any) {
