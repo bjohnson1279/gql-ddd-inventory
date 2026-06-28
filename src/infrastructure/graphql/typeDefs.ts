@@ -646,6 +646,9 @@ export const typeDefs = `#graphql
     # G5 — Outbox management
     outboxStats: OutboxStats!
     deadLetterEvents(limit: Int): [OutboxEvent!]!
+
+    # Eventual Consistency Audit
+    auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
   }
 
   type InventoryCountResult {
@@ -895,6 +898,10 @@ export const typeDefs = `#graphql
 
     # G5 — Outbox management
     retryOutboxEvent(id: ID!): Boolean!
+
+    # Eventual Consistency Audit
+    runAudit(tenantId: ID!): AuditSummary!
+    resolveAuditDiscrepancy(id: ID!, notes: String!): Boolean!
   }
 
   type Subscription {
@@ -976,6 +983,24 @@ export const typeDefs = `#graphql
     unitsDispatched: Int!
     unitsReceived: Int!
     transactionCount: Int!
+  }
+
+  type AuditDiscrepancy {
+    id: ID!
+    tenantId: ID!
+    type: String!
+    referenceId: String!
+    externalRefId: String
+    description: String!
+    status: String!
+    occurredAt: String!
+    resolvedAt: String
+    resolutionNotes: String
+  }
+
+  type AuditSummary {
+    shopifyDiscrepancies: Int!
+    accountingDiscrepancies: Int!
   }
 `;
 

@@ -566,3 +566,18 @@ model TenantAccountingConfig {
 
   @@map("tenant_accounting_configs")
 }
+
+model AuditDiscrepancy {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  type            String    
+  referenceId     String    @map("reference_id") 
+  externalRefId   String?   @map("external_ref_id")
+  description     String
+  status          String    @default("OPEN") 
+  occurredAt      DateTime  @default(now()) @map("occurred_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  resolutionNotes String?   @map("resolution_notes")
+
+  @@map("audit_discrepancies")
+}

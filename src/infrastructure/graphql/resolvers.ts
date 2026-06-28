@@ -1154,6 +1154,28 @@ export const resolvers = {
         nextAttemptAt: e.nextAttemptAt.toISOString()
       }));
     },
+    auditDiscrepancies: async (_: any, { tenantId, status }: { tenantId: string; status?: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'accountant', 'viewer'], tenantId);
+      const items = await prisma.auditDiscrepancy.findMany({
+        where: {
+          tenantId,
+          ...(status ? { status } : {})
+        },
+        orderBy: { occurredAt: 'desc' }
+      });
+      return items.map((m: any) => ({
+        id: m.id,
+        tenantId: m.tenantId,
+        type: m.type,
+        referenceId: m.referenceId,
+        externalRefId: m.externalRefId || null,
+        description: m.description,
+        status: m.status,
+        occurredAt: m.occurredAt.toISOString(),
+        resolvedAt: m.resolvedAt ? m.resolvedAt.toISOString() : null,
+        resolutionNotes: m.resolutionNotes || null
+      }));
+    },
     generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const forecast = await demandForecaster.generateDemandForecast(
@@ -2027,6 +2049,26 @@ export const resolvers = {
           }
         });
         return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin'], tenantId);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const service = new AuditProcessorService(prisma);
+        return await service.runAudit(tenantId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin']);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const service = new AuditProcessorService(prisma);
+        return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {
         throw new Error(error.message);
       }

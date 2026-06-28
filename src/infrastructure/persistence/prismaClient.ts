@@ -34,6 +34,7 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
             'JournalEntry',
             'StockOnboarding',
             'Notification',
+            'AuditDiscrepancy',
           ];
 
             if (modelsWithTenant.includes(model)) {
