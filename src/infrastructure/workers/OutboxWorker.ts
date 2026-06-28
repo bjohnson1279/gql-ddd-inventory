@@ -40,7 +40,11 @@ export function deserializeEvent(eventType: string, payloadStr: string): any {
     const mockConstructor = function () {};
     Object.defineProperty(mockConstructor, 'name', { value: eventType, writable: false });
     const event = Object.create(mockConstructor.prototype);
-    Object.assign(event, payload);
+    for (const key in payload) {
+      if (Object.prototype.hasOwnProperty.call(payload, key) && !['__proto__', 'constructor', 'prototype'].includes(key)) {
+        (event as any)[key] = payload[key];
+      }
+    }
     if (event.occurredAt) event.occurredAt = new Date(event.occurredAt);
     return event;
   }
