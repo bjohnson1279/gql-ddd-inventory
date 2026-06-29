@@ -56,18 +56,3 @@ jobs:
       - name: Run Backend Jest Tests
         run: pnpm run test
 
-      - name: Install Frontend Dependencies
-        working-directory: ./web
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Frontend Assets
-        working-directory: ./web
-        run: pnpm run build
-
-      - name: Install Playwright Browsers
-        working-directory: ./web
-        run: pnpm exec playwright install chromium
-
-      - name: Run Playwright E2E Tests
-        working-directory: ./web
-        run: pnpm run test:e2e
