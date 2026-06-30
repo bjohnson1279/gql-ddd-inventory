@@ -27,10 +27,12 @@ describe('ManageReturns Use Cases', () => {
 
       mockInventoryRepo = {} as unknown as jest.Mocked<IInventoryRepository>;
       mockCostLayerRepo = {} as unknown as jest.Mocked<IInventoryCostLayerRepository>;
-      mockQuarantineRepo = {} as unknown as jest.Mocked<IQuarantineRepository>;
+      mockQuarantineRepo = {  saveBatch: jest.fn(),
+} as unknown as jest.Mocked<IQuarantineRepository>;
       mockJournalRepo = {} as unknown as jest.Mocked<IJournalRepository>;
       mockProductRepo = {} as unknown as jest.Mocked<IProductRepository>;
-      mockSerializedItemRepo = {} as unknown as jest.Mocked<ISerializedItemRepository>;
+      mockSerializedItemRepo = {  saveBatch: jest.fn(),
+} as unknown as jest.Mocked<ISerializedItemRepository>;
     });
 
     it('should throw an error if RMA is not found', async () => {
@@ -151,7 +153,8 @@ describe('ManageReturns Use Cases', () => {
   describe('ResolveQuarantineItemUseCase', () => {
     it('should throw an error if quarantine item is not found', async () => {
       const mockQuarantineRepo = {
-        findById: jest.fn().mockResolvedValue(null)
+        findById: jest.fn().mockResolvedValue(null),
+        saveBatch: jest.fn(),
       } as unknown as jest.Mocked<IQuarantineRepository>;
 
       const mockInventoryRepo = {} as unknown as jest.Mocked<IInventoryRepository>;

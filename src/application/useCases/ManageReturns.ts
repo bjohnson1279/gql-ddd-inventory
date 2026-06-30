@@ -19,6 +19,7 @@ import { SerialNumber } from '../../domain/valueObjects/SerialNumber';
 import { ActorId } from '../../domain/valueObjects/ActorId';
 import { RMAStatus, RMADisposition, RMAItemStatus, QuarantineStatus } from '../../domain/enums/ReturnEnums';
 import { SerializedItemStatus } from '../../domain/enums/SerializedItemStatus';
+import { SerializedItem } from '../../domain/entities/SerializedItem';
 import { CostLayerService } from '../../domain/services/CostLayerService';
 import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
 
@@ -137,6 +138,9 @@ export class ReceiveRmaUseCase {
     }
 
     const itemsToSave = new Map<string, InventoryItem>();
+    const costLayersToSave: InventoryCostLayer[] = [];
+    const quarantineItemsToSave: QuarantineItem[] = [];
+    const serializedItemsToSave: SerializedItem[] = [];
 
     for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
@@ -174,7 +178,7 @@ export class ReceiveRmaUseCase {
         rmaItem.unitCostCents,
         new Date()
       );
-      await this.costLayerRepository.save(layer);
+      costLayersToSave.push(layer);
 
       // 5. Create Quarantine record if quarantined
       if (item.disposition === RMADisposition.Quarantine) {
@@ -187,7 +191,7 @@ export class ReceiveRmaUseCase {
           rma.locationId,
           rma.tenantId
         );
-        await this.quarantineRepository.save(quarantineItem);
+        quarantineItemsToSave.push(quarantineItem);
       }
 
       // 6. Post return journal entries
@@ -237,7 +241,7 @@ export class ReceiveRmaUseCase {
             } else if (item.disposition === RMADisposition.Scrap) {
               serialItem.transitionTo(SerializedItemStatus.WrittenOff, 'Scrapped from RMA', actor, refId);
             }
-            await this.serializedItemRepository!.save(serialItem);
+            serializedItemsToSave.push(serialItem);
           }
         }
       }
@@ -245,6 +249,18 @@ export class ReceiveRmaUseCase {
 
     if (itemsToSave.size > 0) {
       await this.inventoryRepository.saveBatch(Array.from(itemsToSave.values()));
+    }
+
+    if (costLayersToSave.length > 0) {
+      await this.costLayerRepository.saveBatch(costLayersToSave);
+    }
+
+    if (quarantineItemsToSave.length > 0) {
+      await this.quarantineRepository.saveBatch(quarantineItemsToSave);
+    }
+
+    if (serializedItemsToSave.length > 0 && this.serializedItemRepository) {
+      await this.serializedItemRepository.saveBatch(serializedItemsToSave);
     }
 
     await this.rmaRepository.save(rma);
