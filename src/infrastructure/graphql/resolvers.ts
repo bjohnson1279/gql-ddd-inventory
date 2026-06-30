@@ -167,6 +167,7 @@ import {
 
 import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
 import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
+import { KafkaEventBus } from '../messaging/KafkaEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
 
@@ -217,7 +218,9 @@ const wmsCapacityService = new WMSCapacityService(
 );
 
 // Messaging & Event Bus
-export const eventBus = new InMemoryEventBus();
+export const eventBus = (process.env.KAFKA_URL && process.env.NODE_ENV !== 'test')
+  ? new KafkaEventBus(process.env.KAFKA_URL)
+  : new InMemoryEventBus();
 const lowStockHandler = new LowStockAlertHandler();
 const reconciledHandler = new InventoryReconciledHandler();
 
@@ -576,6 +579,16 @@ export const resolvers = {
           attributes: v.attributes.all().map(a => ({ name: a.name, value: a.value }))
         }))
       }));
+    },
+    stockVelocityReport: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const results = await context.prisma!.$queryRawUnsafe(`
+        SELECT bucket::text, units_dispatched as "unitsDispatched", units_received as "unitsReceived", transaction_count as "transactionCount"
+        FROM stock_velocity_report
+        WHERE variant_id = $1::uuid
+        ORDER BY bucket DESC
+      `, variantId);
+      return results;
     },
     serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: GraphQLContext) => {
       const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
@@ -1122,20 +1135,45 @@ export const resolvers = {
       ]);
       return { pending, processing, processed, failed, total: pending + processing + processed + failed };
     },
-    deadLetterEvents: async (_: any, __: any, context: GraphQLContext) => {
+    deadLetterEvents: async (_: any, { limit }: { limit?: number }, context: GraphQLContext) => {
       enforceRole(context, ['admin']);
       const events = await prisma.outboxEvent.findMany({
         where: { status: 'Failed' },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: limit || undefined
       });
       return events.map((e: any) => ({
         id: e.id,
         eventType: e.eventType,
+        payload: e.payload,
         status: e.status,
         attempts: e.attempts,
         lastError: e.lastError || null,
         createdAt: e.createdAt.toISOString(),
-        processedAt: e.processedAt ? e.processedAt.toISOString() : null
+        processedAt: e.processedAt ? e.processedAt.toISOString() : null,
+        nextAttemptAt: e.nextAttemptAt.toISOString()
+      }));
+    },
+    auditDiscrepancies: async (_: any, { tenantId, status }: { tenantId: string; status?: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'accountant', 'viewer'], tenantId);
+      const items = await prisma.auditDiscrepancy.findMany({
+        where: {
+          tenantId,
+          ...(status ? { status } : {})
+        },
+        orderBy: { occurredAt: 'desc' }
+      });
+      return items.map((m: any) => ({
+        id: m.id,
+        tenantId: m.tenantId,
+        type: m.type,
+        referenceId: m.referenceId,
+        externalRefId: m.externalRefId || null,
+        description: m.description,
+        status: m.status,
+        occurredAt: m.occurredAt.toISOString(),
+        resolvedAt: m.resolvedAt ? m.resolvedAt.toISOString() : null,
+        resolutionNotes: m.resolutionNotes || null
       }));
     },
     generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
@@ -2003,9 +2041,34 @@ export const resolvers = {
         if (!event) throw new Error(`Outbox event ${id} not found.`);
         await prisma.outboxEvent.update({
           where: { id },
-          data: { status: 'Pending', attempts: 0, lastError: null }
+          data: {
+            status: 'Pending',
+            attempts: 0,
+            lastError: null,
+            nextAttemptAt: new Date()
+          }
         });
         return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin'], tenantId);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const service = new AuditProcessorService(prisma);
+        return await service.runAudit(tenantId);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin']);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const service = new AuditProcessorService(prisma);
+        return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {
         throw new Error(error.message);
       }

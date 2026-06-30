@@ -15,6 +15,11 @@ import { PostgresKitRepository } from '../../../src/infrastructure/persistence/P
 import { PostgresStockTransferRepository } from '../../../src/infrastructure/persistence/PostgresStockTransferRepository';
 import { PostgresReplenishmentRuleRepository } from '../../../src/infrastructure/persistence/PostgresReplenishmentRuleRepository';
 import { PostgresPurchaseOrderRepository } from '../../../src/infrastructure/persistence/PostgresPurchaseOrderRepository';
+import { PostgresRmaRepository } from '../../../src/infrastructure/persistence/PostgresRmaRepository';
+import { Rma } from '../../../src/domain/entities/Rma';
+import { RmaItem } from '../../../src/domain/entities/RmaItem';
+import { RMAStatus, RMAItemStatus, RMADisposition } from '../../../src/domain/enums/ReturnEnums';
+import { StatusTransition } from '../../../src/domain/valueObjects/StatusTransition';
 import { StockTransfer } from '../../../src/domain/entities/StockTransfer';
 import { StockTransferId } from '../../../src/domain/valueObjects/StockTransferId';
 import { StockTransferItem } from '../../../src/domain/valueObjects/StockTransferItem';
@@ -191,6 +196,14 @@ describe('Postgres Repositories', () => {
       purchaseOrderItem: {
         deleteMany: jest.fn(),
         createMany: jest.fn(),
+      },
+      rma: {
+        upsert: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
+      rmaItem: {
+        upsert: jest.fn(),
       },
       $transaction: jest.fn(async (cb) => cb(prismaMock)),
     };
@@ -914,6 +927,160 @@ describe('Postgres Repositories', () => {
       expect(po?.status).toBe(PurchaseOrderStatus.Draft);
       expect(po?.items).toHaveLength(1);
       expect(po?.items[0].variantId.value).toBe('v-1');
+    });
+  });
+
+  describe('PostgresRmaRepository', () => {
+    it('should save an RMA aggregate and find it by id, number, and tenant', async () => {
+      const repo = new PostgresRmaRepository(prismaMock as unknown as PrismaClient);
+      const rma = new Rma(
+        'rma-123',
+        'RMA-2026-0001',
+        new TenantId('t-1'),
+        'cust-1',
+        new LocationId('LOC-A'),
+        RMAStatus.Requested,
+        [
+          new RmaItem(
+            'item-1',
+            new ProductVariantId('v-1'),
+            5,
+            1200,
+            0,
+            RMAItemStatus.Pending,
+            null
+          )
+        ]
+      );
+
+      // Save
+      await repo.save(rma);
+      expect(prismaMock.$transaction).toHaveBeenCalled();
+      expect(prismaMock.rma.upsert).toHaveBeenCalled();
+      expect(prismaMock.rmaItem.upsert).toHaveBeenCalled();
+
+      // Mock findUnique for findById
+      prismaMock.rma.findUnique.mockResolvedValueOnce({
+        id: 'rma-123',
+        rmaNumber: 'RMA-2026-0001',
+        tenantId: 't-1',
+        customerId: 'cust-1',
+        locationId: 'LOC-A',
+        status: 'REQUESTED',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items: [
+          {
+            id: 'item-1',
+            variantId: 'v-1',
+            quantity: 5,
+            unitCostCents: 1200,
+            receivedQuantity: 0,
+            status: 'PENDING',
+            disposition: null
+          }
+        ]
+      });
+
+      const foundById = await repo.findById('rma-123');
+      expect(foundById).not.toBeNull();
+      expect(foundById?.id).toBe('rma-123');
+      expect(foundById?.rmaNumber).toBe('RMA-2026-0001');
+
+      // Mock findUnique for findByNumber
+      prismaMock.rma.findUnique.mockResolvedValueOnce({
+        id: 'rma-123',
+        rmaNumber: 'RMA-2026-0001',
+        tenantId: 't-1',
+        customerId: 'cust-1',
+        locationId: 'LOC-A',
+        status: 'REQUESTED',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        items: []
+      });
+
+      const foundByNumber = await repo.findByNumber('RMA-2026-0001');
+      expect(foundByNumber).not.toBeNull();
+
+      // Mock findMany for findAllByTenant
+      prismaMock.rma.findMany.mockResolvedValueOnce([
+        {
+          id: 'rma-123',
+          rmaNumber: 'RMA-2026-0001',
+          tenantId: 't-1',
+          customerId: 'cust-1',
+          locationId: 'LOC-A',
+          status: 'REQUESTED',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          items: []
+        }
+      ]);
+
+      const foundByTenant = await repo.findAllByTenant(new TenantId('t-1'));
+      expect(foundByTenant).toHaveLength(1);
+    });
+  });
+
+  describe('PostgresSerializedItemRepository', () => {
+    it('should save a serialized item and find it by serial number', async () => {
+      const repo = new PostgresSerializedItemRepository(prismaMock as unknown as PrismaClient);
+      const item = new SerializedItem(
+        new SerializedItemId('item-1'),
+        new ProductVariantId('v-1'),
+        new SerialNumber('SN-12345'),
+        new TenantId('t-1'),
+        new LocationId('LOC-A'),
+        SerializedItemStatus.Pending
+      );
+      item.transitionTo(
+        SerializedItemStatus.InStock,
+        'Manual entry',
+        new ActorId('actor-1')
+      );
+
+      // Save
+      await repo.save(item);
+      expect(prismaMock.$transaction).toHaveBeenCalled();
+      expect(prismaMock.serializedItem.upsert).toHaveBeenCalled();
+      expect(prismaMock.serializedItemHistory.deleteMany).toHaveBeenCalled();
+      expect(prismaMock.serializedItemHistory.createMany).toHaveBeenCalled();
+
+      // Mock findFirst for findBySerial
+      prismaMock.serializedItem.findFirst.mockResolvedValueOnce({
+        id: 'item-1',
+        variantId: 'v-1',
+        serialNumber: 'SN-12345',
+        tenantId: 't-1',
+        locationId: 'LOC-A',
+        status: 'IN_STOCK',
+        history: [
+          {
+            fromStatus: 'PENDING',
+            toStatus: 'IN_STOCK',
+            reason: 'Manual entry',
+            actorId: 'actor-1',
+            occurredAt: new Date(),
+            referenceId: null
+          }
+        ]
+      });
+
+      const found = await repo.findBySerial(new SerialNumber('SN-12345'), new TenantId('t-1'));
+      expect(found).not.toBeNull();
+      expect(found?.id.value).toBe('item-1');
+      expect(found?.serialNumber.value).toBe('SN-12345');
+
+      // Mock count for isRegistered
+      prismaMock.serializedItem.count.mockResolvedValueOnce(1);
+      const isReg = await repo.isRegistered(new SerialNumber('SN-12345'), new TenantId('t-1'));
+      expect(isReg).toBe(true);
+
+      // Mock count for countByStatus
+      prismaMock.serializedItem.count.mockResolvedValueOnce(5);
+      const count = await repo.countByStatus(new ProductVariantId('v-1'), SerializedItemStatus.InStock);
+      expect(count).toBe(5);
     });
   });
 });

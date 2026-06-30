@@ -289,6 +289,7 @@ model OutboxEvent {
   lastError   String?   @map("last_error") @db.Text
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   processedAt DateTime? @map("processed_at") @db.Timestamptz
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz
 
   @@map("outbox_events")
 }
@@ -564,4 +565,19 @@ model TenantAccountingConfig {
   costingMethod    String @default("fifo") @map("costing_method")
 
   @@map("tenant_accounting_configs")
+}
+
+model AuditDiscrepancy {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  type            String
+  referenceId     String    @map("reference_id")
+  externalRefId   String?   @map("external_ref_id")
+  description     String
+  status          String    @default("OPEN")
+  occurredAt      DateTime  @default(now()) @map("occurred_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  resolutionNotes String?   @map("resolution_notes")
+
+  @@map("audit_discrepancies")
 }

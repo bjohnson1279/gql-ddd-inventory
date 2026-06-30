@@ -189,25 +189,24 @@ describe('Transactional Outbox Pattern', () => {
 
       await OutboxWorker.processPendingEvents();
 
-
-
       // Processing update first, then error update
       expect(updateMock).toHaveBeenCalledWith({
         where: { id: 'evt-2' },
         data: {
           status: 'Pending',
           attempts: 2,
-          lastError: expect.any(String)
+          lastError: expect.any(String),
+          nextAttemptAt: expect.any(Date)
         }
       });
     });
 
-    it('should mark event as Failed if attempts exceed 3', async () => {
+    it('should mark event as Failed if attempts exceed 5', async () => {
       const mockEvent = {
         id: 'evt-3',
         eventType: 'InventoryReconciledEvent',
         payload: '{invalid-json',
-        attempts: 3
+        attempts: 4
       };
 
       const findManyMock = prisma.outboxEvent.findMany as jest.Mock;
@@ -219,14 +218,13 @@ describe('Transactional Outbox Pattern', () => {
 
       await OutboxWorker.processPendingEvents();
 
-
-
       expect(updateMock).toHaveBeenCalledWith({
         where: { id: 'evt-3' },
         data: {
           status: 'Failed',
-          attempts: 4,
-          lastError: expect.any(String)
+          attempts: 5,
+          lastError: expect.any(String),
+          nextAttemptAt: expect.any(Date)
         }
       });
     });
