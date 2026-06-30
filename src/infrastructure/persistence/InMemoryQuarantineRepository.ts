@@ -24,6 +24,12 @@ export class InMemoryQuarantineRepository implements IQuarantineRepository {
     this.items.set(item.id, this.cloneItem(item));
   }
 
+  async saveBatch(items: QuarantineItem[]): Promise<void> {
+    for (const item of items) {
+      await this.save(item);
+    }
+  }
+
   async findById(id: string): Promise<QuarantineItem | null> {
     const record = this.items.get(id);
     return record ? this.cloneItem(record) : null;
