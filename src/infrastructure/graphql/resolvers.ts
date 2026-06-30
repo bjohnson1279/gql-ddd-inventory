@@ -582,12 +582,12 @@ export const resolvers = {
     },
     stockVelocityReport: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-      const results = await context.prisma!.$queryRawUnsafe(`
+      const results = await context.prisma!.$queryRaw`
         SELECT bucket::text, units_dispatched as "unitsDispatched", units_received as "unitsReceived", transaction_count as "transactionCount"
         FROM stock_velocity_report
-        WHERE variant_id = $1::uuid
+        WHERE variant_id = ${variantId}::uuid
         ORDER BY bucket DESC
-      `, variantId);
+      `;
       return results;
     },
     serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: GraphQLContext) => {
