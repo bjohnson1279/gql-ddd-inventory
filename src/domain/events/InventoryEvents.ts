@@ -37,3 +37,16 @@ export class InventoryReconciledEvent implements DomainEvent {
     this.occurredAt = new Date();
   }
 }
+
+export class ShopifyStockSyncRequested implements DomainEvent {
+  readonly occurredAt: Date;
+  constructor(
+    public readonly tenantId: string,
+    public readonly sku: string,
+    public readonly locationId: string,
+    public readonly externalRefId: string
+  ) {
+    this.occurredAt = new Date();
+  }
+}
+

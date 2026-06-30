@@ -170,6 +170,7 @@ import { InMemoryEventBus } from '../messaging/InMemoryEventBus';
 import { KafkaEventBus } from '../messaging/KafkaEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
+import { ShopifyStockSyncHandler } from '../../application/eventHandlers/ShopifyStockSyncHandler';
 
 import { prisma, pool } from '../persistence/prismaClient';
 export { prisma, pool };
@@ -223,9 +224,11 @@ export const eventBus = (process.env.KAFKA_URL && process.env.NODE_ENV !== 'test
   : new InMemoryEventBus();
 const lowStockHandler = new LowStockAlertHandler();
 const reconciledHandler = new InventoryReconciledHandler();
+const shopifySyncHandler = new ShopifyStockSyncHandler();
 
 eventBus.subscribe('LowStockAlertEvent', lowStockHandler.handle.bind(lowStockHandler));
 eventBus.subscribe('InventoryReconciledEvent', reconciledHandler.handle.bind(reconciledHandler));
+eventBus.subscribe('ShopifyStockSyncRequested', shopifySyncHandler.handle.bind(shopifySyncHandler));
 
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
