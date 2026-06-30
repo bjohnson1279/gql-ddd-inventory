@@ -2,42 +2,48 @@ import { resolvers } from '../../../src/infrastructure/graphql/resolvers';
 import { prisma } from '../../../src/infrastructure/persistence/prismaClient';
 
 jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
-  return {
-    prisma: {
-      integrationConnection: {
-        findMany: jest.fn()
-      },
-      externalMapping: {
-        findMany: jest.fn(),
-        findFirst: jest.fn()
-      },
-      productVariant: {
-        findUnique: jest.fn()
-      },
-      ledgerEntry: {
-        aggregate: jest.fn()
-      },
-      journalEntry: {
-        findMany: jest.fn()
-      },
-      quickbooksJournalMapping: {
-        findUnique: jest.fn()
-      },
-      xeroJournalMapping: {
-        findUnique: jest.fn()
-      },
-      netsuiteJournalMapping: {
-        findUnique: jest.fn()
-      },
-      auditDiscrepancy: {
-        findMany: jest.fn(),
-        findFirst: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn()
-      }
+  const mockPrisma: any = {
+    $transaction: jest.fn(async (callback: any) => await callback(mockPrisma)),
+    integrationConnection: {
+      findMany: jest.fn()
+    },
+    externalMapping: {
+      findMany: jest.fn(),
+      findFirst: jest.fn()
+    },
+    productVariant: {
+      findUnique: jest.fn()
+    },
+    ledgerEntry: {
+      aggregate: jest.fn()
+    },
+    journalEntry: {
+      findMany: jest.fn()
+    },
+    quickbooksJournalMapping: {
+      findUnique: jest.fn()
+    },
+    xeroJournalMapping: {
+      findUnique: jest.fn()
+    },
+    netsuiteJournalMapping: {
+      findUnique: jest.fn()
+    },
+    auditDiscrepancy: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    outboxEvent: {
+      create: jest.fn()
     }
   };
+  return {
+    prisma: mockPrisma
+  };
 });
+
 
 describe('GraphQL Audit Management Resolvers', () => {
   const context = {

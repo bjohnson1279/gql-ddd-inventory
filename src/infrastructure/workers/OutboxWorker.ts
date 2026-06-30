@@ -1,7 +1,7 @@
 import { prisma } from '../persistence/prismaClient';
 import { eventBus } from '../graphql/resolvers';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
-import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent } from '../../domain/events/InventoryEvents';
+import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent, ShopifyStockSyncRequested } from '../../domain/events/InventoryEvents';
 
 export function deserializeEvent(eventType: string, payloadStr: string): any {
   const payload = JSON.parse(payloadStr);
@@ -32,6 +32,15 @@ export function deserializeEvent(eventType: string, payloadStr: string): any {
       payload.expected,
       payload.actual,
       payload.variance
+    );
+    (event as any).occurredAt = new Date(payload.occurredAt);
+    return event;
+  } else if (eventType === 'ShopifyStockSyncRequested') {
+    const event = new ShopifyStockSyncRequested(
+      payload.tenantId,
+      payload.sku,
+      payload.locationId,
+      payload.externalRefId
     );
     (event as any).occurredAt = new Date(payload.occurredAt);
     return event;

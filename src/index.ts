@@ -20,6 +20,7 @@ import { depthLimitRule, complexityLimitRule } from './infrastructure/graphql/gu
 import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
+import { AuditWorker } from './infrastructure/workers/AuditWorker';
 
 // Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -200,6 +201,7 @@ async function startApolloServer() {
     if (process.env.NODE_ENV !== 'test') {
       WebhookWorker.start();
       OutboxWorker.start();
+      AuditWorker.start();
     }
   });
 }

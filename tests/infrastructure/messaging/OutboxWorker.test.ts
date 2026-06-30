@@ -4,7 +4,7 @@ import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
 import { deserializeEvent, OutboxWorker } from '../../../src/infrastructure/workers/OutboxWorker';
-import { InventoryReconciledEvent, InventoryDecremented, LowStockAlertEvent } from '../../../src/domain/events/InventoryEvents';
+import { InventoryReconciledEvent, InventoryDecremented, LowStockAlertEvent, ShopifyStockSyncRequested } from '../../../src/domain/events/InventoryEvents';
 import { ProductVariantId } from '../../../src/domain/valueObjects/ProductVariantId';
 import { prisma } from '../../../src/infrastructure/persistence/prismaClient';
 
@@ -78,6 +78,22 @@ describe('Transactional Outbox Pattern', () => {
       expect(event).toBeInstanceOf(LowStockAlertEvent);
       expect(event.sku).toBe('SKU1');
       expect(event.currentQuantity).toBe(5);
+    });
+
+    it('should deserialize ShopifyStockSyncRequested', () => {
+      const payload = {
+        tenantId: 'T1',
+        sku: 'SKU1',
+        locationId: 'LOC1',
+        externalRefId: 'ext-ref-1',
+        occurredAt: new Date().toISOString()
+      };
+      const event = deserializeEvent('ShopifyStockSyncRequested', JSON.stringify(payload));
+      expect(event).toBeInstanceOf(ShopifyStockSyncRequested);
+      expect(event.tenantId).toBe('T1');
+      expect(event.sku).toBe('SKU1');
+      expect(event.locationId).toBe('LOC1');
+      expect(event.externalRefId).toBe('ext-ref-1');
     });
 
     it('should fallback dynamically to constructor matching eventType name', () => {
