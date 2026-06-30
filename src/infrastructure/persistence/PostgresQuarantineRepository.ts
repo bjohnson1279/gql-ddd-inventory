@@ -70,4 +70,32 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
       },
     });
   }
+
+  async saveBatch(items: QuarantineItem[]): Promise<void> {
+    if (items.length === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const dbId = toUuid(item.id);
+        await (tx as any).quarantineItem.upsert({
+          where: { id: dbId },
+          update: {
+            status: item.status,
+            resolvedAt: item.resolvedAt,
+          },
+          create: {
+            id: dbId,
+            variantId: toUuid(item.variantId.value),
+            quantity: item.quantity,
+            reason: item.reason,
+            locationId: item.locationId.value,
+            tenantId: item.tenantId.value,
+            status: item.status,
+            createdAt: item.createdAt,
+            resolvedAt: item.resolvedAt,
+          },
+        });
+      }
+    });
+  }
 }

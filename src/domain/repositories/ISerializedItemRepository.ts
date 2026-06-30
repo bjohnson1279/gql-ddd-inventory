@@ -6,6 +6,7 @@ import { SerializedItemStatus } from '../enums/SerializedItemStatus';
 
 export interface ISerializedItemRepository {
   save(item: SerializedItem): Promise<void>;
+  saveBatch(items: SerializedItem[]): Promise<void>;
   findBySerial(serialNumber: SerialNumber, tenantId: TenantId): Promise<SerializedItem | null>;
   findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null>;
   findByVariantId(variantId: ProductVariantId, tenantId: TenantId): Promise<SerializedItem[]>;
