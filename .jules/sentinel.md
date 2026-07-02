@@ -126,11 +126,18 @@
 - Do not run `prisma db push` during automated npm package installation (`postinstall`) in CI or production build environments, as it will fail due to the absence of a running database. Limit postinstall steps to `prisma generate` and execute migrations/pushes in dedicated pipeline steps or deployment startup phases.
 - Ensure that any dynamic database connection strings (like `DATABASE_URL` built from separate components) are validated on server startup and fallback safely to trusted local defaults for development environments.
 - Protect raw SQL queries used to enable the `timescaledb` extension or initialize hypertables from SQL injection vulnerabilities by using parameterized queries or strict schema names.
+
 ## 2026-06-30 - Fix Prototype Pollution Vulnerability in OutboxWorker
 **Vulnerability:** The `deserializeEvent` function in `OutboxWorker.ts` dynamically reconstructs objects from parsed JSON payloads using `Object.assign(event, payload)`. This makes the application susceptible to Prototype Pollution, as malicious actors could craft payloads with `__proto__`, `constructor`, or `prototype` keys to override default object properties or methods.
 **Learning:** Using `Object.assign` to copy properties from externally provided or parsed JSON payloads onto newly instantiated objects without filtering exposes the application to Prototype Pollution.
 **Prevention:** Replace dangerous `Object.assign` calls with explicit iteration over payload keys, blocking known dangerous keys (`__proto__`, `constructor`, `prototype`) from being copied.
+
 ## 2024-05-15 - [SQL Injection via Prisma Raw Queries]
  **Vulnerability:** SQL Injection in Prisma via `$queryRawUnsafe` and `$executeRawUnsafe`.
  **Learning:** Using `Unsafe` raw queries with manual string interpolation or positional arguments (e.g. `$1`) is vulnerable. Prisma has built-in tagged template literals `$queryRaw` and `$executeRaw` to parameterize values securely.
  **Prevention:** Always use `$queryRaw` and `$executeRaw` instead of their `Unsafe` counterparts for secure database queries.
+
+## 2025-02-26 - [Replaced unsafe queryRawUnsafe with queryRaw for parameterized safe Prisma queries]
+**Vulnerability:** Prisma methods `$queryRawUnsafe` and `$executeRawUnsafe` were used in `resolvers.ts` and `prismaClient.ts` respectively, which bypass Prisma's built-in parameterization and template literal safety checks, leaving the application potentially vulnerable to SQL injection if variables are improperly concatenated.
+**Learning:** Even though the existing queries used `$1` parameterized placeholders and passed variables safely via positional arguments, using the `*Unsafe` variants is an anti-pattern that circumvents Prisma's static analysis protections and creates risky precedents.
+**Prevention:** Always use the built-in tagged template literals `$queryRaw` and `$executeRaw` instead of their `Unsafe` variants to leverage Prisma's automatic input sanitization.
