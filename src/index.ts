@@ -18,6 +18,7 @@ import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookH
 import { createDataLoaders } from './infrastructure/graphql/dataloaders';
 import { depthLimitRule, complexityLimitRule } from './infrastructure/graphql/guardrails';
 import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
+import { enableRowLevelSecurity } from './infrastructure/persistence/rls';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
@@ -182,6 +183,13 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 }
 
 async function startApolloServer() {
+  // Set up Row-Level Security policies on startup
+  try {
+    await enableRowLevelSecurity(globalPrisma);
+  } catch (err: any) {
+    console.log("Database/RLS setup warning:", err.message);
+  }
+
   const app = express();
   const httpServer = createServer(app);
 
