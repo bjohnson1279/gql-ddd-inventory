@@ -20,7 +20,7 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
         async $allOperations({ model, operation, args, query }) {
           if (tenantId && process.env.NODE_ENV !== 'test') {
             try {
-              await basePrisma.$executeRawUnsafe(`SELECT set_config('app.current_tenant_id', $1, false)`, tenantId);
+              await basePrisma.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
             } catch (err: any) {
               console.error("[PrismaExtension] Failed to set app.current_tenant_id:", err.message);
             }
