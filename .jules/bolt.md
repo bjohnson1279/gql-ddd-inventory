@@ -70,3 +70,11 @@
 ## 2026-06-28 - Avoid N+1 database queries when creating journal entries in batches
  **Learning:** In operations that process multiple items iteratively (like `ReceiveRmaUseCase`), calling `await this.journalRepo.save(entry)` individually for each item creates severe N+1 database INSERT query overhead.
  **Action:** Introduce a `saveBatch` method to `IJournalRepository` (backed by a single Prisma `$transaction` handling `upsert` and `createMany`), expose synchronous journal entry creation methods (e.g., `createStockReturnedEntrySync`) in `AccountingJournalService`, and collect entries in an array during loop execution to save them all concurrently outside the loop.
+
+## 2026-06-29 - Avoid N+1 Queries in RMA Receipts
+**Learning:** Iterating over RMA items and calling `.save()` individually on `costLayerRepository`, `quarantineRepository`, and `serializedItemRepository` inside the `for (const item of dto.items)` loop in `ReceiveRmaUseCase` creates a significant N+1 query performance bottleneck when processing large return batches.
+**Action:** Always collect modified entities (`InventoryCostLayer`, `QuarantineItem`, `SerializedItem`) into arrays during loop iteration and persist them in bulk using `saveBatch()` operations outside the loop. Ensure all repository interfaces (e.g., `IQuarantineRepository`, `ISerializedItemRepository`) and test mocks define and support these `saveBatch` methods correctly.
+
+## 2024-07-05 - Avoid N+1 Queries in AuditProcessorService
+**Learning:** Iterating over variant mappings and querying the database for product variants and ledger entry aggregations individually causes severe N+1 query performance bottlenecks during audits.
+**Action:** Use batch lookup methods (like `findMany` and `groupBy`) outside of loops and map the results in memory to achieve O(1) lookups.

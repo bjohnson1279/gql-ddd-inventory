@@ -17,6 +17,12 @@ export class InMemorySerializedItemRepository implements ISerializedItemReposito
     }
   }
 
+  async saveBatch(items: SerializedItem[]): Promise<void> {
+    for (const item of items) {
+      await this.save(item);
+    }
+  }
+
   async findBySerial(serialNumber: SerialNumber, tenantId: TenantId): Promise<SerializedItem | null> {
     return this.items.find(i => i.serialNumber.equals(serialNumber) && i.tenantId.equals(tenantId)) || null;
   }

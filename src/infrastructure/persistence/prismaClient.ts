@@ -18,6 +18,14 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          if (tenantId && process.env.NODE_ENV !== 'test') {
+            try {
+              await basePrisma.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
+            } catch (err: any) {
+              console.error("[PrismaExtension] Failed to set app.current_tenant_id:", err.message);
+            }
+          }
+
           const modelsWithTenant = [
             'LedgerEntry',
             'SerializedItem',
@@ -26,6 +34,16 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
             'JournalEntry',
             'StockOnboarding',
             'Notification',
+            'AuditDiscrepancy',
+            'StockTransfer',
+            'ReplenishmentRule',
+            'PurchaseOrder',
+            'InventoryAudit',
+            'Rma',
+            'QuarantineItem',
+            'User',
+            'ApiToken',
+            'TenantAccountingConfig',
           ];
 
             if (modelsWithTenant.includes(model)) {

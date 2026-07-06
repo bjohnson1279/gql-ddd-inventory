@@ -4,7 +4,7 @@ import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
 import { deserializeEvent, OutboxWorker } from '../../../src/infrastructure/workers/OutboxWorker';
-import { InventoryReconciledEvent, InventoryDecremented, LowStockAlertEvent } from '../../../src/domain/events/InventoryEvents';
+import { InventoryReconciledEvent, InventoryDecremented, LowStockAlertEvent, ShopifyStockSyncRequested } from '../../../src/domain/events/InventoryEvents';
 import { ProductVariantId } from '../../../src/domain/valueObjects/ProductVariantId';
 import { prisma } from '../../../src/infrastructure/persistence/prismaClient';
 
@@ -78,6 +78,22 @@ describe('Transactional Outbox Pattern', () => {
       expect(event).toBeInstanceOf(LowStockAlertEvent);
       expect(event.sku).toBe('SKU1');
       expect(event.currentQuantity).toBe(5);
+    });
+
+    it('should deserialize ShopifyStockSyncRequested', () => {
+      const payload = {
+        tenantId: 'T1',
+        sku: 'SKU1',
+        locationId: 'LOC1',
+        externalRefId: 'ext-ref-1',
+        occurredAt: new Date().toISOString()
+      };
+      const event = deserializeEvent('ShopifyStockSyncRequested', JSON.stringify(payload));
+      expect(event).toBeInstanceOf(ShopifyStockSyncRequested);
+      expect(event.tenantId).toBe('T1');
+      expect(event.sku).toBe('SKU1');
+      expect(event.locationId).toBe('LOC1');
+      expect(event.externalRefId).toBe('ext-ref-1');
     });
 
     it('should fallback dynamically to constructor matching eventType name', () => {
@@ -189,25 +205,24 @@ describe('Transactional Outbox Pattern', () => {
 
       await OutboxWorker.processPendingEvents();
 
-
-
       // Processing update first, then error update
       expect(updateMock).toHaveBeenCalledWith({
         where: { id: 'evt-2' },
         data: {
           status: 'Pending',
           attempts: 2,
-          lastError: expect.any(String)
+          lastError: expect.any(String),
+          nextAttemptAt: expect.any(Date)
         }
       });
     });
 
-    it('should mark event as Failed if attempts exceed 3', async () => {
+    it('should mark event as Failed if attempts exceed 5', async () => {
       const mockEvent = {
         id: 'evt-3',
         eventType: 'InventoryReconciledEvent',
         payload: '{invalid-json',
-        attempts: 3
+        attempts: 4
       };
 
       const findManyMock = prisma.outboxEvent.findMany as jest.Mock;
@@ -219,14 +234,13 @@ describe('Transactional Outbox Pattern', () => {
 
       await OutboxWorker.processPendingEvents();
 
-
-
       expect(updateMock).toHaveBeenCalledWith({
         where: { id: 'evt-3' },
         data: {
           status: 'Failed',
-          attempts: 4,
-          lastError: expect.any(String)
+          attempts: 5,
+          lastError: expect.any(String),
+          nextAttemptAt: expect.any(Date)
         }
       });
     });

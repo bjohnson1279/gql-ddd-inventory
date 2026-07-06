@@ -99,27 +99,29 @@ export class PostgresRmaRepository implements IRmaRepository {
         },
       });
 
-      // Upsert RMA items
-      for (const item of rma.items) {
-        const itemDbId = toUuid(item.id);
-        await (tx as any).rmaItem.upsert({
-          where: { id: itemDbId },
-          update: {
-            receivedQuantity: item.receivedQuantity,
-            status: item.status,
-            disposition: item.disposition,
-          },
-          create: {
-            id: itemDbId,
-            rmaId: dbId,
-            variantId: toUuid(item.variantId.value),
-            quantity: item.quantity,
-            receivedQuantity: item.receivedQuantity,
-            unitCostCents: item.unitCostCents,
-            status: item.status,
-            disposition: item.disposition,
-          },
-        });
+      // Upsert RMA items concurrently
+      if (rma.items.length > 0) {
+        await Promise.all(rma.items.map(async (item) => {
+          const itemDbId = toUuid(item.id);
+          await (tx as any).rmaItem.upsert({
+            where: { id: itemDbId },
+            update: {
+              receivedQuantity: item.receivedQuantity,
+              status: item.status,
+              disposition: item.disposition,
+            },
+            create: {
+              id: itemDbId,
+              rmaId: dbId,
+              variantId: toUuid(item.variantId.value),
+              quantity: item.quantity,
+              receivedQuantity: item.receivedQuantity,
+              unitCostCents: item.unitCostCents,
+              status: item.status,
+              disposition: item.disposition,
+            },
+          });
+        }));
       }
     });
   }

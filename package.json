@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
+    "start:worker": "ts-node src/worker.ts",
     "dev": "nodemon --watch \"src/**/*.ts\" --exec ts-node src/index.ts",
+    "dev:worker": "nodemon --watch \"src/**/*.ts\" --exec ts-node src/worker.ts",
     "test": "jest"
   },
   "overrides": {
@@ -28,6 +30,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "graphql": "^16.14.0",
+    "kafkajs": "^2.2.4",
     "graphql-redis-subscriptions": "^2.7.0",
     "graphql-subscriptions": "^3.0.0",
     "graphql-ws": "^6.0.8",

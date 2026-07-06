@@ -88,42 +88,44 @@ export class PostgresProductRepository implements IProductRepository {
         },
       });
 
-      // 3. Upsert present variants and attributes
-      for (const variant of product.variants) {
-        await tx.productVariant.upsert({
-          where: { id: variant.id.value },
-          create: {
-            id: variant.id.value,
-            productId: product.id.value,
-            sku: variant.sku.value,
-            trackingMode: variant.trackingMode,
-            costingMethod: variant.costingMethod,
-            weightGrams: variant.weightGrams,
-            volumeCubicMeters: variant.volumeCubicMeters,
-          },
-          update: {
-            sku: variant.sku.value,
-            trackingMode: variant.trackingMode,
-            costingMethod: variant.costingMethod,
-            weightGrams: variant.weightGrams,
-            volumeCubicMeters: variant.volumeCubicMeters,
-          },
-        });
-
-        // Recreate attributes
-        await tx.variantAttribute.deleteMany({
-          where: { variantId: variant.id.value },
-        });
-
-        if (variant.attributes.all().length > 0) {
-          await tx.variantAttribute.createMany({
-            data: variant.attributes.all().map((attr) => ({
-              variantId: variant.id.value,
-              name: attr.name,
-              value: attr.value,
-            })),
+      // 3. Upsert present variants and attributes concurrently
+      if (product.variants.length > 0) {
+        await Promise.all(product.variants.map(async (variant) => {
+          await tx.productVariant.upsert({
+            where: { id: variant.id.value },
+            create: {
+              id: variant.id.value,
+              productId: product.id.value,
+              sku: variant.sku.value,
+              trackingMode: variant.trackingMode,
+              costingMethod: variant.costingMethod,
+              weightGrams: variant.weightGrams,
+              volumeCubicMeters: variant.volumeCubicMeters,
+            },
+            update: {
+              sku: variant.sku.value,
+              trackingMode: variant.trackingMode,
+              costingMethod: variant.costingMethod,
+              weightGrams: variant.weightGrams,
+              volumeCubicMeters: variant.volumeCubicMeters,
+            },
           });
-        }
+
+          // Recreate attributes
+          await tx.variantAttribute.deleteMany({
+            where: { variantId: variant.id.value },
+          });
+
+          if (variant.attributes.all().length > 0) {
+            await tx.variantAttribute.createMany({
+              data: variant.attributes.all().map((attr) => ({
+                variantId: variant.id.value,
+                name: attr.name,
+                value: attr.value,
+              })),
+            });
+          }
+        }));
       }
     });
   }

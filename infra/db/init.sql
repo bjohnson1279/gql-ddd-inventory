@@ -45,6 +45,31 @@ SELECT create_hypertable('ledger_entries', 'occurred_at', if_not_exists => TRUE)
 
 CREATE INDEX idx_ledger_variant_location ON ledger_entries(variant_id, location_id);
 
+-- 2.1 TimescaleDB Continuous Aggregate for Stock Velocity
+CREATE MATERIALIZED VIEW IF NOT EXISTS daily_stock_velocity
+WITH (timescaledb.continuous) AS
+SELECT 
+  time_bucket('1 day', occurred_at) AS bucket,
+  tenant_id,
+  variant_id,
+  COALESCE(SUM(CASE WHEN quantity < 0 THEN abs(quantity) ELSE 0 END), 0) AS units_dispatched,
+  COALESCE(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END), 0) AS units_received,
+  COUNT(*) as transaction_count
+FROM ledger_entries
+GROUP BY bucket, tenant_id, variant_id;
+
+-- Enable Row-Level Security on the materialized view
+ALTER MATERIALIZED VIEW daily_stock_velocity ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON daily_stock_velocity;
+CREATE POLICY tenant_isolation ON daily_stock_velocity USING (tenant_id = current_setting('app.current_tenant_id', true));
+
+-- Add continuous aggregate policy to update the view automatically in background
+SELECT add_continuous_aggregate_policy('daily_stock_velocity',
+  start_offset => INTERVAL '1 month',
+  end_offset => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour',
+  if_not_exists => TRUE);
+
 CREATE TABLE inventory_cost_layers (
     id UUID PRIMARY KEY,
     variant_id UUID REFERENCES product_variants(id),

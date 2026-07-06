@@ -1,7 +1,7 @@
 import { prisma } from '../persistence/prismaClient';
 import { eventBus } from '../graphql/resolvers';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
-import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent } from '../../domain/events/InventoryEvents';
+import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent, ShopifyStockSyncRequested } from '../../domain/events/InventoryEvents';
 
 export function deserializeEvent(eventType: string, payloadStr: string): any {
   const payload = JSON.parse(payloadStr);
@@ -35,12 +35,24 @@ export function deserializeEvent(eventType: string, payloadStr: string): any {
     );
     (event as any).occurredAt = new Date(payload.occurredAt);
     return event;
+  } else if (eventType === 'ShopifyStockSyncRequested') {
+    const event = new ShopifyStockSyncRequested(
+      payload.tenantId,
+      payload.sku,
+      payload.locationId,
+      payload.externalRefId
+    );
+    (event as any).occurredAt = new Date(payload.occurredAt);
+    return event;
   } else {
     // Dynamic fallback to preserve constructor.name matching eventType
     const mockConstructor = function () {};
     Object.defineProperty(mockConstructor, 'name', { value: eventType, writable: false });
     const event = Object.create(mockConstructor.prototype);
-    Object.assign(event, payload);
+    for (const key of Object.keys(payload)) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+      event[key] = payload[key];
+    }
     if (event.occurredAt) event.occurredAt = new Date(event.occurredAt);
     return event;
   }
@@ -70,7 +82,12 @@ export class OutboxWorker {
 
     try {
       const events = await prisma.outboxEvent.findMany({
-        where: { status: 'Pending' },
+        where: {
+          status: 'Pending',
+          nextAttemptAt: {
+            lte: new Date()
+          }
+        },
         orderBy: { createdAt: 'asc' },
         take: 20,
       });
@@ -94,13 +111,19 @@ export class OutboxWorker {
 
           processedIds.push(event.id);
         } catch (err: any) {
+          const nextAttempts = event.attempts + 1;
+          const backoffMs = Math.min(Math.pow(2, nextAttempts) * 1000, 24 * 60 * 60 * 1000);
+          const nextAttemptAt = new Date(Date.now() + backoffMs);
+          const nextStatus = nextAttempts >= 5 ? 'Failed' : 'Pending';
+
           console.error(`[OutboxWorker] Failed to process outbox event ${event.id}:`, err);
           await prisma.outboxEvent.update({
             where: { id: event.id },
             data: {
-              status: event.attempts >= 3 ? 'Failed' : 'Pending',
-              attempts: event.attempts + 1,
+              status: nextStatus,
+              attempts: nextAttempts,
               lastError: err.message,
+              nextAttemptAt,
             },
           });
         }
