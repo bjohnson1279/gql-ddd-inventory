@@ -70,3 +70,6 @@
 ## 2026-06-29 - Avoid N+1 Queries in RMA Receipts
 **Learning:** Iterating over RMA items and calling `.save()` individually on `costLayerRepository`, `quarantineRepository`, and `serializedItemRepository` inside the `for (const item of dto.items)` loop in `ReceiveRmaUseCase` creates a significant N+1 query performance bottleneck when processing large return batches.
 **Action:** Always collect modified entities (`InventoryCostLayer`, `QuarantineItem`, `SerializedItem`) into arrays during loop iteration and persist them in bulk using `saveBatch()` operations outside the loop. Ensure all repository interfaces (e.g., `IQuarantineRepository`, `ISerializedItemRepository`) and test mocks define and support these `saveBatch` methods correctly.
+## 2024-07-02 - Eliminate N+1 query in Stock Valuation Report
+**Learning:** In `GetStockValuationReportUseCase.ts`, calculating the cost for each inventory item in a loop causes an O(N) database bottleneck by triggering sequential queries for active cost layers.
+**Action:** Extract the cost calculations outside the loop by batching all items and using a dedicated `calculateCostBatch` method in `CostLayerService.ts`, which leverages `getActiveLayersBatch` to retrieve layers in a single database query, mapping results back to items.

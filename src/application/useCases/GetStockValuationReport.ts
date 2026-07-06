@@ -60,38 +60,52 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
+    const itemsToCalculate = [];
     for (const invItem of filteredItems) {
-      // Quantity is a value object — use .value to get the raw number
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
 
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      const variantId = new ProductVariantId(variantIdStr);
+      itemsToCalculate.push({
+        variantId: new ProductVariantId(variantIdStr),
+        quantity: qtyOnHand,
+        invItem,
+        variantIdStr
+      });
+    }
 
-      try {
-        const costBreakdown = await this.costLayerService.calculateCost(variantId, qtyOnHand, method);
-        const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
+    const breakdowns = await this.costLayerService.calculateCostBatch(
+      itemsToCalculate.map(i => ({ variantId: i.variantId, quantity: i.quantity })),
+      new Map(itemsToCalculate.map(i => [i.variantIdStr, method]))
+    );
+
+    for (let i = 0; i < itemsToCalculate.length; i++) {
+      const item = itemsToCalculate[i];
+      const costBreakdown = breakdowns[i];
+
+      if (costBreakdown) {
+        const unitCostCents = item.quantity > 0 ? Math.round(costBreakdown.totalCostCents / item.quantity) : 0;
 
         lineItems.push({
-          sku: invItem.sku.value,
-          variantId: variantIdStr,
-          locationId: invItem.locationId.value,
-          quantityOnHand: qtyOnHand,
+          sku: item.invItem.sku.value,
+          variantId: item.variantIdStr,
+          locationId: item.invItem.locationId.value,
+          quantityOnHand: item.quantity,
           unitCostCents,
           totalValueCents: costBreakdown.totalCostCents,
           costingMethod: method,
         });
 
         totalValueCents += costBreakdown.totalCostCents;
-      } catch {
+      } else {
         // No cost layers exist for this variant — include with $0 value
         lineItems.push({
-          sku: invItem.sku.value,
-          variantId: variantIdStr,
-          locationId: invItem.locationId.value,
-          quantityOnHand: qtyOnHand,
+          sku: item.invItem.sku.value,
+          variantId: item.variantIdStr,
+          locationId: item.invItem.locationId.value,
+          quantityOnHand: item.quantity,
           unitCostCents: 0,
           totalValueCents: 0,
           costingMethod: method,

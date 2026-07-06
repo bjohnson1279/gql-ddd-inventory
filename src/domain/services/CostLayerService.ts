@@ -19,7 +19,7 @@ export class CostLayerService {
         : 'received_at ASC';
         
     const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
-    return this.calculateConsumedCost(activeLayers, quantity);
+    return this.calculateConsumedCostSync(activeLayers, quantity);
   }
 
   async consumeLayers(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
@@ -33,7 +33,7 @@ export class CostLayerService {
         : 'received_at ASC';
 
     const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
-    const breakdown = this.calculateConsumedCost(activeLayers, quantity, true);
+    const breakdown = this.calculateConsumedCostSync(activeLayers, quantity, true);
 
     if (activeLayers.length > 0) {
       await this.layers.saveBatch(activeLayers);
@@ -70,7 +70,7 @@ export class CostLayerService {
 
       for (const item of groupItems) {
         const activeLayers = activeLayersMap.get(item.variantId.value) || [];
-        const breakdown = this.calculateConsumedCost(activeLayers, item.quantity, true);
+        const breakdown = this.calculateConsumedCostSync(activeLayers, item.quantity, true);
 
         const existingBreakdown = breakdowns.get(item.variantId.value);
         if (existingBreakdown) {
@@ -93,6 +93,71 @@ export class CostLayerService {
     await this.layers.saveBatch(layersToSave);
 
     return { breakdowns, totalCostCents };
+  }
+
+
+  async calculateCostBatch(
+    items: { variantId: ProductVariantId; quantity: number }[],
+    methodsMap?: Map<string, CostingMethod>
+  ): Promise<(CostBreakdown | null)[]> {
+    const methodGroups = new Map<CostingMethod, { item: typeof items[0], index: number }[]>();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const method = methodsMap?.get(item.variantId.value) || CostingMethod.FIFO;
+      const list = methodGroups.get(method) || [];
+      list.push({ item, index: i });
+      methodGroups.set(method, list);
+    }
+
+    const results = new Array(items.length).fill(null);
+
+    for (const [method, groupItems] of methodGroups.entries()) {
+      const variantIds = groupItems.map(g => g.item.variantId);
+
+      let activeLayersMap: Map<string, InventoryCostLayer[]>;
+
+      if (method === CostingMethod.WeightedAverageCost) {
+        activeLayersMap = await this.layers.getActiveLayersBatch(variantIds);
+      } else {
+        const orderStr = method === CostingMethod.FEFO
+          ? 'expiration_date ASC'
+          : method === CostingMethod.LIFO
+            ? 'received_at DESC'
+            : 'received_at ASC';
+        activeLayersMap = await this.layers.getActiveLayersBatch(variantIds, orderStr);
+      }
+
+      for (const { item, index } of groupItems) {
+        const activeLayers = activeLayersMap.get(item.variantId.value) || [];
+
+        let breakdown: CostBreakdown | null = null;
+        if (method === CostingMethod.WeightedAverageCost) {
+            try {
+                breakdown = this.calculateWeightedAverageCostSync(activeLayers, item.quantity, item.variantId.value);
+            } catch (e: any) {
+                if (e instanceof Error && e.message.includes('Insufficient')) {
+                    // If it fails (e.g. no layers), return null
+                } else {
+                    throw e;
+                }
+            }
+        } else {
+            try {
+                breakdown = this.calculateConsumedCostSync(activeLayers, item.quantity, false);
+            } catch (e: any) {
+                if (e instanceof Error && e.message.includes('Insufficient')) {
+                    // If it fails (e.g. no layers), return null
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        results[index] = breakdown;
+      }
+    }
+
+    return results;
   }
 
   async calculateFifoCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
@@ -138,7 +203,7 @@ export class CostLayerService {
     return new CostBreakdown(1, layer.unitCostCents);
   }
 
-  private calculateConsumedCost(
+  calculateConsumedCostSync(
     layers: InventoryCostLayer[],
     quantity: number,
     mutate: boolean = false
