@@ -1,7 +1,7 @@
 import { prisma } from '../persistence/prismaClient';
 import { eventBus } from '../graphql/resolvers';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
-import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent } from '../../domain/events/InventoryEvents';
+import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent, ShopifyStockSyncRequested } from '../../domain/events/InventoryEvents';
 
 export function deserializeEvent(eventType: string, payloadStr: string): any {
   const payload = JSON.parse(payloadStr);
@@ -35,12 +35,24 @@ export function deserializeEvent(eventType: string, payloadStr: string): any {
     );
     (event as any).occurredAt = new Date(payload.occurredAt);
     return event;
+  } else if (eventType === 'ShopifyStockSyncRequested') {
+    const event = new ShopifyStockSyncRequested(
+      payload.tenantId,
+      payload.sku,
+      payload.locationId,
+      payload.externalRefId
+    );
+    (event as any).occurredAt = new Date(payload.occurredAt);
+    return event;
   } else {
     // Dynamic fallback to preserve constructor.name matching eventType
     const mockConstructor = function () {};
     Object.defineProperty(mockConstructor, 'name', { value: eventType, writable: false });
     const event = Object.create(mockConstructor.prototype);
-    Object.assign(event, payload);
+    for (const key of Object.keys(payload)) {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+      event[key] = payload[key];
+    }
     if (event.occurredAt) event.occurredAt = new Date(event.occurredAt);
     return event;
   }

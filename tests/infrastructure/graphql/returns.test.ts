@@ -25,6 +25,16 @@ jest.mock('../../../src/infrastructure/persistence/PostgresInventoryCostLayerRep
   const layers: any[] = [];
   return {
     PostgresInventoryCostLayerRepository: jest.fn().mockImplementation(() => ({
+      saveBatch: jest.fn(async (items) => {
+        for (const item of items) {
+          const idx = layers.findIndex(l => l.id.equals(item.id));
+          if (idx !== -1) {
+            layers[idx] = item;
+          } else {
+            layers.push(item);
+          }
+        }
+      }),
       save: jest.fn(async (layer) => {
         const idx = layers.findIndex(l => l.id.equals(layer.id));
         if (idx !== -1) {

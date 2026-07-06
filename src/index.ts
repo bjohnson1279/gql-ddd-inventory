@@ -18,8 +18,10 @@ import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookH
 import { createDataLoaders } from './infrastructure/graphql/dataloaders';
 import { depthLimitRule, complexityLimitRule } from './infrastructure/graphql/guardrails';
 import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
+import { enableRowLevelSecurity } from './infrastructure/persistence/rls';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
+import { AuditWorker } from './infrastructure/workers/AuditWorker';
 
 // Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -181,6 +183,13 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 }
 
 async function startApolloServer() {
+  // Set up Row-Level Security policies on startup
+  try {
+    await enableRowLevelSecurity(globalPrisma);
+  } catch (err: any) {
+    console.log("Database/RLS setup warning:", err.message);
+  }
+
   const app = express();
   const httpServer = createServer(app);
 
@@ -197,9 +206,10 @@ async function startApolloServer() {
     console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
     console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}/graphql`);
 
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && process.env.DISABLE_WORKERS !== 'true') {
       WebhookWorker.start();
       OutboxWorker.start();
+      AuditWorker.start();
     }
   });
 }

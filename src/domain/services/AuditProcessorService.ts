@@ -30,40 +30,32 @@ export class AuditProcessorService {
         const connVariantMappings = variantMappings.filter((m) => m.integrationId === conn.id);
         const connLocationMappings = locationMappings.filter((m) => m.integrationId === conn.id);
 
-        for (const varMap of connVariantMappings) {
-          const inventoryItemId = varMap.externalSecondaryId;
-          if (!inventoryItemId) continue;
+        const shopifyStockMap: Record<string, Record<string, number>> = {}; // inventoryItemId -> externalLocId -> quantity
+        const externalItemIds = Array.from(new Set(
+          connVariantMappings.map((m) => m.externalSecondaryId).filter(Boolean) as string[]
+        ));
 
-          // Get the local product variant SKU
-          const variant = await this.prisma.productVariant.findUnique({
-            where: { id: varMap.internalId }
-          });
-          if (!variant) continue;
+        const isMock = !conn.accessToken || conn.accessToken === 'mock-token' || conn.storeDomain.includes('mock');
 
-          for (const locMap of connLocationMappings) {
-            // Aggregate local quantities from ledger_entries for this variant and location
-            const ledgerSum = await this.prisma.ledgerEntry.aggregate({
-              where: { tenantId, variantId: variant.id, locationId: locMap.internalId },
-              _sum: { quantity: true }
-            });
-            const localQty = ledgerSum._sum.quantity || 0;
-
-            // Fetch quantity from Shopify
-            let shopifyQty = localQty; // Default to match in case of network issue / mock mode
-            if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock')) {
-              try {
-                const response = await fetch(
-                  `https://${conn.storeDomain}/admin/api/2024-04/graphql.json`,
-                  {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'X-Shopify-Access-Token': conn.accessToken
-                    },
-                    body: JSON.stringify({
-                      query: `
-                        query getInventoryLevel($inventoryItemId: ID!) {
-                          inventoryItem(id: $inventoryItemId) {
+        if (!isMock && externalItemIds.length > 0) {
+          const chunkSize = 50;
+          for (let i = 0; i < externalItemIds.length; i += chunkSize) {
+            const batchIds = externalItemIds.slice(i, i + chunkSize);
+            try {
+              const response = await fetch(
+                `https://${conn.storeDomain}/admin/api/2024-04/graphql.json`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Access-Token': conn.accessToken!
+                  },
+                  body: JSON.stringify({
+                    query: `
+                      query getBatchInventoryLevels($ids: [ID!]!) {
+                        nodes(ids: $ids) {
+                          ... on InventoryItem {
+                            id
                             inventoryLevels(first: 50) {
                               edges {
                                 node {
@@ -74,33 +66,82 @@ export class AuditProcessorService {
                             }
                           }
                         }
-                      `,
-                      variables: { inventoryItemId }
-                    })
-                  }
-                );
-                if (response.ok) {
-                  const resData = (await response.json()) as any;
-                  const edges = resData?.data?.inventoryItem?.inventoryLevels?.edges || [];
-                  const matchedEdge = edges.find(
-                    (e: any) => e.node.location.id === locMap.externalId
-                  );
-                  if (matchedEdge) {
-                    shopifyQty = matchedEdge.node.quantities[0]?.quantity || 0;
+                      }
+                    `,
+                    variables: { ids: batchIds }
+                  })
+                }
+              );
+
+              if (response.ok) {
+                const resData = (await response.json()) as any;
+                const nodes = resData?.data?.nodes || [];
+                for (const node of nodes) {
+                  if (node && node.id) {
+                    const levels = node.inventoryLevels?.edges || [];
+                    const locQtyMap: Record<string, number> = {};
+                    for (const edge of levels) {
+                      const extLocId = edge.node.location.id;
+                      const qty = edge.node.quantities[0]?.quantity || 0;
+                      locQtyMap[extLocId] = qty;
+                    }
+                    shopifyStockMap[node.id] = locQtyMap;
                   }
                 }
-              } catch (err) {
-                console.error('Failed to query Shopify stock level:', err);
+              } else {
+                console.error(`Shopify API responded with status ${response.status}`);
+              }
+            } catch (err) {
+              console.error('Failed to query Shopify stock level batch:', err);
+            }
+          }
+        }
+
+        const variantIds = connVariantMappings.map((m) => m.internalId);
+        const locationIds = connLocationMappings.map((m) => m.internalId);
+
+        const variants = await this.prisma.productVariant.findMany({
+          where: { id: { in: variantIds } }
+        });
+        const variantMap = new Map(variants.map(v => [v.id, v]));
+
+        const ledgerSums = await this.prisma.ledgerEntry.groupBy({
+          by: ['variantId', 'locationId'],
+          where: {
+            tenantId,
+            variantId: { in: variantIds },
+            locationId: { in: locationIds }
+          },
+          _sum: { quantity: true }
+        });
+        const ledgerSumMap = new Map<string, number>();
+        for (const sum of ledgerSums) {
+          ledgerSumMap.set(`${sum.variantId}_${sum.locationId}`, sum._sum.quantity || 0);
+        }
+
+        for (const varMap of connVariantMappings) {
+          const inventoryItemId = varMap.externalSecondaryId;
+          if (!inventoryItemId) continue;
+
+          const variant = variantMap.get(varMap.internalId);
+          if (!variant) continue;
+
+          for (const locMap of connLocationMappings) {
+            const localQty = ledgerSumMap.get(`${variant.id}_${locMap.internalId}`) || 0;
+
+            let shopifyQty = localQty;
+            if (!isMock) {
+              const matchedLevels = shopifyStockMap[inventoryItemId];
+              if (matchedLevels && matchedLevels[locMap.externalId] !== undefined) {
+                shopifyQty = matchedLevels[locMap.externalId];
               }
             } else {
-              // Mock scenario: mock discrepancy if variant SKU ends with -DIFF
               if (variant.sku.endsWith('-DIFF')) {
                 shopifyQty = localQty + 10;
               }
             }
 
             if (localQty !== shopifyQty) {
-              // Check if open discrepancy exists
               const referenceId = `${variant.sku}:${locMap.internalId}`;
               const existingOpen = await this.prisma.auditDiscrepancy.findFirst({
                 where: { tenantId, type: 'SHOPIFY_STOCK_MISMATCH', referenceId, status: 'OPEN' }
@@ -123,6 +164,7 @@ export class AuditProcessorService {
           }
         }
       }
+
     }
 
     // 2. Accounting sync audit
@@ -193,87 +235,44 @@ export class AuditProcessorService {
     });
     if (!discrepancy || discrepancy.status === 'RESOLVED') return false;
 
-    // Resolve in DB
-    await this.prisma.auditDiscrepancy.update({
-      where: { id },
-      data: {
-        status: 'RESOLVED',
-        resolvedAt: new Date(),
-        resolutionNotes: notes
+    await this.prisma.$transaction(async (tx) => {
+      // Resolve in DB
+      await tx.auditDiscrepancy.update({
+        where: { id },
+        data: {
+          status: 'RESOLVED',
+          resolvedAt: new Date(),
+          resolutionNotes: notes
+        }
+      });
+
+      // If type is Shopify mismatch, trigger stock level push to Shopify via outbox to achieve eventual consistency
+      if (discrepancy.type === 'SHOPIFY_STOCK_MISMATCH') {
+        const parts = discrepancy.referenceId.split(':');
+        const sku = parts[0];
+        const locationId = parts[1];
+
+        // Create the event payload
+        const event = {
+          tenantId,
+          sku,
+          locationId,
+          externalRefId: discrepancy.externalRefId || '',
+          occurredAt: new Date()
+        };
+
+        // Write to Outbox table
+        await tx.outboxEvent.create({
+          data: {
+            eventType: 'ShopifyStockSyncRequested',
+            payload: JSON.stringify(event),
+            status: 'Pending'
+          }
+        });
       }
     });
-
-    // If type is Shopify mismatch, trigger stock level push to Shopify to achieve eventual consistency
-    if (discrepancy.type === 'SHOPIFY_STOCK_MISMATCH') {
-      const parts = discrepancy.referenceId.split(':');
-      const sku = parts[0];
-      const locationId = parts[1];
-
-      // Find the variant
-      const variant = await this.prisma.productVariant.findUnique({
-        where: { sku }
-      });
-
-      // Find active shopify connections
-      const connections = await this.prisma.integrationConnection.findMany({
-        where: { tenantId, platform: 'Shopify', isActive: true }
-      });
-
-      if (variant && connections.length > 0) {
-        // Find location mappings
-        const locMapping = await this.prisma.externalMapping.findFirst({
-          where: { tenantId, entityType: 'LOCATION', internalId: locationId }
-        });
-
-        // Sum local stock levels
-        const ledgerSum = await this.prisma.ledgerEntry.aggregate({
-          where: { tenantId, variantId: variant.id, locationId },
-          _sum: { quantity: true }
-        });
-        const localQty = ledgerSum._sum.quantity || 0;
-
-        for (const conn of connections) {
-          if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock') && locMapping) {
-            try {
-              // Mutation to set quantity on Shopify
-              await fetch(
-                `https://${conn.storeDomain}/admin/api/2024-04/graphql.json`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-Shopify-Access-Token': conn.accessToken
-                  },
-                  body: JSON.stringify({
-                    query: `
-                      mutation setQty($input: InventorySetOnHandQuantitiesInput!) {
-                        inventorySetOnHandQuantities(input: $input) {
-                          userErrors { message }
-                        }
-                      }
-                    `,
-                    variables: {
-                      input: {
-                        setQuantities: [
-                          {
-                            inventoryItemId: discrepancy.externalRefId,
-                            locationId: locMapping.externalId,
-                            quantity: localQty
-                          }
-                        ]
-                      }
-                    }
-                  })
-                }
-              );
-            } catch (err) {
-              console.error('Failed to resolve Shopify discrepancy by pushing correct stock:', err);
-            }
-          }
-        }
-      }
-    }
 
     return true;
   }
 }
+

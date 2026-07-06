@@ -23,7 +23,10 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
     if (orders.length === 0) return;
 
     await this.prisma.$transaction(async (tx) => {
-      for (const order of orders) {
+      const orderIds = orders.map(o => toUuid(o.id.value));
+      
+      // Batch upsert purchase orders concurrently
+      await Promise.all(orders.map(async (order) => {
         const dbId = toUuid(order.id.value);
         await tx.purchaseOrder.upsert({
           where: { id: dbId },
@@ -41,20 +44,26 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
             updatedAt: order.updatedAt,
           },
         });
+      }));
 
-        await tx.purchaseOrderItem.deleteMany({
-          where: { purchaseOrderId: dbId },
+      // Delete items for all these orders in a single query
+      await tx.purchaseOrderItem.deleteMany({
+        where: { purchaseOrderId: { in: orderIds } },
+      });
+
+      // Gather all items
+      const itemsData = orders.flatMap(order => 
+        order.items.map((item) => ({
+          purchaseOrderId: toUuid(order.id.value),
+          variantId: toUuid(item.variantId.value),
+          quantity: item.quantity,
+        }))
+      );
+
+      if (itemsData.length > 0) {
+        await tx.purchaseOrderItem.createMany({
+          data: itemsData,
         });
-
-        if (order.items.length > 0) {
-          await tx.purchaseOrderItem.createMany({
-            data: order.items.map((item) => ({
-              purchaseOrderId: dbId,
-              variantId: toUuid(item.variantId.value),
-              quantity: item.quantity,
-            })),
-          });
-        }
       }
     });
   }

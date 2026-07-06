@@ -2,42 +2,50 @@ import { resolvers } from '../../../src/infrastructure/graphql/resolvers';
 import { prisma } from '../../../src/infrastructure/persistence/prismaClient';
 
 jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
-  return {
-    prisma: {
-      integrationConnection: {
-        findMany: jest.fn()
-      },
-      externalMapping: {
-        findMany: jest.fn(),
-        findFirst: jest.fn()
-      },
-      productVariant: {
-        findUnique: jest.fn()
-      },
-      ledgerEntry: {
-        aggregate: jest.fn()
-      },
-      journalEntry: {
-        findMany: jest.fn()
-      },
-      quickbooksJournalMapping: {
-        findUnique: jest.fn()
-      },
-      xeroJournalMapping: {
-        findUnique: jest.fn()
-      },
-      netsuiteJournalMapping: {
-        findUnique: jest.fn()
-      },
-      auditDiscrepancy: {
-        findMany: jest.fn(),
-        findFirst: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn()
-      }
+  const mockPrisma: any = {
+    $transaction: jest.fn(async (callback: any) => await callback(mockPrisma)),
+    integrationConnection: {
+      findMany: jest.fn()
+    },
+    externalMapping: {
+      findMany: jest.fn(),
+      findFirst: jest.fn()
+    },
+    productVariant: {
+      findUnique: jest.fn(),
+      findMany: jest.fn()
+    },
+    ledgerEntry: {
+      aggregate: jest.fn(),
+      groupBy: jest.fn()
+    },
+    journalEntry: {
+      findMany: jest.fn()
+    },
+    quickbooksJournalMapping: {
+      findUnique: jest.fn()
+    },
+    xeroJournalMapping: {
+      findUnique: jest.fn()
+    },
+    netsuiteJournalMapping: {
+      findUnique: jest.fn()
+    },
+    auditDiscrepancy: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    outboxEvent: {
+      create: jest.fn()
     }
   };
+  return {
+    prisma: mockPrisma
+  };
 });
+
 
 describe('GraphQL Audit Management Resolvers', () => {
   const context = {
@@ -94,15 +102,15 @@ describe('GraphQL Audit Management Resolvers', () => {
       ]);
 
     // 3. Mock product variant sku resolving
-    (prisma.productVariant.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.productVariant.findMany as jest.Mock).mockResolvedValueOnce([{
       id: 'var-1',
       sku: 'SKU-DIFF' // Ends with -DIFF to mock mismatch
-    });
+    }]);
 
     // 4. Mock ledger quantities
-    (prisma.ledgerEntry.aggregate as jest.Mock).mockResolvedValueOnce({
-      _sum: { quantity: 10 }
-    });
+    (prisma.ledgerEntry.groupBy as jest.Mock).mockResolvedValueOnce([{
+      variantId: 'var-1', locationId: 'loc-1', _sum: { quantity: 10 }
+    }]);
 
     // 5. Mock open check findFirst
     (prisma.auditDiscrepancy.findFirst as jest.Mock)

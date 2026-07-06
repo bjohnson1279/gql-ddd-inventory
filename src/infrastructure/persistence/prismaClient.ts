@@ -35,6 +35,15 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
             'StockOnboarding',
             'Notification',
             'AuditDiscrepancy',
+            'StockTransfer',
+            'ReplenishmentRule',
+            'PurchaseOrder',
+            'InventoryAudit',
+            'Rma',
+            'QuarantineItem',
+            'User',
+            'ApiToken',
+            'TenantAccountingConfig',
           ];
 
             if (modelsWithTenant.includes(model)) {
