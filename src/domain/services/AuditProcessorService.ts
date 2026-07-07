@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
 import crypto from 'crypto';
-import { getTraceId } from '../telemetry/traceContext';
+import { getTraceId } from '../../infrastructure/telemetry/traceContext';
 
 export class AuditProcessorService {
   constructor(private readonly prisma: PrismaClient) {}

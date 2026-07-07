@@ -106,8 +106,13 @@ export class OutboxWorker {
       for (const event of events) {
         try {
           const domainEvent = deserializeEvent(event.eventType, event.payload);
-          const payloadObj = JSON.parse(event.payload);
-          const traceId = payloadObj.traceId || generateTraceId();
+          let traceId = 'unknown';
+          try {
+            const payloadObj = JSON.parse(event.payload);
+            traceId = payloadObj?.traceId || generateTraceId();
+          } catch (e) {
+            traceId = generateTraceId();
+          }
 
           await runWithTrace(traceId, async () => {
             // Publish event asynchronously to InMemoryEventBus
@@ -116,8 +121,11 @@ export class OutboxWorker {
 
           processedIds.push(event.id);
         } catch (err: any) {
-          const payloadObj = JSON.parse(event.payload);
-          const traceId = payloadObj.traceId || 'unknown';
+          let traceId = 'unknown';
+          try {
+            const payloadObj = JSON.parse(event.payload);
+            traceId = payloadObj?.traceId || 'unknown';
+          } catch (e) {}
           const nextAttempts = event.attempts + 1;
           const backoffMs = Math.min(Math.pow(2, nextAttempts) * 1000, 24 * 60 * 60 * 1000);
           const nextAttemptAt = new Date(Date.now() + backoffMs);
