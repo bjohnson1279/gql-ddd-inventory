@@ -2,6 +2,7 @@ import { prisma } from '../persistence/prismaClient';
 import { eventBus } from '../graphql/resolvers';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent, ShopifyStockSyncRequested } from '../../domain/events/InventoryEvents';
+import { runWithTrace, generateTraceId } from '../telemetry/traceContext';
 
 export function deserializeEvent(eventType: string, payloadStr: string): any {
   const payload = JSON.parse(payloadStr);
@@ -105,18 +106,24 @@ export class OutboxWorker {
       for (const event of events) {
         try {
           const domainEvent = deserializeEvent(event.eventType, event.payload);
+          const payloadObj = JSON.parse(event.payload);
+          const traceId = payloadObj.traceId || generateTraceId();
 
-          // Publish event asynchronously to InMemoryEventBus
-          eventBus.publish(domainEvent);
+          await runWithTrace(traceId, async () => {
+            // Publish event asynchronously to InMemoryEventBus
+            eventBus.publish(domainEvent);
+          });
 
           processedIds.push(event.id);
         } catch (err: any) {
+          const payloadObj = JSON.parse(event.payload);
+          const traceId = payloadObj.traceId || 'unknown';
           const nextAttempts = event.attempts + 1;
           const backoffMs = Math.min(Math.pow(2, nextAttempts) * 1000, 24 * 60 * 60 * 1000);
           const nextAttemptAt = new Date(Date.now() + backoffMs);
           const nextStatus = nextAttempts >= 5 ? 'Failed' : 'Pending';
 
-          console.error(`[OutboxWorker] Failed to process outbox event ${event.id}:`, err);
+          console.error(`[Trace: ${traceId}] [OutboxWorker] Failed to process outbox event ${event.id}:`, err);
           await prisma.outboxEvent.update({
             where: { id: event.id },
             data: {

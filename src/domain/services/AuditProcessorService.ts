@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
 import crypto from 'crypto';
+import { getTraceId } from '../telemetry/traceContext';
 
 export class AuditProcessorService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -266,7 +267,8 @@ export class AuditProcessorService {
           sku,
           locationId,
           externalRefId: discrepancy.externalRefId || '',
-          occurredAt: new Date()
+          occurredAt: new Date(),
+          traceId: getTraceId()
         };
 
         // Write to Outbox table

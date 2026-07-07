@@ -109,6 +109,8 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
   return server;
 }
 
+import { traceMiddleware } from './infrastructure/http/middleware/traceMiddleware';
+
 function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
@@ -135,6 +137,10 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       crossOriginEmbedderPolicy: false,
       contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
     })
+  );
+  app.use(
+    /^\/graphql/, // Apply traceMiddleware early for all graphql traffic
+    traceMiddleware
   );
   app.use(
     '/graphql',
