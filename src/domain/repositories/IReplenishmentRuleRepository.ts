@@ -9,5 +9,6 @@ export interface IReplenishmentRuleRepository {
   findById(id: ReplenishmentRuleId): Promise<ReplenishmentRule | null>;
   findBySkuAndLocation(sku: Sku, locationId: LocationId): Promise<ReplenishmentRule | null>;
   findAllByTenant(tenantId: TenantId): Promise<ReplenishmentRule[]>;
+  findAllByLocation(locationId: LocationId): Promise<ReplenishmentRule[]>;
   saveBatch(rules: ReplenishmentRule[]): Promise<void>;
 }
