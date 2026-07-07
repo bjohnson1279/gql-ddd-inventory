@@ -13,6 +13,9 @@ export class CostLayerService {
     if (method === CostingMethod.SpecificIdentification) {
       throw new Error("SpecificIdentification requires serial numbers. Use a dedicated path.");
     }
+    if (method === CostingMethod.WeightedAverageCost) {
+      return this.calculateWeightedAverageCost(variantId, quantity);
+    }
     const activeLayers = await this.layers.getActiveLayers(variantId);
     const strategy = CostingStrategyRegistry.get(method);
     return strategy.calculateCost(activeLayers, quantity, variantId);
@@ -21,6 +24,9 @@ export class CostLayerService {
   async consumeLayers(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
     if (method === CostingMethod.SpecificIdentification) {
       throw new Error("SpecificIdentification requires serial numbers. Use a dedicated path.");
+    }
+    if (method === CostingMethod.WeightedAverageCost) {
+      return this.consumeLayers(variantId, quantity, CostingMethod.FIFO);
     }
     const activeLayers = await this.layers.getActiveLayers(variantId);
     const strategy = CostingStrategyRegistry.get(method);
@@ -55,7 +61,8 @@ export class CostLayerService {
 
       for (const item of groupItems) {
         const activeLayers = activeLayersMap.get(item.variantId.value) || [];
-        const strategy = CostingStrategyRegistry.get(method);
+        const activeMethod = method === CostingMethod.WeightedAverageCost ? CostingMethod.FIFO : method;
+        const strategy = CostingStrategyRegistry.get(activeMethod);
         const { breakdown, sortedLayers } = strategy.consumeLayers(activeLayers, item.quantity, item.variantId);
 
         const existingBreakdown = breakdowns.get(item.variantId.value);
