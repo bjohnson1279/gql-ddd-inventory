@@ -108,6 +108,7 @@ import { PostgresWarehouseLocationRepository } from '../persistence/PostgresWare
 import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
 import { WarehouseLocation } from '../../domain/entities/WarehouseLocation';
 import { PostgresStockTransferRepository } from '../persistence/PostgresStockTransferRepository';
+import { AutoRetryDecorator } from '../../application/decorators/AutoRetryDecorator';
 import {
   CreateStockTransferUseCase,
   DispatchStockTransferUseCase,
@@ -252,40 +253,40 @@ const syncJournalListeners = new SyncJournalListeners(
 eventBus.subscribe('JournalEntryCreatedEvent', syncJournalListeners.handle.bind(syncJournalListeners));
 
 // Use Cases
-const receiveStockUseCase = new ReceiveStockUseCase(inventoryRepository, wmsCapacityService);
-const dispatchStockUseCase = new DispatchStockUseCase(inventoryRepository, eventDispatcher);
+const receiveStockUseCase = AutoRetryDecorator.wrap(new ReceiveStockUseCase(inventoryRepository, wmsCapacityService));
+const dispatchStockUseCase = AutoRetryDecorator.wrap(new DispatchStockUseCase(inventoryRepository, eventDispatcher));
 const getStockLevelsUseCase = new GetStockLevelsUseCase(inventoryRepository);
 const getStockLevelsBySkuUseCase = new GetStockLevelsBySkuUseCase(inventoryRepository);
 const getStockLevelBySkuAndLocationUseCase = new GetStockLevelBySkuAndLocationUseCase(inventoryRepository);
-const submitInventoryCountUseCase = new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService);
-const submitOpeningBalanceUseCase = new SubmitOpeningBalanceUseCase(openingBalanceService);
-const allocateStockUseCase = new AllocateStockUseCase(inventoryRepository);
-const releaseAllocationUseCase = new ReleaseAllocationUseCase(inventoryRepository);
-const fulfillAllocationUseCase = new FulfillAllocationUseCase(inventoryRepository);
-const createInTransitUseCase = new CreateInTransitUseCase(inventoryRepository);
-const receiveInTransitUseCase = new ReceiveInTransitUseCase(inventoryRepository);
+const submitInventoryCountUseCase = AutoRetryDecorator.wrap(new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService));
+const submitOpeningBalanceUseCase = AutoRetryDecorator.wrap(new SubmitOpeningBalanceUseCase(openingBalanceService));
+const allocateStockUseCase = AutoRetryDecorator.wrap(new AllocateStockUseCase(inventoryRepository));
+const releaseAllocationUseCase = AutoRetryDecorator.wrap(new ReleaseAllocationUseCase(inventoryRepository));
+const fulfillAllocationUseCase = AutoRetryDecorator.wrap(new FulfillAllocationUseCase(inventoryRepository));
+const createInTransitUseCase = AutoRetryDecorator.wrap(new CreateInTransitUseCase(inventoryRepository));
+const receiveInTransitUseCase = AutoRetryDecorator.wrap(new ReceiveInTransitUseCase(inventoryRepository));
 
 const createProductUseCase = new CreateProductUseCase(productRepository);
 const addProductVariantUseCase = new AddProductVariantUseCase(productRepository);
 const getProductsUseCase = new GetProductsUseCase(productRepository);
 const getProductByIdUseCase = new GetProductByIdUseCase(productRepository);
-const sellKitUseCase = new SellKitUseCase(inventoryService);
+const sellKitUseCase = AutoRetryDecorator.wrap(new SellKitUseCase(inventoryService));
 const createKitUseCase = new CreateKitUseCase(kitRepository);
 const addKitComponentUseCase = new AddKitComponentUseCase(kitRepository);
-const assembleKitUseCase = new AssembleKitUseCase(
+const assembleKitUseCase = AutoRetryDecorator.wrap(new AssembleKitUseCase(
   kitRepository,
   productRepository,
   ledgerRepository,
   costLayerRepository,
   journalRepository
-);
-const disassembleKitUseCase = new DisassembleKitUseCase(
+));
+const disassembleKitUseCase = AutoRetryDecorator.wrap(new DisassembleKitUseCase(
   kitRepository,
   productRepository,
   ledgerRepository,
   costLayerRepository,
   journalRepository
-);
+));
 const receiveSerializedItemUseCase = new ReceiveSerializedItemUseCase(serializedInventoryService, serializedItemRepository);
 const sellSerializedItemUseCase = new SellSerializedItemUseCase(serializedInventoryService);
 const returnSerializedItemUseCase = new ReturnSerializedItemUseCase(serializedItemRepository);
