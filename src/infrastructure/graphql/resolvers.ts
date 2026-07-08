@@ -362,7 +362,7 @@ const demandForecaster = new DemandForecaster(
 
 // Replenishment Services
 const demandVelocityCalculator = new DemandVelocityCalculator(productRepository, ledgerRepository);
-const reorderPointForecaster = new ReorderPointForecaster(demandVelocityCalculator);
+const reorderPointForecaster = new ReorderPointForecaster(demandVelocityCalculator, productRepository, purchaseOrderRepository);
 const replenishmentEvaluator = new ReplenishmentEvaluator(
   replenishmentRuleRepository,
   inventoryRepository,
