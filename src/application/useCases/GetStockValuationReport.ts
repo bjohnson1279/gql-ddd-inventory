@@ -60,18 +60,35 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
+    // Prepare items for batch cost calculation
+    const validItems: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
     for (const invItem of filteredItems) {
-      // Quantity is a value object — use .value to get the raw number
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
 
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      const variantId = new ProductVariantId(variantIdStr);
+      validItems.push({
+        invItem,
+        variantIdStr,
+        qtyOnHand,
+        variantId: new ProductVariantId(variantIdStr),
+      });
+    }
 
-      try {
-        const costBreakdown = await this.costLayerService.calculateCost(variantId, qtyOnHand, method);
+    // Calculate costs in batch
+    const costBreakdowns = await this.costLayerService.calculateCostBatch(
+      validItems.map(item => ({ variantId: item.variantId, quantity: item.qtyOnHand })),
+      new Map(validItems.map(item => [item.variantIdStr, method]))
+    );
+
+    // Process results
+    for (let i = 0; i < validItems.length; i++) {
+      const { invItem, variantIdStr, qtyOnHand } = validItems[i];
+      const costBreakdown = costBreakdowns[i];
+
+      if (costBreakdown) {
         const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
 
         lineItems.push({
@@ -85,8 +102,8 @@ export class GetStockValuationReportUseCase {
         });
 
         totalValueCents += costBreakdown.totalCostCents;
-      } catch {
-        // No cost layers exist for this variant — include with $0 value
+      } else {
+        // No cost layers exist for this variant or an error occurred — include with $0 value
         lineItems.push({
           sku: invItem.sku.value,
           variantId: variantIdStr,
