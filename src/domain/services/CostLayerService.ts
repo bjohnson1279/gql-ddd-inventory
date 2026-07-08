@@ -88,6 +88,52 @@ export class CostLayerService {
     return { breakdowns, totalCostCents };
   }
 
+
+  async calculateCostBatch(
+    items: { variantId: ProductVariantId; quantity: number }[],
+    methodsMap?: Map<string, CostingMethod>
+  ): Promise<(CostBreakdown | null)[]> {
+    const methodGroups = new Map<CostingMethod, { item: { variantId: ProductVariantId; quantity: number }, index: number }[]>();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const method = methodsMap?.get(item.variantId.value) || CostingMethod.FIFO;
+      const list = methodGroups.get(method) || [];
+      list.push({ item, index: i });
+      methodGroups.set(method, list);
+    }
+
+    const results: (CostBreakdown | null)[] = new Array(items.length).fill(null);
+
+    for (const [method, groupItems] of methodGroups.entries()) {
+      const variantIds = groupItems.map(g => g.item.variantId);
+
+      // Calculate activeLayers map in bulk
+      let activeLayersMap = new Map<string, InventoryCostLayer[]>();
+      if (method !== CostingMethod.SpecificIdentification) {
+        activeLayersMap = await this.layers.getActiveLayersBatch(variantIds);
+      }
+
+      for (const { item, index } of groupItems) {
+        try {
+          if (method === CostingMethod.SpecificIdentification) {
+             throw new Error("SpecificIdentification requires serial numbers. Use a dedicated path.");
+          } else if (method === CostingMethod.WeightedAverageCost) {
+             const activeLayersForVariant = activeLayersMap.get(item.variantId.value) || [];
+             results[index] = this.calculateWeightedAverageCostSync(activeLayersForVariant, item.quantity, item.variantId.value);
+          } else {
+             const activeLayersForVariant = activeLayersMap.get(item.variantId.value) || [];
+             const strategy = CostingStrategyRegistry.get(method);
+             results[index] = strategy.calculateCost(activeLayersForVariant, item.quantity, item.variantId);
+          }
+        } catch (e) {
+          results[index] = null;
+        }
+      }
+    }
+
+    return results;
+  }
+
   // Backwards compatibility helpers
   async calculateFifoCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
     return this.calculateCost(variantId, quantity, CostingMethod.FIFO);
