@@ -119,6 +119,39 @@ export class OutboxWorker {
             eventBus.publish(domainEvent);
           });
 
+          // Enqueue webhooks for active subscriptions matching tenant and event type
+          let eventTenantId = 'tenant-1';
+          try {
+            const payloadObj = JSON.parse(event.payload);
+            eventTenantId = payloadObj?.tenantId || (payloadObj?.tenantId && typeof payloadObj.tenantId === 'object' ? payloadObj.tenantId.value : payloadObj?.tenantId) || 'tenant-1';
+          } catch (e) {}
+
+          const subscriptions = await prisma.webhookSubscription.findMany({
+            where: {
+              tenantId: eventTenantId,
+              isActive: true,
+              eventTypes: {
+                has: event.eventType
+              }
+            }
+          });
+
+          if (subscriptions.length > 0) {
+            await Promise.all(subscriptions.map(sub =>
+              prisma.webhookDelivery.create({
+                data: {
+                  tenantId: eventTenantId,
+                  subscriptionId: sub.id,
+                  eventType: event.eventType,
+                  payload: event.payload,
+                  status: 'Pending',
+                  attempts: 0,
+                  nextAttemptAt: new Date()
+                }
+              })
+            ));
+          }
+
           processedIds.push(event.id);
         } catch (err: any) {
           let traceId = 'unknown';

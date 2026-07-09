@@ -1158,6 +1158,12 @@ export const resolvers = {
         nextAttemptAt: e.nextAttemptAt.toISOString()
       }));
     },
+    webhookSubscriptions: async (_: any, __: any, context: GraphQLContext) => {
+      const auth = enforceRole(context, ['admin']);
+      return await prisma.webhookSubscription.findMany({
+        where: { tenantId: auth.tenantId }
+      });
+    },
     auditDiscrepancies: async (_: any, { tenantId, status }: { tenantId: string; status?: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'accountant', 'viewer'], tenantId);
       const items = await prisma.auditDiscrepancy.findMany({
@@ -2052,6 +2058,56 @@ export const resolvers = {
             nextAttemptAt: new Date()
           }
         });
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    createWebhookSubscription: async (_: any, { targetUrl, secret, eventTypes }: { targetUrl: string; secret: string; eventTypes: string[] }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin']);
+        return await prisma.webhookSubscription.create({
+          data: {
+            id: crypto.randomUUID(),
+            tenantId: auth.tenantId,
+            targetUrl,
+            secret,
+            eventTypes,
+            isActive: true
+          }
+        });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    updateWebhookSubscription: async (_: any, { id, targetUrl, secret, eventTypes, isActive }: { id: string; targetUrl?: string; secret?: string; eventTypes?: string[]; isActive?: boolean }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin']);
+        const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
+        if (!sub || sub.tenantId !== auth.tenantId) {
+          throw new Error(`Webhook subscription ${id} not found.`);
+        }
+        return await prisma.webhookSubscription.update({
+          where: { id },
+          data: {
+            targetUrl: targetUrl !== undefined ? targetUrl : undefined,
+            secret: secret !== undefined ? secret : undefined,
+            eventTypes: eventTypes !== undefined ? eventTypes : undefined,
+            isActive: isActive !== undefined ? isActive : undefined
+          }
+        });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    deleteWebhookSubscription: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      try {
+        const auth = enforceRole(context, ['admin']);
+        const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
+        if (!sub || sub.tenantId !== auth.tenantId) {
+          throw new Error(`Webhook subscription ${id} not found.`);
+        }
+        await prisma.webhookSubscription.delete({ where: { id } });
         return true;
       } catch (error: any) {
         throw new Error(error.message);

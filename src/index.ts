@@ -22,6 +22,7 @@ import { enableRowLevelSecurity } from './infrastructure/persistence/rls';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
+import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 
 // Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -216,6 +217,7 @@ async function startApolloServer() {
       WebhookWorker.start();
       OutboxWorker.start();
       AuditWorker.start();
+      WebhookDeliveryWorker.start();
     }
   });
 }
