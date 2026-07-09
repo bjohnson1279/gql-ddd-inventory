@@ -137,7 +137,7 @@ export class OutboxWorker {
           });
 
           if (subscriptions.length > 0) {
-            await Promise.all(subscriptions.map(sub =>
+            await Promise.all(subscriptions.map((sub: any) =>
               prisma.webhookDelivery.create({
                 data: {
                   tenantId: eventTenantId,
