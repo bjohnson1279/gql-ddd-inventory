@@ -78,3 +78,6 @@
 ## 2024-07-05 - Avoid N+1 Queries in AuditProcessorService
 **Learning:** Iterating over variant mappings and querying the database for product variants and ledger entry aggregations individually causes severe N+1 query performance bottlenecks during audits.
 **Action:** Use batch lookup methods (like `findMany` and `groupBy`) outside of loops and map the results in memory to achieve O(1) lookups.
+## 2024-03-24 - Batching N+1 queries during inventory iterations
+**Learning:** Found an N+1 query vulnerability when iterating over inventory items to calculate their individual stock costs, because it queries cost layers on a per-variant basis inside a loop.
+**Action:** Implemented a new batch method `calculateCostBatch` to replace `calculateCost` within the loop of `GetStockValuationReportUseCase` to prevent N+1 queries. Used index tracking during batch grouping to ensure correctly mapped responses.

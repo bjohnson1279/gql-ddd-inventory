@@ -22,6 +22,58 @@ export class CostLayerService {
     return this.calculateConsumedCost(activeLayers, quantity);
   }
 
+  async calculateCostBatch(
+    items: { variantId: ProductVariantId; quantity: number }[],
+    methodsMap?: Map<string, CostingMethod>
+  ): Promise<(CostBreakdown | null)[]> {
+    const methodGroups = new Map<CostingMethod, { item: typeof items[0]; index: number }[]>();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const method = methodsMap?.get(item.variantId.value) || CostingMethod.FIFO;
+      const list = methodGroups.get(method) || [];
+      list.push({ item, index: i });
+      methodGroups.set(method, list);
+    }
+
+    const results: (CostBreakdown | null)[] = new Array(items.length).fill(null);
+
+    for (const [method, groupItems] of methodGroups.entries()) {
+      const uniqueVariantIds = Array.from(
+        new Map(groupItems.map(g => [g.item.variantId.value, g.item.variantId])).values()
+      );
+
+      if (method === CostingMethod.WeightedAverageCost) {
+        const activeLayersMap = await this.layers.getActiveLayersBatch(uniqueVariantIds);
+        for (const { item, index } of groupItems) {
+          const activeLayers = activeLayersMap.get(item.variantId.value) || [];
+          try {
+            results[index] = this.calculateWeightedAverageCostSync(activeLayers, item.quantity, item.variantId.value);
+          } catch {
+            results[index] = null;
+          }
+        }
+      } else {
+        const orderStr = method === CostingMethod.FEFO
+          ? 'expiration_date ASC'
+          : method === CostingMethod.LIFO
+            ? 'received_at DESC'
+            : 'received_at ASC';
+
+        const activeLayersMap = await this.layers.getActiveLayersBatch(uniqueVariantIds, orderStr);
+        for (const { item, index } of groupItems) {
+          const activeLayers = activeLayersMap.get(item.variantId.value) || [];
+          try {
+            results[index] = this.calculateConsumedCost(activeLayers, item.quantity, false);
+          } catch {
+            results[index] = null;
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
   async consumeLayers(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
     if (method === CostingMethod.WeightedAverageCost) {
       return this.consumeLayers(variantId, quantity, CostingMethod.FIFO);

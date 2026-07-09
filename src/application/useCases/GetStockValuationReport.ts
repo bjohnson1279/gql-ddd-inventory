@@ -60,36 +60,41 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
+    const validItems: { invItem: typeof filteredItems[0]; variantId: ProductVariantId; qtyOnHand: number }[] = [];
     for (const invItem of filteredItems) {
-      // Quantity is a value object — use .value to get the raw number
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
-
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
+      validItems.push({ invItem, variantId: new ProductVariantId(variantIdStr), qtyOnHand });
+    }
 
-      const variantId = new ProductVariantId(variantIdStr);
+    const batchInput = validItems.map(i => ({ variantId: i.variantId, quantity: i.qtyOnHand }));
+    const breakdowns = await this.costLayerService.calculateCostBatch(
+      batchInput,
+      new Map(batchInput.map(i => [i.variantId.value, method]))
+    );
 
-      try {
-        const costBreakdown = await this.costLayerService.calculateCost(variantId, qtyOnHand, method);
+    for (let i = 0; i < validItems.length; i++) {
+      const { invItem, variantId, qtyOnHand } = validItems[i];
+      const costBreakdown = breakdowns[i];
+
+      if (costBreakdown) {
         const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
-
         lineItems.push({
           sku: invItem.sku.value,
-          variantId: variantIdStr,
+          variantId: variantId.value,
           locationId: invItem.locationId.value,
           quantityOnHand: qtyOnHand,
           unitCostCents,
           totalValueCents: costBreakdown.totalCostCents,
           costingMethod: method,
         });
-
         totalValueCents += costBreakdown.totalCostCents;
-      } catch {
-        // No cost layers exist for this variant — include with $0 value
+      } else {
         lineItems.push({
           sku: invItem.sku.value,
-          variantId: variantIdStr,
+          variantId: variantId.value,
           locationId: invItem.locationId.value,
           quantityOnHand: qtyOnHand,
           unitCostCents: 0,
