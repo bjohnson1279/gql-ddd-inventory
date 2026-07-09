@@ -33,6 +33,9 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      webhookSubscription: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       $transaction: jest.fn(async (cb) => cb(txMock)),
     },
   };
