@@ -56,6 +56,8 @@ export class RouteOrder {
       };
     });
 
+    candidates.sort((a, b) => a.geoLocation.distanceTo(destinationGeo) - b.geoLocation.distanceTo(destinationGeo));
+
     const bestPlan = await OrderRoutingEngine.routeOrder(
       sku,
       quantity,
