@@ -117,6 +117,7 @@ import {
   GetStockTransfersUseCase,
   GetStockTransferByIdUseCase
 } from '../../application/useCases/ManageStockTransfers';
+import { RouteOrder } from '../../application/useCases/RouteOrder';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { PostgresReplenishmentRuleRepository } from '../persistence/PostgresReplenishmentRuleRepository';
 import { PostgresPurchaseOrderRepository } from '../persistence/PostgresPurchaseOrderRepository';
@@ -186,7 +187,54 @@ class _ShipmentRepository {
   async update(_: any): Promise<void> {}
 }
 class _CarrierService {
-  async getRates(_sku: string, _qty: number, _dest: string): Promise<any[]> { return []; }
+  private getDistance(origin: string, destination: string): number {
+    const org = origin.toUpperCase();
+    const dest = destination.toLowerCase();
+    
+    let baseDist = 1000;
+    if (org.includes("EAST") && (dest.includes("ny") || dest.includes("new york") || dest.includes("10001"))) baseDist = 100;
+    else if (org.includes("WEST") && (dest.includes("la") || dest.includes("los angeles") || dest.includes("ca") || dest.includes("90210"))) baseDist = 100;
+    else if (org.includes("CENTRAL") && (dest.includes("chicago") || dest.includes("il") || dest.includes("60601"))) baseDist = 100;
+    else if (org.includes("EAST") && (dest.includes("la") || dest.includes("ca") || dest.includes("90210"))) baseDist = 4000;
+    else if (org.includes("WEST") && (dest.includes("ny") || dest.includes("new york") || dest.includes("10001"))) baseDist = 4000;
+    
+    return baseDist;
+  }
+
+  async getRates(sku: string, qty: number, dest: string, origin?: string): Promise<any[]> {
+    const weightFactor = sku.length % 3 + 1;
+    const baseQuantity = qty || 1;
+    const distanceKm = this.getDistance(origin || "default", dest);
+    const distanceCost = Math.ceil(distanceKm * 0.1);
+
+    return [
+      {
+        carrier: "UPS Ground",
+        serviceName: "UPS Ground",
+        rateCents: Math.ceil((500 + (weightFactor * 50) + distanceCost) * baseQuantity),
+        deliveryDays: distanceKm > 2000 ? 5 : 2
+      },
+      {
+        carrier: "FedEx Express",
+        serviceName: "FedEx Express",
+        rateCents: Math.ceil((1500 + (weightFactor * 100) + distanceCost * 1.5) * baseQuantity),
+        deliveryDays: 1
+      },
+      {
+        carrier: "DHL Worldwide",
+        serviceName: "DHL Worldwide",
+        rateCents: Math.ceil((3500 + (weightFactor * 250) + distanceCost * 2) * baseQuantity),
+        deliveryDays: distanceKm > 2000 ? 3 : 1
+      },
+      {
+        carrier: "USPS Priority",
+        serviceName: "USPS Priority",
+        rateCents: Math.ceil((450 + (weightFactor * 35) + distanceCost * 0.8) * baseQuantity),
+        deliveryDays: distanceKm > 2000 ? 6 : 3
+      }
+    ];
+  }
+
   async purchaseLabel(_: any): Promise<any> { return { trackingNumber: '', labelUrl: '', cost: 0 }; }
 }
 const CalculateShippingRatesUseCase = class { constructor(private s: any) {} execute = async (sku: string, qty: number, dest: string) => this.s.getRates(sku, qty, dest); };
@@ -445,6 +493,7 @@ const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
 );
 const updateShipmentStatusUseCase = new UpdateShipmentStatusUseCase(shipmentRepository, eventDispatcher);
 const getShipmentsUseCase = new GetShipmentsUseCase(shipmentRepository);
+const routeOrderUseCase = new RouteOrder(inventoryRepository, carrierService);
 
 // G2 — Tenant accounting configuration
 const getTenantAccountingConfigUseCase = new GetTenantAccountingConfigUseCase(prisma);
@@ -1225,6 +1274,23 @@ export const resolvers = {
         actionRequired: item.actionRequired,
         recommendedOrderQuantity: item.recommendedOrderQuantity
       }));
+    },
+    routeOrder: async (
+      _: any,
+      { sku, quantity, destinationAddress, strategyName }: { sku: string; quantity: number; destinationAddress: string; strategyName?: string },
+      context: GraphQLContext
+    ) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
+      try {
+        return await routeOrderUseCase.execute({
+          sku,
+          quantity,
+          destinationAddress,
+          strategyName: strategyName as any
+        });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
     },
   },
   Mutation: {
