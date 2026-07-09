@@ -124,8 +124,16 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     message: 'Too many requests from this IP, please try again after 15 minutes'
   });
 
+  const webhookLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    limit: 100, // Limit each IP to 100 requests per window
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: 'Too many webhook requests from this IP, please try again after 1 minute'
+  });
+
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
-  app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
+  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
