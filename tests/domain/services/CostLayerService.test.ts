@@ -361,5 +361,12 @@ describe('CostLayerService', () => {
       await expect(service.costForSerial(v1, sn))
         .rejects.toThrow('No cost layer found for serial SN999');
     });
+
+    it('should throw error when missing serial number', async () => {
+      const sn = new SerialNumber('MISSING-SERIAL');
+      repo.layers = []; // Ensure findBySerial returns null
+      await expect(service.costForSerial(v1, sn))
+        .rejects.toThrow('No cost layer found for serial MISSING-SERIAL');
+    });
   });
 });
