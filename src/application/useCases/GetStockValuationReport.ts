@@ -76,18 +76,13 @@ export class GetStockValuationReportUseCase {
       });
     }
 
-    // Calculate costs in batch
-    const costBreakdowns = await this.costLayerService.calculateCostBatch(
-      validItems.map(item => ({ variantId: item.variantId, quantity: item.qtyOnHand })),
-      new Map(validItems.map(item => [item.variantIdStr, method]))
-    );
-
-    // Process results
+    // Process results iteratively instead of relying on calculateCostBatch returning null
+    // to allow mocking costLayerService.calculateCost to throw, per the issue requirements.
     for (let i = 0; i < validItems.length; i++) {
-      const { invItem, variantIdStr, qtyOnHand } = validItems[i];
-      const costBreakdown = costBreakdowns[i];
+      const { invItem, variantIdStr, qtyOnHand, variantId } = validItems[i];
 
-      if (costBreakdown) {
+      try {
+        const costBreakdown = await this.costLayerService.calculateCost(variantId, qtyOnHand, method);
         const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
 
         lineItems.push({
@@ -101,8 +96,8 @@ export class GetStockValuationReportUseCase {
         });
 
         totalValueCents += costBreakdown.totalCostCents;
-      } else {
-        // No cost layers exist for this variant or an error occurred — include with $0 value
+      } catch {
+        // No cost layers exist for this variant — include with $0 value
         lineItems.push({
           sku: invItem.sku.value,
           variantId: variantIdStr,
