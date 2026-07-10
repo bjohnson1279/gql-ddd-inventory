@@ -51,13 +51,33 @@ services:
       - DB_PASSWORD=inventory_password
       - DB_NAME=inventory_db
       - KAFKA_URL=host.docker.internal:9092
+      - DISABLE_WORKERS=true
+
+  worker:
+    build: .
+    depends_on:
+      - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run dev:worker
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=inventory_user
+      - DB_PASSWORD=inventory_password
+      - DB_NAME=inventory_db
+      - KAFKA_URL=host.docker.internal:9092
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "3006:80"
     depends_on:
       - api
 

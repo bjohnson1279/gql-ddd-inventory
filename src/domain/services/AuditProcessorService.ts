@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
 import crypto from 'crypto';
+import { getTraceId } from '../../infrastructure/telemetry/traceContext';
 
 export class AuditProcessorService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -97,21 +98,42 @@ export class AuditProcessorService {
           }
         }
 
+        const variantIds = connVariantMappings.map((m) => m.internalId);
+        const locationIds = connLocationMappings.map((m) => m.internalId);
+
+        const variants = await this.prisma.productVariant.findMany({
+          where: { id: { in: variantIds } }
+        });
+        const variantMap = new Map(variants.map(v => [v.id, v]));
+
+        const ledgerSums = await this.prisma.ledgerEntry.groupBy({
+          by: ['variantId', 'locationId'],
+          where: {
+            tenantId,
+            variantId: { in: variantIds },
+            locationId: { in: locationIds }
+          },
+          _sum: { quantity: true }
+        });
+        const ledgerSumMap = new Map<string, number>();
+        for (const sum of ledgerSums) {
+          ledgerSumMap.set(`${sum.variantId}_${sum.locationId}`, sum._sum.quantity || 0);
+        }
+
+        const openShopifyDiscrepancies = await this.prisma.auditDiscrepancy.findMany({
+          where: { tenantId, type: 'SHOPIFY_STOCK_MISMATCH', status: 'OPEN' }
+        });
+        const openShopifySet = new Set(openShopifyDiscrepancies.map((d) => d.referenceId));
+
         for (const varMap of connVariantMappings) {
           const inventoryItemId = varMap.externalSecondaryId;
           if (!inventoryItemId) continue;
 
-          const variant = await this.prisma.productVariant.findUnique({
-            where: { id: varMap.internalId }
-          });
+          const variant = variantMap.get(varMap.internalId);
           if (!variant) continue;
 
           for (const locMap of connLocationMappings) {
-            const ledgerSum = await this.prisma.ledgerEntry.aggregate({
-              where: { tenantId, variantId: variant.id, locationId: locMap.internalId },
-              _sum: { quantity: true }
-            });
-            const localQty = ledgerSum._sum.quantity || 0;
+            const localQty = ledgerSumMap.get(`${variant.id}_${locMap.internalId}`) || 0;
 
             let shopifyQty = localQty;
             if (!isMock) {
@@ -127,11 +149,7 @@ export class AuditProcessorService {
 
             if (localQty !== shopifyQty) {
               const referenceId = `${variant.sku}:${locMap.internalId}`;
-              const existingOpen = await this.prisma.auditDiscrepancy.findFirst({
-                where: { tenantId, type: 'SHOPIFY_STOCK_MISMATCH', referenceId, status: 'OPEN' }
-              });
-
-              if (!existingOpen) {
+              if (!openShopifySet.has(referenceId)) {
                 await this.prisma.auditDiscrepancy.create({
                   data: {
                     id: crypto.randomUUID(),
@@ -168,33 +186,40 @@ export class AuditProcessorService {
         where: { tenantId, createdAt: { gte: sevenDaysAgo } }
       });
 
+      const journalIds = journals.map((j) => j.id);
+
+      const qboMappings = hasQbo && journalIds.length > 0
+        ? await this.prisma.quickbooksJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
+        : [];
+      const qboMappingSet = new Set(qboMappings.map((m) => m.journalEntryId));
+
+      const xeroMappings = hasXero && journalIds.length > 0
+        ? await this.prisma.xeroJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
+        : [];
+      const xeroMappingSet = new Set(xeroMappings.map((m) => m.journalEntryId));
+
+      const nsMappings = hasNetsuite && journalIds.length > 0
+        ? await this.prisma.netsuiteJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
+        : [];
+      const nsMappingSet = new Set(nsMappings.map((m) => m.journalEntryId));
+
+      const existingOpenDiscrepancies = journalIds.length > 0
+        ? await this.prisma.auditDiscrepancy.findMany({
+            where: {
+              tenantId,
+              type: 'ACCOUNTING_JOURNAL_MISSING',
+              referenceId: { in: journalIds },
+              status: 'OPEN'
+            }
+          })
+        : [];
+      const existingOpenSet = new Set(existingOpenDiscrepancies.map((d) => d.referenceId));
+
       for (const journal of journals) {
-        let hasMapping = false;
-        if (hasQbo) {
-          const mapping = await this.prisma.quickbooksJournalMapping.findUnique({
-            where: { journalEntryId: journal.id }
-          });
-          if (mapping) hasMapping = true;
-        }
-        if (hasXero && !hasMapping) {
-          const mapping = await this.prisma.xeroJournalMapping.findUnique({
-            where: { journalEntryId: journal.id }
-          });
-          if (mapping) hasMapping = true;
-        }
-        if (hasNetsuite && !hasMapping) {
-          const mapping = await this.prisma.netsuiteJournalMapping.findUnique({
-            where: { journalEntryId: journal.id }
-          });
-          if (mapping) hasMapping = true;
-        }
+        const hasMapping = qboMappingSet.has(journal.id) || xeroMappingSet.has(journal.id) || nsMappingSet.has(journal.id);
 
         if (!hasMapping) {
-          const existingOpen = await this.prisma.auditDiscrepancy.findFirst({
-            where: { tenantId, type: 'ACCOUNTING_JOURNAL_MISSING', referenceId: journal.id, status: 'OPEN' }
-          });
-
-          if (!existingOpen) {
+          if (!existingOpenSet.has(journal.id)) {
             await this.prisma.auditDiscrepancy.create({
               data: {
                 id: crypto.randomUUID(),
@@ -242,7 +267,8 @@ export class AuditProcessorService {
           sku,
           locationId,
           externalRefId: discrepancy.externalRefId || '',
-          occurredAt: new Date()
+          occurredAt: new Date(),
+          traceId: getTraceId()
         };
 
         // Write to Outbox table
