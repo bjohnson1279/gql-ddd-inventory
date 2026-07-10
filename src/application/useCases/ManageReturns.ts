@@ -222,10 +222,16 @@ export class ReceiveRmaUseCase {
       }
 
       // 8. Handle Serialized items transitions
-      if (item.serialNumbers && this.serializedItemRepository) {
+      if (item.serialNumbers && item.serialNumbers.length > 0 && this.serializedItemRepository) {
+        const serialObjs = item.serialNumbers.map(sn => new SerialNumber(sn));
+        const variantIdObj = new ProductVariantId(item.variantId);
+
+        // Batch fetch all serialized items for this RMA item
+        const serialItems = await this.serializedItemRepository.findManyBySerialsAndVariant(serialObjs, variantIdObj);
+        const serialItemsMap = new Map(serialItems.map(si => [si.serialNumber.value, si]));
+
         for (const sn of item.serialNumbers) {
-          const serialObj = new SerialNumber(sn);
-          const serialItem = await this.serializedItemRepository!.findBySerial(new ProductVariantId(item.variantId), serialObj);
+          const serialItem = serialItemsMap.get(sn);
           if (serialItem) {
             const actor = new ActorId('system');
             const refId = `RMA-${rma.id}`;

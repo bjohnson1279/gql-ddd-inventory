@@ -169,4 +169,31 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
       )
     );
   }
+
+  async findAllByLocation(locationId: LocationId): Promise<ReplenishmentRule[]> {
+    const models = await this.prisma.replenishmentRule.findMany({
+      where: { locationId: locationId.value },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return models.map((model) =>
+      ReplenishmentRule.reconstruct(
+        new ReplenishmentRuleId(model.id),
+        new TenantId(model.tenantId),
+        new Sku(model.sku),
+        new LocationId(model.locationId),
+        model.reorderPoint,
+        model.reorderQuantity,
+        model.safetyStock,
+        model.leadTimeDays,
+        model.replenishmentType as ReplenishmentType,
+        model.sourceLocationId ? new LocationId(model.sourceLocationId) : null,
+        model.supplierId,
+        model.isActive,
+        model.dynamicRopEnabled,
+        model.createdAt,
+        model.updatedAt
+      )
+    );
+  }
 }

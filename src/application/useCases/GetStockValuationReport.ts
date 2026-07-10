@@ -37,11 +37,10 @@ export class GetStockValuationReportUseCase {
   }
 
   async execute(tenantId: string, locationId: string | null, method: CostingMethod = CostingMethod.FIFO): Promise<StockValuationReport> {
-    // Get all inventory items (optionally filtered by locationId)
-    const allItems = await this.inventoryRepo.findAll();
+    // Get inventory items (filtered by locationId at the database level if provided)
     const filteredItems = locationId
-      ? allItems.filter(item => item.locationId.value === locationId)
-      : allItems;
+      ? await this.inventoryRepo.findByLocation(locationId)
+      : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
     const uniqueSkus = Array.from(new Set(filteredItems.map(item => item.sku.value)));
@@ -60,13 +59,21 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
-    const validItems: { invItem: typeof filteredItems[0]; variantId: ProductVariantId; qtyOnHand: number }[] = [];
+    // Prepare items for batch cost calculation
+    const validItems: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
     for (const invItem of filteredItems) {
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
+
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
-      validItems.push({ invItem, variantId: new ProductVariantId(variantIdStr), qtyOnHand });
+
+      validItems.push({
+        invItem,
+        variantIdStr,
+        qtyOnHand,
+        variantId: new ProductVariantId(variantIdStr),
+      });
     }
 
     const batchInput = validItems.map(i => ({ variantId: i.variantId, quantity: i.qtyOnHand }));
@@ -76,14 +83,14 @@ export class GetStockValuationReportUseCase {
     );
 
     for (let i = 0; i < validItems.length; i++) {
-      const { invItem, variantId, qtyOnHand } = validItems[i];
+      const { invItem, variantIdStr, qtyOnHand } = validItems[i];
       const costBreakdown = breakdowns[i];
 
       if (costBreakdown) {
         const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
         lineItems.push({
           sku: invItem.sku.value,
-          variantId: variantId.value,
+          variantId: variantIdStr,
           locationId: invItem.locationId.value,
           quantityOnHand: qtyOnHand,
           unitCostCents,
@@ -94,7 +101,7 @@ export class GetStockValuationReportUseCase {
       } else {
         lineItems.push({
           sku: invItem.sku.value,
-          variantId: variantId.value,
+          variantId: variantIdStr,
           locationId: invItem.locationId.value,
           quantityOnHand: qtyOnHand,
           unitCostCents: 0,

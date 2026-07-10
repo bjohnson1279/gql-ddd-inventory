@@ -140,6 +140,30 @@ export const typeDefs = `#graphql
     nextAttemptAt: String!
   }
 
+  type WebhookSubscription {
+    id: ID!
+    tenantId: String!
+    targetUrl: String!
+    secret: String!
+    eventTypes: [String!]!
+    isActive: Boolean!
+    createdAt: String!
+  }
+
+  type WebhookDelivery {
+    id: ID!
+    tenantId: String!
+    subscriptionId: String!
+    eventType: String!
+    payload: String!
+    status: String!
+    attempts: Int!
+    lastError: String
+    nextAttemptAt: String!
+    processedAt: String
+    createdAt: String!
+  }
+
   enum StockOnboardingStatus {
     draft
     submitted
@@ -635,6 +659,7 @@ export const typeDefs = `#graphql
     generateDemandForecast(sku: String!, locationId: String!, forecastDays: Int, trendMultiplier: Float): DemandForecast!
     demandPlanningReport(locationId: String!): [DemandPlanningReportItem!]!
     shippingRates(sku: String!, quantity: Int!, destinationAddress: String!): [CarrierRate!]!
+    routeOrder(sku: String!, quantity: Int!, destinationAddress: String!, strategyName: String): FulfillmentPlan!
     shipments: [Shipment!]!
 
     # G2 — Tenant accounting configuration
@@ -646,6 +671,7 @@ export const typeDefs = `#graphql
     # G5 — Outbox management
     outboxStats: OutboxStats!
     deadLetterEvents(limit: Int): [OutboxEvent!]!
+    webhookSubscriptions: [WebhookSubscription!]!
 
     # Eventual Consistency Audit
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
@@ -899,6 +925,10 @@ export const typeDefs = `#graphql
     # G5 — Outbox management
     retryOutboxEvent(id: ID!): Boolean!
 
+    createWebhookSubscription(targetUrl: String!, secret: String!, eventTypes: [String!]!): WebhookSubscription!
+    updateWebhookSubscription(id: ID!, targetUrl: String, secret: String, eventTypes: [String!], isActive: Boolean): WebhookSubscription!
+    deleteWebhookSubscription(id: ID!): Boolean!
+
     # Eventual Consistency Audit
     runAudit(tenantId: ID!): AuditSummary!
     resolveAuditDiscrepancy(id: ID!, notes: String!): Boolean!
@@ -964,6 +994,19 @@ export const typeDefs = `#graphql
     serviceName: String!
     rateCents: Int!
     deliveryDays: Int!
+  }
+
+  type FulfillmentAllocation {
+    locationId: String!
+    quantity: Int!
+  }
+
+  type FulfillmentPlan {
+    allocations: [FulfillmentAllocation!]!
+    estimatedShippingCostCents: Int!
+    totalDistanceKm: Float!
+    splitCount: Int!
+    score: Float!
   }
 
   type Shipment {
