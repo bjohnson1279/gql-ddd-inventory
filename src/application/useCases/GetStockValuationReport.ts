@@ -37,11 +37,10 @@ export class GetStockValuationReportUseCase {
   }
 
   async execute(tenantId: string, locationId: string | null, method: CostingMethod = CostingMethod.FIFO): Promise<StockValuationReport> {
-    // Get all inventory items (optionally filtered by locationId)
-    const allItems = await this.inventoryRepo.findAll();
+    // Get inventory items (filtered by locationId at the database level if provided)
     const filteredItems = locationId
-      ? allItems.filter(item => item.locationId.value === locationId)
-      : allItems;
+      ? await this.inventoryRepo.findByLocation(locationId)
+      : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
     const uniqueSkus = Array.from(new Set(filteredItems.map(item => item.sku.value)));
