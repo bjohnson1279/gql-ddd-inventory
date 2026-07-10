@@ -33,6 +33,9 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      webhookSubscription: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       $transaction: jest.fn(async (cb) => cb(txMock)),
     },
   };
@@ -164,6 +167,11 @@ describe('Transactional Outbox Pattern', () => {
       const updateManyMock = prisma.outboxEvent.updateMany as jest.Mock;
 
       findManyMock.mockResolvedValueOnce([mockEvent]);
+
+      if (!prisma.webhookSubscription) prisma.webhookSubscription = {} as any;
+      if (!prisma.webhookSubscription.findMany) prisma.webhookSubscription.findMany = jest.fn() as any;
+      (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValue([]);
+
       updateMock.mockResolvedValue({});
 
       await OutboxWorker.processPendingEvents();

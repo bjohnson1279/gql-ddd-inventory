@@ -12,6 +12,12 @@ import { useServer } from 'graphql-ws/use/ws';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import jwt from 'jsonwebtoken';
 
+export interface AuthTokenPayload {
+  tenantId: string;
+  actorId: string;
+  role: string;
+}
+
 import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
@@ -51,11 +57,11 @@ function setupWebSocketServer(httpServer: any, schema: any) {
         // Connection params carry the Authorization header during WebSockets handshakes
         const connectionParams = ctx.connectionParams || {};
         const authHeader = connectionParams.Authorization || connectionParams.authorization || '';
-        let auth: any = undefined;
+        let auth: AuthTokenPayload | undefined = undefined;
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            auth = jwt.verify(token, JWT_SECRET as string);
+            auth = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
           } catch (err) {
             // Invalid token
           }
@@ -125,8 +131,16 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     message: 'Too many requests from this IP, please try again after 15 minutes'
   });
 
+  const webhookLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    limit: 100, // Limit each IP to 100 requests per window
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: 'Too many webhook requests from this IP, please try again after 1 minute'
+  });
+
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
-  app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
+  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
@@ -157,7 +171,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          const decoded = jwt.verify(token, JWT_SECRET as string) as any;
+          const decoded = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
           tenantId = decoded.tenantId;
         } catch (err) {}
       }
@@ -169,11 +183,11 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     expressMiddleware(server, {
       context: async ({ req }: { req: express.Request }) => {
         const authHeader = req.headers.authorization || req.headers.Authorization || '';
-        let auth: any = undefined;
+        let auth: AuthTokenPayload | undefined = undefined;
         if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            auth = jwt.verify(token, JWT_SECRET as string);
+            auth = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
           } catch (err) {
             // Invalid token or expired
           }

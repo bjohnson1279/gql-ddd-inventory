@@ -659,6 +659,7 @@ export const typeDefs = `#graphql
     generateDemandForecast(sku: String!, locationId: String!, forecastDays: Int, trendMultiplier: Float): DemandForecast!
     demandPlanningReport(locationId: String!): [DemandPlanningReportItem!]!
     shippingRates(sku: String!, quantity: Int!, destinationAddress: String!): [CarrierRate!]!
+    routeOrder(sku: String!, quantity: Int!, destinationAddress: String!, strategyName: String): FulfillmentPlan!
     shipments: [Shipment!]!
 
     # G2 — Tenant accounting configuration
@@ -993,6 +994,19 @@ export const typeDefs = `#graphql
     serviceName: String!
     rateCents: Int!
     deliveryDays: Int!
+  }
+
+  type FulfillmentAllocation {
+    locationId: String!
+    quantity: Int!
+  }
+
+  type FulfillmentPlan {
+    allocations: [FulfillmentAllocation!]!
+    estimatedShippingCostCents: Int!
+    totalDistanceKm: Float!
+    splitCount: Int!
+    score: Float!
   }
 
   type Shipment {
