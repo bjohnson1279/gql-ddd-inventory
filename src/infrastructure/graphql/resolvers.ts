@@ -1873,6 +1873,9 @@ export const resolvers = {
       }
     },
     login: async (_: any, { tenantId, actorId, role, email, password }: { tenantId: string; actorId?: string; role?: string; email?: string; password?: string }) => {
+      if (!email || !password) {
+        throw new Error('Email and password are required.');
+      }
       if (email && password) {
         const emailLower = email.toLowerCase().trim();
         const rateLimitKey = `${tenantId}:${emailLower}`;
@@ -1932,33 +1935,7 @@ export const resolvers = {
           { expiresIn: '24h' }
         );
       }
-
-      if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
-        throw new Error('Login mutation is only available in development or test environments.');
-      }
-      if (!tenantId || !actorId) {
-        throw new Error('Tenant ID and User ID are required.');
-      }
-
-      // Security fix: verify password even in development/test to prevent unauthorized access
-      const expectedPassword = process.env.DEV_PASSWORD;
-      if (!expectedPassword) {
-        throw new Error('DEV_PASSWORD environment variable is not set.');
-      }
-
-      const passwordHash = crypto.createHash('sha256').update(password || '').digest();
-      const expectedHash = crypto.createHash('sha256').update(expectedPassword).digest();
-
-      if (!crypto.timingSafeEqual(passwordHash, expectedHash)) {
-        throw new Error('Invalid credentials.');
-      }
-
-      const userRole = role || 'admin';
-      return jwt.sign(
-        { tenantId, actorId, role: userRole },
-        JWT_SECRET as string,
-        { expiresIn: '24h' }
-      );
+      throw new Error('Email and password are required.');
     },
     setup: async (_: any, { orgName, tenantId, adminName, adminEmail, adminPassword }: { orgName: string; tenantId: string; adminName: string; adminEmail: string; adminPassword: string }) => {
       // Security fix: Restrict setup mutation to non-production environments to prevent unauthorized admin creation
