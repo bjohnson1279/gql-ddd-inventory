@@ -35,6 +35,12 @@ export class InMemorySerializedItemRepository implements ISerializedItemReposito
     return this.items.filter(i => i.variantId.equals(variantId) && i.status === status).length;
   }
 
+  async findBySerialsAndVariantsBatch(pairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[]): Promise<SerializedItem[]> {
+    return this.items.filter(i =>
+      pairs.some(p => p.serialNumber.equals(i.serialNumber) && p.variantId.equals(i.variantId))
+    );
+  }
+
   async findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null> {
     return this.items.find(i => i.serialNumber.equals(serialNumber) && i.variantId.equals(variantId)) || null;
   }
