@@ -102,7 +102,7 @@ export class RemoveUomConversionRuleUseCase {
     }
 
     // Find the unit by name among existing rules
-    const existingRule = config.conversionRules.find(r => r.unit.name === input.unitName);
+    const existingRule = (config.conversionRules as any[]).find((r: any) => r.unit.name === input.unitName);
     if (!existingRule) {
       throw new Error(`No conversion rule found for unit '${input.unitName}'.`);
     }

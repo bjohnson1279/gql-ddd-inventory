@@ -12,12 +12,6 @@ import { useServer } from 'graphql-ws/use/ws';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import jwt from 'jsonwebtoken';
 
-export interface AuthTokenPayload {
-  tenantId: string;
-  actorId: string;
-  role: string;
-}
-
 import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
@@ -28,7 +22,6 @@ import { enableRowLevelSecurity } from './infrastructure/persistence/rls';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
-import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 
 // Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -57,11 +50,11 @@ function setupWebSocketServer(httpServer: any, schema: any) {
         // Connection params carry the Authorization header during WebSockets handshakes
         const connectionParams = ctx.connectionParams || {};
         const authHeader = connectionParams.Authorization || connectionParams.authorization || '';
-        let auth: AuthTokenPayload | undefined = undefined;
+        let auth: any = undefined;
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            auth = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
+            auth = jwt.verify(token, JWT_SECRET as string);
           } catch (err) {
             // Invalid token
           }
@@ -116,8 +109,6 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
   return server;
 }
 
-import { traceMiddleware } from './infrastructure/http/middleware/traceMiddleware';
-
 function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
@@ -131,16 +122,8 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     message: 'Too many requests from this IP, please try again after 15 minutes'
   });
 
-  const webhookLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    limit: 100, // Limit each IP to 100 requests per window
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-    message: 'Too many webhook requests from this IP, please try again after 1 minute'
-  });
-
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
-  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json' }), shopifyWebhookHandler);
+  app.post('/webhooks/shopify', express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
@@ -152,10 +135,6 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       crossOriginEmbedderPolicy: false,
       contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
     })
-  );
-  app.use(
-    /^\/graphql/, // Apply traceMiddleware early for all graphql traffic
-    traceMiddleware
   );
   app.use(
     '/graphql',
@@ -171,7 +150,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          const decoded = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
+          const decoded = jwt.verify(token, JWT_SECRET as string) as any;
           tenantId = decoded.tenantId;
         } catch (err) {}
       }
@@ -183,11 +162,11 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     expressMiddleware(server, {
       context: async ({ req }: { req: express.Request }) => {
         const authHeader = req.headers.authorization || req.headers.Authorization || '';
-        let auth: AuthTokenPayload | undefined = undefined;
+        let auth: any = undefined;
         if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            auth = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
+            auth = jwt.verify(token, JWT_SECRET as string);
           } catch (err) {
             // Invalid token or expired
           }
@@ -227,11 +206,10 @@ async function startApolloServer() {
     console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
     console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}/graphql`);
 
-    if (process.env.NODE_ENV !== 'test' && process.env.DISABLE_WORKERS !== 'true') {
+    if (process.env.NODE_ENV !== 'test') {
       WebhookWorker.start();
       OutboxWorker.start();
       AuditWorker.start();
-      WebhookDeliveryWorker.start();
     }
   });
 }

@@ -16,8 +16,6 @@ export const rlsTables = [
   "users",
   "api_tokens",
   "tenant_accounting_configs",
-  "stock_transfers",
-  "replenishment_rules",
 ];
 
 export async function enableRowLevelSecurity(prisma: PrismaClient): Promise<void> {

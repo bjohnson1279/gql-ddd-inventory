@@ -103,12 +103,13 @@ export class ReplenishmentEvaluator {
             locId,
             rule.leadTimeDays,
             rule.safetyStock,
-            windowDays,
-            tenantId
+            windowDays
           );
           rule.updateReorderPoint(forecastedRop);
           rulesToSave.push(rule);
         }
+
+        // 2. Fetch variantId for SKU
         let variant;
         for (const product of productMap.values()) {
           const v = product.findVariantBySku(skuObj);

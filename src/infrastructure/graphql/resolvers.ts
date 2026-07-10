@@ -108,7 +108,6 @@ import { PostgresWarehouseLocationRepository } from '../persistence/PostgresWare
 import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
 import { WarehouseLocation } from '../../domain/entities/WarehouseLocation';
 import { PostgresStockTransferRepository } from '../persistence/PostgresStockTransferRepository';
-import { AutoRetryDecorator } from '../../application/decorators/AutoRetryDecorator';
 import {
   CreateStockTransferUseCase,
   DispatchStockTransferUseCase,
@@ -117,7 +116,6 @@ import {
   GetStockTransfersUseCase,
   GetStockTransferByIdUseCase
 } from '../../application/useCases/ManageStockTransfers';
-import { RouteOrder } from '../../application/useCases/RouteOrder';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { PostgresReplenishmentRuleRepository } from '../persistence/PostgresReplenishmentRuleRepository';
 import { PostgresPurchaseOrderRepository } from '../persistence/PostgresPurchaseOrderRepository';
@@ -187,54 +185,7 @@ class _ShipmentRepository {
   async update(_: any): Promise<void> {}
 }
 class _CarrierService {
-  private getDistance(origin: string, destination: string): number {
-    const org = origin.toUpperCase();
-    const dest = destination.toLowerCase();
-    
-    let baseDist = 1000;
-    if (org.includes("EAST") && (dest.includes("ny") || dest.includes("new york") || dest.includes("10001"))) baseDist = 100;
-    else if (org.includes("WEST") && (dest.includes("la") || dest.includes("los angeles") || dest.includes("ca") || dest.includes("90210"))) baseDist = 100;
-    else if (org.includes("CENTRAL") && (dest.includes("chicago") || dest.includes("il") || dest.includes("60601"))) baseDist = 100;
-    else if (org.includes("EAST") && (dest.includes("la") || dest.includes("ca") || dest.includes("90210"))) baseDist = 4000;
-    else if (org.includes("WEST") && (dest.includes("ny") || dest.includes("new york") || dest.includes("10001"))) baseDist = 4000;
-    
-    return baseDist;
-  }
-
-  async getRates(sku: string, qty: number, dest: string, origin?: string): Promise<any[]> {
-    const weightFactor = sku.length % 3 + 1;
-    const baseQuantity = qty || 1;
-    const distanceKm = this.getDistance(origin || "default", dest);
-    const distanceCost = Math.ceil(distanceKm * 0.1);
-
-    return [
-      {
-        carrier: "UPS Ground",
-        serviceName: "UPS Ground",
-        rateCents: Math.ceil((500 + (weightFactor * 50) + distanceCost) * baseQuantity),
-        deliveryDays: distanceKm > 2000 ? 5 : 2
-      },
-      {
-        carrier: "FedEx Express",
-        serviceName: "FedEx Express",
-        rateCents: Math.ceil((1500 + (weightFactor * 100) + distanceCost * 1.5) * baseQuantity),
-        deliveryDays: 1
-      },
-      {
-        carrier: "DHL Worldwide",
-        serviceName: "DHL Worldwide",
-        rateCents: Math.ceil((3500 + (weightFactor * 250) + distanceCost * 2) * baseQuantity),
-        deliveryDays: distanceKm > 2000 ? 3 : 1
-      },
-      {
-        carrier: "USPS Priority",
-        serviceName: "USPS Priority",
-        rateCents: Math.ceil((450 + (weightFactor * 35) + distanceCost * 0.8) * baseQuantity),
-        deliveryDays: distanceKm > 2000 ? 6 : 3
-      }
-    ];
-  }
-
+  async getRates(_sku: string, _qty: number, _dest: string): Promise<any[]> { return []; }
   async purchaseLabel(_: any): Promise<any> { return { trackingNumber: '', labelUrl: '', cost: 0 }; }
 }
 const CalculateShippingRatesUseCase = class { constructor(private s: any) {} execute = async (sku: string, qty: number, dest: string) => this.s.getRates(sku, qty, dest); };
@@ -301,40 +252,40 @@ const syncJournalListeners = new SyncJournalListeners(
 eventBus.subscribe('JournalEntryCreatedEvent', syncJournalListeners.handle.bind(syncJournalListeners));
 
 // Use Cases
-const receiveStockUseCase = AutoRetryDecorator.wrap(new ReceiveStockUseCase(inventoryRepository, wmsCapacityService));
-const dispatchStockUseCase = AutoRetryDecorator.wrap(new DispatchStockUseCase(inventoryRepository, eventDispatcher));
+const receiveStockUseCase = new ReceiveStockUseCase(inventoryRepository, wmsCapacityService);
+const dispatchStockUseCase = new DispatchStockUseCase(inventoryRepository, eventDispatcher);
 const getStockLevelsUseCase = new GetStockLevelsUseCase(inventoryRepository);
 const getStockLevelsBySkuUseCase = new GetStockLevelsBySkuUseCase(inventoryRepository);
 const getStockLevelBySkuAndLocationUseCase = new GetStockLevelBySkuAndLocationUseCase(inventoryRepository);
-const submitInventoryCountUseCase = AutoRetryDecorator.wrap(new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService));
-const submitOpeningBalanceUseCase = AutoRetryDecorator.wrap(new SubmitOpeningBalanceUseCase(openingBalanceService));
-const allocateStockUseCase = AutoRetryDecorator.wrap(new AllocateStockUseCase(inventoryRepository));
-const releaseAllocationUseCase = AutoRetryDecorator.wrap(new ReleaseAllocationUseCase(inventoryRepository));
-const fulfillAllocationUseCase = AutoRetryDecorator.wrap(new FulfillAllocationUseCase(inventoryRepository));
-const createInTransitUseCase = AutoRetryDecorator.wrap(new CreateInTransitUseCase(inventoryRepository));
-const receiveInTransitUseCase = AutoRetryDecorator.wrap(new ReceiveInTransitUseCase(inventoryRepository));
+const submitInventoryCountUseCase = new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService);
+const submitOpeningBalanceUseCase = new SubmitOpeningBalanceUseCase(openingBalanceService);
+const allocateStockUseCase = new AllocateStockUseCase(inventoryRepository);
+const releaseAllocationUseCase = new ReleaseAllocationUseCase(inventoryRepository);
+const fulfillAllocationUseCase = new FulfillAllocationUseCase(inventoryRepository);
+const createInTransitUseCase = new CreateInTransitUseCase(inventoryRepository);
+const receiveInTransitUseCase = new ReceiveInTransitUseCase(inventoryRepository);
 
 const createProductUseCase = new CreateProductUseCase(productRepository);
 const addProductVariantUseCase = new AddProductVariantUseCase(productRepository);
 const getProductsUseCase = new GetProductsUseCase(productRepository);
 const getProductByIdUseCase = new GetProductByIdUseCase(productRepository);
-const sellKitUseCase = AutoRetryDecorator.wrap(new SellKitUseCase(inventoryService));
+const sellKitUseCase = new SellKitUseCase(inventoryService);
 const createKitUseCase = new CreateKitUseCase(kitRepository);
 const addKitComponentUseCase = new AddKitComponentUseCase(kitRepository);
-const assembleKitUseCase = AutoRetryDecorator.wrap(new AssembleKitUseCase(
+const assembleKitUseCase = new AssembleKitUseCase(
   kitRepository,
   productRepository,
   ledgerRepository,
   costLayerRepository,
   journalRepository
-));
-const disassembleKitUseCase = AutoRetryDecorator.wrap(new DisassembleKitUseCase(
+);
+const disassembleKitUseCase = new DisassembleKitUseCase(
   kitRepository,
   productRepository,
   ledgerRepository,
   costLayerRepository,
   journalRepository
-));
+);
 const receiveSerializedItemUseCase = new ReceiveSerializedItemUseCase(serializedInventoryService, serializedItemRepository);
 const sellSerializedItemUseCase = new SellSerializedItemUseCase(serializedInventoryService);
 const returnSerializedItemUseCase = new ReturnSerializedItemUseCase(serializedItemRepository);
@@ -411,7 +362,7 @@ const demandForecaster = new DemandForecaster(
 
 // Replenishment Services
 const demandVelocityCalculator = new DemandVelocityCalculator(productRepository, ledgerRepository);
-const reorderPointForecaster = new ReorderPointForecaster(demandVelocityCalculator, productRepository, purchaseOrderRepository);
+const reorderPointForecaster = new ReorderPointForecaster(demandVelocityCalculator);
 const replenishmentEvaluator = new ReplenishmentEvaluator(
   replenishmentRuleRepository,
   inventoryRepository,
@@ -493,7 +444,6 @@ const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
 );
 const updateShipmentStatusUseCase = new UpdateShipmentStatusUseCase(shipmentRepository, eventDispatcher);
 const getShipmentsUseCase = new GetShipmentsUseCase(shipmentRepository);
-const routeOrderUseCase = new RouteOrder(inventoryRepository, carrierService);
 
 // G2 — Tenant accounting configuration
 const getTenantAccountingConfigUseCase = new GetTenantAccountingConfigUseCase(prisma);
@@ -634,14 +584,13 @@ export const resolvers = {
       }));
     },
     stockVelocityReport: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
-      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-      const results = await context.prisma!.$queryRaw`
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const results = await context.prisma!.$queryRawUnsafe(`
         SELECT bucket::text, units_dispatched as "unitsDispatched", units_received as "unitsReceived", transaction_count as "transactionCount"
         FROM stock_velocity_report
-        WHERE variant_id = ${variantId}::uuid
-          AND tenant_id = ${auth.tenantId}::uuid
+        WHERE variant_id = $1::uuid
         ORDER BY bucket DESC
-      `;
+      `, variantId);
       return results;
     },
     serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: GraphQLContext) => {
@@ -1208,12 +1157,6 @@ export const resolvers = {
         nextAttemptAt: e.nextAttemptAt.toISOString()
       }));
     },
-    webhookSubscriptions: async (_: any, __: any, context: GraphQLContext) => {
-      const auth = enforceRole(context, ['admin']);
-      return await prisma.webhookSubscription.findMany({
-        where: { tenantId: auth.tenantId }
-      });
-    },
     auditDiscrepancies: async (_: any, { tenantId, status }: { tenantId: string; status?: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'accountant', 'viewer'], tenantId);
       const items = await prisma.auditDiscrepancy.findMany({
@@ -1275,23 +1218,6 @@ export const resolvers = {
         actionRequired: item.actionRequired,
         recommendedOrderQuantity: item.recommendedOrderQuantity
       }));
-    },
-    routeOrder: async (
-      _: any,
-      { sku, quantity, destinationAddress, strategyName }: { sku: string; quantity: number; destinationAddress: string; strategyName?: string },
-      context: GraphQLContext
-    ) => {
-      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
-      try {
-        return await routeOrderUseCase.execute({
-          sku,
-          quantity,
-          destinationAddress,
-          strategyName: strategyName as any
-        });
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
     },
   },
   Mutation: {
@@ -1874,9 +1800,6 @@ export const resolvers = {
       }
     },
     login: async (_: any, { tenantId, actorId, role, email, password }: { tenantId: string; actorId?: string; role?: string; email?: string; password?: string }) => {
-      if (!email || !password) {
-        throw new Error('Email and password are required.');
-      }
       if (email && password) {
         const emailLower = email.toLowerCase().trim();
         const rateLimitKey = `${tenantId}:${emailLower}`;
@@ -1936,7 +1859,33 @@ export const resolvers = {
           { expiresIn: '24h' }
         );
       }
-      throw new Error('Email and password are required.');
+
+      if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+        throw new Error('Login mutation is only available in development or test environments.');
+      }
+      if (!tenantId || !actorId) {
+        throw new Error('Tenant ID and User ID are required.');
+      }
+
+      // Security fix: verify password even in development/test to prevent unauthorized access
+      const expectedPassword = process.env.DEV_PASSWORD;
+      if (!expectedPassword) {
+        throw new Error('DEV_PASSWORD environment variable is not set.');
+      }
+
+      const passwordHash = crypto.createHash('sha256').update(password || '').digest();
+      const expectedHash = crypto.createHash('sha256').update(expectedPassword).digest();
+
+      if (!crypto.timingSafeEqual(passwordHash, expectedHash)) {
+        throw new Error('Invalid credentials.');
+      }
+
+      const userRole = role || 'admin';
+      return jwt.sign(
+        { tenantId, actorId, role: userRole },
+        JWT_SECRET as string,
+        { expiresIn: '24h' }
+      );
     },
     setup: async (_: any, { orgName, tenantId, adminName, adminEmail, adminPassword }: { orgName: string; tenantId: string; adminName: string; adminEmail: string; adminPassword: string }) => {
       // Security fix: Restrict setup mutation to non-production environments to prevent unauthorized admin creation
@@ -2102,56 +2051,6 @@ export const resolvers = {
             nextAttemptAt: new Date()
           }
         });
-        return true;
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    createWebhookSubscription: async (_: any, { targetUrl, secret, eventTypes }: { targetUrl: string; secret: string; eventTypes: string[] }, context: GraphQLContext) => {
-      try {
-        const auth = enforceRole(context, ['admin']);
-        return await prisma.webhookSubscription.create({
-          data: {
-            id: crypto.randomUUID(),
-            tenantId: auth.tenantId,
-            targetUrl,
-            secret,
-            eventTypes,
-            isActive: true
-          }
-        });
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    updateWebhookSubscription: async (_: any, { id, targetUrl, secret, eventTypes, isActive }: { id: string; targetUrl?: string; secret?: string; eventTypes?: string[]; isActive?: boolean }, context: GraphQLContext) => {
-      try {
-        const auth = enforceRole(context, ['admin']);
-        const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
-        if (!sub || sub.tenantId !== auth.tenantId) {
-          throw new Error(`Webhook subscription ${id} not found.`);
-        }
-        return await prisma.webhookSubscription.update({
-          where: { id },
-          data: {
-            targetUrl: targetUrl !== undefined ? targetUrl : undefined,
-            secret: secret !== undefined ? secret : undefined,
-            eventTypes: eventTypes !== undefined ? eventTypes : undefined,
-            isActive: isActive !== undefined ? isActive : undefined
-          }
-        });
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    deleteWebhookSubscription: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      try {
-        const auth = enforceRole(context, ['admin']);
-        const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
-        if (!sub || sub.tenantId !== auth.tenantId) {
-          throw new Error(`Webhook subscription ${id} not found.`);
-        }
-        await prisma.webhookSubscription.delete({ where: { id } });
         return true;
       } catch (error: any) {
         throw new Error(error.message);

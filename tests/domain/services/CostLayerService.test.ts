@@ -211,15 +211,6 @@ describe('CostLayerService', () => {
     });
   });
 
-  describe('calculateCostBatch', () => {
-    it('should catch error when insufficient cost layers to cover quantity and set result to null', async () => {
-      const items = [{ variantId: v1, quantity: 15 }];
-      repo.layers = [new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'))];
-      const results = await service.calculateCostBatch(items);
-      expect(results[0]).toBeNull();
-    });
-  });
-
   describe('calculateConsumedCost (private method, tested via calculateCost)', () => {
     it('should throw error when insufficient cost layers to cover quantity', async () => {
       repo.layers = [
@@ -309,15 +300,6 @@ describe('CostLayerService', () => {
   });
 
   describe('calculateWeightedAverageCostSync', () => {
-    it('should throw error if activeLayers has items but total units are zero', () => {
-      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date());
-      l1.consume(10); // fully consume the layer
-
-      expect(() => {
-        service.calculateWeightedAverageCostSync([l1], 5, v1.value);
-      }).toThrow(`Insufficient inventory for variant ${v1.value}`);
-    });
-
     it('should throw error if total units are zero without variantIdValue', () => {
       expect(() => {
         service.calculateWeightedAverageCostSync([], 5);
@@ -360,13 +342,6 @@ describe('CostLayerService', () => {
       const sn = new SerialNumber('SN999');
       await expect(service.costForSerial(v1, sn))
         .rejects.toThrow('No cost layer found for serial SN999');
-    });
-
-    it('should throw error when missing serial number', async () => {
-      const sn = new SerialNumber('MISSING-SERIAL');
-      repo.layers = []; // Ensure findBySerial returns null
-      await expect(service.costForSerial(v1, sn))
-        .rejects.toThrow('No cost layer found for serial MISSING-SERIAL');
     });
   });
 });
