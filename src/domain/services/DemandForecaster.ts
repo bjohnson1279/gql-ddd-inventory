@@ -48,7 +48,7 @@ export class DemandForecaster {
     private readonly demandForecastRepo: IDemandForecastRepository
   ) {}
 
-  async calculateSalesVelocity(sku: Sku, locationId: LocationId, preFetchedStock?: number): Promise<SalesVelocityResult> {
+  async calculateSalesVelocity(sku: Sku, locationId: LocationId): Promise<SalesVelocityResult> {
     const product = await this.productRepo.findBySku(sku);
     if (!product) {
       throw new Error(`Product not found for SKU: ${sku.value}`);
@@ -74,11 +74,8 @@ export class DemandForecaster {
     const history30d = history90d.filter((r) => r.occurredAt.getTime() >= thirtyDaysAgoTime);
     const history7d = history30d.filter((r) => r.occurredAt.getTime() >= sevenDaysAgoTime);
 
-    let currentStock = preFetchedStock;
-    if (currentStock === undefined) {
-      const inventoryItem = await this.inventoryRepo.findBySkuAndLocation(sku.value, locationId.value);
-      currentStock = inventoryItem ? inventoryItem.quantity.value : 0;
-    }
+    const inventoryItem = await this.inventoryRepo.findBySkuAndLocation(sku.value, locationId.value);
+    const currentStock = inventoryItem ? inventoryItem.quantity.value : 0;
 
     const sum7d = history7d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
     const sum30d = history30d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
@@ -144,15 +141,15 @@ export class DemandForecaster {
   async getDemandPlanningReport(locationId: LocationId): Promise<DemandPlanningReportItem[]> {
     const inventoryItems = await this.inventoryRepo.findByLocation(locationId.value);
     const forecasts = await this.demandForecastRepo.findAllForLocation(locationId);
-    const policies = await this.replenishmentRuleRepo.findAllByLocation(locationId);
-    const policyMap = new Map(policies.map((p) => [p.sku.value, p]));
 
     const reportItemsPromises = inventoryItems.map(async (item) => {
       const skuStr = item.sku.value;
       const sku = new Sku(skuStr);
 
-      const velocity = await this.calculateSalesVelocity(sku, locationId, item.quantity.value);
-      const policy = policyMap.get(skuStr);
+      const [velocity, policy] = await Promise.all([
+        this.calculateSalesVelocity(sku, locationId),
+        this.replenishmentRuleRepo.findBySkuAndLocation(sku, locationId)
+      ]);
 
       const reorderPoint = policy ? policy.reorderPoint : 10;
       const reorderQuantity = policy ? policy.reorderQuantity : 20;

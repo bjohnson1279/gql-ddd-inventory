@@ -5,7 +5,6 @@ import { ConcurrencyError } from '../../domain/exceptions/DomainErrors';
 import { Sku } from '../../domain/valueObjects/Sku';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { Quantity } from '../../domain/valueObjects/Quantity';
-import { getTraceId } from '../telemetry/traceContext';
 
 export class PostgresInventoryRepository implements IInventoryRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -109,10 +108,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         await tx.outboxEvent.create({
           data: {
             eventType: event.constructor.name,
-            payload: JSON.stringify({
-              ...event,
-              traceId: (event as any).traceId || getTraceId()
-            }),
+            payload: JSON.stringify(event),
             status: 'Pending'
           }
         });
@@ -174,10 +170,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
           await tx.outboxEvent.create({
             data: {
               eventType: event.constructor.name,
-              payload: JSON.stringify({
-                ...event,
-                traceId: (event as any).traceId || getTraceId()
-              }),
+              payload: JSON.stringify(event),
               status: 'Pending'
             }
           });

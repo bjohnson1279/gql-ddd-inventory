@@ -37,10 +37,11 @@ export class GetStockValuationReportUseCase {
   }
 
   async execute(tenantId: string, locationId: string | null, method: CostingMethod = CostingMethod.FIFO): Promise<StockValuationReport> {
-    // Get inventory items (filtered by locationId at the database level if provided)
+    // Get all inventory items (optionally filtered by locationId)
+    const allItems = await this.inventoryRepo.findAll();
     const filteredItems = locationId
-      ? await this.inventoryRepo.findByLocation(locationId)
-      : await this.inventoryRepo.findAll();
+      ? allItems.filter(item => item.locationId.value === locationId)
+      : allItems;
 
     // Get unique SKUs
     const uniqueSkus = Array.from(new Set(filteredItems.map(item => item.sku.value)));
@@ -59,27 +60,15 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
-    // Prepare items for batch cost calculation
-    const validItems: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
     for (const invItem of filteredItems) {
+      // Quantity is a value object — use .value to get the raw number
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
 
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      validItems.push({
-        invItem,
-        variantIdStr,
-        qtyOnHand,
-        variantId: new ProductVariantId(variantIdStr),
-      });
-    }
-
-    // Process results iteratively instead of relying on calculateCostBatch returning null
-    // to allow mocking costLayerService.calculateCost to throw, per the issue requirements.
-    for (let i = 0; i < validItems.length; i++) {
-      const { invItem, variantIdStr, qtyOnHand, variantId } = validItems[i];
+      const variantId = new ProductVariantId(variantIdStr);
 
       try {
         const costBreakdown = await this.costLayerService.calculateCost(variantId, qtyOnHand, method);

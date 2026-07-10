@@ -55,10 +55,4 @@ export class InMemoryReplenishmentRuleRepository implements IReplenishmentRuleRe
       .filter((r) => r.tenantId.equals(tenantId))
       .map((r) => this.cloneRule(r));
   }
-
-  async findAllByLocation(locationId: LocationId): Promise<ReplenishmentRule[]> {
-    return Array.from(this.rules.values())
-      .filter((r) => r.locationId.equals(locationId))
-      .map((r) => this.cloneRule(r));
-  }
 }

@@ -113,6 +113,47 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
     });
   }
 
+  async findBySerialsAndVariantsBatch(pairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[]): Promise<SerializedItem[]> {
+    if (pairs.length === 0) return [];
+
+    const models = await this.prisma.serializedItem.findMany({
+      where: {
+        OR: pairs.map((pair) => ({
+          serialNumber: pair.serialNumber.value,
+          variantId: pair.variantId.value,
+        })),
+      },
+      include: {
+        history: { orderBy: { occurredAt: 'asc' } },
+      },
+    });
+
+    return models.map((model) => {
+      const item = new SerializedItem(
+        new SerializedItemId(model.id),
+        new ProductVariantId(model.variantId),
+        new SerialNumber(model.serialNumber),
+        new TenantId(model.tenantId),
+        new LocationId(model.locationId),
+        model.status as SerializedItemStatus
+      );
+
+      (item as any)._history = model.history.map(
+        (h) =>
+          new StatusTransition(
+            h.fromStatus as SerializedItemStatus,
+            h.toStatus as SerializedItemStatus,
+            h.reason || '',
+            new ActorId(h.actorId),
+            h.occurredAt,
+            h.referenceId || undefined
+          )
+      );
+
+      return item;
+    });
+  }
+
   async findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null> {
     const model = await this.prisma.serializedItem.findFirst({
       where: {
@@ -148,43 +189,6 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
     );
 
     return item;
-  }
-
-  async findManyBySerialsAndVariant(serialNumbers: SerialNumber[], variantId: ProductVariantId): Promise<SerializedItem[]> {
-    const models = await this.prisma.serializedItem.findMany({
-      where: {
-        variantId: variantId.value,
-        serialNumber: { in: serialNumbers.map((s) => s.value) },
-      },
-      include: {
-        history: { orderBy: { occurredAt: 'asc' } },
-      },
-    });
-
-    return models.map((model) => {
-      const item = new SerializedItem(
-        new SerializedItemId(model.id),
-        new ProductVariantId(model.variantId),
-        new SerialNumber(model.serialNumber),
-        new TenantId(model.tenantId),
-        new LocationId(model.locationId),
-        model.status as SerializedItemStatus
-      );
-
-      (item as any)._history = model.history.map(
-        (h: any) =>
-          new StatusTransition(
-            h.fromStatus as SerializedItemStatus,
-            h.toStatus as SerializedItemStatus,
-            h.reason || '',
-            new ActorId(h.actorId),
-            h.occurredAt,
-            h.referenceId || undefined
-          )
-      );
-
-      return item;
-    });
   }
 
   async findByVariantId(variantId: ProductVariantId, tenantId: TenantId): Promise<SerializedItem[]> {

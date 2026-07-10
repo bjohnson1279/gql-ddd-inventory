@@ -31,8 +31,11 @@ describe('ManageReturns Use Cases', () => {
 } as unknown as jest.Mocked<IQuarantineRepository>;
       mockJournalRepo = {} as unknown as jest.Mocked<IJournalRepository>;
       mockProductRepo = {} as unknown as jest.Mocked<IProductRepository>;
-      mockSerializedItemRepo = {  saveBatch: jest.fn(),
-} as unknown as jest.Mocked<ISerializedItemRepository>;
+      mockSerializedItemRepo = {
+        saveBatch: jest.fn(),
+        findBySerialsAndVariantsBatch: jest.fn(),
+        findBySerial: jest.fn(),
+      } as unknown as jest.Mocked<ISerializedItemRepository>;
     });
 
     it('should throw an error if RMA is not found', async () => {

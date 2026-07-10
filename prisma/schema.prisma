@@ -294,34 +294,6 @@ model OutboxEvent {
   @@map("outbox_events")
 }
 
-model WebhookSubscription {
-  id         String   @id @default(uuid())
-  tenantId   String   @map("tenant_id")
-  targetUrl  String   @map("target_url")
-  secret     String
-  eventTypes String[] @map("event_types")
-  isActive   Boolean  @default(true) @map("is_active")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  @@map("webhook_subscriptions")
-}
-
-model WebhookDelivery {
-  id             String    @id @default(uuid())
-  tenantId       String    @map("tenant_id")
-  subscriptionId String    @map("subscription_id")
-  eventType      String    @map("event_type")
-  payload        String    @db.Text
-  status         String    @default("Pending")
-  attempts       Int       @default(0)
-  lastError      String?   @map("last_error") @db.Text
-  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz
-  processedAt    DateTime? @map("processed_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-
-  @@map("webhook_deliveries")
-}
-
 model WarehouseLocation {
   id                   String   @id // e.g. "WH1-ZONEA-A03-R02-S01-B10"
   warehouseId          String   @map("warehouse_id")
