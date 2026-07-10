@@ -300,6 +300,15 @@ describe('CostLayerService', () => {
   });
 
   describe('calculateWeightedAverageCostSync', () => {
+    it('should throw error if activeLayers has items but total units are zero', () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date());
+      l1.consume(10); // fully consume the layer
+
+      expect(() => {
+        service.calculateWeightedAverageCostSync([l1], 5, v1.value);
+      }).toThrow(`Insufficient inventory for variant ${v1.value}`);
+    });
+
     it('should throw error if total units are zero without variantIdValue', () => {
       expect(() => {
         service.calculateWeightedAverageCostSync([], 5);
