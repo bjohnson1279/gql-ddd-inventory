@@ -211,6 +211,15 @@ describe('CostLayerService', () => {
     });
   });
 
+  describe('calculateCostBatch', () => {
+    it('should catch error when insufficient cost layers to cover quantity and set result to null', async () => {
+      const items = [{ variantId: v1, quantity: 15 }];
+      repo.layers = [new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'))];
+      const results = await service.calculateCostBatch(items);
+      expect(results[0]).toBeNull();
+    });
+  });
+
   describe('calculateConsumedCost (private method, tested via calculateCost)', () => {
     it('should throw error when insufficient cost layers to cover quantity', async () => {
       repo.layers = [
