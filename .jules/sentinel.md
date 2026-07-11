@@ -130,3 +130,7 @@
 **Vulnerability:** The `deserializeEvent` function in `OutboxWorker.ts` dynamically reconstructs objects from parsed JSON payloads using `Object.assign(event, payload)`. This makes the application susceptible to Prototype Pollution, as malicious actors could craft payloads with `__proto__`, `constructor`, or `prototype` keys to override default object properties or methods.
 **Learning:** Using `Object.assign` to copy properties from externally provided or parsed JSON payloads onto newly instantiated objects without filtering exposes the application to Prototype Pollution.
 **Prevention:** Replace dangerous `Object.assign` calls with explicit iteration over payload keys, blocking known dangerous keys (`__proto__`, `constructor`, `prototype`) from being copied.
+## 2026-07-11 - Insecure Prisma Raw SQL Methods
+**Vulnerability:** SQL Injection via Prisma's $queryRawUnsafe and $executeRawUnsafe even when using manual positional parameters (e.g. $1).
+**Learning:** Prisma's 'Unsafe' raw methods intentionally bypass parameterization, making manual positional parameters insecure. The built-in tagged template literals must be used instead.
+**Prevention:** Always use $queryRaw and $executeRaw tagged template literals to automatically and securely parameterize inputs.
