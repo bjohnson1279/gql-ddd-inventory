@@ -142,6 +142,28 @@ export class ReceiveRmaUseCase {
     const quarantineItemsToSave: QuarantineItem[] = [];
     const serializedItemsToSave: SerializedItem[] = [];
 
+    // Batch Serialized Item Lookups
+    const serialPairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[] = [];
+    for (const item of dto.items) {
+      if (item.serialNumbers) {
+        for (const sn of item.serialNumbers) {
+          serialPairs.push({
+            serialNumber: new SerialNumber(sn),
+            variantId: new ProductVariantId(item.variantId)
+          });
+        }
+      }
+    }
+
+    const existingSerialItemsList = this.serializedItemRepository && serialPairs.length > 0
+      ? await this.serializedItemRepository.findBySerialsAndVariantsBatch(serialPairs)
+      : [];
+
+    const existingSerialItems = new Map<string, SerializedItem>();
+    for (const item of existingSerialItemsList) {
+      existingSerialItems.set(`${item.variantId.value}_${item.serialNumber.value}`, item);
+    }
+
     for (const item of dto.items) {
       const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
       if (!rmaItem) {
@@ -225,7 +247,7 @@ export class ReceiveRmaUseCase {
       if (item.serialNumbers && this.serializedItemRepository) {
         for (const sn of item.serialNumbers) {
           const serialObj = new SerialNumber(sn);
-          const serialItem = await this.serializedItemRepository!.findBySerial(new ProductVariantId(item.variantId), serialObj);
+          const serialItem = existingSerialItems.get(`${item.variantId}_${serialObj.value}`);
           if (serialItem) {
             const actor = new ActorId('system');
             const refId = `RMA-${rma.id}`;
