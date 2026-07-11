@@ -231,8 +231,7 @@ export class ReceiveRmaUseCase {
         // Decrement stock level
         invItem.dispatchStock(new Quantity(item.quantityReceived));
 
-        // Consume the cost layer
-        await this.costLayerService.consumeFifoLayers(new ProductVariantId(item.variantId), item.quantityReceived);
+        // We will batch the cost layer consumption outside the loop
 
         // Post write-off journal entry
         await this.journalService.onInventoryWriteOff(
@@ -267,6 +266,15 @@ export class ReceiveRmaUseCase {
           }
         }
       }
+    }
+
+    const scrapItems = dto.items.filter(item => item.disposition === RMADisposition.Scrap).map(item => ({
+      variantId: new ProductVariantId(item.variantId),
+      quantity: item.quantityReceived
+    }));
+
+    if (scrapItems.length > 0) {
+      await this.costLayerService.consumeFifoLayersBatch(scrapItems);
     }
 
     if (itemsToSave.size > 0) {
