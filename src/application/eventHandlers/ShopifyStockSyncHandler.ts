@@ -1,5 +1,6 @@
 import { ShopifyStockSyncRequested } from '../../domain/events/InventoryEvents';
 import { prisma } from '../../infrastructure/persistence/prismaClient';
+import { validateOutboundUrl } from '../../utils/urlValidator';
 
 export class ShopifyStockSyncHandler {
   async handle(event: ShopifyStockSyncRequested): Promise<void> {
@@ -36,7 +37,7 @@ export class ShopifyStockSyncHandler {
     for (const conn of connections) {
       if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock')) {
         const response = await fetch(
-          `https://${conn.storeDomain}/admin/api/2024-04/graphql.json`,
+          validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
           {
             method: 'POST',
             headers: {

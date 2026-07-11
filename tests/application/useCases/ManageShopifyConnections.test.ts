@@ -48,7 +48,7 @@ describe('ManageShopifyConnections Use Cases', () => {
         tenantId: 'tenant-123',
         storeDomain: 'invalid-domain.com',
         accessToken: 'shpat_1234567890',
-      })).rejects.toThrow('Invalid store domain. Must be a .myshopify.com domain.');
+      })).rejects.toThrow('Invalid store domain. Must end with .myshopify.com.');
 
       expect(integrationRepo.save).not.toHaveBeenCalled();
     });

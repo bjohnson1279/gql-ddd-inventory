@@ -31,7 +31,7 @@ describe('IntegrationConnection', () => {
         'invalid-domain.com',
         'shpat_1234567890'
       );
-    }).toThrow('Invalid store domain. Must be a .myshopify.com domain.');
+    }).toThrow('Invalid store domain. Must end with .myshopify.com.');
   });
 
   it('should throw an error if the access token is empty', () => {
