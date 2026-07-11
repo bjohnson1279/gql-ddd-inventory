@@ -73,3 +73,6 @@
 ## 2026-06-30 - Avoid N+1 Queries in RMA Receipts for Serialized Items
 **Learning:** Iterating over RMA items and calling `.findBySerial()` individually on the `serializedItemRepository` inside the loop in `ReceiveRmaUseCase` creates a significant N+1 query performance bottleneck when returning large quantities of serialized items.
 **Action:** When handling arrays of serialized items within loop iterations, pre-collect the serial numbers and variant IDs, fetch the entities in bulk using `.findBySerialsAndVariantsBatch()`, map them by `variantId_serialNumber` for O(1) lookups, and use the map instead of isolated repository fetches.
+## 2024-07-11 - Batch Cost Layer Consumption in RMA Returns
+**Learning:** Sequential calls to `consumeFifoLayers` inside a loop can lead to N+1 database queries when multiple items are scrapped during an RMA return. The `CostLayerService` exposes a `consumeFifoLayersBatch` method that mitigates this by pre-fetching active layers for all target variants.
+**Action:** Use batch methods (e.g. `consumeFifoLayersBatch`) outside loops when processing arrays of domain objects.
