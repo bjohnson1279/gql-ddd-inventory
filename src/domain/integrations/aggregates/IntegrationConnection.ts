@@ -11,8 +11,8 @@ export class IntegrationConnection {
     public readonly accessToken: string,
     private _isActive: boolean = true
   ) {
-    if (!storeDomain.includes('.myshopify.com')) {
-        throw new Error('Invalid store domain. Must be a .myshopify.com domain.');
+    if (!storeDomain.endsWith('.myshopify.com')) {
+        throw new Error('Invalid store domain. Must end with .myshopify.com.');
     }
     if (!accessToken || accessToken.trim() === '') {
         throw new Error('Access token cannot be empty.');

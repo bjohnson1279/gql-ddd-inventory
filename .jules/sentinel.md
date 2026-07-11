@@ -134,3 +134,8 @@
 **Vulnerability:** SQL Injection via Prisma's $queryRawUnsafe and $executeRawUnsafe even when using manual positional parameters (e.g. $1).
 **Learning:** Prisma's 'Unsafe' raw methods intentionally bypass parameterization, making manual positional parameters insecure. The built-in tagged template literals must be used instead.
 **Prevention:** Always use $queryRaw and $executeRaw tagged template literals to automatically and securely parameterize inputs.
+
+## 2026-07-11 - Prevent SSRF in Webhook integrations
+**Vulnerability:** External integration domains (like Shopify) were being passed directly to `fetch` and only checked via `includes`, which allowed bypassing the filter (e.g. `169.254.169.254?.myshopify.com`) leading to potential SSRF on internal infrastructure.
+**Learning:** Relying on simple string matching (like `includes('.myshopify.com')`) is insufficient for URL safety. Malicious users can embed necessary strings in query parameters, causing unintended external or internal connections.
+**Prevention:** To prevent Server-Side Request Forgery (SSRF) vulnerabilities in outbound HTTP requests, always validate user-provided URLs by parsing them (`new URL()`), enforcing allowed protocols, and explicitly blocking internal hostnames, loopback addresses, and private network IPs.

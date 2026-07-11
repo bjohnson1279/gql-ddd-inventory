@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
 import crypto from 'crypto';
+import { validateOutboundUrl } from '../../utils/urlValidator';
 
 export class AuditProcessorService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -43,7 +44,7 @@ export class AuditProcessorService {
             const batchIds = externalItemIds.slice(i, i + chunkSize);
             try {
               const response = await fetch(
-                `https://${conn.storeDomain}/admin/api/2024-04/graphql.json`,
+                validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
                 {
                   method: 'POST',
                   headers: {
