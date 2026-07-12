@@ -139,3 +139,7 @@
 **Vulnerability:** External integration domains (like Shopify) were being passed directly to `fetch` and only checked via `includes`, which allowed bypassing the filter (e.g. `169.254.169.254?.myshopify.com`) leading to potential SSRF on internal infrastructure.
 **Learning:** Relying on simple string matching (like `includes('.myshopify.com')`) is insufficient for URL safety. Malicious users can embed necessary strings in query parameters, causing unintended external or internal connections.
 **Prevention:** To prevent Server-Side Request Forgery (SSRF) vulnerabilities in outbound HTTP requests, always validate user-provided URLs by parsing them (`new URL()`), enforcing allowed protocols, and explicitly blocking internal hostnames, loopback addresses, and private network IPs.
+## 2024-05-18 - [SSRF Bypass via Node.js URL Normalization]
+**Vulnerability:** Basic string matching for IPv4 loopback (`startsWith("127.")`) on `URL.hostname` fails to block IPv6 equivalents like `::1`, `::`, and IPv4-mapped IPv6 addresses (`::ffff:127.0.0.1`), allowing SSRF.
+**Learning:** Node.js `URL` normalizes IPv4-mapped IPv6 addresses into compressed hex (e.g., `[::ffff:7f00:1]`) and wraps all IPv6 addresses in brackets `[]`, bypassing naive string checks. Furthermore, ULA prefixes (`fc00::/7`) span both `fc00:` and `fd00:` hex ranges.
+**Prevention:** Explicitly strip brackets from `URL.hostname` and validate normalized IPv6 loopback, unspecified, link-local, and ULA prefixes alongside IPv4.
