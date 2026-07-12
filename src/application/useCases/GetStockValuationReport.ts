@@ -60,18 +60,35 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
+    const itemsToCalculate: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
+
     for (const invItem of filteredItems) {
-      // Quantity is a value object — use .value to get the raw number
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
 
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      const variantId = new ProductVariantId(variantIdStr);
+      itemsToCalculate.push({
+        invItem,
+        variantIdStr,
+        qtyOnHand,
+        variantId: new ProductVariantId(variantIdStr)
+      });
+    }
 
-      try {
-        const costBreakdown = await this.costLayerService.calculateCost(variantId, qtyOnHand, method);
+    const batchRequest = itemsToCalculate.map(item => ({
+      variantId: item.variantId,
+      quantity: item.qtyOnHand
+    }));
+
+    const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
+
+    for (let i = 0; i < itemsToCalculate.length; i++) {
+      const { invItem, variantIdStr, qtyOnHand } = itemsToCalculate[i];
+      const costBreakdown = batchResults[i];
+
+      if (costBreakdown) {
         const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
 
         lineItems.push({
@@ -85,7 +102,7 @@ export class GetStockValuationReportUseCase {
         });
 
         totalValueCents += costBreakdown.totalCostCents;
-      } catch {
+      } else {
         // No cost layers exist for this variant — include with $0 value
         lineItems.push({
           sku: invItem.sku.value,
