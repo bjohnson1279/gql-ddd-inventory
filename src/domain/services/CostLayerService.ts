@@ -8,6 +8,58 @@ import { CostingMethod } from '../enums/AccountingEnums';
 export class CostLayerService {
   constructor(private readonly layers: IInventoryCostLayerRepository) {}
 
+  async calculateCostBatch(
+    items: { variantId: ProductVariantId; quantity: number }[],
+    globalMethod: CostingMethod = CostingMethod.FIFO,
+    methodsMap?: Map<string, CostingMethod>
+  ): Promise<(CostBreakdown | null)[]> {
+    const methodGroups = new Map<CostingMethod, { item: { variantId: ProductVariantId; quantity: number }, index: number }[]>();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const method = methodsMap?.get(item.variantId.value) || globalMethod;
+      const list = methodGroups.get(method) || [];
+      list.push({ item, index: i });
+      methodGroups.set(method, list);
+    }
+
+    const results: (CostBreakdown | null)[] = new Array(items.length).fill(null);
+
+    for (const [method, groupItems] of methodGroups.entries()) {
+      const variantIds = groupItems.map(g => g.item.variantId);
+
+      if (method === CostingMethod.WeightedAverageCost) {
+        const activeLayersMap = await this.layers.getActiveLayersBatch(variantIds);
+        for (const g of groupItems) {
+          try {
+            const activeLayers = activeLayersMap.get(g.item.variantId.value) || [];
+            results[g.index] = this.calculateWeightedAverageCostSync(activeLayers, g.item.quantity, g.item.variantId.value);
+          } catch (e) {
+            results[g.index] = null;
+          }
+        }
+      } else {
+        const orderStr = method === CostingMethod.FEFO
+          ? 'expiration_date ASC'
+          : method === CostingMethod.LIFO
+            ? 'received_at DESC'
+            : 'received_at ASC';
+
+        const activeLayersMap = await this.layers.getActiveLayersBatch(variantIds, orderStr);
+
+        for (const g of groupItems) {
+          try {
+            const activeLayers = activeLayersMap.get(g.item.variantId.value) || [];
+            results[g.index] = this.calculateConsumedCost(activeLayers, g.item.quantity);
+          } catch (e) {
+            results[g.index] = null;
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
   async calculateCost(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
     if (method === CostingMethod.WeightedAverageCost) {
       return this.calculateWeightedAverageCost(variantId, quantity);
