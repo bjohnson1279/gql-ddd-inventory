@@ -114,6 +114,12 @@ import {
   GetStockTransfersUseCase,
   GetStockTransferByIdUseCase
 } from '../../application/useCases/ManageStockTransfers';
+import {
+  CalculateShippingRatesUseCase,
+  PurchaseShippingLabelUseCase,
+  UpdateShipmentStatusUseCase,
+  GetShipmentsUseCase
+} from '../../application/useCases/ManageShipping';
 import { RouteOrder } from '../../application/useCases/RouteOrder';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { PostgresReplenishmentRuleRepository } from '../persistence/PostgresReplenishmentRuleRepository';
@@ -234,10 +240,6 @@ class _CarrierService {
 
   async purchaseLabel(_: any): Promise<any> { return { trackingNumber: '', labelUrl: '', cost: 0 }; }
 }
-const CalculateShippingRatesUseCase = class { constructor(private s: any) {} execute = async (sku: string, qty: number, dest: string) => this.s.getRates(sku, qty, dest); };
-const PurchaseShippingLabelUseCase = class { constructor(private r: any, private s: any, private i: any, private j: any, private e: any) {} execute = async (i: any) => this.s.purchaseLabel(i); };
-const UpdateShipmentStatusUseCase = class { constructor(private r: any, private e: any) {} execute = async (id: string, status: string) => { await this.r.update({ id, status }); return true; }; };
-const GetShipmentsUseCase = class { constructor(private r: any) {} execute = async () => this.r.findAll(); };
 // ─────────────────────────────────────────────────────────────────────────────
 // DB Repositories
 const inventoryRepository = new PostgresInventoryRepository(prisma);
