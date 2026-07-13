@@ -1,5 +1,6 @@
 import { prisma } from '../persistence/prismaClient';
 import crypto from 'crypto';
+import { validateOutboundUrl } from '../../utils/urlValidator';
 
 export class WebhookDeliveryWorker {
   private static isRunning = false;
@@ -54,26 +55,18 @@ export class WebhookDeliveryWorker {
           }
 
           // SSRF Protection: Validate target URL
-          let parsedUrl;
           try {
-            parsedUrl = new URL(subscription.targetUrl);
-          } catch (e) {
-            throw new Error(`Invalid URL format`);
-          }
-
-          if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-            throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
-          }
-
-          const hostname = parsedUrl.hostname;
-          const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.') || hostname === '::1';
-          const isPrivateIP = /^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^192\.168\.|^169\.254\./.test(hostname);
-
-          if (isLocalhost || isPrivateIP) {
-            // Only allow localhost if in development environment
             if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
-               throw new Error(`SSRF Blocked: Cannot send webhooks to local, private, or loopback addresses.`);
+              validateOutboundUrl(subscription.targetUrl);
+            } else {
+              // In test/dev we still need basic protocol checking
+              const parsedUrl = new URL(subscription.targetUrl);
+              if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+                throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
+              }
             }
+          } catch (e: any) {
+            throw new Error(e.message || 'Invalid URL format');
           }
 
           // Calculate signature
