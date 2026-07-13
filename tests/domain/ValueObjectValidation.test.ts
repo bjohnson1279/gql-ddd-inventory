@@ -73,13 +73,31 @@ describe('Domain Validation Suite', () => {
       expect(() => new Sku('INVALID SKU!')).toThrow('alphanumeric characters and hyphens');
     });
 
-    it('Barcode should validate symbology-specific rules', () => {
+    it('Barcode should validate symbology-specific length rules', () => {
       expect(() => new Barcode(BarcodeSymbology.UPC_A, '123')).toThrow('must be exactly 12 digits');
       expect(() => new Barcode(BarcodeSymbology.EAN_13, '123')).toThrow('must be exactly 13 digits');
       expect(() => new Barcode(BarcodeSymbology.EAN_8, '123')).toThrow('must be exactly 8 digits');
       expect(() => new Barcode(BarcodeSymbology.UPC_E, '123')).toThrow('must be exactly 8 digits');
       expect(() => new Barcode(BarcodeSymbology.ITF_14, '123')).toThrow('must be exactly 14 digits');
       expect(() => new Barcode(BarcodeSymbology.CODE_128, '')).toThrow('cannot be empty');
+    });
+
+    it('Barcode should validate symbology-specific numeric rules', () => {
+      expect(() => new Barcode(BarcodeSymbology.UPC_A, '12345678901A')).toThrow('must contain only digits');
+      expect(() => new Barcode(BarcodeSymbology.EAN_13, '123456789012A')).toThrow('must contain only digits');
+      expect(() => new Barcode(BarcodeSymbology.EAN_8, '1234567A')).toThrow('must contain only digits');
+      expect(() => new Barcode(BarcodeSymbology.UPC_E, '1234567A')).toThrow('must contain only digits');
+      expect(() => new Barcode(BarcodeSymbology.ITF_14, '1234567890123A')).toThrow('must contain only digits');
+    });
+
+    it('Barcode should allow valid symbology inputs', () => {
+      expect(new Barcode(BarcodeSymbology.UPC_A, '123456789012').value).toBe('123456789012');
+      expect(new Barcode(BarcodeSymbology.EAN_13, '1234567890123').value).toBe('1234567890123');
+      expect(new Barcode(BarcodeSymbology.EAN_8, '12345678').value).toBe('12345678');
+      expect(new Barcode(BarcodeSymbology.UPC_E, '12345678').value).toBe('12345678');
+      expect(new Barcode(BarcodeSymbology.ITF_14, '12345678901234').value).toBe('12345678901234');
+      expect(new Barcode(BarcodeSymbology.CODE_128, 'VALID-128').value).toBe('VALID-128');
+      expect(new Barcode(BarcodeSymbology.QR, 'ANYTHING_GOES').value).toBe('ANYTHING_GOES');
     });
 
     it('Quantity should throw error for negative amount', () => {
