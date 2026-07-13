@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, QuarantineItem as PrismaQuarantineItem } from '@prisma/client';
 import { IQuarantineRepository } from '../../domain/repositories/IQuarantineRepository';
 import { QuarantineItem } from '../../domain/entities/QuarantineItem';
 import { TenantId } from '../../domain/valueObjects/TenantId';
@@ -17,7 +17,7 @@ function toUuid(id: string): string {
 export class PostgresQuarantineRepository implements IQuarantineRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private mapToDomain(record: any): QuarantineItem {
+  private mapToDomain(record: PrismaQuarantineItem): QuarantineItem {
     return new QuarantineItem(
       record.id,
       new ProductVariantId(record.variantId),
@@ -46,7 +46,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
       where: { tenantId: tenantId.value },
       orderBy: { createdAt: 'desc' },
     });
-    return records.map((record: any) => this.mapToDomain(record));
+    return records.map((record: PrismaQuarantineItem) => this.mapToDomain(record));
   }
 
   async save(item: QuarantineItem): Promise<void> {
