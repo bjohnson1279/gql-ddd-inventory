@@ -52,6 +52,22 @@ describe('SubmitInventoryCountUseCase', () => {
       expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
     });
 
+    it('should return empty array and skip capacity check if counts input is empty and capacity service is provided', async () => {
+      const useCaseWithCapacity = new SubmitInventoryCountUseCase(
+        mockInventoryRepo,
+        mockEventDispatcher,
+        mockCapacityService
+      );
+
+      const result = await useCaseWithCapacity.execute([]);
+
+      expect(result).toEqual([]);
+      expect(mockCapacityService.validateCapacity).not.toHaveBeenCalled();
+      expect(mockInventoryRepo.findBySkuAndLocationBatch).not.toHaveBeenCalled();
+      expect(mockInventoryRepo.saveBatch).not.toHaveBeenCalled();
+      expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
+    });
+
     it('should reconcile stock for existing items successfully (happy path)', async () => {
       const item1 = new InventoryItem('1', new Sku('SKU1'), new LocationId('LOC1'), new Quantity(10));
       const item2 = new InventoryItem('2', new Sku('SKU2'), new LocationId('LOC2'), new Quantity(5));
