@@ -52,6 +52,34 @@ describe('ManageTenantAccountingConfig UseCases', () => {
         costingMethod: CostingMethod.LIFO,
       });
     });
+
+    it('should handle database errors when finding unique config', async () => {
+      const dbError = new Error('Database connection failed');
+      prismaMock.tenantAccountingConfig.findUnique.mockRejectedValue(dbError);
+
+      const useCase = new GetTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+
+      await expect(useCase.execute('tenant-3')).rejects.toThrow('Database connection failed');
+      expect(prismaMock.tenantAccountingConfig.findUnique).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-3' },
+      });
+    });
+
+    it('should gracefully handle empty string for tenantId', async () => {
+      prismaMock.tenantAccountingConfig.findUnique.mockResolvedValue(null);
+
+      const useCase = new GetTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const result = await useCase.execute('');
+
+      expect(prismaMock.tenantAccountingConfig.findUnique).toHaveBeenCalledWith({
+        where: { tenantId: '' },
+      });
+      expect(result).toEqual({
+        tenantId: '',
+        accountingMethod: AccountingMethod.Accrual,
+        costingMethod: CostingMethod.FIFO,
+      });
+    });
   });
 
   describe('SaveTenantAccountingConfigUseCase', () => {
