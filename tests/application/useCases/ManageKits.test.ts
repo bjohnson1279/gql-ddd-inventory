@@ -1,4 +1,4 @@
-import { AssembleKitUseCase, DisassembleKitUseCase, SellKitUseCase, CreateKitUseCase } from '../../../src/application/useCases/ManageKits';
+import { AssembleKitUseCase, DisassembleKitUseCase, SellKitUseCase, CreateKitUseCase, AddKitComponentUseCase } from '../../../src/application/useCases/ManageKits';
 import { IKitRepository } from '../../../src/domain/repositories/IKitRepository';
 import { IProductRepository } from '../../../src/domain/repositories/IProductRepository';
 import { ILedgerRepository } from '../../../src/domain/repositories/ILedgerRepository';
@@ -297,6 +297,49 @@ describe('ManageKits Use Cases', () => {
       const result = await useCase.execute(input);
       expect(result).toBe(true);
       expect(mockInventoryService.decrementForKitSale).toHaveBeenCalled();
+    });
+  });
+
+
+  describe('AddKitComponentUseCase', () => {
+    it('successfully adds a component to an existing kit', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+
+      const kitIdStr = 'K1';
+      const variantIdStr = 'V1';
+      const quantity = 3;
+
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      kitRepo.findById.mockResolvedValue(kit);
+
+      const result = await useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr,
+        quantity
+      });
+
+      expect(result).toBe(true);
+      expect(kitRepo.findById).toHaveBeenCalledWith(expect.any(KitId));
+      expect(kitRepo.findById.mock.calls[0][0].value).toBe(kitIdStr);
+
+      expect(kitRepo.save).toHaveBeenCalled();
+      const savedKit = kitRepo.save.mock.calls[0][0];
+      expect(savedKit.components).toHaveLength(1);
+      expect(savedKit.components[0].variantId.value).toBe(variantIdStr);
+      expect(savedKit.components[0].quantity).toBe(quantity);
+    });
+
+    it('throws an error if the kit is not found', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+      kitRepo.findById.mockResolvedValue(null);
+
+      await expect(useCase.execute({
+        kitId: 'K99',
+        variantId: 'V1',
+        quantity: 1
+      })).rejects.toThrow("Kit with ID 'K99' not found.");
+
+      expect(kitRepo.save).not.toHaveBeenCalled();
     });
   });
 
