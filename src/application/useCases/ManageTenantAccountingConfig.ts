@@ -1,5 +1,6 @@
 import { CostingMethod, AccountingMethod } from '../../domain/enums/AccountingEnums';
 import { PrismaClient } from '@prisma/client';
+import { InvalidOperationError } from '../../domain/exceptions/DomainErrors';
 
 export interface TenantAccountingConfigDTO {
   tenantId: string;
@@ -33,6 +34,18 @@ export class SaveTenantAccountingConfigUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(input: TenantAccountingConfigDTO): Promise<boolean> {
+    if (!input.tenantId || input.tenantId.trim() === '') {
+      throw new InvalidOperationError('tenantId is required');
+    }
+
+    if (!Object.values(AccountingMethod).includes(input.accountingMethod)) {
+      throw new InvalidOperationError(`Invalid accounting method: ${input.accountingMethod}`);
+    }
+
+    if (!Object.values(CostingMethod).includes(input.costingMethod)) {
+      throw new InvalidOperationError(`Invalid costing method: ${input.costingMethod}`);
+    }
+
     await this.prisma.tenantAccountingConfig.upsert({
       where: { tenantId: input.tenantId },
       create: {
