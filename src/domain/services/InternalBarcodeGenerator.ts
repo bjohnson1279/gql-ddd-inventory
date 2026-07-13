@@ -27,8 +27,8 @@ export class InternalBarcodeGenerator {
   }
 
   private buildValue(sku: Sku, tenantId: TenantId, salt: number): string {
-    const tenantHash = crypto.createHash('md5').update(tenantId.value).digest('hex');
-    const skuHash = crypto.createHash('md5').update(sku.value + salt).digest('hex');
+    const tenantHash = crypto.createHash('sha256').update(tenantId.value).digest('hex');
+    const skuHash = crypto.createHash('sha256').update(sku.value + salt).digest('hex');
 
     const tenantFragment = tenantHash.substring(0, 4).toUpperCase();
     const skuFragment = skuHash.substring(0, 8).toUpperCase();
