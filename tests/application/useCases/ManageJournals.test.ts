@@ -11,6 +11,7 @@ describe('ManageJournals Use Cases', () => {
   beforeEach(() => {
     mockJournalRepo = {
       save: jest.fn(),
+      saveBatch: jest.fn(),
       findById: jest.fn(),
       findAllByTenant: jest.fn()
     };

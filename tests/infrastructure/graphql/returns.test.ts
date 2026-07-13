@@ -85,6 +85,11 @@ jest.mock('../../../src/infrastructure/persistence/PostgresJournalRepository', (
     const map = new Map();
     return {
       save: jest.fn(async (entry) => { map.set(entry.id.value, entry); }),
+      saveBatch: jest.fn(async (entries) => {
+        for (const entry of entries) {
+          map.set(entry.id.value, entry);
+        }
+      }),
       findById: jest.fn(async (id) => map.get(id.value) || null),
       findAllByTenant: jest.fn(async (tenantId) => Array.from(map.values()).filter((e: any) => e.tenantId.equals(tenantId) || e.tenantId.value === tenantId))
     };

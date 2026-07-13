@@ -69,6 +69,7 @@ describe('ManageKits Use Cases', () => {
 
     journalRepo = {
       save: jest.fn(),
+      saveBatch: jest.fn(),
       findById: jest.fn(),
       findAllByTenant: jest.fn(),
     };
