@@ -16,7 +16,19 @@ export class AccountingJournalService {
     date: Date,
     tenantId: string
   ): Promise<JournalEntry> {
-    return this.createEntry(
+    const entry = this.buildStockReturned(variantId, totalCostCents, referenceId, date, tenantId);
+    await this.journalRepo.save(entry);
+    return entry;
+  }
+
+  public buildStockReturned(
+    variantId: string,
+    totalCostCents: number,
+    referenceId: string,
+    date: Date,
+    tenantId: string
+  ): JournalEntry {
+    return this.buildEntry(
       tenantId,
       date,
       `Inventory return receipt — variant ${variantId} — reference ${referenceId}`,
@@ -35,7 +47,18 @@ export class AccountingJournalService {
     date: Date,
     tenantId: string
   ): Promise<JournalEntry> {
-    return this.createEntry(
+    const entry = this.buildInventoryWriteOff(referenceId, totalCostCents, date, tenantId);
+    await this.journalRepo.save(entry);
+    return entry;
+  }
+
+  public buildInventoryWriteOff(
+    referenceId: string,
+    totalCostCents: number,
+    date: Date,
+    tenantId: string
+  ): JournalEntry {
+    return this.buildEntry(
       tenantId,
       date,
       `Inventory Write-Off — Ref ${referenceId}`,
@@ -85,6 +108,25 @@ export class AccountingJournalService {
     method: AccountingMethod,
     lines: [AccountCode, number, DebitCredit, string][]
   ): Promise<JournalEntry> {
+    const entry = this.buildEntry(tenantId, date, description, referenceId, method, lines);
+    await this.journalRepo.save(entry);
+    return entry;
+  }
+
+  public async saveBatch(entries: JournalEntry[]): Promise<void> {
+    if (entries.length > 0) {
+      await this.journalRepo.saveBatch(entries);
+    }
+  }
+
+  public buildEntry(
+    tenantId: string,
+    date: Date,
+    description: string,
+    referenceId: string | null,
+    method: AccountingMethod,
+    lines: [AccountCode, number, DebitCredit, string][]
+  ): JournalEntry {
     const entry = new JournalEntry(
       new JournalEntryId(crypto.randomUUID()),
       new TenantId(tenantId),
@@ -102,7 +144,6 @@ export class AccountingJournalService {
       throw new Error('Journal entry is unbalanced. Debits must equal Credits.');
     }
 
-    await this.journalRepo.save(entry);
     return entry;
   }
 }

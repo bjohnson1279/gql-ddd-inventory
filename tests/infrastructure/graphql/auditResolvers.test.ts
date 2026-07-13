@@ -12,10 +12,12 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
       findFirst: jest.fn()
     },
     productVariant: {
-      findUnique: jest.fn()
+      findUnique: jest.fn(),
+      findMany: jest.fn()
     },
     ledgerEntry: {
-      aggregate: jest.fn()
+      aggregate: jest.fn(),
+      groupBy: jest.fn()
     },
     journalEntry: {
       findMany: jest.fn()
@@ -107,11 +109,18 @@ describe('GraphQL Audit Management Resolvers', () => {
       id: 'var-1',
       sku: 'SKU-DIFF' // Ends with -DIFF to mock mismatch
     });
+    (prisma.productVariant.findMany as jest.Mock).mockResolvedValueOnce([{
+      id: 'var-1',
+      sku: 'SKU-DIFF'
+    }]);
 
     // 4. Mock ledger quantities
     (prisma.ledgerEntry.aggregate as jest.Mock).mockResolvedValueOnce({
       _sum: { quantity: 10 }
     });
+    (prisma.ledgerEntry.groupBy as jest.Mock).mockResolvedValueOnce([
+      { variantId: 'var-1', locationId: 'loc-1', _sum: { quantity: 10 } }
+    ]);
 
     // 5. Mock open check findMany
     (prisma.auditDiscrepancy.findMany as jest.Mock)

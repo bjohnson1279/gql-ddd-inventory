@@ -141,6 +141,7 @@ export class ReceiveRmaUseCase {
     const costLayersToSave: InventoryCostLayer[] = [];
     const quarantineItemsToSave: QuarantineItem[] = [];
     const serializedItemsToSave: SerializedItem[] = [];
+    const journalEntriesToSave: any[] = [];
 
     // Batch Serialized Item Lookups
     const serialPairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[] = [];
@@ -218,13 +219,14 @@ export class ReceiveRmaUseCase {
 
       // 6. Post return journal entries
       const totalCostCents = rmaItem.unitCostCents * item.quantityReceived;
-      await this.journalService.onStockReturned(
+      const returnedEntry = this.journalService.buildStockReturned(
         item.variantId,
         totalCostCents,
         rma.id,
         new Date(),
         rma.tenantId.value
       );
+      journalEntriesToSave.push(returnedEntry);
 
       // 7. Handle immediate scrap write-off
       if (item.disposition === RMADisposition.Scrap) {
@@ -234,12 +236,13 @@ export class ReceiveRmaUseCase {
         // We will batch the cost layer consumption outside the loop
 
         // Post write-off journal entry
-        await this.journalService.onInventoryWriteOff(
+        const writeOffEntry = this.journalService.buildInventoryWriteOff(
           rma.id,
           totalCostCents,
           new Date(),
           rma.tenantId.value
         );
+        journalEntriesToSave.push(writeOffEntry);
       }
 
       // 8. Handle Serialized items transitions
@@ -297,6 +300,10 @@ export class ReceiveRmaUseCase {
 
     if (serializedItemsToSave.length > 0 && this.serializedItemRepository) {
       await this.serializedItemRepository.saveBatch(serializedItemsToSave);
+    }
+
+    if (journalEntriesToSave.length > 0) {
+      await this.journalService.saveBatch(journalEntriesToSave);
     }
 
     await this.rmaRepository.save(rma);

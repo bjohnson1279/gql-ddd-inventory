@@ -18,42 +18,51 @@ export class PostgresJournalRepository implements IJournalRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async save(entry: JournalEntry): Promise<void> {
-    const dbId = toUuid(entry.id.value);
+    return this.saveBatch([entry]);
+  }
+
+  async saveBatch(entries: JournalEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+
     await this.prisma.$transaction(async (tx) => {
-      // 1. Upsert entry
-      await tx.journalEntry.upsert({
-        where: { id: dbId },
-        create: {
-          id: dbId,
-          tenantId: entry.tenantId.value,
-          date: entry.date,
-          description: entry.description,
-          method: entry.method,
-          referenceId: entry.referenceId || null,
-        },
-        update: {
-          date: entry.date,
-          description: entry.description,
-          method: entry.method,
-          referenceId: entry.referenceId || null,
-        },
-      });
+      for (const entry of entries) {
+        const dbId = toUuid(entry.id.value);
 
-      // 2. Re-create journal lines
-      await tx.journalLine.deleteMany({
-        where: { entryId: dbId },
-      });
-
-      if (entry.lines.length > 0) {
-        await tx.journalLine.createMany({
-          data: entry.lines.map((line) => ({
-            entryId: dbId,
-            accountCode: line.account.code,
-            amountCents: line.amountCents,
-            type: line.type,
-            memo: line.memo || null,
-          })),
+        // 1. Upsert entry
+        await tx.journalEntry.upsert({
+          where: { id: dbId },
+          create: {
+            id: dbId,
+            tenantId: entry.tenantId.value,
+            date: entry.date,
+            description: entry.description,
+            method: entry.method,
+            referenceId: entry.referenceId || null,
+          },
+          update: {
+            date: entry.date,
+            description: entry.description,
+            method: entry.method,
+            referenceId: entry.referenceId || null,
+          },
         });
+
+        // 2. Re-create journal lines
+        await tx.journalLine.deleteMany({
+          where: { entryId: dbId },
+        });
+
+        if (entry.lines.length > 0) {
+          await tx.journalLine.createMany({
+            data: entry.lines.map((line) => ({
+              entryId: dbId,
+              accountCode: line.account.code,
+              amountCents: line.amountCents,
+              type: line.type,
+              memo: line.memo || null,
+            })),
+          });
+        }
       }
     });
   }

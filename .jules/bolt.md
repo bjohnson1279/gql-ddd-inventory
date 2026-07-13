@@ -7,3 +7,6 @@
 ## 2024-03-24 - Batching N+1 queries during inventory iterations
 **Learning:** Found an N+1 query vulnerability when iterating over inventory items to calculate their individual stock costs, because it queries cost layers on a per-variant basis inside a loop.
 **Action:** Implemented a new batch method `calculateCostBatch` to replace `calculateCost` within the loop of `GetStockValuationReportUseCase` to prevent N+1 queries. Used index tracking during batch grouping to ensure correctly mapped responses.
+## 2025-02-24 - [Fix N+1 Journal Entry Creation]
+ **Learning:** In the `gql-ddd-inventory` project, sequentially calling `journalService.onStockReturned` or `journalService.onInventoryWriteOff` inside a loop (like processing multiple items in an RMA) causes an N+1 performance bottleneck, as each call opens a separate `$transaction` in the `PostgresJournalRepository`.
+ **Action:** Instead of persisting immediately, use the service's builder methods (e.g., `buildStockReturned`) to instantiate the `JournalEntry` objects, accumulate them in an array, and perform a single bulk insert using the batched method `journalService.saveBatch(entries)`. Ensure `IJournalRepository` and its implementers explicitly support `saveBatch`.
