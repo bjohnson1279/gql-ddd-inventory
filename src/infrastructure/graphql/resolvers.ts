@@ -6,9 +6,6 @@ import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 
-// Dummy hash for timing attack protection
-const DUMMY_PASSWORD_HASH = hashPassword('dummy_password_for_timing_protection_12345');
-
 // Login brute-force protection tracking
 const loginAttempts = new Map<string, { count: number; firstAttemptAt: number; lastAttemptAt: number }>();
 
@@ -1913,13 +1910,9 @@ export const resolvers = {
           }
         });
         if (!user) {
-          // Timing attack protection: perform a dummy hash verification
-          verifyPassword(password, DUMMY_PASSWORD_HASH);
           return handleFailedAttempt();
         }
         if (!user.active) {
-          // Timing attack protection & error message leakage protection
-          verifyPassword(password, DUMMY_PASSWORD_HASH);
           return handleFailedAttempt();
         }
         if (!verifyPassword(password, user.passwordHash)) {
