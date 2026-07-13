@@ -1,78 +1,9 @@
-## 2026-06-04 - Improve code health by extracting DomainEvent interface
- **Learning:** Extracting inline interfaces or interfaces mixed with classes (like `DomainEvent` from `OnboardingEvents.ts`) to their own dedicated files improves code health, avoids circular dependencies, and increases maintainability. The original prompt stated the file had an `any` type on the event dispatcher in `InventoryService.ts`, which might have been a confusion in the prompt as the actual issue was that `DomainEvent` was poorly located and should be cleanly refactored. The issue was solved by cleanly extracting the interface and updating all imports.
- **Action:** Extract commonly shared interfaces (like event interfaces, shared value objects) into their own files early on to prevent tightly coupling unrelated modules or causing bloated imports.
-
-## 2026-06-05 - Avoid N+1 queries by batching domain services
- **Learning:** Calling database-backed service methods (like `decrementForSale`) inside loops (e.g. iterating over order items) leads to severe N+1 performance bottlenecks because each iteration performs an isolated lookup and save.
- **Action:** Identify loops making individual domain service calls and replace them with a unified "batch" method (e.g. `decrementForSaleBatch`) that aggregates the inputs, performs batched repository lookups (`currentQuantities`), and saves the results collectively (`appendBatch`).
-
-## 2026-06-06 - Avoid N+1 queries when performing WMS capacity validation
- **Learning:** Iterating over SKU adjustments and calling `findBySku` for each item to compute weight and volume is a hidden N+1 query problem that hurts performance during bulk operations like submitting inventory counts.
- **Action:** Aggregate the active SKUs beforehand and use a batched repository operation (`findBySkus`) to load the product variants once into memory, creating a fast map lookup to avoid redundant database calls.
-
-## 2024-06-07 - Avoid Hallucinated Repository Methods
-**Learning:** When attempting to optimize batch operations (e.g., using a non-existent `appendBatch` method on an interface like `ILedgerRepository`), always verify that the method is defined in the interface, implemented in the concrete classes, and correctly mocked in the test files. Assuming methods exist based on patterns elsewhere can lead to unmergeable code that breaks the TypeScript build.
-**Action:** Always verify the actual interface definition using \`cat\` or \`read_file\` before calling any batch methods, and ensure test mocks are updated if a new method is added.
-
-## 2024-05-13 - N+1 Query Optimization in OutboxWorker
- **Learning:** When processing a batch of records (e.g., in a background worker), updating each record individually in a loop causes an N+1 query problem. This can be resolved by collecting the IDs of the processed records and executing a single bulk update.
- **Action:** Always use batch operations like Prisma's `updateMany` for updating multiple records with the same status or simple atomic operations (like `increment`), rather than iterating and updating each one individually. Ensure test mocks reflect the change from `update` to `updateMany`.
-
-## 2024-06-09 - N+1 Catalog Hydration via Helper Methods
-**Learning:** Helper methods in domain use cases (like `findSkuForVariant` in `ManageStockTransfers`) that resolve relationships by calling `.findAll()` on repositories will cause severe N+1 memory and database bottlenecks when called within loops over items (e.g., iterating through transfer line items). The entire catalog is hydrated into memory for every item processed.
-**Action:** Always extend repository interfaces (e.g., `IProductRepository`) with targeted, index-backed lookup methods (like `findSkuByVariantId` mapped to `prisma.productVariant.findUnique( { select: { sku: true } } )`) instead of fetching entire collections for in-memory resolution. Ensure all mocked instances in test suites are updated to support the new targeted methods.
-
-## 2026-06-10 - Optimize O(N) Array Allocations on Getters
-**Learning:** Calling `.find()` on dynamically generated array getters (like `Array.from(map.values())` inside `Product.variants`) causes continuous memory allocation and O(N) traversal overhead inside domain loop logic.
-**Action:** Maintain dedicated internal `Map` indexes (e.g., `_variantsBySku`) to provide native O(1) entity lookups instead of querying dynamic arrays.
-
-## 2026-06-11 - Avoid N+1 Queries in Putaway Suggestion Service
-**Learning:** Iterating over warehouse locations and performing isolated repository lookups (like `inventoryRepo.findByLocation` and `productRepo.findBySkus`) inside the loop creates an O(N) database bottleneck that scales linearly with the number of locations. This drastically slows down warehouse recommendation engines.
-**Action:** Hoist the data loading outside the loop using bulk repository lookups (`inventoryRepo.findAll()`) and map the records by location (`Map<LocationId, Item[]>`). Then compute the capacities in memory using O(1) lookups, completely eliminating the N+1 query overhead.
-
-## 2026-06-14 - Optimize dynamic array allocations on getters
-**Learning:** Returning dynamically generated arrays from getters (like ) causes a new array to be allocated on every access, creating O(N) memory allocation overhead which impacts performance when iterated over repeatedly.
-**Action:** Implement lazy-evaluated caching for these arrays. Calculate the array once on first access and store it. Invalidate the cache (set to null) whenever the underlying map is mutated. Return the cached array as `ReadonlyArray<T>` to prevent accidental mutations by callers.
-
-## 2026-06-14 - Optimize dynamic array allocations on getters
-**Learning:** Returning dynamically generated arrays from getters (like `Array.from(map.values())`) causes a new array to be allocated on every access, creating O(N) memory allocation overhead which impacts performance when iterated over repeatedly.
-**Action:** Implement lazy-evaluated caching for these arrays. Calculate the array once on first access and store it. Invalidate the cache (set to null) whenever the underlying map is mutated. Return the cached array as `ReadonlyArray<T>` to prevent accidental mutations by callers.
-
-## 2026-06-14 - Avoid N+1 Queries inside Replenishment Rule Evaluator Loops
-**Learning:** Calling `poRepo.findAllByTenant`, `transferRepo.findAllByTenant`, `productRepo.findBySku`, and `inventoryRepo.findBySkuAndLocation` inside the `for (const rule of rules)` loop in `ReplenishmentEvaluator.ts` results in O(N) isolated database queries and redundant collections fetches, severely degrading performance when analyzing numerous active rules.
-**Action:** Extract database operations outside the rule loop by pre-fetching `openPos` and `openTransfers` upfront, and use batch repository methods (`productRepo.findBySkus`, `inventoryRepo.findBySkuAndLocationBatch`) mapped by `sku` or `sku_locationId` to allow fast O(1) in-memory resolution for every evaluated rule. Ensure test mocks reflect and support these batch operations properly.
-
-## 2026-06-20 - Cache spread array copies in getters
-**Learning:** Using the spread operator (e.g., `[...this._items]`) inside getters causes a new array to be allocated on every access, introducing unnecessary O(N) memory allocation overhead, similar to `Array.from()`.
-**Action:** Implement lazy-evaluated caching for these arrays as well. Calculate the array once on first access and store it in a private field (e.g., `_itemsArray`). Invalidate the cache by setting it to `null` whenever the underlying collection is modified. Return the cached array typed as `ReadonlyArray<T>`.
-
-## 2026-06-25 - Avoid spreading internal arrays in getters
-**Learning:** Returning defensive copies of internal arrays using the spread operator (e.g., `[...this.attributes]`) inside getter methods (like `.all()`) causes O(N) memory allocation overhead on every access. If the class is strictly immutable or caller mutation is not a concern, this overhead is entirely unnecessary and can cause performance bottlenecks when called frequently within loops.
-**Action:** Return the internal array directly and type the return value as `ReadonlyArray<T>`. This allows TypeScript to enforce immutability strictly at the compiler level without incurring any runtime allocation costs.
-
-## 2026-06-21 - Avoid N+1 Queries in PickingRouteOptimizer
-**Learning:** Iterating over picking items and querying the warehouse location repository (`findById`) for each item creates a significant N+1 query bottleneck. This degrades performance as the number of items in a pick route increases.
-**Action:** Extract all unique `locationId`s from the pick items beforehand, execute a single batched repository query (`findByIds`), and use a `Map` to perform O(1) in-memory lookups instead. Always ensure corresponding repository interfaces and tests (e.g., `InMemoryWarehouseLocationRepository`) implement the batch lookup properly.
-## 2026-06-22 - Use saveBatch over save in loops within domain services
-**Learning:** Calling `.save(layer)` individually inside an array iteration (e.g. `for (const layer of activeLayers)`) causes unnecessary overhead and N+1 query patterns. This severely degrades performance when consuming numerous cost layers for an item.
-**Action:** When saving multiple entities of the same type within a service loop, collect them into an array and use a dedicated `.saveBatch(entities)` repository method outside the loop.
-## 2024-06-25 - [Testing Coverage Gaps - Null Handling Mocks]
- **Learning:** When a bug or feature request calls for testing a scenario where a repository returns `null` for a missing entity in a use case, ensure that identical null-handling branches in analogous use cases (e.g. `ReceiveStockTransferUseCase` and `CancelStockTransferUseCase` vs `DispatchStockTransferUseCase`) are also fully tested with the same `jest.spyOn(repo, 'findById').mockResolvedValueOnce(null)` pattern to maintain 100% test coverage.
- **Action:** Proactively seek out and duplicate missing null-checking tests across all related use cases within the same context or domain file if they are missing.
-
-## 2026-06-25 - TimescaleDB Hypertables and Composite Primary Keys
-**Learning:** Standard single-column primary keys (e.g. `id UUID PRIMARY KEY`) are incompatible with TimescaleDB hypertables, which require any primary key or unique constraint to include the time-partitioning column.
-**Action:** When working with append-only time-series tables (like `ledger_entries`, `inventory_transactions`, or `dispatch_records`):
-- Ensure that the primary key is defined as a composite key containing both the unique ID and the timestamp column (e.g. `PRIMARY KEY (id, occurred_at)` or `@@id([id, occurredAt])`).
-- Convert the table to a hypertable immediately upon creation/migration using `SELECT create_hypertable('table_name', 'time_column', if_not_exists => TRUE);`.
-- For Node.js/Prisma setups, ensure the datasource provider is set to PostgreSQL (not SQLite) to maintain database parity across all service variants.
-
-## 2026-06-29 - Avoid N+1 Queries in RMA Receipts
-**Learning:** Iterating over RMA items and calling `.save()` individually on `costLayerRepository`, `quarantineRepository`, and `serializedItemRepository` inside the `for (const item of dto.items)` loop in `ReceiveRmaUseCase` creates a significant N+1 query performance bottleneck when processing large return batches.
-**Action:** Always collect modified entities (`InventoryCostLayer`, `QuarantineItem`, `SerializedItem`) into arrays during loop iteration and persist them in bulk using `saveBatch()` operations outside the loop. Ensure all repository interfaces (e.g., `IQuarantineRepository`, `ISerializedItemRepository`) and test mocks define and support these `saveBatch` methods correctly.
-## 2026-06-30 - Avoid N+1 Queries in RMA Receipts for Serialized Items
-**Learning:** Iterating over RMA items and calling `.findBySerial()` individually on the `serializedItemRepository` inside the loop in `ReceiveRmaUseCase` creates a significant N+1 query performance bottleneck when returning large quantities of serialized items.
-**Action:** When handling arrays of serialized items within loop iterations, pre-collect the serial numbers and variant IDs, fetch the entities in bulk using `.findBySerialsAndVariantsBatch()`, map them by `variantId_serialNumber` for O(1) lookups, and use the map instead of isolated repository fetches.
-## 2024-07-11 - Batch Cost Layer Consumption in RMA Returns
-**Learning:** Sequential calls to `consumeFifoLayers` inside a loop can lead to N+1 database queries when multiple items are scrapped during an RMA return. The `CostLayerService` exposes a `consumeFifoLayersBatch` method that mitigates this by pre-fetching active layers for all target variants.
-**Action:** Use batch methods (e.g. `consumeFifoLayersBatch`) outside loops when processing arrays of domain objects.
+## 2026-07-08 - Fixed N+1 queries in Stock Valuation Report Generation
+**Learning:** The stock valuation report iteratively queried the database for layer details per variant (`getActiveLayers`), leading to a severe N+1 query bottleneck.
+**Action:** Created `calculateCostBatch` on `CostLayerService` that groups variants by costing methods and hits the database once per method via `getActiveLayersBatch`, drastically reducing database load from N queries to 1.
+## 2026-07-10 - Performance Optimization: Stock Valuation Memory Loading
+ **Learning:** Loading the entire database into memory via `findAll` and then filtering using application logic can cause severe memory bloat and performance degradation, especially in reporting use cases. Utilizing database-level filtering (e.g., `findByLocation`) significantly reduces memory footprint and processing time.
+ **Action:** Updated `GetStockValuationReportUseCase` to leverage database filtering when a `locationId` is provided.
+## 2024-03-24 - Batching N+1 queries during inventory iterations
+**Learning:** Found an N+1 query vulnerability when iterating over inventory items to calculate their individual stock costs, because it queries cost layers on a per-variant basis inside a loop.
+**Action:** Implemented a new batch method `calculateCostBatch` to replace `calculateCost` within the loop of `GetStockValuationReportUseCase` to prevent N+1 queries. Used index tracking during batch grouping to ensure correctly mapped responses.

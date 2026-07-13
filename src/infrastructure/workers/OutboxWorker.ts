@@ -2,6 +2,7 @@ import { prisma } from '../persistence/prismaClient';
 import { eventBus } from '../graphql/resolvers';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { InventoryDecremented, LowStockAlertEvent, InventoryReconciledEvent, ShopifyStockSyncRequested } from '../../domain/events/InventoryEvents';
+import { runWithTrace, generateTraceId } from '../telemetry/traceContext';
 
 export function deserializeEvent(eventType: string, payloadStr: string): any {
   const payload = JSON.parse(payloadStr);
@@ -105,18 +106,65 @@ export class OutboxWorker {
       for (const event of events) {
         try {
           const domainEvent = deserializeEvent(event.eventType, event.payload);
+          let traceId = 'unknown';
+          try {
+            const payloadObj = JSON.parse(event.payload);
+            traceId = payloadObj?.traceId || generateTraceId();
+          } catch (e) {
+            traceId = generateTraceId();
+          }
 
-          // Publish event asynchronously to InMemoryEventBus
-          eventBus.publish(domainEvent);
+          await runWithTrace(traceId, async () => {
+            // Publish event asynchronously to InMemoryEventBus
+            eventBus.publish(domainEvent);
+          });
+
+          // Enqueue webhooks for active subscriptions matching tenant and event type
+          let eventTenantId = 'tenant-1';
+          try {
+            const payloadObj = JSON.parse(event.payload);
+            eventTenantId = payloadObj?.tenantId || (payloadObj?.tenantId && typeof payloadObj.tenantId === 'object' ? payloadObj.tenantId.value : payloadObj?.tenantId) || 'tenant-1';
+          } catch (e) {}
+
+          const subscriptions = await prisma.webhookSubscription.findMany({
+            where: {
+              tenantId: eventTenantId,
+              isActive: true,
+              eventTypes: {
+                has: event.eventType
+              }
+            }
+          });
+
+          if (subscriptions.length > 0) {
+            await Promise.all(subscriptions.map((sub: any) =>
+              prisma.webhookDelivery.create({
+                data: {
+                  tenantId: eventTenantId,
+                  subscriptionId: sub.id,
+                  eventType: event.eventType,
+                  payload: event.payload,
+                  status: 'Pending',
+                  attempts: 0,
+                  nextAttemptAt: new Date()
+                }
+              })
+            ));
+          }
 
           processedIds.push(event.id);
         } catch (err: any) {
+          let traceId = 'unknown';
+          try {
+            const payloadObj = JSON.parse(event.payload);
+            traceId = payloadObj?.traceId || 'unknown';
+          } catch (e) {}
           const nextAttempts = event.attempts + 1;
           const backoffMs = Math.min(Math.pow(2, nextAttempts) * 1000, 24 * 60 * 60 * 1000);
           const nextAttemptAt = new Date(Date.now() + backoffMs);
           const nextStatus = nextAttempts >= 5 ? 'Failed' : 'Pending';
 
-          console.error(`[OutboxWorker] Failed to process outbox event ${event.id}:`, err);
+          console.error(`[Trace: ${traceId}] [OutboxWorker] Failed to process outbox event ${event.id}:`, err);
           await prisma.outboxEvent.update({
             where: { id: event.id },
             data: {

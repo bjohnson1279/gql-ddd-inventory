@@ -126,20 +126,17 @@
 - Do not run `prisma db push` during automated npm package installation (`postinstall`) in CI or production build environments, as it will fail due to the absence of a running database. Limit postinstall steps to `prisma generate` and execute migrations/pushes in dedicated pipeline steps or deployment startup phases.
 - Ensure that any dynamic database connection strings (like `DATABASE_URL` built from separate components) are validated on server startup and fallback safely to trusted local defaults for development environments.
 - Protect raw SQL queries used to enable the `timescaledb` extension or initialize hypertables from SQL injection vulnerabilities by using parameterized queries or strict schema names.
+
+## 2026-06-25 - Fix SQL injection vulnerabilities in raw Prisma queries
+**Vulnerability:** The application used Prisma's `$queryRawUnsafe` and `$executeRawUnsafe` methods for executing raw SQL queries. While it attempted to use manual positional parameterization (e.g. `$1`), these "Unsafe" methods in Prisma bypass built-in tagged template protections and are highly susceptible to SQL injection if user input is interpolated into the query string before execution.
+**Learning:** Using `$queryRawUnsafe` and `$executeRawUnsafe` in Prisma is a significant security risk when dealing with dynamic inputs, even if manual parameterization is attempted. The built-in tagged template literals `$queryRaw` and `$executeRaw` safely parameterize inputs automatically and are the only recommended way to execute raw SQL with variables.
+**Prevention:** Always strictly use the tagged template literal methods `$queryRaw` and `$executeRaw` for raw SQL queries in Prisma. Never use `$queryRawUnsafe` or `$executeRawUnsafe` unless absolutely necessary for completely static queries with zero dynamic input, and preferably configure linting rules to ban the `Unsafe` variants entirely.
+
 ## 2026-06-30 - Fix Prototype Pollution Vulnerability in OutboxWorker
 **Vulnerability:** The `deserializeEvent` function in `OutboxWorker.ts` dynamically reconstructs objects from parsed JSON payloads using `Object.assign(event, payload)`. This makes the application susceptible to Prototype Pollution, as malicious actors could craft payloads with `__proto__`, `constructor`, or `prototype` keys to override default object properties or methods.
 **Learning:** Using `Object.assign` to copy properties from externally provided or parsed JSON payloads onto newly instantiated objects without filtering exposes the application to Prototype Pollution.
 **Prevention:** Replace dangerous `Object.assign` calls with explicit iteration over payload keys, blocking known dangerous keys (`__proto__`, `constructor`, `prototype`) from being copied.
-## 2026-07-11 - Insecure Prisma Raw SQL Methods
-**Vulnerability:** SQL Injection via Prisma's $queryRawUnsafe and $executeRawUnsafe even when using manual positional parameters (e.g. $1).
-**Learning:** Prisma's 'Unsafe' raw methods intentionally bypass parameterization, making manual positional parameters insecure. The built-in tagged template literals must be used instead.
-**Prevention:** Always use $queryRaw and $executeRaw tagged template literals to automatically and securely parameterize inputs.
-
-## 2026-07-11 - Prevent SSRF in Webhook integrations
-**Vulnerability:** External integration domains (like Shopify) were being passed directly to `fetch` and only checked via `includes`, which allowed bypassing the filter (e.g. `169.254.169.254?.myshopify.com`) leading to potential SSRF on internal infrastructure.
-**Learning:** Relying on simple string matching (like `includes('.myshopify.com')`) is insufficient for URL safety. Malicious users can embed necessary strings in query parameters, causing unintended external or internal connections.
-**Prevention:** To prevent Server-Side Request Forgery (SSRF) vulnerabilities in outbound HTTP requests, always validate user-provided URLs by parsing them (`new URL()`), enforcing allowed protocols, and explicitly blocking internal hostnames, loopback addresses, and private network IPs.
-## 2024-05-18 - [SSRF Bypass via Node.js URL Normalization]
-**Vulnerability:** Basic string matching for IPv4 loopback (`startsWith("127.")`) on `URL.hostname` fails to block IPv6 equivalents like `::1`, `::`, and IPv4-mapped IPv6 addresses (`::ffff:127.0.0.1`), allowing SSRF.
-**Learning:** Node.js `URL` normalizes IPv4-mapped IPv6 addresses into compressed hex (e.g., `[::ffff:7f00:1]`) and wraps all IPv6 addresses in brackets `[]`, bypassing naive string checks. Furthermore, ULA prefixes (`fc00::/7`) span both `fc00:` and `fd00:` hex ranges.
-**Prevention:** Explicitly strip brackets from `URL.hostname` and validate normalized IPv6 loopback, unspecified, link-local, and ULA prefixes alongside IPv4.
+## 2026-07-09 - SSRF Vulnerability in Webhook Delivery
+**Vulnerability:** The `WebhookDeliveryWorker` made outbound HTTP POST requests to any user-provided webhook URL without restriction. This is a classic Server-Side Request Forgery (SSRF) vulnerability.
+**Learning:** Outbound network requests, especially those initiated from user-defined integrations like webhooks, can be manipulated by attackers to probe internal networks or cloud metadata APIs if not strictly validated.
+**Prevention:** To prevent SSRF, always validate user-provided target URLs by parsing them, enforcing permitted protocols (`http`, `https`), and explicitly blocking resolution to internal hostnames, loopback interfaces (`127.0.0.1`), and private network IP spaces (`10.x.x.x`, `169.254.x.x`, etc.).

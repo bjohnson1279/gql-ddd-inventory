@@ -4,6 +4,7 @@ import { CostBreakdown } from '../valueObjects/CostBreakdown';
 import { InventoryCostLayer } from '../entities/InventoryCostLayer';
 import { SerialNumber } from '../valueObjects/SerialNumber';
 import { CostingMethod } from '../enums/AccountingEnums';
+import { CostingStrategyRegistry } from '../strategies/CostingStrategyRegistry';
 
 export class CostLayerService {
   constructor(private readonly layers: IInventoryCostLayerRepository) {}
@@ -61,9 +62,13 @@ export class CostLayerService {
   }
 
   async calculateCost(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
+    if (method === CostingMethod.SpecificIdentification) {
+      throw new Error("SpecificIdentification requires serial numbers. Use a dedicated path.");
+    }
     if (method === CostingMethod.WeightedAverageCost) {
       return this.calculateWeightedAverageCost(variantId, quantity);
     }
+
     const orderStr = method === CostingMethod.FEFO
       ? 'expiration_date ASC'
       : method === CostingMethod.LIFO
@@ -71,13 +76,18 @@ export class CostLayerService {
         : 'received_at ASC';
 
     const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
-    return this.calculateConsumedCost(activeLayers, quantity);
+    const strategy = CostingStrategyRegistry.get(method);
+    return strategy.calculateCost(activeLayers, quantity, variantId);
   }
 
   async consumeLayers(variantId: ProductVariantId, quantity: number, method: CostingMethod = CostingMethod.FIFO): Promise<CostBreakdown> {
+    if (method === CostingMethod.SpecificIdentification) {
+      throw new Error("SpecificIdentification requires serial numbers. Use a dedicated path.");
+    }
     if (method === CostingMethod.WeightedAverageCost) {
       return this.consumeLayers(variantId, quantity, CostingMethod.FIFO);
     }
+
     const orderStr = method === CostingMethod.FEFO
       ? 'expiration_date ASC'
       : method === CostingMethod.LIFO
@@ -85,10 +95,11 @@ export class CostLayerService {
         : 'received_at ASC';
 
     const activeLayers = await this.layers.getActiveLayers(variantId, orderStr);
-    const breakdown = this.calculateConsumedCost(activeLayers, quantity, true);
+    const strategy = CostingStrategyRegistry.get(method);
+    const { breakdown, sortedLayers } = strategy.consumeLayers(activeLayers, quantity, variantId);
 
-    if (activeLayers.length > 0) {
-      await this.layers.saveBatch(activeLayers);
+    if (sortedLayers.length > 0) {
+      await this.layers.saveBatch(sortedLayers);
     }
 
     return breakdown;
@@ -122,7 +133,9 @@ export class CostLayerService {
 
       for (const item of groupItems) {
         const activeLayers = activeLayersMap.get(item.variantId.value) || [];
-        const breakdown = this.calculateConsumedCost(activeLayers, item.quantity, true);
+        const activeMethod = method === CostingMethod.WeightedAverageCost ? CostingMethod.FIFO : method;
+        const strategy = CostingStrategyRegistry.get(activeMethod);
+        const { breakdown, sortedLayers } = strategy.consumeLayers(activeLayers, item.quantity, item.variantId);
 
         const existingBreakdown = breakdowns.get(item.variantId.value);
         if (existingBreakdown) {
@@ -138,7 +151,7 @@ export class CostLayerService {
         }
 
         totalCostCents += breakdown.totalCostCents;
-        layersToSave.push(...activeLayers);
+        layersToSave.push(...sortedLayers);
       }
     }
 
@@ -147,6 +160,7 @@ export class CostLayerService {
     return { breakdowns, totalCostCents };
   }
 
+  // Backwards compatibility helpers
   async calculateFifoCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
     return this.calculateCost(variantId, quantity, CostingMethod.FIFO);
   }
@@ -176,7 +190,7 @@ export class CostLayerService {
   async calculateWeightedAverageCost(variantId: ProductVariantId, quantity: number): Promise<CostBreakdown> {
     const activeLayers = await this.layers.getActiveLayers(variantId);
     try {
-      return this.calculateWeightedAverageCostSync(activeLayers, quantity);
+      return this.calculateWeightedAverageCostSync(activeLayers, quantity, variantId.value);
     } catch (e) {
       throw new Error(`Insufficient inventory for variant ${variantId.value}`);
     }

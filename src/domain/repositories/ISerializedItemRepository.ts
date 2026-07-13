@@ -10,6 +10,7 @@ export interface ISerializedItemRepository {
   findBySerial(serialNumber: SerialNumber, tenantId: TenantId): Promise<SerializedItem | null>;
   findBySerialAndVariant(serialNumber: SerialNumber, variantId: ProductVariantId): Promise<SerializedItem | null>;
   findBySerialsAndVariantsBatch(pairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[]): Promise<SerializedItem[]>;
+  findManyBySerialsAndVariant(serialNumbers: SerialNumber[], variantId: ProductVariantId): Promise<SerializedItem[]>;
   findByVariantId(variantId: ProductVariantId, tenantId: TenantId): Promise<SerializedItem[]>;
   isRegistered(serialNumber: SerialNumber, tenantId: TenantId): Promise<boolean>;
   countByStatus(variantId: ProductVariantId, status: SerializedItemStatus): Promise<number>;

@@ -69,7 +69,7 @@ describe('ManageReplenishment Use Cases', () => {
     ledgerRepo = new InMemoryLedgerRepository();
 
     const velocityCalc = new DemandVelocityCalculator(productRepo, ledgerRepo);
-    const forecaster = new ReorderPointForecaster(velocityCalc);
+    const forecaster = new ReorderPointForecaster(velocityCalc, productRepo, poRepo);
     const evaluator = new ReplenishmentEvaluator(
       ruleRepo,
       inventoryRepo,
@@ -292,17 +292,18 @@ describe('ManageReplenishment Use Cases', () => {
       }
 
       // Run rate = 60 / 30 = 2 units per day.
-      // Expected dynamic ROP = 2 * 5 (leadTime) + 5 (safetyStock) = 15.
+      // Expected dynamic ROP under the variance-based safety stock formula is 50.
+      // Calculation: (2 * 5) + 1.65 * sqrt(5 * 116 + 0) = 10 + 39.73 = 49.73 -> ceil -> 50.
 
-      // Seed regional inventory (12 < 15)
+      // Seed regional inventory (12 < 50)
       const invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, destLoc);
       invItem.receiveStock(new Quantity(12));
       await inventoryRepo.save(invItem);
 
       // Run evaluation
       const results = await evaluateUseCase.execute(tenantId);
-      expect(results[0].reorderPoint).toBe(15);
-      expect(results[0].triggered).toBe(true); // 12 < 15, so triggers
+      expect(results[0].reorderPoint).toBe(50);
+      expect(results[0].triggered).toBe(true); // 12 < 50, so triggers
     });
   });
 

@@ -37,11 +37,10 @@ export class GetStockValuationReportUseCase {
   }
 
   async execute(tenantId: string, locationId: string | null, method: CostingMethod = CostingMethod.FIFO): Promise<StockValuationReport> {
-    // Get all inventory items (optionally filtered by locationId)
-    const allItems = await this.inventoryRepo.findAll();
+    // Get inventory items (filtered by locationId at the database level if provided)
     const filteredItems = locationId
-      ? allItems.filter(item => item.locationId.value === locationId)
-      : allItems;
+      ? await this.inventoryRepo.findByLocation(locationId)
+      : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
     const uniqueSkus = Array.from(new Set(filteredItems.map(item => item.sku.value)));
@@ -73,13 +72,13 @@ export class GetStockValuationReportUseCase {
         invItem,
         variantIdStr,
         qtyOnHand,
-        variantId: new ProductVariantId(variantIdStr)
+        variantId: new ProductVariantId(variantIdStr),
       });
     }
 
-    const batchRequest = itemsToCalculate.map(item => ({
+    const batchRequest = itemsToCalculate.map((item) => ({
       variantId: item.variantId,
-      quantity: item.qtyOnHand
+      quantity: item.qtyOnHand,
     }));
 
     const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
@@ -90,7 +89,6 @@ export class GetStockValuationReportUseCase {
 
       if (costBreakdown) {
         const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
-
         lineItems.push({
           sku: invItem.sku.value,
           variantId: variantIdStr,
@@ -100,10 +98,8 @@ export class GetStockValuationReportUseCase {
           totalValueCents: costBreakdown.totalCostCents,
           costingMethod: method,
         });
-
         totalValueCents += costBreakdown.totalCostCents;
       } else {
-        // No cost layers exist for this variant — include with $0 value
         lineItems.push({
           sku: invItem.sku.value,
           variantId: variantIdStr,
