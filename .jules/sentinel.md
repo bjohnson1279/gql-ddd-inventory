@@ -140,3 +140,8 @@
 **Vulnerability:** The `WebhookDeliveryWorker` made outbound HTTP POST requests to any user-provided webhook URL without restriction. This is a classic Server-Side Request Forgery (SSRF) vulnerability.
 **Learning:** Outbound network requests, especially those initiated from user-defined integrations like webhooks, can be manipulated by attackers to probe internal networks or cloud metadata APIs if not strictly validated.
 **Prevention:** To prevent SSRF, always validate user-provided target URLs by parsing them, enforcing permitted protocols (`http`, `https`), and explicitly blocking resolution to internal hostnames, loopback interfaces (`127.0.0.1`), and private network IP spaces (`10.x.x.x`, `169.254.x.x`, etc.).
+
+## 2024-07-13 - [SSRF Bypass via IPv4-mapped IPv6]
+**Vulnerability:** A subtle SSRF vulnerability allowed bypassing the internal IP and localhost blocklist by providing IPv4-mapped IPv6 addresses (e.g. `[::ffff:127.0.0.1]`) and IPv6 loopback variants (e.g., `[::1]`). The native `new URL()` parser evaluates `hostname` inclusive of brackets, which caused manual regex/startsWith checks on `127.` or `::1` to fail.
+**Learning:** Checking for loopback / private IP addresses naively using strings is prone to evasion due to multiple valid URI IP encodings (octal, hex, IPv6 shorthand).
+**Prevention:** Always delegate outbound URL validation to a centralized, well-tested utility that fully unwraps, normalizes, and validates the parsed hostname, accounting for bracketed IPv6 and mapped structures.
