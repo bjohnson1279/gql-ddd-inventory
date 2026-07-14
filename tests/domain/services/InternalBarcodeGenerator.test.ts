@@ -153,9 +153,9 @@ describe('InternalBarcodeGenerator', () => {
       const attempt0 = mockRegistry.isRegistered.mock.calls[0][0];
       const attempt1 = mockRegistry.isRegistered.mock.calls[1][0];
 
-      expect(attempt0).toBe('INV-3F87-3864B69A');
-      expect(attempt1).toBe('INV-3F87-DB03FA33');
-      expect(barcode.value).toBe('INV-3F87-261D684F');
+      expect(attempt0).toBe('INV-8137-F2590730');
+      expect(attempt1).toBe('INV-8137-8482918E');
+      expect(barcode.value).toBe('INV-8137-632C1753');
     });
   });
 });
