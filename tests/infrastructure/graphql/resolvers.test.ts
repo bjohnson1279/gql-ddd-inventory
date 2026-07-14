@@ -1120,6 +1120,18 @@ describe('GraphQL Resolvers', () => {
         return Promise.resolve(newRole) as any;
       });
 
+      jest.spyOn(prisma.role, 'createMany').mockImplementation((args: any) => {
+        const newRoles = args.data as any[];
+        let count = 0;
+        for (const newRole of newRoles) {
+          if (!mockRoles.find(r => r.id === newRole.id)) {
+            mockRoles.push(newRole);
+            count++;
+          }
+        }
+        return Promise.resolve({ count }) as any;
+      });
+
       jest.spyOn(prisma.user, 'findFirst').mockImplementation((args: any) => {
         const { tenantId, email, id } = args.where;
         const user = mockUsers.find(u => {

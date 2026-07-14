@@ -139,71 +139,79 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     const existingIds = new Set(existingItems.map(i => i.id));
 
     await this.prisma.$transaction(async (tx) => {
-      const results = [];
-      const allEvents: any[] = [];
-      for (const item of items) {
-        let count = 0;
-        if (!existingIds.has(item.id)) {
-          await tx.inventoryItem.create({
-            data: {
-              id: item.id,
-              sku: item.sku.value,
-              locationId: item.locationId.value,
-              quantity: item.quantity.value,
-              allocated: item.allocated.value,
-              inTransit: item.inTransit.value,
-              version: item.version
-            }
-          });
-          count = 1;
-        } else {
-          const res = await tx.inventoryItem.updateMany({
-            where: {
-              id: item.id,
-              version: item.version - 1
-            },
-            data: {
-              quantity: item.quantity.value,
-              allocated: item.allocated.value,
-              inTransit: item.inTransit.value,
-              version: item.version
-            }
-          });
-          count = res.count;
-        }
+      const itemsToCreate = [];
+      const updatePromises = [];
+      const itemsToUpdateWithIndex: { item: InventoryItem }[] = [];
+      const allEventsData = [];
 
-        results.push({ count });
-
-        // Collect events to outbox
-        const events = item.pullDomainEvents();
-        allEvents.push(...events);
-      }
-
-      if (allEvents.length > 0) {
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < allEvents.length; i += BATCH_SIZE) {
-          const chunk = allEvents.slice(i, i + BATCH_SIZE);
-          await tx.outboxEvent.createMany({
-            data: chunk.map(event => ({
-              eventType: event.constructor.name,
-              payload: JSON.stringify({
-                ...event,
-                traceId: (event as any).traceId || getTraceId()
-              }),
-              status: 'Pending'
-            }))
-          });
-        }
-      }
-
-      // Check for concurrency errors on updates
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        if (existingIds.has(item.id)) {
-          const result = results[i] as { count: number };
-          if (result.count === 0) {
+
+        if (!existingIds.has(item.id)) {
+          itemsToCreate.push({
+            id: item.id,
+            sku: item.sku.value,
+            locationId: item.locationId.value,
+            quantity: item.quantity.value,
+            allocated: item.allocated.value,
+            inTransit: item.inTransit.value,
+            version: item.version
+          });
+        } else {
+          itemsToUpdateWithIndex.push({ item });
+          updatePromises.push(
+            tx.inventoryItem.updateMany({
+              where: {
+                id: item.id,
+                version: item.version - 1
+              },
+              data: {
+                quantity: item.quantity.value,
+                allocated: item.allocated.value,
+                inTransit: item.inTransit.value,
+                version: item.version
+              }
+            })
+          );
+        }
+
+        const events = item.pullDomainEvents();
+        for (const event of events) {
+          allEventsData.push({
+            eventType: event.constructor.name,
+            payload: JSON.stringify({
+              ...event,
+              traceId: (event as any).traceId || getTraceId()
+            }),
+            status: 'Pending'
+          });
+        }
+      }
+
+      if (itemsToCreate.length > 0) {
+        await tx.inventoryItem.createMany({
+          data: itemsToCreate
+        });
+      }
+
+      if (updatePromises.length > 0) {
+        const updateResults = await Promise.all(updatePromises);
+
+        for (let i = 0; i < updateResults.length; i++) {
+          if (updateResults[i].count === 0) {
+            const { item } = itemsToUpdateWithIndex[i];
             throw new ConcurrencyError(item.sku.value, item.locationId.value);
           }
+        }
+      }
+
+      if (allEventsData.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < allEventsData.length; i += BATCH_SIZE) {
+          const chunk = allEventsData.slice(i, i + BATCH_SIZE);
+          await tx.outboxEvent.createMany({
+            data: chunk
+          });
         }
       }
     });

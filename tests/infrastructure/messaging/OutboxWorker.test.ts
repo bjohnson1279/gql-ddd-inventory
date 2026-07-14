@@ -22,7 +22,6 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
     },
   };
 
-  // Expose it to the tests
   (global as any).txMock = txMock;
   return {
     prisma: {
