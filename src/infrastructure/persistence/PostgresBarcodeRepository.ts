@@ -79,7 +79,7 @@ export class PostgresBarcodeRepository implements IBarcodeRepository {
       });
 
       // 2. Upsert remaining barcodes
-      for (const a of set.all) {
+      await Promise.all(set.all.map(async (a) => {
         const dbId = toUuid(a.id.value);
         await tx.barcode.upsert({
           where: { id: dbId },
@@ -100,7 +100,7 @@ export class PostgresBarcodeRepository implements IBarcodeRepository {
             assignedAt: a.assignedAt,
           },
         });
-      }
+      }));
     });
   }
 
