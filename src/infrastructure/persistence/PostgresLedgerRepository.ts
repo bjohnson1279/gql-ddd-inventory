@@ -131,6 +131,47 @@ export class PostgresLedgerRepository implements ILedgerRepository {
     );
   }
 
+  async entriesForBatch(variantIds: ProductVariantId[], locationId?: LocationId): Promise<Map<string, LedgerEntry[]>> {
+    if (variantIds.length === 0) return new Map();
+
+    const whereClause: any = {
+      variantId: { in: variantIds.map(v => v.value) },
+    };
+    if (locationId) {
+      whereClause.locationId = locationId.value;
+    }
+    const entries = await this.prisma.ledgerEntry.findMany({
+      where: whereClause,
+      orderBy: {
+        occurredAt: 'asc',
+      },
+    });
+
+    const result = new Map<string, LedgerEntry[]>();
+    for (const v of variantIds) {
+      result.set(v.value, []);
+    }
+
+    for (const e of entries) {
+      const entry = new LedgerEntry(
+        new LedgerEntryId(e.id),
+        new TenantId(e.tenantId),
+        new LocationId(e.locationId),
+        new ProductVariantId(e.variantId),
+        e.quantity,
+        e.reason as ReasonCode,
+        new ActorId(e.actorId),
+        e.occurredAt,
+        e.referenceId || undefined,
+        (e.metadata as Record<string, any>) || undefined
+      );
+
+      result.get(e.variantId)!.push(entry);
+    }
+
+    return result;
+  }
+
   async findRecallEntries(lotNumber: string): Promise<LedgerEntry[]> {
     const entries = await this.prisma.ledgerEntry.findMany({
       where: {

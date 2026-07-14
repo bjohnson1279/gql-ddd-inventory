@@ -23,6 +23,7 @@ describe('ProductRecallService', () => {
       currentQuantityAt: jest.fn(),
       hasAnyEntries: jest.fn(),
       hasAnyEntriesBatch: jest.fn(),
+      entriesForBatch: jest.fn(),
     };
     service = new ProductRecallService(mockLedgerRepo);
   });
