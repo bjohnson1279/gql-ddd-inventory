@@ -105,17 +105,22 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       }
 
       // Save pulled events to OutboxEvent table
-      for (const event of events) {
-        await tx.outboxEvent.create({
-          data: {
-            eventType: event.constructor.name,
-            payload: JSON.stringify({
-              ...event,
-              traceId: (event as any).traceId || getTraceId()
-            }),
-            status: 'Pending'
-          }
-        });
+      if (events.length > 0) {
+        // chunk logic for single item save isn't really necessary, but we can do it for consistency
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < events.length; i += BATCH_SIZE) {
+          const chunk = events.slice(i, i + BATCH_SIZE);
+          await tx.outboxEvent.createMany({
+            data: chunk.map(event => ({
+              eventType: event.constructor.name,
+              payload: JSON.stringify({
+                ...event,
+                traceId: (event as any).traceId || getTraceId()
+              }),
+              status: 'Pending'
+            }))
+          });
+        }
       }
     });
   }
@@ -201,9 +206,13 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       }
 
       if (allEventsData.length > 0) {
-        await tx.outboxEvent.createMany({
-          data: allEventsData
-        });
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < allEventsData.length; i += BATCH_SIZE) {
+          const chunk = allEventsData.slice(i, i + BATCH_SIZE);
+          await tx.outboxEvent.createMany({
+            data: chunk
+          });
+        }
       }
     });
   }
