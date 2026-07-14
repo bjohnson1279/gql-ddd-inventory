@@ -292,41 +292,43 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
     if (items.length === 0) return;
 
     await this.prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        await tx.serializedItem.upsert({
-          where: { id: item.id.value },
-          create: {
-            id: item.id.value,
-            variantId: item.variantId.value,
-            serialNumber: item.serialNumber.value,
-            tenantId: item.tenantId.value,
-            locationId: item.locationId.value,
-            status: item.status,
-          },
-          update: {
-            locationId: item.locationId.value,
-            status: item.status,
-          },
-        });
-
-        await tx.serializedItemHistory.deleteMany({
-          where: { itemId: item.id.value },
-        });
-
-        if (item.history.length > 0) {
-          await tx.serializedItemHistory.createMany({
-            data: item.history.map((h) => ({
-              itemId: item.id.value,
-              fromStatus: h.from,
-              toStatus: h.to,
-              reason: h.reason,
-              actorId: h.actor.value,
-              occurredAt: h.occurredAt,
-              referenceId: h.referenceId || null,
-            })),
+      await Promise.all(
+        items.map(async (item) => {
+          await tx.serializedItem.upsert({
+            where: { id: item.id.value },
+            create: {
+              id: item.id.value,
+              variantId: item.variantId.value,
+              serialNumber: item.serialNumber.value,
+              tenantId: item.tenantId.value,
+              locationId: item.locationId.value,
+              status: item.status,
+            },
+            update: {
+              locationId: item.locationId.value,
+              status: item.status,
+            },
           });
-        }
-      }
+
+          await tx.serializedItemHistory.deleteMany({
+            where: { itemId: item.id.value },
+          });
+
+          if (item.history.length > 0) {
+            await tx.serializedItemHistory.createMany({
+              data: item.history.map((h) => ({
+                itemId: item.id.value,
+                fromStatus: h.from,
+                toStatus: h.to,
+                reason: h.reason,
+                actorId: h.actor.value,
+                occurredAt: h.occurredAt,
+                referenceId: h.referenceId || null,
+              })),
+            });
+          }
+        })
+      );
     });
   }
 }
