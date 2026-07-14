@@ -68,28 +68,37 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
   async saveBatch(items: QuarantineItem[]): Promise<void> {
     if (items.length === 0) return;
 
+    // Deduplicate items, keeping the last occurrence of each ID to avoid race conditions
+    const uniqueItemsMap = new Map<string, QuarantineItem>();
+    for (const item of items) {
+      uniqueItemsMap.set(item.id, item);
+    }
+    const uniqueItems = Array.from(uniqueItemsMap.values());
+
     await this.prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        const dbId = toUuid(item.id);
-        await (tx as any).quarantineItem.upsert({
-          where: { id: dbId },
-          update: {
-            status: item.status,
-            resolvedAt: item.resolvedAt,
-          },
-          create: {
-            id: dbId,
-            variantId: toUuid(item.variantId.value),
-            quantity: item.quantity,
-            reason: item.reason,
-            locationId: item.locationId.value,
-            tenantId: item.tenantId.value,
-            status: item.status,
-            createdAt: item.createdAt,
-            resolvedAt: item.resolvedAt,
-          },
-        });
-      }
+      await Promise.all(
+        uniqueItems.map((item) => {
+          const dbId = toUuid(item.id);
+          return (tx as any).quarantineItem.upsert({
+            where: { id: dbId },
+            update: {
+              status: item.status,
+              resolvedAt: item.resolvedAt,
+            },
+            create: {
+              id: dbId,
+              variantId: toUuid(item.variantId.value),
+              quantity: item.quantity,
+              reason: item.reason,
+              locationId: item.locationId.value,
+              tenantId: item.tenantId.value,
+              status: item.status,
+              createdAt: item.createdAt,
+              resolvedAt: item.resolvedAt,
+            },
+          });
+        })
+      );
     });
   }
 }
