@@ -18,8 +18,12 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
     },
     outboxEvent: {
       create: createMock,
+      createMany: jest.fn(),
     },
   };
+
+  // Expose it to the tests
+  (global as any).txMock = txMock;
   return {
     prisma: {
       inventoryItem: {
@@ -29,6 +33,7 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
       },
       outboxEvent: {
         create: createMock,
+        createMany: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
         updateMany: jest.fn(),
@@ -117,18 +122,19 @@ describe('Transactional Outbox Pattern', () => {
     // Add domain event
     item.reconcileStock(new Quantity(10));
 
-    const outboxCreateMock = prisma.outboxEvent.create as jest.Mock;
-    outboxCreateMock.mockClear();
+    const txMock = (global as any).txMock;
+    const outboxCreateManyMock = txMock.outboxEvent.createMany as jest.Mock;
+    outboxCreateManyMock.mockClear();
 
     const findUniqueMock = prisma.inventoryItem.findUnique as jest.Mock;
     findUniqueMock.mockResolvedValue(null);
 
     await repo.save(item);
 
-    expect(outboxCreateMock).toHaveBeenCalled();
-    const arg = outboxCreateMock.mock.calls[0][0];
-    expect(arg.data.eventType).toBe('InventoryReconciledEvent');
-    expect(JSON.parse(arg.data.payload).sku).toBe('SKU-OUTBOX');
+    expect(outboxCreateManyMock).toHaveBeenCalled();
+    const arg = outboxCreateManyMock.mock.calls[0][0];
+    expect(arg.data[0].eventType).toBe('InventoryReconciledEvent');
+    expect(JSON.parse(arg.data[0].payload).sku).toBe('SKU-OUTBOX');
   });
 
   describe('OutboxWorker polling and processing', () => {
