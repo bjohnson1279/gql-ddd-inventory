@@ -1948,14 +1948,10 @@ export const resolvers = {
         }
 
         const roles = ['admin', 'warehouse_operator', 'accountant', 'viewer'];
-        for (const r of roles) {
-          const roleExists = await prisma.role.findUnique({ where: { id: r } });
-          if (!roleExists) {
-            await prisma.role.create({
-              data: { id: r, name: r.replace('_', ' ') }
-            });
-          }
-        }
+        await prisma.role.createMany({
+          data: roles.map(r => ({ id: r, name: r.replace('_', ' ') })),
+          skipDuplicates: true
+        });
 
         const email = adminEmail.toLowerCase().trim();
         const existing = await prisma.user.findFirst({
