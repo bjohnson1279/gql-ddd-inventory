@@ -26,7 +26,6 @@ describe('OpeningBalanceService', () => {
       currentQuantityAt: jest.fn(),
       hasAnyEntries: jest.fn(),
       hasAnyEntriesBatch: jest.fn(),
-      entriesForBatch: jest.fn(),
     };
     mockEventDispatcher = jest.fn();
     service = new OpeningBalanceService(mockLedgerRepository, mockEventDispatcher);
