@@ -134,65 +134,76 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     const existingIds = new Set(existingItems.map(i => i.id));
 
     await this.prisma.$transaction(async (tx) => {
-      const results = [];
-      for (const item of items) {
-        let count = 0;
+      const itemsToCreate = [];
+      const updatePromises = [];
+      const itemsToUpdateWithIndex: { item: InventoryItem }[] = [];
+      const allEventsData = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
         if (!existingIds.has(item.id)) {
-          await tx.inventoryItem.create({
-            data: {
-              id: item.id,
-              sku: item.sku.value,
-              locationId: item.locationId.value,
-              quantity: item.quantity.value,
-              allocated: item.allocated.value,
-              inTransit: item.inTransit.value,
-              version: item.version
-            }
+          itemsToCreate.push({
+            id: item.id,
+            sku: item.sku.value,
+            locationId: item.locationId.value,
+            quantity: item.quantity.value,
+            allocated: item.allocated.value,
+            inTransit: item.inTransit.value,
+            version: item.version
           });
-          count = 1;
         } else {
-          const res = await tx.inventoryItem.updateMany({
-            where: {
-              id: item.id,
-              version: item.version - 1
-            },
-            data: {
-              quantity: item.quantity.value,
-              allocated: item.allocated.value,
-              inTransit: item.inTransit.value,
-              version: item.version
-            }
-          });
-          count = res.count;
+          itemsToUpdateWithIndex.push({ item });
+          updatePromises.push(
+            tx.inventoryItem.updateMany({
+              where: {
+                id: item.id,
+                version: item.version - 1
+              },
+              data: {
+                quantity: item.quantity.value,
+                allocated: item.allocated.value,
+                inTransit: item.inTransit.value,
+                version: item.version
+              }
+            })
+          );
         }
 
-        results.push({ count });
-
-        // Save events to outbox
         const events = item.pullDomainEvents();
         for (const event of events) {
-          await tx.outboxEvent.create({
-            data: {
-              eventType: event.constructor.name,
-              payload: JSON.stringify({
-                ...event,
-                traceId: (event as any).traceId || getTraceId()
-              }),
-              status: 'Pending'
-            }
+          allEventsData.push({
+            eventType: event.constructor.name,
+            payload: JSON.stringify({
+              ...event,
+              traceId: (event as any).traceId || getTraceId()
+            }),
+            status: 'Pending'
           });
         }
       }
 
-      // Check for concurrency errors on updates
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (existingIds.has(item.id)) {
-          const result = results[i] as { count: number };
-          if (result.count === 0) {
+      if (itemsToCreate.length > 0) {
+        await tx.inventoryItem.createMany({
+          data: itemsToCreate
+        });
+      }
+
+      if (updatePromises.length > 0) {
+        const updateResults = await Promise.all(updatePromises);
+
+        for (let i = 0; i < updateResults.length; i++) {
+          if (updateResults[i].count === 0) {
+            const { item } = itemsToUpdateWithIndex[i];
             throw new ConcurrencyError(item.sku.value, item.locationId.value);
           }
         }
+      }
+
+      if (allEventsData.length > 0) {
+        await tx.outboxEvent.createMany({
+          data: allEventsData
+        });
       }
     });
   }
