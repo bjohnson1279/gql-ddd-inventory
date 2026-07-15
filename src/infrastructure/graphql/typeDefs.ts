@@ -656,18 +656,6 @@ export const typeDefs = `#graphql
     suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
     optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
     slottingSuggestions: [SlottingSuggestion!]!
-  }
-
-  type SlottingSuggestion {
-    sku: String!
-    currentLocationId: String!
-    currentDistance: Int!
-    currentVelocity: Int!
-    recommendedLocationId: String!
-    recommendedDistance: Int!
-    potentialSwapSku: String
-    estimatedSavings: Float!
-  }
 
     suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
     traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
@@ -696,6 +684,17 @@ export const typeDefs = `#graphql
 
     # Eventual Consistency Audit
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
+  }
+
+  type SlottingSuggestion {
+    sku: String!
+    currentLocationId: String!
+    currentDistance: Int!
+    currentVelocity: Int!
+    recommendedLocationId: String!
+    recommendedDistance: Int!
+    potentialSwapSku: String
+    estimatedSavings: Float!
   }
 
   type InventoryCountResult {
