@@ -5,7 +5,7 @@ import { JournalEntryId } from '../../domain/valueObjects/JournalEntryId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { AccountCode } from '../../domain/valueObjects/AccountCode';
 import { AccountingMethod, DebitCredit } from '../../domain/enums/AccountingEnums';
-import { toUuid } from '../utils/uuid';
+import { toUuid } from '../../shared/utils/uuid';
 
 
 export class PostgresJournalRepository implements IJournalRepository {

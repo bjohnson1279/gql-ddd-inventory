@@ -7,7 +7,7 @@ import { LocationId } from '../../domain/valueObjects/LocationId';
 import { PurchaseOrderItem } from '../../domain/valueObjects/PurchaseOrderItem';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { PurchaseOrderStatus } from '../../domain/enums/PurchaseOrderStatus';
-import { toUuid } from '../utils/uuid';
+import { toUuid } from '../../shared/utils/uuid';
 
 
 export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository {
