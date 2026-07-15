@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Rma as PrismaRma, RmaItem as PrismaRmaItem } from '@prisma/client';
 import { IRmaRepository } from '../../domain/repositories/IRmaRepository';
 import { Rma } from '../../domain/entities/Rma';
 import { RmaItem } from '../../domain/entities/RmaItem';
@@ -12,8 +12,8 @@ import { toUuid } from '../utils/uuid';
 export class PostgresRmaRepository implements IRmaRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private mapToDomain(record: any): Rma {
-    const items = (record.items || []).map((item: any) =>
+  private mapToDomain(record: PrismaRma & { items: PrismaRmaItem[] }): Rma {
+    const items = (record.items || []).map((item: PrismaRmaItem) =>
       new RmaItem(
         item.id,
         new ProductVariantId(item.variantId),
@@ -65,7 +65,7 @@ export class PostgresRmaRepository implements IRmaRepository {
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
-    return records.map((record: any) => this.mapToDomain(record));
+    return records.map((record: PrismaRma & { items: PrismaRmaItem[] }) => this.mapToDomain(record));
   }
 
   async save(rma: Rma): Promise<void> {
