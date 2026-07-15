@@ -399,6 +399,32 @@ describe('ManageKits Use Cases', () => {
 
       await expect(useCase.execute(input)).rejects.toThrow('Database error');
     });
+
+    it('throws error when SKU is empty', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K5',
+        sku: '',
+        name: 'Invalid Kit',
+        components: []
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('SKU cannot be empty.');
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws error when SKU contains invalid characters', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K6',
+        sku: 'INVALID SKU!',
+        name: 'Invalid Kit',
+        components: []
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('SKU must contain only alphanumeric characters and hyphens.');
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('AddKitComponentUseCase', () => {
