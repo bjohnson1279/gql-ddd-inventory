@@ -27,6 +27,8 @@ export class OrderRoutingEngine {
       throw new Error(`Could not find any valid allocation combinations for quantity ${quantity}`);
     }
 
+    const rateCache = new Map<string, number>();
+
     const plans: FulfillmentPlan[] = [];
     for (const allocations of rawPlans) {
       let totalDistance = 0;
@@ -37,7 +39,12 @@ export class OrderRoutingEngine {
         const dist = candidate.geoLocation.distanceTo(destination);
         totalDistance += dist;
 
-        const rate = await rateCalculator(alloc.locationId, sku, alloc.quantity);
+        const cacheKey = `${alloc.locationId}_${alloc.quantity}`;
+        let rate = rateCache.get(cacheKey);
+        if (rate === undefined) {
+          rate = await rateCalculator(alloc.locationId, sku, alloc.quantity);
+          rateCache.set(cacheKey, rate);
+        }
         totalCost += rate;
       }
 
