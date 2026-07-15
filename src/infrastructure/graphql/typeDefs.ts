@@ -656,6 +656,8 @@ export const typeDefs = `#graphql
     suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
     optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
     slottingSuggestions: [SlottingSuggestion!]!
+    suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
+    traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
   }
 
   type SlottingSuggestion {
@@ -669,8 +671,7 @@ export const typeDefs = `#graphql
     estimatedSavings: Float!
   }
 
-    suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
-    traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
+  extend type Query {
     users(tenantId: ID!): [UserDTO!]!
     rma(id: ID!): Rma
     rmas(tenantId: ID!): [Rma!]!
