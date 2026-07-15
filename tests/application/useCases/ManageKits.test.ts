@@ -399,6 +399,64 @@ describe('ManageKits Use Cases', () => {
 
       await expect(useCase.execute(input)).rejects.toThrow('Database error');
     });
+
+    it('throws error if kit id is empty', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: '   ',
+        sku: 'KIT-VALID',
+        name: 'Valid Name',
+        components: []
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('KitId cannot be empty.');
+    });
+
+    it('throws error if sku format is invalid', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K-VALID',
+        sku: 'INVALID SKU!',
+        name: 'Valid Name',
+        components: []
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('SKU must contain only alphanumeric characters and hyphens.');
+    });
+
+    it('throws error if a component quantity is less than 1', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K5',
+        sku: 'KIT-5',
+        name: 'Invalid Component Kit',
+        components: [
+          { variantId: 'V1', quantity: 0 }
+        ]
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('Kit component quantity must be at least 1.');
+    });
+
+    it('merges duplicate components correctly', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      kitRepo.save.mockResolvedValue(undefined);
+
+      const input = {
+        id: 'K6',
+        sku: 'KIT-6',
+        name: 'Duplicate Component Kit',
+        components: [
+          { variantId: 'V1', quantity: 2 },
+          { variantId: 'V1', quantity: 3 }
+        ]
+      };
+
+      const result = await useCase.execute(input);
+      expect(result).toBe(true);
+
+      const savedKit = kitRepo.save.mock.calls[0][0];
+      expect(savedKit.components).toHaveLength(1);
+      expect(savedKit.components[0].variantId.value).toBe('V1');
+      expect(savedKit.components[0].quantity).toBe(5);
+    });
   });
 
   describe('AddKitComponentUseCase', () => {

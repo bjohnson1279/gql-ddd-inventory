@@ -13,3 +13,6 @@
 ## 2024-03-24 - [Cache shipping rates during routing]
 **Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
 **Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
+## 2025-02-28 - Test Validation for Missing Coverage
+**Learning:** Checking coverage metrics ensures you understand exactly what parts of a use case aren’t being tested. Tests should cover happy paths (like correct creation), and invalid/edge cases (like domain validation failures during ID/SKU instantiation or handling quantities properly).
+**Action:** Always check coverage and add edge cases like invalid domain primitive inputs (empty IDs, wrong SKU formats) and business logic edge cases (merging duplicate array inputs).
