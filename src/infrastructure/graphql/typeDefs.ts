@@ -936,6 +936,8 @@ export const typeDefs = `#graphql
 
   type Subscription {
     barcodeScanned(tenantId: ID!): BarcodeScanEvent!
+    stockChanged(tenantId: ID!): StockChangedEvent!
+    webhookDeliveryFailed(tenantId: ID!): WebhookFailedEvent!
   }
 
   type BarcodeScanEvent {
@@ -945,6 +947,24 @@ export const typeDefs = `#graphql
     status: String!
     time: String!
     payload: String!
+  }
+
+  type StockChangedEvent {
+    sku: String!
+    locationId: String!
+    quantity: Int!
+    allocated: Int!
+    inTransit: Int!
+    version: Int!
+  }
+
+  type WebhookFailedEvent {
+    id: ID!
+    targetUrl: String!
+    eventType: String!
+    payload: String!
+    errorMessage: String!
+    attemptCount: Int!
   }
 
   type UserDTO {

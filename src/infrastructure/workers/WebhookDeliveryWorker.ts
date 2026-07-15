@@ -106,6 +106,29 @@ export class WebhookDeliveryWorker {
 
           console.error(`[WebhookDeliveryWorker] Failed to deliver webhook ${delivery.id}:`, err.message);
 
+          // Get tenantId from subscription if available
+          const subscription = await prisma.webhookSubscription.findUnique({
+            where: { id: delivery.subscriptionId }
+          });
+          const tenantId = subscription ? subscription.tenantId : 'default-tenant';
+
+          // Publish failed webhook event to subscribers
+          try {
+            const { pubsub } = require('../graphql/pubsub');
+            pubsub.publish(`WEBHOOK_FAILED_${tenantId}`, {
+              webhookDeliveryFailed: {
+                id: delivery.id,
+                targetUrl: subscription ? subscription.targetUrl : 'unknown',
+                eventType: delivery.eventType,
+                payload: delivery.payload,
+                errorMessage: err.message,
+                attemptCount: nextAttempts
+              }
+            });
+          } catch (pubSubErr) {
+            console.error('Failed to publish webhook failure to pubsub:', pubSubErr);
+          }
+
           await prisma.webhookDelivery.update({
             where: { id: delivery.id },
             data: {

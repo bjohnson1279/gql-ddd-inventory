@@ -5,6 +5,8 @@ import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
+const STOCK_CHANGED_TOPIC = 'STOCK_CHANGED';
+const WEBHOOK_FAILED_TOPIC = 'WEBHOOK_FAILED';
 
 // Login brute-force protection tracking
 const loginAttempts = new Map<string, { count: number; firstAttemptAt: number; lastAttemptAt: number }>();
@@ -519,6 +521,21 @@ export interface GraphQLContext {
   };
   prisma?: PrismaClient;
   loaders?: DataLoaders;
+}
+
+function publishStockChange(tenantId: string, item: any) {
+  if (item && item.sku) {
+    pubsub.publish(`${STOCK_CHANGED_TOPIC}_${tenantId}`, {
+      stockChanged: {
+        sku: item.sku,
+        locationId: item.locationId,
+        quantity: item.quantityOnHand !== undefined ? item.quantityOnHand : (item.quantity || 0),
+        allocated: item.allocated || 0,
+        inTransit: item.inTransit || 0,
+        version: item.version || 1
+      }
+    }).catch((err: any) => console.error("Error publishing stock change:", err));
+  }
 }
 
 function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
@@ -1320,9 +1337,10 @@ export const resolvers = {
     },
     receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await receiveStockUseCase.execute(sku, locationId, amount);
         await appendStockLedgerEntry(productRepository, ledgerRepository, sku, locationId, amount, ReasonCode.PurchaseReceipt, context);
+        publishStockChange(auth.tenantId, result);
         return result;
       } catch (error: any) {
         throw new Error(error.message);
@@ -1330,9 +1348,10 @@ export const resolvers = {
     },
     dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await dispatchStockUseCase.execute(sku, locationId, amount);
         await appendStockLedgerEntry(productRepository, ledgerRepository, sku, locationId, -amount, ReasonCode.Sale, context);
+        publishStockChange(auth.tenantId, result);
         return result;
       } catch (error: any) {
         throw new Error(error.message);
@@ -1340,40 +1359,50 @@ export const resolvers = {
     },
     allocateStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
-        return await allocateStockUseCase.execute(sku, locationId, amount);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        const result = await allocateStockUseCase.execute(sku, locationId, amount);
+        publishStockChange(auth.tenantId, result);
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     releaseAllocation: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
-        return await releaseAllocationUseCase.execute(sku, locationId, amount);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        const result = await releaseAllocationUseCase.execute(sku, locationId, amount);
+        publishStockChange(auth.tenantId, result);
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     fulfillAllocation: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
-        return await fulfillAllocationUseCase.execute(sku, locationId, amount);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        const result = await fulfillAllocationUseCase.execute(sku, locationId, amount);
+        publishStockChange(auth.tenantId, result);
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     createInTransit: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
-        return await createInTransitUseCase.execute(sku, locationId, amount);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        const result = await createInTransitUseCase.execute(sku, locationId, amount);
+        publishStockChange(auth.tenantId, result);
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     receiveInTransit: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'warehouse_operator']);
-        return await receiveInTransitUseCase.execute(sku, locationId, amount);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        const result = await receiveInTransitUseCase.execute(sku, locationId, amount);
+        publishStockChange(auth.tenantId, result);
+        return result;
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -2181,6 +2210,18 @@ export const resolvers = {
         // Enforce token check; only allow subscription to active tenant events
         const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], tenantId);
         return (pubsub as any).asyncIterator(`${BARCODE_SCANNED_TOPIC}_${auth.tenantId}`);
+      }
+    },
+    stockChanged: {
+      subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: GraphQLContext) => {
+        const auth = enforceRole(ctx, ['admin', 'warehouse_operator', 'viewer'], tenantId);
+        return (pubsub as any).asyncIterator(`${STOCK_CHANGED_TOPIC}_${auth.tenantId}`);
+      }
+    },
+    webhookDeliveryFailed: {
+      subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: GraphQLContext) => {
+        const auth = enforceRole(ctx, ['admin'], tenantId);
+        return (pubsub as any).asyncIterator(`${WEBHOOK_FAILED_TOPIC}_${auth.tenantId}`);
       }
     }
   }

@@ -332,6 +332,10 @@ model WarehouseLocation {
   bin                  String
   maxWeightGrams       Int      @map("max_weight_grams")
   maxVolumeCubicMeters Float    @map("max_volume_cubic_meters")
+  gridX                Int      @default(0) @map("grid_x")
+  gridY                Int      @default(0) @map("grid_y")
+  width                Int      @default(1) @map("width")
+  height               Int      @default(1) @map("height")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@unique([warehouseId, zone, aisle, rack, shelf, bin])
@@ -608,4 +612,16 @@ model AuditDiscrepancy {
   resolutionNotes String?   @map("resolution_notes")
 
   @@map("audit_discrepancies")
+}
+
+model ComplianceLedgerModel {
+  id             String   @id @default(uuid())
+  sequenceNumber Int      @unique
+  tenantId       String
+  eventType      String
+  payload        String   @db.Text
+  timestamp      DateTime @default(now())
+  previousHash   String
+  hash           String
+  signature      String
 }
