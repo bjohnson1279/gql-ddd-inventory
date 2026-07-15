@@ -816,7 +816,11 @@ export const resolvers = {
         shelf: loc.shelf,
         bin: loc.bin,
         maxWeightGrams: loc.maxWeightGrams,
-        maxVolumeCubicMeters: loc.maxVolumeCubicMeters
+        maxVolumeCubicMeters: loc.maxVolumeCubicMeters,
+        gridX: loc.gridX,
+        gridY: loc.gridY,
+        width: loc.width,
+        height: loc.height
       };
     },
     warehouseLocations: async (_: any, __: any, context: GraphQLContext) => {
@@ -831,7 +835,11 @@ export const resolvers = {
         shelf: loc.shelf,
         bin: loc.bin,
         maxWeightGrams: loc.maxWeightGrams,
-        maxVolumeCubicMeters: loc.maxVolumeCubicMeters
+        maxVolumeCubicMeters: loc.maxVolumeCubicMeters,
+        gridX: loc.gridX,
+        gridY: loc.gridY,
+        width: loc.width,
+        height: loc.height
       }));
     },
     historicalStockLevel: async (_: any, { sku, locationId, timestamp }: { sku: string; locationId: string; timestamp: string }, context: GraphQLContext) => {
@@ -955,6 +963,16 @@ export const resolvers = {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         return await optimizePickingRouteUseCase.execute(auth.tenantId, items);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    slottingSuggestions: async (_: any, __: any, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+        const { SlottingOptimizer } = await import('../../domain/services/SlottingOptimizer');
+        const optimizer = new SlottingOptimizer(prisma);
+        return await optimizer.generateSuggestions();
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -1688,7 +1706,11 @@ export const resolvers = {
           input.shelf,
           input.bin,
           input.maxWeightGrams,
-          input.maxVolumeCubicMeters
+          input.maxVolumeCubicMeters,
+          input.gridX !== undefined ? Number(input.gridX) : 0,
+          input.gridY !== undefined ? Number(input.gridY) : 0,
+          input.width !== undefined ? Number(input.width) : 1,
+          input.height !== undefined ? Number(input.height) : 1
         );
         await warehouseLocationRepository.save(loc);
         return {
@@ -1700,7 +1722,11 @@ export const resolvers = {
           shelf: loc.shelf,
           bin: loc.bin,
           maxWeightGrams: loc.maxWeightGrams,
-          maxVolumeCubicMeters: loc.maxVolumeCubicMeters
+          maxVolumeCubicMeters: loc.maxVolumeCubicMeters,
+          gridX: loc.gridX,
+          gridY: loc.gridY,
+          width: loc.width,
+          height: loc.height
         };
       } catch (error: any) {
         throw new Error(error.message);
