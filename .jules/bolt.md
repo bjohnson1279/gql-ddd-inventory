@@ -10,3 +10,6 @@
 ## 2025-02-24 - [Fix N+1 Journal Entry Creation]
  **Learning:** In the `gql-ddd-inventory` project, sequentially calling `journalService.onStockReturned` or `journalService.onInventoryWriteOff` inside a loop (like processing multiple items in an RMA) causes an N+1 performance bottleneck, as each call opens a separate `$transaction` in the `PostgresJournalRepository`.
  **Action:** Instead of persisting immediately, use the service's builder methods (e.g., `buildStockReturned`) to instantiate the `JournalEntry` objects, accumulate them in an array, and perform a single bulk insert using the batched method `journalService.saveBatch(entries)`. Ensure `IJournalRepository` and its implementers explicitly support `saveBatch`.
+## 2024-03-24 - [Cache shipping rates during routing]
+**Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
+**Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
