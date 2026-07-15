@@ -6,7 +6,7 @@ import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { StockOnboardingStatus } from '../../domain/enums/StockOnboardingStatus';
-import { toUuid } from '../utils/uuid';
+import { toUuid } from '../../shared/utils/uuid';
 
 
 export class PostgresStockOnboardingRepository implements IStockOnboardingRepository {

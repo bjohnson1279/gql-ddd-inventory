@@ -4,7 +4,7 @@ import { Kit } from '../../domain/entities/Kit';
 import { KitId } from '../../domain/valueObjects/KitId';
 import { Sku } from '../../domain/valueObjects/Sku';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
-import { toUuid } from '../utils/uuid';
+import { toUuid } from '../../shared/utils/uuid';
 
 type KitModel = Prisma.KitGetPayload<{ include: { components: true } }>;
 

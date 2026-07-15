@@ -1,4 +1,4 @@
-import { toUuid } from '../../../src/infrastructure/utils/uuid';
+import { toUuid } from '../../../src/shared/utils/uuid';
 import * as crypto from 'crypto';
 
 describe('uuid utils', () => {
