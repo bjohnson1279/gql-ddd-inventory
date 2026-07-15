@@ -1,1086 +1,303 @@
-import { PrismaClient } from '@prisma/client';
-import { PostgresProductRepository } from '../../../src/infrastructure/persistence/PostgresProductRepository';
-import { PostgresWarehouseLocationRepository } from '../../../src/infrastructure/persistence/PostgresWarehouseLocationRepository';
-import { WarehouseLocation } from '../../../src/domain/entities/WarehouseLocation';
-import { PostgresLedgerRepository } from '../../../src/infrastructure/persistence/PostgresLedgerRepository';
-import { PostgresSerializedItemRepository } from '../../../src/infrastructure/persistence/PostgresSerializedItemRepository';
-import { PostgresInventoryCostLayerRepository } from '../../../src/infrastructure/persistence/PostgresInventoryCostLayerRepository';
-import { PostgresIntegrationRepository } from '../../../src/infrastructure/persistence/PostgresIntegrationRepository';
-import { PostgresExternalMappingRepository } from '../../../src/infrastructure/persistence/PostgresExternalMappingRepository';
-import { PostgresProductUomConfigurationRepository } from '../../../src/infrastructure/persistence/PostgresProductUomConfigurationRepository';
-import { PostgresJournalRepository } from '../../../src/infrastructure/persistence/PostgresJournalRepository';
-import { PostgresBarcodeRepository } from '../../../src/infrastructure/persistence/PostgresBarcodeRepository';
-import { PostgresStockOnboardingRepository } from '../../../src/infrastructure/persistence/PostgresStockOnboardingRepository';
-import { PostgresKitRepository } from '../../../src/infrastructure/persistence/PostgresKitRepository';
-import { PostgresStockTransferRepository } from '../../../src/infrastructure/persistence/PostgresStockTransferRepository';
-import { PostgresReplenishmentRuleRepository } from '../../../src/infrastructure/persistence/PostgresReplenishmentRuleRepository';
-import { PostgresPurchaseOrderRepository } from '../../../src/infrastructure/persistence/PostgresPurchaseOrderRepository';
-import { PostgresRmaRepository } from '../../../src/infrastructure/persistence/PostgresRmaRepository';
-import { Rma } from '../../../src/domain/entities/Rma';
-import { RmaItem } from '../../../src/domain/entities/RmaItem';
-import { RMAStatus, RMAItemStatus, RMADisposition } from '../../../src/domain/enums/ReturnEnums';
-import { StatusTransition } from '../../../src/domain/valueObjects/StatusTransition';
-import { StockTransfer } from '../../../src/domain/entities/StockTransfer';
-import { StockTransferId } from '../../../src/domain/valueObjects/StockTransferId';
-import { StockTransferItem } from '../../../src/domain/valueObjects/StockTransferItem';
-import { StockTransferStatus } from '../../../src/domain/enums/StockTransferStatus';
-import { ReplenishmentRule } from '../../../src/domain/entities/ReplenishmentRule';
-import { ReplenishmentRuleId } from '../../../src/domain/valueObjects/ReplenishmentRuleId';
-import { ReplenishmentType } from '../../../src/domain/enums/ReplenishmentType';
-import { PurchaseOrder } from '../../../src/domain/entities/PurchaseOrder';
-import { PurchaseOrderId } from '../../../src/domain/valueObjects/PurchaseOrderId';
-import { PurchaseOrderItem } from '../../../src/domain/valueObjects/PurchaseOrderItem';
-import { PurchaseOrderStatus } from '../../../src/domain/enums/PurchaseOrderStatus';
-import { Kit } from '../../../src/domain/entities/Kit';
-import { KitId } from '../../../src/domain/valueObjects/KitId';
-import { StockOnboarding } from '../../../src/domain/entities/StockOnboarding';
-import { StockOnboardingId } from '../../../src/domain/valueObjects/StockOnboardingId';
-import { VariantBarcodeSet } from '../../../src/domain/entities/VariantBarcodeSet';
-import { Barcode } from '../../../src/domain/valueObjects/Barcode';
-import { BarcodeSymbology, BarcodeSource } from '../../../src/domain/enums/BarcodeEnums';
+import { PostgresInventoryRepository } from "../../../src/infrastructure/persistence/PostgresInventoryRepository";
+import { PostgresLedgerRepository } from "../../../src/infrastructure/persistence/PostgresLedgerRepository";
+import { InventoryItem } from "../../../src/domain/entities/InventoryItem";
+import { Sku } from "../../../src/domain/valueObjects/Sku";
+import { LocationId } from "../../../src/domain/valueObjects/LocationId";
+import { Quantity } from "../../../src/domain/valueObjects/Quantity";
+import { LedgerEntry } from "../../../src/domain/entities/LedgerEntry";
+import { LedgerEntryId } from "../../../src/domain/valueObjects/LedgerEntryId";
+import { ProductVariantId } from "../../../src/domain/valueObjects/ProductVariantId";
+import { TenantId } from "../../../src/domain/valueObjects/TenantId";
+import { ActorId } from "../../../src/domain/valueObjects/ActorId";
+import { ReasonCode } from "../../../src/domain/enums/ReasonCode";
+import { ConcurrencyError } from "../../../src/domain/exceptions/DomainErrors";
 
-import { Product } from '../../../src/domain/entities/Product';
-import { ProductId } from '../../../src/domain/valueObjects/ProductId';
-import { Sku } from '../../../src/domain/valueObjects/Sku';
-import { VariantAttribute } from '../../../src/domain/valueObjects/VariantAttribute';
-
-import { LedgerEntry } from '../../../src/domain/entities/LedgerEntry';
-import { LedgerEntryId } from '../../../src/domain/valueObjects/LedgerEntryId';
-import { TenantId } from '../../../src/domain/valueObjects/TenantId';
-import { LocationId } from '../../../src/domain/valueObjects/LocationId';
-import { ProductVariantId } from '../../../src/domain/valueObjects/ProductVariantId';
-import { ReasonCode } from '../../../src/domain/enums/ReasonCode';
-import { ActorId } from '../../../src/domain/valueObjects/ActorId';
-
-import { SerializedItem } from '../../../src/domain/entities/SerializedItem';
-import { SerializedItemId } from '../../../src/domain/valueObjects/SerializedItemId';
-import { SerialNumber } from '../../../src/domain/valueObjects/SerialNumber';
-import { SerializedItemStatus } from '../../../src/domain/enums/SerializedItemStatus';
-
-import { InventoryCostLayer, InventoryCostLayerId } from '../../../src/domain/entities/InventoryCostLayer';
-import { Lot } from '../../../src/domain/valueObjects/Lot';
-
-import { IntegrationConnection } from '../../../src/domain/integrations/aggregates/IntegrationConnection';
-import { IntegrationId } from '../../../src/domain/integrations/valueObjects/IntegrationId';
-import { IntegrationPlatform, ExternalEntityType } from '../../../src/domain/integrations/enums/IntegrationEnums';
-import { ExternalMapping } from '../../../src/domain/integrations/entities/ExternalMapping';
-
-import { ProductUomConfiguration } from '../../../src/domain/entities/ProductUomConfiguration';
-import { UnitOfMeasure } from '../../../src/domain/valueObjects/UnitOfMeasure';
-import { UomCategory } from '../../../src/domain/enums/UomCategory';
-import { JournalEntry } from '../../../src/domain/entities/JournalEntry';
-import { JournalEntryId } from '../../../src/domain/valueObjects/JournalEntryId';
-import { AccountCode } from '../../../src/domain/valueObjects/AccountCode';
-import { AccountingMethod, DebitCredit } from '../../../src/domain/enums/AccountingEnums';
-
-describe('Postgres Repositories', () => {
-  let prismaMock: any;
+describe("Postgres repositories integration", () => {
+  let mockPrisma: any;
 
   beforeEach(() => {
-    prismaMock = {
-      product: {
-        upsert: jest.fn(),
+    mockPrisma = {
+      inventoryItem: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
-      },
-      productVariant: {
-        upsert: jest.fn(),
-        deleteMany: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      variantAttribute: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
+        create: jest.fn(),
+        updateMany: jest.fn(),
       },
       ledgerEntry: {
         create: jest.fn(),
+        createMany: jest.fn(),
         aggregate: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
-      },
-      serializedItem: {
-        upsert: jest.fn(),
-        findFirst: jest.fn(),
-        count: jest.fn(),
-      },
-      serializedItemHistory: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-      inventoryCostLayer: {
-        upsert: jest.fn(),
-        findMany: jest.fn(),
-        findFirst: jest.fn(),
-      },
-      integrationConnection: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      externalMapping: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-      },
-      productUomConfiguration: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-      },
-      barcode: {
-        findFirst: jest.fn(),
-        deleteMany: jest.fn(),
-        upsert: jest.fn(),
-      },
-      conversionRule: {
-        upsert: jest.fn(),
-        deleteMany: jest.fn(),
-      },
-      stockOnboarding: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      stockOnboardingItem: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-      journalEntry: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      journalLine: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-      kit: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        delete: jest.fn(),
-      },
-      kitComponent: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
+        groupBy: jest.fn(),
       },
       outboxEvent: {
-        create: jest.fn(),
-      },
-      warehouseLocation: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        delete: jest.fn(),
-        findMany: jest.fn(),
-      },
-      stockTransfer: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      stockTransferItem: {
-        deleteMany: jest.fn(),
         createMany: jest.fn(),
       },
-      replenishmentRule: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-      },
-      purchaseOrder: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      purchaseOrderItem: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-      rma: {
-        upsert: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-      },
-      rmaItem: {
-        upsert: jest.fn(),
-      },
-      $transaction: jest.fn(async (cb) => cb(prismaMock)),
+      $transaction: jest.fn().mockImplementation(async (callback) => {
+        return await callback(mockPrisma);
+      }),
     };
   });
 
-  describe('PostgresProductRepository', () => {
-    it('should save product and variants in transaction', async () => {
-      const repo = new PostgresProductRepository(prismaMock as unknown as PrismaClient);
-      const product = new Product(new ProductId('p-1'), 'Test Product');
-      product.addVariant(new Sku('SKU-1'), [new VariantAttribute('color', 'blue')]);
+  describe("PostgresInventoryRepository", () => {
+    let repo: PostgresInventoryRepository;
 
-      await repo.save(product);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.product.upsert).toHaveBeenCalled();
-      expect(prismaMock.productVariant.upsert).toHaveBeenCalled();
-      expect(prismaMock.variantAttribute.createMany).toHaveBeenCalled();
+    beforeEach(() => {
+      repo = new PostgresInventoryRepository(mockPrisma);
     });
 
-    it('should find product by id', async () => {
-      const repo = new PostgresProductRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.product.findUnique.mockResolvedValue({
-        id: 'p-1',
-        name: 'Test Product',
-        variants: [
-          {
-            id: 'v-1',
-            sku: 'SKU-1',
-            trackingMode: 'quantity',
-            attributes: [{ name: 'color', value: 'blue' }],
-          },
-        ],
+    it("should find inventory item by ID", async () => {
+      mockPrisma.inventoryItem.findUnique.mockResolvedValue({
+        id: "item-1",
+        sku: "SKU-1",
+        locationId: "loc-1",
+        quantity: 10,
+        allocated: 2,
+        inTransit: 1,
+        version: 5,
       });
 
-      const product = await repo.findById(new ProductId('p-1'));
-      expect(product).not.toBeNull();
-      expect(product?.name).toBe('Test Product');
-      expect(product?.variants).toHaveLength(1);
-      expect(product?.variants[0].sku.value).toBe('SKU-1');
+      const result = await repo.findById("item-1");
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe("item-1");
+      expect(result!.sku.value).toBe("SKU-1");
+      expect(result!.locationId.value).toBe("loc-1");
+      expect(result!.quantity.value).toBe(10);
+      expect(result!.allocated.value).toBe(2);
+      expect(result!.inTransit.value).toBe(1);
+      expect(result!.version).toBe(5);
+    });
+
+    it("should find inventory items by SKU", async () => {
+      mockPrisma.inventoryItem.findMany.mockResolvedValue([
+        {
+          id: "item-1",
+          sku: "SKU-1",
+          locationId: "loc-1",
+          quantity: 10,
+          allocated: 0,
+          inTransit: 0,
+          version: 1,
+        },
+      ]);
+
+      const result = await repo.findBySku("SKU-1");
+      expect(result).toHaveLength(1);
+      expect(result[0].sku.value).toBe("SKU-1");
+    });
+
+    it("should find inventory item by SKU and Location", async () => {
+      mockPrisma.inventoryItem.findUnique.mockResolvedValue({
+        id: "item-1",
+        sku: "SKU-1",
+        locationId: "loc-1",
+        quantity: 10,
+        allocated: 0,
+        inTransit: 0,
+        version: 1,
+      });
+
+      const result = await repo.findBySkuAndLocation("SKU-1", "loc-1");
+      expect(result).not.toBeNull();
+      expect(result!.sku.value).toBe("SKU-1");
+      expect(result!.locationId.value).toBe("loc-1");
+    });
+
+    it("should find batch SKU and Location pairs", async () => {
+      mockPrisma.inventoryItem.findMany.mockResolvedValue([
+        {
+          id: "item-1",
+          sku: "SKU-1",
+          locationId: "loc-1",
+          quantity: 10,
+          allocated: 0,
+          inTransit: 0,
+          version: 1,
+        },
+      ]);
+
+      const result = await repo.findBySkuAndLocationBatch([{ sku: "SKU-1", locationId: "loc-1" }]);
+      expect(result).toHaveLength(1);
+    });
+
+    it("should return empty array for empty SKU and Location batch request", async () => {
+      const result = await repo.findBySkuAndLocationBatch([]);
+      expect(result).toEqual([]);
+    });
+
+    it("should find items by Location", async () => {
+      mockPrisma.inventoryItem.findMany.mockResolvedValue([
+        {
+          id: "item-1",
+          sku: "SKU-1",
+          locationId: "loc-1",
+          quantity: 10,
+          allocated: 0,
+          inTransit: 0,
+          version: 1,
+        },
+      ]);
+
+      const result = await repo.findByLocation("loc-1");
+      expect(result).toHaveLength(1);
+    });
+
+    it("should find all items", async () => {
+      mockPrisma.inventoryItem.findMany.mockResolvedValue([
+        {
+          id: "item-1",
+          sku: "SKU-1",
+          locationId: "loc-1",
+          quantity: 10,
+          allocated: 0,
+          inTransit: 0,
+          version: 1,
+        },
+      ]);
+
+      const result = await repo.findAll();
+      expect(result).toHaveLength(1);
+    });
+
+    it("should create new inventory item if not exists in database during save", async () => {
+      const item = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(10), new Quantity(0), new Quantity(0), 1);
+      mockPrisma.inventoryItem.findUnique.mockResolvedValue(null);
+
+      await repo.save(item);
+
+      expect(mockPrisma.inventoryItem.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id: "item-1",
+          sku: "SKU-1",
+          locationId: "loc-1",
+          quantity: 10,
+        }),
+      });
+    });
+
+    it("should update existing inventory item and check version concurrency", async () => {
+      const item = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(15), new Quantity(0), new Quantity(0), 2);
+      mockPrisma.inventoryItem.findUnique.mockResolvedValue({ id: "item-1", version: 1 });
+      mockPrisma.inventoryItem.updateMany.mockResolvedValue({ count: 1 });
+
+      await repo.save(item);
+
+      expect(mockPrisma.inventoryItem.updateMany).toHaveBeenCalledWith({
+        where: { id: "item-1", version: 1 },
+        data: expect.objectContaining({
+          quantity: 15,
+          version: 2,
+        }),
+      });
+    });
+
+    it("should throw ConcurrencyError if updateMany count is 0", async () => {
+      const item = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(15), new Quantity(0), new Quantity(0), 2);
+      mockPrisma.inventoryItem.findUnique.mockResolvedValue({ id: "item-1", version: 1 });
+      mockPrisma.inventoryItem.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(repo.save(item)).rejects.toThrow(ConcurrencyError);
     });
   });
 
-  describe('PostgresLedgerRepository', () => {
-    it('should append ledger entry', async () => {
-      const repo = new PostgresLedgerRepository(prismaMock as unknown as PrismaClient);
+  describe("PostgresLedgerRepository", () => {
+    let repo: PostgresLedgerRepository;
+
+    beforeEach(() => {
+      repo = new PostgresLedgerRepository(mockPrisma);
+    });
+
+    it("should append a ledger entry successfully", async () => {
       const entry = new LedgerEntry(
-        new LedgerEntryId('l-1'),
-        new TenantId('t-1'),
-        new LocationId('loc-1'),
-        new ProductVariantId('v-1'),
+        new LedgerEntryId("ent-1"),
+        new TenantId("ten-1"),
+        new LocationId("loc-1"),
+        new ProductVariantId("var-1"),
         10,
-        ReasonCode.OpeningBalance,
-        new ActorId('act-1'),
+        ReasonCode.PurchaseReceipt,
+        new ActorId("act-1"),
         new Date()
       );
 
       await repo.append(entry);
-      expect(prismaMock.ledgerEntry.create).toHaveBeenCalled();
+
+      expect(mockPrisma.ledgerEntry.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id: "ent-1",
+          tenantId: "ten-1",
+          variantId: "var-1",
+          locationId: "loc-1",
+          quantity: 10,
+        }),
+      });
     });
 
-    it('should calculate current quantity', async () => {
-      const repo = new PostgresLedgerRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.ledgerEntry.aggregate.mockResolvedValue({ _sum: { quantity: 15 } });
-
-      const qty = await repo.currentQuantity(new ProductVariantId('v-1'), new LocationId('loc-1'));
-      expect(qty).toBe(15);
-    });
-  });
-
-  describe('PostgresSerializedItemRepository', () => {
-    it('should save serialized item status and transition history', async () => {
-      const repo = new PostgresSerializedItemRepository(prismaMock as unknown as PrismaClient);
-      const item = new SerializedItem(
-        new SerializedItemId('s-1'),
-        new ProductVariantId('v-1'),
-        new SerialNumber('SN123'),
-        new TenantId('t-1'),
-        new LocationId('loc-1')
-      );
-      item.receive(new LocationId('loc-1'), new ActorId('act-1'), 'PO-1');
-
-      await repo.save(item);
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.serializedItem.upsert).toHaveBeenCalled();
-      expect(prismaMock.serializedItemHistory.createMany).toHaveBeenCalled();
-    });
-  });
-
-  describe('PostgresInventoryCostLayerRepository', () => {
-    it('should save cost layer', async () => {
-      const repo = new PostgresInventoryCostLayerRepository(prismaMock as unknown as PrismaClient);
-      const layer = new InventoryCostLayer(
-        new InventoryCostLayerId('cl-1'),
-        new ProductVariantId('v-1'),
+    it("should append a batch of ledger entries successfully", async () => {
+      const entry = new LedgerEntry(
+        new LedgerEntryId("ent-1"),
+        new TenantId("ten-1"),
+        new LocationId("loc-1"),
+        new ProductVariantId("var-1"),
         10,
-        100,
+        ReasonCode.PurchaseReceipt,
+        new ActorId("act-1"),
         new Date()
       );
 
-      await repo.save(layer);
-      expect(prismaMock.inventoryCostLayer.upsert).toHaveBeenCalled();
+      await repo.appendBatch([entry]);
+
+      expect(mockPrisma.ledgerEntry.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            id: "ent-1",
+            tenantId: "ten-1",
+            variantId: "var-1",
+            locationId: "loc-1",
+            quantity: 10,
+          }),
+        ],
+      });
     });
 
-    it('should save cost layer with lot details', async () => {
-      const repo = new PostgresInventoryCostLayerRepository(prismaMock as unknown as PrismaClient);
-      const expiry = new Date('2026-12-31T00:00:00Z');
-      const layer = new InventoryCostLayer(
-        new InventoryCostLayerId('cl-1'),
-        new ProductVariantId('v-1'),
-        10,
-        100,
-        new Date(),
-        undefined,
-        new Lot('LOT-123', expiry)
-      );
+    it("should return correct aggregate sum for currentQuantity", async () => {
+      mockPrisma.ledgerEntry.aggregate.mockResolvedValue({
+        _sum: { quantity: 15 },
+      });
 
-      await repo.save(layer);
-      expect(prismaMock.inventoryCostLayer.upsert).toHaveBeenCalledWith(
+      const qty = await repo.currentQuantity(new ProductVariantId("var-1"), new LocationId("loc-1"));
+      expect(qty).toBe(15);
+      expect(mockPrisma.ledgerEntry.aggregate).toHaveBeenCalled();
+    });
+
+    it("should return correct aggregate sum for currentQuantityAt timestamp", async () => {
+      mockPrisma.ledgerEntry.aggregate.mockResolvedValue({
+        _sum: { quantity: 8 },
+      });
+
+      const time = new Date();
+      const qty = await repo.currentQuantityAt(new ProductVariantId("var-1"), new LocationId("loc-1"), time);
+      expect(qty).toBe(8);
+      expect(mockPrisma.ledgerEntry.aggregate).toHaveBeenCalledWith(
         expect.objectContaining({
-          create: expect.objectContaining({
-            lotNumber: 'LOT-123',
-            expirationDate: expiry
-          })
+          where: expect.objectContaining({
+            occurredAt: { lte: time },
+          }),
         })
       );
     });
-  });
 
-  describe('PostgresIntegrationRepository', () => {
-    it('should save connection', async () => {
-      const repo = new PostgresIntegrationRepository(prismaMock as unknown as PrismaClient);
-      const connection = new IntegrationConnection(
-        new IntegrationId('int-1'),
-        new TenantId('t-1'),
-        IntegrationPlatform.Shopify,
-        'test-store.myshopify.com',
-        'token-123'
-      );
-
-      await repo.save(connection);
-      expect(prismaMock.integrationConnection.upsert).toHaveBeenCalled();
-    });
-
-    it('should find by id', async () => {
-      const repo = new PostgresIntegrationRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.integrationConnection.findUnique.mockResolvedValue({
-        id: 'int-1',
-        tenantId: 't-1',
-        platform: 'shopify',
-        storeDomain: 'test-store.myshopify.com',
-        accessToken: 'token-123',
-        isActive: true,
-      });
-
-      const connection = await repo.findById(new IntegrationId('int-1'));
-      expect(connection).not.toBeNull();
-      expect(connection?.storeDomain).toBe('test-store.myshopify.com');
-      expect(connection?.isActive).toBe(true);
-    });
-  });
-
-  describe('PostgresExternalMappingRepository', () => {
-    it('should save external mapping (create case)', async () => {
-      const repo = new PostgresExternalMappingRepository(prismaMock as unknown as PrismaClient);
-      const mapping = new ExternalMapping(
-        new TenantId('t-1'),
-        new IntegrationId('int-1'),
-        ExternalEntityType.Variant,
-        'internal-1',
-        'external-1'
-      );
-
-      prismaMock.externalMapping.findUnique.mockResolvedValue(null);
-      await repo.save(mapping);
-      expect(prismaMock.externalMapping.create).toHaveBeenCalled();
-    });
-
-    it('should find external mapping by external ID', async () => {
-      const repo = new PostgresExternalMappingRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.externalMapping.findUnique.mockResolvedValue({
-        tenantId: 't-1',
-        integrationId: 'int-1',
-        entityType: 'variant',
-        internalId: 'internal-1',
-        externalId: 'external-1',
-      });
-
-      const mapping = await repo.findByExternalId(
-        new IntegrationId('int-1'),
-        'external-1',
-        ExternalEntityType.Variant
-      );
-      expect(mapping).not.toBeNull();
-      expect(mapping?.internalId).toBe('internal-1');
-    });
-  });
-
-  describe('PostgresProductUomConfigurationRepository', () => {
-    it('should save UOM config and rules in transaction', async () => {
-      const repo = new PostgresProductUomConfigurationRepository(prismaMock as unknown as PrismaClient);
-      const base = new UnitOfMeasure('Each', 'ea', UomCategory.Discrete);
-      const config = new ProductUomConfiguration(new Sku('SKU-1'), base);
-      config.addConversionRule(new UnitOfMeasure('Dozen', 'dz', UomCategory.Discrete), 12);
-
-      await repo.save(config);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.productUomConfiguration.upsert).toHaveBeenCalled();
-      expect(prismaMock.conversionRule.upsert).toHaveBeenCalled();
-    });
-
-    it('should find configuration by SKU', async () => {
-      const repo = new PostgresProductUomConfigurationRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.productUomConfiguration.findUnique.mockResolvedValue({
-        sku: 'SKU-1',
-        baseUnitName: 'Each',
-        baseUnitAbbreviation: 'ea',
-        baseUnitCategory: 'discrete',
-        purchaseUnitName: 'Dozen',
-        purchaseUnitAbbreviation: 'dz',
-        purchaseUnitCategory: 'discrete',
-        saleUnitName: 'Each',
-        saleUnitAbbreviation: 'ea',
-        saleUnitCategory: 'discrete',
-        conversionRules: [
-          {
-            id: 'rule-1',
-            unitName: 'Dozen',
-            unitAbbreviation: 'dz',
-            unitCategory: 'discrete',
-            factorToBase: 12.0,
-            label: 'dz rule'
-          }
-        ]
-      });
-
-      const config = await repo.findBySku(new Sku('SKU-1'));
-      expect(config).not.toBeNull();
-      expect(config?.baseUnit.name).toBe('Each');
-      expect(config?.conversionRules).toHaveLength(1);
-      expect(config?.conversionRules[0].factorToBase).toBe(12.0);
-    });
-  });
-
-  describe('PostgresJournalRepository', () => {
-    it('should save balanced journal entry and lines in transaction', async () => {
-      const repo = new PostgresJournalRepository(prismaMock as unknown as PrismaClient);
-      const entry = new JournalEntry(
-        new JournalEntryId('j-1'),
-        new TenantId('t-1'),
-        new Date(),
-        'Balanced entry',
-        AccountingMethod.Accrual
-      );
-      entry.addLine(AccountCode.fromCode('1000'), 500, DebitCredit.Debit);
-      entry.addLine(AccountCode.fromCode('2000'), 500, DebitCredit.Credit);
-
-      await repo.save(entry);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.journalEntry.upsert).toHaveBeenCalled();
-      expect(prismaMock.journalLine.createMany).toHaveBeenCalled();
-    });
-
-    it('should query journal entries by tenant', async () => {
-      const repo = new PostgresJournalRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.journalEntry.findMany.mockResolvedValue([
-        {
-          id: 'j-1',
-          tenantId: 't-1',
-          date: new Date(),
-          description: 'Balanced entry',
-          method: 'accrual',
-          lines: [
-            { accountCode: '1000', amountCents: 500, type: 'debit', memo: 'Dr' },
-            { accountCode: '2000', amountCents: 500, type: 'credit', memo: 'Cr' }
-          ]
-        }
+    it("should return current quantities map for batch variants request", async () => {
+      mockPrisma.ledgerEntry.groupBy.mockResolvedValue([
+        { variantId: "var-1", _sum: { quantity: 5 } },
+        { variantId: "var-2", _sum: { quantity: 12 } },
       ]);
 
-      const entries = await repo.findAllByTenant(new TenantId('t-1'));
-      expect(entries).toHaveLength(1);
-      expect(entries[0].description).toBe('Balanced entry');
-      expect(entries[0].lines).toHaveLength(2);
-    });
-  });
-
-  describe('PostgresBarcodeRepository', () => {
-    it('should save barcode assignments in transaction', async () => {
-      const repo = new PostgresBarcodeRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.productVariant.findUnique.mockResolvedValue({ id: 'v-1', sku: 'SKU-1' });
-
-      const set = new VariantBarcodeSet(new Sku('SKU-1'));
-      set.assign(new Barcode(BarcodeSymbology.UPC_A, '012345678905'), BarcodeSource.Supplier, true);
-
-      await repo.save(set);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.barcode.deleteMany).toHaveBeenCalled();
-      expect(prismaMock.barcode.upsert).toHaveBeenCalled();
-    });
-
-    it('should find SKU by barcode value', async () => {
-      const repo = new PostgresBarcodeRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.barcode.findFirst.mockResolvedValue({
-        id: 'b-1',
-        value: '012345678905',
-        variant: { sku: 'SKU-1' }
-      });
-
-      const sku = await repo.findSkuByBarcodeValue('012345678905');
-      expect(sku).not.toBeNull();
-      expect(sku?.value).toBe('SKU-1');
-    });
-
-    it('should find barcode set by SKU', async () => {
-      const repo = new PostgresBarcodeRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.productVariant.findUnique.mockResolvedValue({
-        id: 'v-1',
-        sku: 'SKU-1',
-        barcodes: [
-          {
-            id: 'b-1',
-            value: '012345678905',
-            symbology: 'upc_a',
-            source: 'supplier',
-            isPrimary: true,
-            assignedAt: new Date()
-          }
-        ]
-      });
-
-      const set = await repo.findSetBySku(new Sku('SKU-1'));
-      expect(set).not.toBeNull();
-      expect(set?.sku.value).toBe('SKU-1');
-      expect(set?.all).toHaveLength(1);
-      expect(set?.all[0].barcode.value).toBe('012345678905');
-    });
-  });
-
-  describe('PostgresStockOnboardingRepository', () => {
-    it('should save stock onboarding sheet and items in transaction', async () => {
-      const repo = new PostgresStockOnboardingRepository(prismaMock as unknown as PrismaClient);
-      const onboarding = new StockOnboarding(
-        new StockOnboardingId('o-1'),
-        new TenantId('t-1'),
-        new LocationId('loc-1'),
-        new Date()
-      );
-      onboarding.setItem(new ProductVariantId('v-1'), 10, 100);
-
-      await repo.save(onboarding);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.stockOnboarding.upsert).toHaveBeenCalled();
-      expect(prismaMock.stockOnboardingItem.deleteMany).toHaveBeenCalled();
-      expect(prismaMock.stockOnboardingItem.createMany).toHaveBeenCalled();
-    });
-
-    it('should find onboarding sheet by ID', async () => {
-      const repo = new PostgresStockOnboardingRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.stockOnboarding.findUnique.mockResolvedValue({
-        id: 'o-1',
-        tenantId: 't-1',
-        locationId: 'loc-1',
-        status: 'draft',
-        asOfDate: new Date(),
-        items: [
-          {
-            variantId: 'v-1',
-            quantity: 10,
-            unitCostCents: 100
-          }
-        ]
-      });
-
-      const onboarding = await repo.findById(new StockOnboardingId('o-1'));
-      expect(onboarding).not.toBeNull();
-      expect(onboarding?.tenantId.value).toBe('t-1');
-      expect(onboarding?.items).toHaveLength(1);
-      expect(onboarding?.items[0].quantity).toBe(10);
-    });
-
-    it('should find onboarding sheets by tenant', async () => {
-      const repo = new PostgresStockOnboardingRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.stockOnboarding.findMany.mockResolvedValue([
-        {
-          id: 'o-1',
-          tenantId: 't-1',
-          locationId: 'loc-1',
-          status: 'draft',
-          asOfDate: new Date(),
-          items: []
-        }
-      ]);
-
-      const list = await repo.findAllByTenant(new TenantId('t-1'));
-      expect(list).toHaveLength(1);
-      expect(list[0].id.value).toBe('o-1');
-    });
-  });
-
-  describe('PostgresKitRepository', () => {
-    it('should save a kit and its components in a transaction', async () => {
-      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
-      const kit = new Kit(new KitId('k-1'), new Sku('KIT-1'), 'Test Kit');
-      kit.addComponent(new ProductVariantId('v-1'), 2);
-
-      await repo.save(kit);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.kit.upsert).toHaveBeenCalled();
-      expect(prismaMock.kitComponent.deleteMany).toHaveBeenCalled();
-      expect(prismaMock.kitComponent.createMany).toHaveBeenCalled();
-    });
-
-    it('should find kit by ID', async () => {
-      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.kit.findUnique.mockResolvedValue({
-        id: 'k-1',
-        sku: 'KIT-1',
-        name: 'Test Kit',
-        components: [
-          {
-            variantId: 'v-1',
-            quantity: 2
-          }
-        ]
-      });
-
-      const kit = await repo.findById(new KitId('k-1'));
-      expect(kit).not.toBeNull();
-      expect(kit?.sku.value).toBe('KIT-1');
-      expect(kit?.components).toHaveLength(1);
-      expect(kit?.components[0].quantity).toBe(2);
-    });
-
-    it('should find kit by SKU', async () => {
-      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.kit.findUnique.mockResolvedValue({
-        id: 'k-1',
-        sku: 'KIT-1',
-        name: 'Test Kit',
-        components: []
-      });
-
-      const kit = await repo.findBySku(new Sku('KIT-1'));
-      expect(kit).not.toBeNull();
-      expect(kit?.id.value).toBe('k-1');
-    });
-
-    it('should delete a kit by ID', async () => {
-      const repo = new PostgresKitRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.kit.delete.mockResolvedValue({ id: 'k-1' });
-
-      await repo.delete(new KitId('k-1'));
-      expect(prismaMock.kit.delete).toHaveBeenCalled();
-    });
-  });
-
-  describe('PostgresWarehouseLocationRepository', () => {
-    it('should save a location', async () => {
-      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
-      const loc = new WarehouseLocation(
-        new LocationId('WH1-ZONEA-A01-R01-S01-B01'),
-        'WH1',
-        'ZONEA',
-        'A01',
-        'R01',
-        'S01',
-        'B01',
-        10000,
-        5.5
+      const map = await repo.currentQuantities(
+        [new ProductVariantId("var-1"), new ProductVariantId("var-2")],
+        new LocationId("loc-1")
       );
 
-      await repo.save(loc);
-      expect(prismaMock.warehouseLocation.upsert).toHaveBeenCalled();
-    });
-
-    it('should find location by ID', async () => {
-      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.warehouseLocation.findUnique.mockResolvedValue({
-        id: 'WH1-ZONEA-A01-R01-S01-B01',
-        warehouseId: 'WH1',
-        zone: 'ZONEA',
-        aisle: 'A01',
-        rack: 'R01',
-        shelf: 'S01',
-        bin: 'B01',
-        maxWeightGrams: 10000,
-        maxVolumeCubicMeters: 5.5,
-      });
-
-      const loc = await repo.findById(new LocationId('WH1-ZONEA-A01-R01-S01-B01'));
-      expect(loc).not.toBeNull();
-      expect(loc?.warehouseId).toBe('WH1');
-      expect(loc?.maxWeightGrams).toBe(10000);
-    });
-
-    it('should find all locations', async () => {
-      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.warehouseLocation.findMany.mockResolvedValue([
-        {
-          id: 'WH1-ZONEA-A01-R01-S01-B01',
-          warehouseId: 'WH1',
-          zone: 'ZONEA',
-          aisle: 'A01',
-          rack: 'R01',
-          shelf: 'S01',
-          bin: 'B01',
-          maxWeightGrams: 10000,
-          maxVolumeCubicMeters: 5.5,
-        }
-      ]);
-
-      const list = await repo.findAll();
-      expect(list).toHaveLength(1);
-      expect(list[0].id.value).toBe('WH1-ZONEA-A01-R01-S01-B01');
-    });
-
-    it('should delete a location', async () => {
-      const repo = new PostgresWarehouseLocationRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.warehouseLocation.delete.mockResolvedValue({ id: 'WH1-ZONEA-A01-R01-S01-B01' });
-
-      await repo.delete(new LocationId('WH1-ZONEA-A01-R01-S01-B01'));
-      expect(prismaMock.warehouseLocation.delete).toHaveBeenCalled();
-    });
-  });
-
-  describe('PostgresStockTransferRepository', () => {
-    it('should save a stock transfer in a transaction', async () => {
-      const repo = new PostgresStockTransferRepository(prismaMock as unknown as PrismaClient);
-      const transfer = StockTransfer.createNew(
-        new StockTransferId('st-1'),
-        new TenantId('t-1'),
-        new LocationId('LOC-A'),
-        new LocationId('LOC-B'),
-        [new StockTransferItem(new ProductVariantId('v-1'), 10)],
-        'ref-1'
-      );
-
-      await repo.save(transfer);
-
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.stockTransfer.upsert).toHaveBeenCalled();
-      expect(prismaMock.stockTransferItem.deleteMany).toHaveBeenCalled();
-      expect(prismaMock.stockTransferItem.createMany).toHaveBeenCalled();
-    });
-
-    it('should find a stock transfer by id', async () => {
-      const repo = new PostgresStockTransferRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.stockTransfer.findUnique.mockResolvedValue({
-        id: 'st-1',
-        tenantId: 't-1',
-        sourceLocationId: 'LOC-A',
-        destinationLocationId: 'LOC-B',
-        status: 'draft',
-        referenceId: 'ref-1',
-        dispatchedAt: null,
-        receivedAt: null,
-        createdAt: new Date('2026-06-08T00:00:00Z'),
-        items: [
-          {
-            variantId: 'v-1',
-            quantity: 10,
-          },
-        ],
-      });
-
-      const transfer = await repo.findById(new StockTransferId('st-1'));
-      expect(transfer).not.toBeNull();
-      expect(transfer?.id.value).toBe('st-1');
-      expect(transfer?.status).toBe(StockTransferStatus.Draft);
-      expect(transfer?.items).toHaveLength(1);
-      expect(transfer?.items[0].variantId.value).toBe('v-1');
-      expect(transfer?.items[0].quantity).toBe(10);
-    });
-
-    it('should find all stock transfers by tenant', async () => {
-      const repo = new PostgresStockTransferRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.stockTransfer.findMany.mockResolvedValue([
-        {
-          id: 'st-1',
-          tenantId: 't-1',
-          sourceLocationId: 'LOC-A',
-          destinationLocationId: 'LOC-B',
-          status: 'draft',
-          referenceId: 'ref-1',
-          dispatchedAt: null,
-          receivedAt: null,
-          createdAt: new Date('2026-06-08T00:00:00Z'),
-          items: [
-            {
-              variantId: 'v-1',
-              quantity: 10,
-            },
-          ],
-        },
-      ]);
-
-      const list = await repo.findAllByTenant(new TenantId('t-1'));
-      expect(list).toHaveLength(1);
-      expect(list[0].id.value).toBe('st-1');
-      expect(list[0].items[0].variantId.value).toBe('v-1');
-    });
-  });
-
-  describe('PostgresReplenishmentRuleRepository', () => {
-    it('should save a replenishment rule', async () => {
-      const repo = new PostgresReplenishmentRuleRepository(prismaMock as unknown as PrismaClient);
-      const rule = ReplenishmentRule.createNew(
-        new ReplenishmentRuleId('rule-1'),
-        new TenantId('t-1'),
-        new Sku('SKU-1'),
-        new LocationId('LOC-A'),
-        10,
-        50,
-        5,
-        7,
-        ReplenishmentType.Supplier,
-        null,
-        'SUPP-1'
-      );
-
-      await repo.save(rule);
-      expect(prismaMock.replenishmentRule.upsert).toHaveBeenCalled();
-    });
-
-    it('should find a replenishment rule by id', async () => {
-      const repo = new PostgresReplenishmentRuleRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.replenishmentRule.findUnique.mockResolvedValue({
-        id: 'rule-1',
-        tenantId: 't-1',
-        sku: 'SKU-1',
-        locationId: 'LOC-A',
-        reorderPoint: 10,
-        reorderQuantity: 50,
-        safetyStock: 5,
-        leadTimeDays: 7,
-        replenishmentType: 'SUPPLIER',
-        sourceLocationId: null,
-        supplierId: 'SUPP-1',
-        isActive: true,
-        dynamicRopEnabled: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      const rule = await repo.findById(new ReplenishmentRuleId('rule-1'));
-      expect(rule).not.toBeNull();
-      expect(rule?.id.value).toBe('rule-1');
-      expect(rule?.sku.value).toBe('SKU-1');
-      expect(rule?.reorderPoint).toBe(10);
-    });
-
-    it('should find a replenishment rule by SKU and location', async () => {
-      const repo = new PostgresReplenishmentRuleRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.replenishmentRule.findFirst.mockResolvedValue({
-        id: 'rule-1',
-        tenantId: 't-1',
-        sku: 'SKU-1',
-        locationId: 'LOC-A',
-        reorderPoint: 10,
-        reorderQuantity: 50,
-        safetyStock: 5,
-        leadTimeDays: 7,
-        replenishmentType: 'SUPPLIER',
-        sourceLocationId: null,
-        supplierId: 'SUPP-1',
-        isActive: true,
-        dynamicRopEnabled: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      const rule = await repo.findBySkuAndLocation(new Sku('SKU-1'), new LocationId('LOC-A'));
-      expect(rule).not.toBeNull();
-      expect(rule?.id.value).toBe('rule-1');
-    });
-  });
-
-  describe('PostgresPurchaseOrderRepository', () => {
-    it('should save a purchase order in a transaction', async () => {
-      const repo = new PostgresPurchaseOrderRepository(prismaMock as unknown as PrismaClient);
-      const po = PurchaseOrder.createNew(
-        new PurchaseOrderId('po-1'),
-        new TenantId('t-1'),
-        'SUPP-1',
-        new LocationId('LOC-A'),
-        [new PurchaseOrderItem(new ProductVariantId('v-1'), 100)]
-      );
-
-      await repo.save(po);
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.purchaseOrder.upsert).toHaveBeenCalled();
-      expect(prismaMock.purchaseOrderItem.deleteMany).toHaveBeenCalled();
-      expect(prismaMock.purchaseOrderItem.createMany).toHaveBeenCalled();
-    });
-
-    it('should find a purchase order by id', async () => {
-      const repo = new PostgresPurchaseOrderRepository(prismaMock as unknown as PrismaClient);
-      prismaMock.purchaseOrder.findUnique.mockResolvedValue({
-        id: 'po-1',
-        tenantId: 't-1',
-        supplierId: 'SUPP-1',
-        destinationLocationId: 'LOC-A',
-        status: 'DRAFT',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        items: [
-          {
-            variantId: 'v-1',
-            quantity: 100
-          }
-        ]
-      });
-
-      const po = await repo.findById(new PurchaseOrderId('po-1'));
-      expect(po).not.toBeNull();
-      expect(po?.id.value).toBe('po-1');
-      expect(po?.status).toBe(PurchaseOrderStatus.Draft);
-      expect(po?.items).toHaveLength(1);
-      expect(po?.items[0].variantId.value).toBe('v-1');
-    });
-  });
-
-  describe('PostgresRmaRepository', () => {
-    it('should save an RMA aggregate and find it by id, number, and tenant', async () => {
-      const repo = new PostgresRmaRepository(prismaMock as unknown as PrismaClient);
-      const rma = new Rma(
-        'rma-123',
-        'RMA-2026-0001',
-        new TenantId('t-1'),
-        'cust-1',
-        new LocationId('LOC-A'),
-        RMAStatus.Requested,
-        [
-          new RmaItem(
-            'item-1',
-            new ProductVariantId('v-1'),
-            5,
-            1200,
-            0,
-            RMAItemStatus.Pending,
-            null
-          )
-        ]
-      );
-
-      // Save
-      await repo.save(rma);
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.rma.upsert).toHaveBeenCalled();
-      expect(prismaMock.rmaItem.upsert).toHaveBeenCalled();
-
-      // Mock findUnique for findById
-      prismaMock.rma.findUnique.mockResolvedValueOnce({
-        id: 'rma-123',
-        rmaNumber: 'RMA-2026-0001',
-        tenantId: 't-1',
-        customerId: 'cust-1',
-        locationId: 'LOC-A',
-        status: 'REQUESTED',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        items: [
-          {
-            id: 'item-1',
-            variantId: 'v-1',
-            quantity: 5,
-            unitCostCents: 1200,
-            receivedQuantity: 0,
-            status: 'PENDING',
-            disposition: null
-          }
-        ]
-      });
-
-      const foundById = await repo.findById('rma-123');
-      expect(foundById).not.toBeNull();
-      expect(foundById?.id).toBe('rma-123');
-      expect(foundById?.rmaNumber).toBe('RMA-2026-0001');
-
-      // Mock findUnique for findByNumber
-      prismaMock.rma.findUnique.mockResolvedValueOnce({
-        id: 'rma-123',
-        rmaNumber: 'RMA-2026-0001',
-        tenantId: 't-1',
-        customerId: 'cust-1',
-        locationId: 'LOC-A',
-        status: 'REQUESTED',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        items: []
-      });
-
-      const foundByNumber = await repo.findByNumber('RMA-2026-0001');
-      expect(foundByNumber).not.toBeNull();
-
-      // Mock findMany for findAllByTenant
-      prismaMock.rma.findMany.mockResolvedValueOnce([
-        {
-          id: 'rma-123',
-          rmaNumber: 'RMA-2026-0001',
-          tenantId: 't-1',
-          customerId: 'cust-1',
-          locationId: 'LOC-A',
-          status: 'REQUESTED',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          items: []
-        }
-      ]);
-
-      const foundByTenant = await repo.findAllByTenant(new TenantId('t-1'));
-      expect(foundByTenant).toHaveLength(1);
-    });
-  });
-
-  describe('PostgresSerializedItemRepository', () => {
-    it('should save a serialized item and find it by serial number', async () => {
-      const repo = new PostgresSerializedItemRepository(prismaMock as unknown as PrismaClient);
-      const item = new SerializedItem(
-        new SerializedItemId('item-1'),
-        new ProductVariantId('v-1'),
-        new SerialNumber('SN-12345'),
-        new TenantId('t-1'),
-        new LocationId('LOC-A'),
-        SerializedItemStatus.Pending
-      );
-      item.transitionTo(
-        SerializedItemStatus.InStock,
-        'Manual entry',
-        new ActorId('actor-1')
-      );
-
-      // Save
-      await repo.save(item);
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.serializedItem.upsert).toHaveBeenCalled();
-      expect(prismaMock.serializedItemHistory.deleteMany).toHaveBeenCalled();
-      expect(prismaMock.serializedItemHistory.createMany).toHaveBeenCalled();
-
-      // Mock findFirst for findBySerial
-      prismaMock.serializedItem.findFirst.mockResolvedValueOnce({
-        id: 'item-1',
-        variantId: 'v-1',
-        serialNumber: 'SN-12345',
-        tenantId: 't-1',
-        locationId: 'LOC-A',
-        status: 'IN_STOCK',
-        history: [
-          {
-            fromStatus: 'PENDING',
-            toStatus: 'IN_STOCK',
-            reason: 'Manual entry',
-            actorId: 'actor-1',
-            occurredAt: new Date(),
-            referenceId: null
-          }
-        ]
-      });
-
-      const found = await repo.findBySerial(new SerialNumber('SN-12345'), new TenantId('t-1'));
-      expect(found).not.toBeNull();
-      expect(found?.id.value).toBe('item-1');
-      expect(found?.serialNumber.value).toBe('SN-12345');
-
-      // Mock count for isRegistered
-      prismaMock.serializedItem.count.mockResolvedValueOnce(1);
-      const isReg = await repo.isRegistered(new SerialNumber('SN-12345'), new TenantId('t-1'));
-      expect(isReg).toBe(true);
-
-      // Mock count for countByStatus
-      prismaMock.serializedItem.count.mockResolvedValueOnce(5);
-      const count = await repo.countByStatus(new ProductVariantId('v-1'), SerializedItemStatus.InStock);
-      expect(count).toBe(5);
+      expect(map.get("var-1")).toBe(5);
+      expect(map.get("var-2")).toBe(12);
     });
   });
 });
