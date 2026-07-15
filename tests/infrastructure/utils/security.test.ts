@@ -58,5 +58,26 @@ describe('security utils', () => {
 
         expect(verifyPassword(password, tamperedStoredHash)).toBe(false);
     });
+
+    it('should handle unexpected runtime types for password', () => {
+      const password = 'my-secret-password';
+      const storedHash = hashPassword(password);
+
+      expect(verifyPassword(null as any, storedHash)).toBe(false);
+      expect(verifyPassword(undefined as any, storedHash)).toBe(false);
+      expect(verifyPassword(123 as any, storedHash)).toBe(false);
+      expect(verifyPassword({} as any, storedHash)).toBe(false);
+      expect(verifyPassword([] as any, storedHash)).toBe(false);
+    });
+
+    it('should handle unexpected runtime types for storedHash', () => {
+      const password = 'my-secret-password';
+
+      expect(verifyPassword(password, null as any)).toBe(false);
+      expect(verifyPassword(password, undefined as any)).toBe(false);
+      expect(verifyPassword(password, 123 as any)).toBe(false);
+      expect(verifyPassword(password, {} as any)).toBe(false);
+      expect(verifyPassword(password, [] as any)).toBe(false);
+    });
   });
 });
