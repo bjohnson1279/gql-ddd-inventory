@@ -699,6 +699,17 @@ export const typeDefs = `#graphql
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
   }
 
+  type SlottingSuggestion {
+    sku: String!
+    currentLocationId: String!
+    currentDistance: Int!
+    currentVelocity: Int!
+    recommendedLocationId: String!
+    recommendedDistance: Int!
+    potentialSwapSku: String
+    estimatedSavings: Float!
+  }
+
   type InventoryCountResult {
     sku: String!
     locationId: String!
