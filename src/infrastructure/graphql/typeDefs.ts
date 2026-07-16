@@ -658,6 +658,20 @@ export const typeDefs = `#graphql
     slottingSuggestions: [SlottingSuggestion!]!
     suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
     traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
+  }
+
+  type SlottingSuggestion {
+    sku: String!
+    currentLocationId: String!
+    currentDistance: Int!
+    currentVelocity: Int!
+    recommendedLocationId: String!
+    recommendedDistance: Int!
+    potentialSwapSku: String
+    estimatedSavings: Float!
+  }
+
+  extend type Query {
     users(tenantId: ID!): [UserDTO!]!
     rma(id: ID!): Rma
     rmas(tenantId: ID!): [Rma!]!
