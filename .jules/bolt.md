@@ -13,4 +13,6 @@
 ## 2024-03-24 - [Cache shipping rates during routing]
 **Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
 **Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
-## 2026-07-15 - Ignore Guardrails Test Failure\n**Learning:** The `tests/infrastructure/graphql/guardrails.test.ts` test has a pre-existing failure due to a GraphQL Syntax Error ('Unexpected Name "suggestFefoPicking"').\n**Action:** Ignore this specific failure when verifying test suites, provided my changes do not relate to GraphQL guardrails or schema definitions.
+## 2025-03-09 - Ensure Exception String Assertions Match Source Code
+**Learning:** When adding tests that assert an exact error message is thrown, ensure the expected string in `toThrow(...)` matches the *actual* source code exactly, rather than blindly copying an expected string from the prompt or issue description which might be outdated or hallucinated.
+**Action:** Before committing a test that uses `toThrow('exact string')`, always `grep` or `cat` the actual source file to verify the exact wording of the thrown `Error` or use a regex `toThrow(/partial string/)` to be more resilient to minor message changes.

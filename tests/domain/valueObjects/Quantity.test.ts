@@ -33,7 +33,7 @@ describe('Quantity Value Object', () => {
     it('should throw an error when adding quantities with different units', () => {
       const q1 = new Quantity(10, StandardUnits.each());
       const q2 = new Quantity(5, StandardUnits.kilogram());
-      expect(() => q1.add(q2)).toThrow('Cannot operate on Each and Kilogram directly. Convert first.');
+      expect(() => q1.add(q2)).toThrow('Cannot operate on different units: Each vs Kilogram');
     });
   });
 
@@ -49,7 +49,7 @@ describe('Quantity Value Object', () => {
     it('should throw an error when subtracting quantities with different units', () => {
       const q1 = new Quantity(10, StandardUnits.each());
       const q2 = new Quantity(5, StandardUnits.kilogram());
-      expect(() => q1.subtract(q2)).toThrow('Cannot operate on Each and Kilogram directly. Convert first.');
+      expect(() => q1.subtract(q2)).toThrow('Cannot operate on different units: Each vs Kilogram');
     });
 
     it('should throw an error if the resulting quantity would be negative', () => {
@@ -112,6 +112,22 @@ describe('Quantity Value Object', () => {
     it('should format the quantity correctly', () => {
       const q = new Quantity(10, StandardUnits.kilogram());
       expect(q.toString()).toBe('10 kg');
+    });
+  });
+
+  describe('assertSameUnit (indirect)', () => {
+    it('should pass silently when operating on quantities with the same unit', () => {
+      const q1 = new Quantity(10, StandardUnits.kilogram());
+      const q2 = new Quantity(5, StandardUnits.kilogram());
+      // Tested indirectly via add
+      expect(() => q1.add(q2)).not.toThrow();
+    });
+
+    it('should throw an error when operating on quantities with different units', () => {
+      const q1 = new Quantity(10, StandardUnits.each());
+      const q2 = new Quantity(5, StandardUnits.kilogram());
+      // Tested indirectly via add
+      expect(() => q1.add(q2)).toThrow('Cannot operate on different units: Each vs Kilogram');
     });
   });
 });

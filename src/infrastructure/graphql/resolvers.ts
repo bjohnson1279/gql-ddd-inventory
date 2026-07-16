@@ -163,7 +163,6 @@ import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineR
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
 import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
 import { SyncJournalListeners } from '../../application/eventHandlers/SyncJournalListeners';
-import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
 import {
   NetSuiteJournalSync,
   XeroJournalSync,
@@ -817,11 +816,7 @@ export const resolvers = {
         shelf: loc.shelf,
         bin: loc.bin,
         maxWeightGrams: loc.maxWeightGrams,
-        maxVolumeCubicMeters: loc.maxVolumeCubicMeters,
-        gridX: loc.gridX,
-        gridY: loc.gridY,
-        width: loc.width,
-        height: loc.height
+        maxVolumeCubicMeters: loc.maxVolumeCubicMeters
       };
     },
     warehouseLocations: async (_: any, __: any, context: GraphQLContext) => {
@@ -836,11 +831,7 @@ export const resolvers = {
         shelf: loc.shelf,
         bin: loc.bin,
         maxWeightGrams: loc.maxWeightGrams,
-        maxVolumeCubicMeters: loc.maxVolumeCubicMeters,
-        gridX: loc.gridX,
-        gridY: loc.gridY,
-        width: loc.width,
-        height: loc.height
+        maxVolumeCubicMeters: loc.maxVolumeCubicMeters
       }));
     },
     historicalStockLevel: async (_: any, { sku, locationId, timestamp }: { sku: string; locationId: string; timestamp: string }, context: GraphQLContext) => {
@@ -964,16 +955,6 @@ export const resolvers = {
       try {
         const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         return await optimizePickingRouteUseCase.execute(auth.tenantId, items);
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
-    slottingSuggestions: async (_: any, __: any, context: GraphQLContext) => {
-      try {
-        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-        const { SlottingOptimizer } = await import('../../domain/services/SlottingOptimizer');
-        const optimizer = new SlottingOptimizer(prisma);
-        return await optimizer.generateSuggestions();
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -1707,11 +1688,7 @@ export const resolvers = {
           input.shelf,
           input.bin,
           input.maxWeightGrams,
-          input.maxVolumeCubicMeters,
-          input.gridX !== undefined ? Number(input.gridX) : 0,
-          input.gridY !== undefined ? Number(input.gridY) : 0,
-          input.width !== undefined ? Number(input.width) : 1,
-          input.height !== undefined ? Number(input.height) : 1
+          input.maxVolumeCubicMeters
         );
         await warehouseLocationRepository.save(loc);
         return {
@@ -1723,11 +1700,7 @@ export const resolvers = {
           shelf: loc.shelf,
           bin: loc.bin,
           maxWeightGrams: loc.maxWeightGrams,
-          maxVolumeCubicMeters: loc.maxVolumeCubicMeters,
-          gridX: loc.gridX,
-          gridY: loc.gridY,
-          width: loc.width,
-          height: loc.height
+          maxVolumeCubicMeters: loc.maxVolumeCubicMeters
         };
       } catch (error: any) {
         throw new Error(error.message);
@@ -2213,6 +2186,7 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin'], tenantId);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2222,6 +2196,7 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {

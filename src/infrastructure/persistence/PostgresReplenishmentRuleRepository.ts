@@ -6,7 +6,7 @@ import { TenantId } from '../../domain/valueObjects/TenantId';
 import { Sku } from '../../domain/valueObjects/Sku';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ReplenishmentType } from '../../domain/enums/ReplenishmentType';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRepository {
