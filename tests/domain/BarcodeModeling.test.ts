@@ -8,7 +8,7 @@ describe('Barcode Modeling', () => {
 
   it('should validate UPC-A correctly', () => {
     expect(() => new Barcode(BarcodeSymbology.UPC_A, '123456789012')).not.toThrow();
-    expect(() => new Barcode(BarcodeSymbology.UPC_A, '123')).toThrow('UPC-A must be exactly 12 digits');
+    expect(() => new Barcode(BarcodeSymbology.UPC_A, '123')).toThrow('Invalid UPC-A length. Expected 12.');
     expect(() => new Barcode(BarcodeSymbology.UPC_A, 'ABC456789012')).toThrow('UPC-A must contain only digits');
   });
 

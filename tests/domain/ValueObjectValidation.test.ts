@@ -74,11 +74,11 @@ describe('Domain Validation Suite', () => {
     });
 
     it('Barcode should validate symbology-specific length rules', () => {
-      expect(() => new Barcode(BarcodeSymbology.UPC_A, '123')).toThrow('must be exactly 12 digits');
-      expect(() => new Barcode(BarcodeSymbology.EAN_13, '123')).toThrow('must be exactly 13 digits');
-      expect(() => new Barcode(BarcodeSymbology.EAN_8, '123')).toThrow('must be exactly 8 digits');
-      expect(() => new Barcode(BarcodeSymbology.UPC_E, '123')).toThrow('must be exactly 8 digits');
-      expect(() => new Barcode(BarcodeSymbology.ITF_14, '123')).toThrow('must be exactly 14 digits');
+      expect(() => new Barcode(BarcodeSymbology.UPC_A, '123')).toThrow('Invalid UPC-A length. Expected 12.');
+      expect(() => new Barcode(BarcodeSymbology.EAN_13, '123')).toThrow('Invalid EAN-13 length. Expected 13.');
+      expect(() => new Barcode(BarcodeSymbology.EAN_8, '123')).toThrow('Invalid EAN-8 length. Expected 8.');
+      expect(() => new Barcode(BarcodeSymbology.UPC_E, '123')).toThrow('Invalid UPC-E length. Expected 8.');
+      expect(() => new Barcode(BarcodeSymbology.ITF_14, '123')).toThrow('Invalid ITF-14 length. Expected 14.');
       expect(() => new Barcode(BarcodeSymbology.CODE_128, '')).toThrow('cannot be empty');
     });
 
