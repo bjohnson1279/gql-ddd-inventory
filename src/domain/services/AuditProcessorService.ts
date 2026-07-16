@@ -129,17 +129,11 @@ export class AuditProcessorService {
           const inventoryItemId = varMap.externalSecondaryId;
           if (!inventoryItemId) continue;
 
-          const variant = await this.prisma.productVariant.findUnique({
-            where: { id: varMap.internalId }
-          });
+          const variant = variantMap.get(varMap.internalId);
           if (!variant) continue;
 
           for (const locMap of connLocationMappings) {
-            const ledgerSum = await this.prisma.ledgerEntry.aggregate({
-              where: { tenantId, variantId: variant.id, locationId: locMap.internalId },
-              _sum: { quantity: true }
-            });
-            const localQty = ledgerSum._sum.quantity || 0;
+            const localQty = ledgerSumMap.get(`${variant.id}_${locMap.internalId}`) || 0;
 
             let shopifyQty = localQty;
             if (!isMock) {

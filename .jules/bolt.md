@@ -14,6 +14,3 @@
 **Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
 **Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
 ## 2026-07-15 - Ignore Guardrails Test Failure\n**Learning:** The `tests/infrastructure/graphql/guardrails.test.ts` test has a pre-existing failure due to a GraphQL Syntax Error ('Unexpected Name "suggestFefoPicking"').\n**Action:** Ignore this specific failure when verifying test suites, provided my changes do not relate to GraphQL guardrails or schema definitions.
-## 2026-07-28 - False Positive Reviewer Flags on Context Variables
-**Learning:** The automated reviewer may flag variables (like `variantMap` and `ledgerSumMap`) as undefined if their declarations exist outside the lines modified by the patch, despite the variables being correctly implemented within the module.
-**Action:** Always verify reviewer claims of undefined variables or compilation errors by independently running the compiler (`npx tsc --noEmit`) and the test suite (`npm test`). If the tools confirm the code is correct, you can safely proceed with submission despite the reviewer's incorrect assessment.
