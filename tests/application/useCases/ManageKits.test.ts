@@ -301,48 +301,6 @@ describe('ManageKits Use Cases', () => {
   });
 
 
-  describe('AddKitComponentUseCase', () => {
-    it('successfully adds a component to an existing kit', async () => {
-      const useCase = new AddKitComponentUseCase(kitRepo);
-
-      const kitIdStr = 'K1';
-      const variantIdStr = 'V1';
-      const quantity = 3;
-
-      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
-      kitRepo.findById.mockResolvedValue(kit);
-
-      const result = await useCase.execute({
-        kitId: kitIdStr,
-        variantId: variantIdStr,
-        quantity
-      });
-
-      expect(result).toBe(true);
-      expect(kitRepo.findById).toHaveBeenCalledWith(expect.any(KitId));
-      expect(kitRepo.findById.mock.calls[0][0].value).toBe(kitIdStr);
-
-      expect(kitRepo.save).toHaveBeenCalled();
-      const savedKit = kitRepo.save.mock.calls[0][0];
-      expect(savedKit.components).toHaveLength(1);
-      expect(savedKit.components[0].variantId.value).toBe(variantIdStr);
-      expect(savedKit.components[0].quantity).toBe(quantity);
-    });
-
-    it('throws an error if the kit is not found', async () => {
-      const useCase = new AddKitComponentUseCase(kitRepo);
-      kitRepo.findById.mockResolvedValue(null);
-
-      await expect(useCase.execute({
-        kitId: 'K99',
-        variantId: 'V1',
-        quantity: 1
-      })).rejects.toThrow("Kit with ID 'K99' not found.");
-
-      expect(kitRepo.save).not.toHaveBeenCalled();
-    });
-  });
-
   describe('CreateKitUseCase', () => {
     it('successfully creates a kit', async () => {
       const useCase = new CreateKitUseCase(kitRepo);
@@ -405,43 +363,109 @@ describe('ManageKits Use Cases', () => {
     it('successfully adds a component to an existing kit', async () => {
       const useCase = new AddKitComponentUseCase(kitRepo);
 
-      const existingKit = new Kit(new KitId('K-EX'), new Sku('KIT-EX'), 'Existing Kit');
-      existingKit.addComponent(new ProductVariantId('V-EX1'), 2);
-      kitRepo.findById.mockResolvedValue(existingKit);
+      const kitIdStr = 'K1';
+      const variantIdStr = 'V1';
+      const quantity = 3;
+
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      kitRepo.findById.mockResolvedValue(kit);
       kitRepo.save.mockResolvedValue(undefined);
 
-      const input = {
-        kitId: 'K-EX',
-        variantId: 'V-EX2',
-        quantity: 5
-      };
-
-      const result = await useCase.execute(input);
+      const result = await useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr,
+        quantity
+      });
 
       expect(result).toBe(true);
       expect(kitRepo.findById).toHaveBeenCalledWith(expect.any(KitId));
-      expect(kitRepo.findById.mock.calls[0][0].value).toBe('K-EX');
+      expect(kitRepo.findById.mock.calls[0][0].value).toBe(kitIdStr);
 
       expect(kitRepo.save).toHaveBeenCalled();
       const savedKit = kitRepo.save.mock.calls[0][0];
-      expect(savedKit.components).toHaveLength(2);
-      expect(savedKit.components[1].variantId.value).toBe('V-EX2');
-      expect(savedKit.components[1].quantity).toBe(5);
+      expect(savedKit.components).toHaveLength(1);
+      expect(savedKit.components[0].variantId.value).toBe(variantIdStr);
+      expect(savedKit.components[0].quantity).toBe(quantity);
     });
 
-    it('throws an error if kit is not found', async () => {
+    it('accumulates quantity when adding an existing component', async () => {
       const useCase = new AddKitComponentUseCase(kitRepo);
 
+      const kitIdStr = 'K1';
+      const variantIdStr = 'V1';
+
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      // Add existing component
+      kit.addComponent(new ProductVariantId(variantIdStr), 2);
+      kitRepo.findById.mockResolvedValue(kit);
+      kitRepo.save.mockResolvedValue(undefined);
+
+      const result = await useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr,
+        quantity: 3
+      });
+
+      expect(result).toBe(true);
+      expect(kitRepo.save).toHaveBeenCalled();
+      const savedKit = kitRepo.save.mock.calls[0][0];
+      expect(savedKit.components).toHaveLength(1);
+      expect(savedKit.components[0].variantId.value).toBe(variantIdStr);
+      expect(savedKit.components[0].quantity).toBe(5); // 2 + 3
+    });
+
+    it('throws an error if the kit is not found', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
       kitRepo.findById.mockResolvedValue(null);
 
-      const input = {
-        kitId: 'K-MISSING',
-        variantId: 'V-NEW',
+      await expect(useCase.execute({
+        kitId: 'K99',
+        variantId: 'V1',
         quantity: 1
-      };
+      })).rejects.toThrow("Kit with ID 'K99' not found.");
 
-      await expect(useCase.execute(input)).rejects.toThrow("Kit with ID 'K-MISSING' not found.");
       expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws an error when trying to add a component with zero or negative quantity', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+
+      const kitIdStr = 'K1';
+      const variantIdStr = 'V1';
+
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      kitRepo.findById.mockResolvedValue(kit);
+
+      await expect(useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr,
+        quantity: 0
+      })).rejects.toThrow('Kit component quantity must be at least 1.');
+
+      await expect(useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr,
+        quantity: -5
+      })).rejects.toThrow('Kit component quantity must be at least 1.');
+
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('propagates errors if kit repository fails to save', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+
+      const kitIdStr = 'K1';
+      const variantIdStr = 'V1';
+
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      kitRepo.findById.mockResolvedValue(kit);
+      kitRepo.save.mockRejectedValue(new Error('Database error'));
+
+      await expect(useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr,
+        quantity: 1
+      })).rejects.toThrow('Database error');
     });
   });
 });
