@@ -5,6 +5,7 @@ import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { CountItemInputDTO, CountResultDTO } from '../dtos/SubmitInventoryCountDTO';
 import { DomainEventDispatcher } from '../services/DomainEventDispatcher';
 import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
+import { InvalidOperationError } from '../../domain/exceptions/DomainErrors';
 
 export class SubmitInventoryCountUseCase {
   constructor(
@@ -14,9 +15,25 @@ export class SubmitInventoryCountUseCase {
   ) {}
 
   async execute(counts: CountItemInputDTO[]): Promise<CountResultDTO[]> {
+    if (!Array.isArray(counts)) {
+      throw new InvalidOperationError('Input must be an array of counts.');
+    }
+
     const results: CountResultDTO[] = [];
 
     if (counts.length === 0) return results;
+
+    for (const count of counts) {
+      if (!count.sku || count.sku.trim() === '') {
+        throw new InvalidOperationError('SKU is required for inventory count.');
+      }
+      if (!count.locationId || count.locationId.trim() === '') {
+        throw new InvalidOperationError('LocationId is required for inventory count.');
+      }
+      if (typeof count.actualQuantity !== 'number' || count.actualQuantity < 0) {
+        throw new InvalidOperationError('Actual quantity must be a non-negative number.');
+      }
+    }
 
     if (this.capacityService) {
       // Group counts by locationId to run one capacity check per location

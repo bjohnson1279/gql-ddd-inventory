@@ -163,6 +163,7 @@ import { PostgresQuarantineRepository } from '../persistence/PostgresQuarantineR
 import { CreateRmaUseCase, AuthorizeRmaUseCase, ReceiveRmaUseCase, ResolveQuarantineItemUseCase } from '../../application/useCases/ManageReturns';
 import { AccountingJournalService } from '../../domain/services/AccountingJournalService';
 import { SyncJournalListeners } from '../../application/eventHandlers/SyncJournalListeners';
+import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
 import {
   NetSuiteJournalSync,
   XeroJournalSync,
@@ -2212,7 +2213,6 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin'], tenantId);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2222,7 +2222,6 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {

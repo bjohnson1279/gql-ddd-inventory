@@ -7,7 +7,7 @@ import { InventoryItem } from '../../../src/domain/entities/InventoryItem';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
-import { CapacityExceededError } from '../../../src/domain/exceptions/DomainErrors';
+import { CapacityExceededError, InvalidOperationError } from '../../../src/domain/exceptions/DomainErrors';
 
 describe('SubmitInventoryCountUseCase', () => {
   let mockInventoryRepo: jest.Mocked<IInventoryRepository>;
@@ -66,6 +66,40 @@ describe('SubmitInventoryCountUseCase', () => {
       expect(mockInventoryRepo.findBySkuAndLocationBatch).not.toHaveBeenCalled();
       expect(mockInventoryRepo.saveBatch).not.toHaveBeenCalled();
       expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('should throw an InvalidOperationError when input is not an array (e.g., null or undefined)', async () => {
+      await expect(useCase.execute(null as any)).rejects.toThrow(InvalidOperationError);
+      await expect(useCase.execute(undefined as any)).rejects.toThrow(InvalidOperationError);
+      await expect(useCase.execute({ sku: '123' } as any)).rejects.toThrow(InvalidOperationError);
+    });
+
+    it('should throw an InvalidOperationError if a count item has a missing or empty SKU', async () => {
+      const counts: CountItemInputDTO[] = [
+        { sku: '', locationId: 'LOC1', actualQuantity: 10 }
+      ];
+      await expect(useCase.execute(counts)).rejects.toThrow(InvalidOperationError);
+    });
+
+    it('should throw an InvalidOperationError if a count item has a missing or empty LocationId', async () => {
+      const counts: CountItemInputDTO[] = [
+        { sku: 'SKU1', locationId: '  ', actualQuantity: 10 }
+      ];
+      await expect(useCase.execute(counts)).rejects.toThrow(InvalidOperationError);
+    });
+
+    it('should throw an InvalidOperationError if actualQuantity is negative', async () => {
+      const counts: CountItemInputDTO[] = [
+        { sku: 'SKU1', locationId: 'LOC1', actualQuantity: -5 }
+      ];
+      await expect(useCase.execute(counts)).rejects.toThrow(InvalidOperationError);
+    });
+
+    it('should throw an InvalidOperationError if actualQuantity is not a number', async () => {
+      const counts: CountItemInputDTO[] = [
+        { sku: 'SKU1', locationId: 'LOC1', actualQuantity: '10' as any }
+      ];
+      await expect(useCase.execute(counts)).rejects.toThrow(InvalidOperationError);
     });
 
     it('should reconcile stock for existing items successfully (happy path)', async () => {
