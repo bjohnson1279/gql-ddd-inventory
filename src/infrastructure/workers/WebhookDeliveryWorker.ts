@@ -104,7 +104,7 @@ export class WebhookDeliveryWorker {
           const nextAttemptAt = new Date(Date.now() + backoffMs);
           const nextStatus = nextAttempts >= 5 ? 'Failed' : 'Pending';
 
-          console.error(`[WebhookDeliveryWorker] Failed to deliver webhook ${delivery.id}:`, err instanceof Error ? err.message : String(err));
+          console.error(`[WebhookDeliveryWorker] Failed to deliver webhook ${delivery.id}:`, err.message);
 
           // Get tenantId from subscription if available
           const subscription = await prisma.webhookSubscription.findUnique({
