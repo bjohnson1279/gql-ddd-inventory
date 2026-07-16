@@ -16,3 +16,9 @@
 ## 2026-07-15 - Wrap verifyPassword in try/catch to handle invalid runtime types
 **Learning:** Functions dealing with buffer operations or string splitting on input parameters can crash (HTTP 500) if explicitly typed string parameters are bypassed at runtime with invalid types (e.g., null, undefined, Objects) unless protected by a try/catch.
 **Action:** Always consider the real-world boundaries of explicitly typed inputs. Wrap internal parsing or buffer manipulation in a try/catch and fallback gracefully (e.g., returning false) when dealing with security utils that should simply fail on bad input.
+## 2026-07-16 - Updating tests when validation changes
+**Learning:** When adding or changing validation logic (like throwing Domain Errors for zero/negative quantities), ensure test files across the repository that might hit these code paths are updated to assert the new behaviors.
+**Action:** Proactively search for and update corresponding test files to cover the new constraints and catch test regressions.
+## 2025-03-09 - Ensure Exception String Assertions Match Source Code
+**Learning:** When adding tests that assert an exact error message is thrown, ensure the expected string in `toThrow(...)` matches the *actual* source code exactly, rather than blindly copying an expected string from the prompt or issue description which might be outdated or hallucinated.
+**Action:** Before committing a test that uses `toThrow('exact string')`, always `grep` or `cat` the actual source file to verify the exact wording of the thrown `Error` or use a regex `toThrow(/partial string/)` to be more resilient to minor message changes.

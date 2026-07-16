@@ -62,7 +62,7 @@ export class Quantity {
   private assertSameUnit(other: Quantity): void {
     if (!this.unit.equals(other.unit)) {
       throw new Error(
-        `Cannot operate on ${this.unit.name} and ${other.unit.name} directly. Convert first.`
+        `Cannot operate on different units: ${this.unit.name} vs ${other.unit.name}`
       );
     }
   }
