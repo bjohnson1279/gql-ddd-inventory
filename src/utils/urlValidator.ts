@@ -7,6 +7,9 @@ export function validateOutboundUrl(urlString: string): string {
   if (hostname.startsWith('[') && hostname.endsWith(']')) {
     hostname = hostname.slice(1, -1);
   }
+  if (hostname.endsWith('.')) {
+    hostname = hostname.slice(0, -1);
+  }
 
   if (
     hostname === 'localhost' ||
