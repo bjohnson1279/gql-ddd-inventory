@@ -7,7 +7,7 @@ import { LocationId } from '../../domain/valueObjects/LocationId';
 import { PurchaseOrderItem } from '../../domain/valueObjects/PurchaseOrderItem';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { PurchaseOrderStatus } from '../../domain/enums/PurchaseOrderStatus';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository {
@@ -18,7 +18,7 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
 
     await this.prisma.$transaction(async (tx) => {
       const orderIds = orders.map(o => toUuid(o.id.value));
-      
+
       // Batch upsert purchase orders concurrently
       await Promise.all(orders.map(async (order) => {
         const dbId = toUuid(order.id.value);
@@ -46,7 +46,7 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
       });
 
       // Gather all items
-      const itemsData = orders.flatMap(order => 
+      const itemsData = orders.flatMap(order =>
         order.items.map((item) => ({
           purchaseOrderId: toUuid(order.id.value),
           variantId: toUuid(item.variantId.value),

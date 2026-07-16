@@ -7,7 +7,7 @@ import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { StockTransferItem } from '../../domain/valueObjects/StockTransferItem';
 import { StockTransferStatus } from '../../domain/enums/StockTransferStatus';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresStockTransferRepository implements IStockTransferRepository {
