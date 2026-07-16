@@ -970,7 +970,7 @@ export const resolvers = {
     slottingSuggestions: async (_: any, __: any, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
-        const { SlottingOptimizer } = await import('../../domain/services/SlottingOptimizer');
+        const { SlottingOptimizer } = await import('../../domain/services/SlottingOptimizer.js');
         const optimizer = new SlottingOptimizer(prisma);
         return await optimizer.generateSuggestions();
       } catch (error: any) {
@@ -2207,7 +2207,7 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin'], tenantId);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2217,7 +2217,7 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {
