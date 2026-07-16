@@ -4,7 +4,7 @@ import { ExternalMapping } from '../../domain/integrations/entities/ExternalMapp
 import { IntegrationId } from '../../domain/integrations/valueObjects/IntegrationId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { ExternalEntityType } from '../../domain/integrations/enums/IntegrationEnums';
-import { toUuid } from '../utils/uuid';
+import { toUuid } from '../../shared/utils/uuid';
 
 
 export class PostgresExternalMappingRepository implements IExternalMappingRepository {

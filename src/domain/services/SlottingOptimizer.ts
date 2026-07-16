@@ -117,3 +117,4 @@ export class SlottingOptimizer {
     return suggestions.sort((a, b) => b.estimatedSavings - a.estimatedSavings);
   }
 }
+
