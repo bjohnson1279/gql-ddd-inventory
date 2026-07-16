@@ -1066,5 +1066,3 @@ export const typeDefs = `#graphql
     accountingDiscrepancies: Int!
   }
 `;
-
-

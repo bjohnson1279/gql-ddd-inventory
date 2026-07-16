@@ -16,3 +16,6 @@
 ## 2026-07-16 - Updating tests when validation changes
 **Learning:** When adding or changing validation logic (like throwing Domain Errors for zero/negative quantities), ensure test files across the repository that might hit these code paths are updated to assert the new behaviors.
 **Action:** Proactively search for and update corresponding test files to cover the new constraints and catch test regressions.
+## 2025-03-09 - Ensure Exception String Assertions Match Source Code
+**Learning:** When adding tests that assert an exact error message is thrown, ensure the expected string in `toThrow(...)` matches the *actual* source code exactly, rather than blindly copying an expected string from the prompt or issue description which might be outdated or hallucinated.
+**Action:** Before committing a test that uses `toThrow('exact string')`, always `grep` or `cat` the actual source file to verify the exact wording of the thrown `Error` or use a regex `toThrow(/partial string/)` to be more resilient to minor message changes.

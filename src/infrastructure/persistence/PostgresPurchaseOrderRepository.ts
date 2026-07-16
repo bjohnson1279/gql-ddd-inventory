@@ -18,7 +18,7 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
 
     await this.prisma.$transaction(async (tx) => {
       const orderIds = orders.map(o => toUuid(o.id.value));
-      
+
       // Batch upsert purchase orders concurrently
       await Promise.all(orders.map(async (order) => {
         const dbId = toUuid(order.id.value);
@@ -46,7 +46,7 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
       });
 
       // Gather all items
-      const itemsData = orders.flatMap(order => 
+      const itemsData = orders.flatMap(order =>
         order.items.map((item) => ({
           purchaseOrderId: toUuid(order.id.value),
           variantId: toUuid(item.variantId.value),
