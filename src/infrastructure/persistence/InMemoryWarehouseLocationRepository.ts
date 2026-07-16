@@ -44,11 +44,7 @@ export class InMemoryWarehouseLocationRepository implements IWarehouseLocationRe
       loc.shelf,
       loc.bin,
       loc.maxWeightGrams,
-      loc.maxVolumeCubicMeters,
-      loc.gridX,
-      loc.gridY,
-      loc.width,
-      loc.height
+      loc.maxVolumeCubicMeters
     );
   }
 }

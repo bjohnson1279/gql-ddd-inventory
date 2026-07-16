@@ -6,7 +6,7 @@ import { BarcodeAssignmentId } from '../../domain/valueObjects/BarcodeAssignment
 import { Barcode } from '../../domain/valueObjects/Barcode';
 import { BarcodeSymbology, BarcodeSource } from '../../domain/enums/BarcodeEnums';
 import { Sku } from '../../domain/valueObjects/Sku';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresBarcodeRepository implements IBarcodeRepository {
