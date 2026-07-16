@@ -13,3 +13,6 @@
 ## 2024-03-24 - [Cache shipping rates during routing]
 **Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
 **Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
+## 2025-02-18 - Ensure domain validation methods correctly handle missing inputs
+**Learning:** When creating domain logic or Use Cases, input parameters might be bypassed at runtime leading to raw TypeErrors, which bypass graceful exception handling.
+**Action:** When updating error messages or validation logic in domain models, proactively add checks for missing, null, or undefined inputs even in strictly-typed codebases, map them to application-specific domain errors (e.g. `InvalidOperationError`), and write explicitly typed runtime bypass tests using `as any`.
