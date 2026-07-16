@@ -21,6 +21,7 @@ describe('validateOutboundUrl', () => {
   describe('SSRF Protection (Blocked IPs/Hostnames)', () => {
     const blockedUrls = [
       'http://localhost',
+      'http://localhost.',
       'https://localhost',
       'http://0.0.0.0',
       'http://127.0.0.1',

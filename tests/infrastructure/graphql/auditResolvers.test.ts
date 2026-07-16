@@ -1,6 +1,5 @@
 import { resolvers } from '../../../src/infrastructure/graphql/resolvers';
-import { prisma } from '../../../src/infrastructure/persistence/prismaClient';
-
+import { prisma } from '../../../src/infrastructure/persistence/prismaC
 jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
   const mockPrisma: any = {
     $transaction: jest.fn(async (callback: any) => await callback(mockPrisma)),
