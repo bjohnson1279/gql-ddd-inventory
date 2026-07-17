@@ -51,7 +51,7 @@ export class Barcode {
 
   private validateFixedLength(length: number, label: string): void {
     if (this.value.length !== length) {
-      throw new Error(`${label} must be exactly ${length} digits: ${this.value}`);
+      throw new Error(`Invalid ${label} length. Expected ${length}.`);
     }
   }
 

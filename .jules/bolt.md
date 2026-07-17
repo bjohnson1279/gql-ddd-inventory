@@ -13,9 +13,15 @@
 ## 2024-03-24 - [Cache shipping rates during routing]
 **Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
 **Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
+## 2026-07-15 - Wrap verifyPassword in try/catch to handle invalid runtime types
+**Learning:** Functions dealing with buffer operations or string splitting on input parameters can crash (HTTP 500) if explicitly typed string parameters are bypassed at runtime with invalid types (e.g., null, undefined, Objects) unless protected by a try/catch.
+**Action:** Always consider the real-world boundaries of explicitly typed inputs. Wrap internal parsing or buffer manipulation in a try/catch and fallback gracefully (e.g., returning false) when dealing with security utils that should simply fail on bad input.
+## 2026-07-16 - Updating tests when validation changes
+**Learning:** When adding or changing validation logic (like throwing Domain Errors for zero/negative quantities), ensure test files across the repository that might hit these code paths are updated to assert the new behaviors.
+**Action:** Proactively search for and update corresponding test files to cover the new constraints and catch test regressions.
+## 2025-03-09 - Ensure Exception String Assertions Match Source Code
+**Learning:** When adding tests that assert an exact error message is thrown, ensure the expected string in `toThrow(...)` matches the *actual* source code exactly, rather than blindly copying an expected string from the prompt or issue description which might be outdated or hallucinated.
+**Action:** Before committing a test that uses `toThrow('exact string')`, always `grep` or `cat` the actual source file to verify the exact wording of the thrown `Error` or use a regex `toThrow(/partial string/)` to be more resilient to minor message changes.
 ## 2025-02-18 - Ensure domain validation methods correctly handle missing inputs
 **Learning:** When creating domain logic or Use Cases, input parameters might be bypassed at runtime leading to raw TypeErrors, which bypass graceful exception handling.
 **Action:** When updating error messages or validation logic in domain models, proactively add checks for missing, null, or undefined inputs even in strictly-typed codebases, map them to application-specific domain errors (e.g. `InvalidOperationError`), and write explicitly typed runtime bypass tests using `as any`.
-## 2025-02-18 - Always review staged files to prevent CI failures from unrelated code
-**Learning:** When pushing updates, staging unrelated, broken, or insecure code (such as regressions from a previous context) will cause CI tests to fail and block the merge.
-**Action:** Before committing, consistently use `git diff origin/main --name-only` and `git status` to review exactly which files are staged, and always revert unrelated files using `git restore --staged <file> && git restore <file>`.
