@@ -81,7 +81,8 @@ export class WebhookDeliveryWorker {
               'X-Webhook-Signature-256': signature,
               'X-Webhook-Event': delivery.eventType
             },
-            body: delivery.payload
+            body: delivery.payload,
+            redirect: 'error'
           });
 
           if (!response.ok) {
