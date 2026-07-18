@@ -57,6 +57,7 @@ import {
 } from '../../application/useCases/ManageUoms';
 import { CreateJournalEntryUseCase, GetJournalEntriesUseCase } from '../../application/useCases/ManageJournals';
 import { GetTenantAccountingConfigUseCase, SaveTenantAccountingConfigUseCase } from '../../application/useCases/ManageTenantAccountingConfig';
+import { PostgresTenantAccountingConfigRepository } from '../persistence/PostgresTenantAccountingConfigRepository';
 import { GetStockValuationReportUseCase } from '../../application/useCases/GetStockValuationReport';
 import { CostingMethod } from '../../domain/enums/AccountingEnums';
 import {
@@ -257,6 +258,7 @@ const kitRepository = new PostgresKitRepository(prisma);
 export const warehouseLocationRepository = new PostgresWarehouseLocationRepository(prisma);
 const rmaRepository = new PostgresRmaRepository(prisma);
 const quarantineRepository = new PostgresQuarantineRepository(prisma);
+const tenantAccountingConfigRepository = new PostgresTenantAccountingConfigRepository(prisma);
 
 // Domain Services
 const openingBalanceService = new OpeningBalanceService(ledgerRepository);
@@ -497,8 +499,8 @@ const getShipmentsUseCase = new GetShipmentsUseCase(shipmentRepository);
 const routeOrderUseCase = new RouteOrder(inventoryRepository, carrierService);
 
 // G2 — Tenant accounting configuration
-const getTenantAccountingConfigUseCase = new GetTenantAccountingConfigUseCase(prisma);
-const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(prisma);
+const getTenantAccountingConfigUseCase = new GetTenantAccountingConfigUseCase(tenantAccountingConfigRepository);
+const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(tenantAccountingConfigRepository);
 
 // G3 — Stock valuation report
 const getStockValuationReportUseCase = new GetStockValuationReportUseCase(inventoryRepository, costLayerRepository, productRepository);

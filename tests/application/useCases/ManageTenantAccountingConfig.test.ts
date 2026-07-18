@@ -1,33 +1,29 @@
-import { PrismaClient } from '@prisma/client';
 import {
   GetTenantAccountingConfigUseCase,
   SaveTenantAccountingConfigUseCase,
 } from '../../../src/application/useCases/ManageTenantAccountingConfig';
+import { ITenantAccountingConfigRepository } from '../../../src/domain/repositories/ITenantAccountingConfigRepository';
 import { AccountingMethod, CostingMethod } from '../../../src/domain/enums/AccountingEnums';
 import { InvalidOperationError } from '../../../src/domain/exceptions/DomainErrors';
 
 describe('ManageTenantAccountingConfig UseCases', () => {
-  let prismaMock: any;
+  let repositoryMock: jest.Mocked<ITenantAccountingConfigRepository>;
 
   beforeEach(() => {
-    prismaMock = {
-      tenantAccountingConfig: {
-        findUnique: jest.fn(),
-        upsert: jest.fn(),
-      },
+    repositoryMock = {
+      findByTenantId: jest.fn(),
+      save: jest.fn(),
     };
   });
 
   describe('GetTenantAccountingConfigUseCase', () => {
     it('should return default config if none exists', async () => {
-      prismaMock.tenantAccountingConfig.findUnique.mockResolvedValue(null);
+      repositoryMock.findByTenantId.mockResolvedValue(null);
 
-      const useCase = new GetTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new GetTenantAccountingConfigUseCase(repositoryMock);
       const result = await useCase.execute('tenant-1');
 
-      expect(prismaMock.tenantAccountingConfig.findUnique).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-1' },
-      });
+      expect(repositoryMock.findByTenantId).toHaveBeenCalledWith('tenant-1');
       expect(result).toEqual({
         tenantId: 'tenant-1',
         accountingMethod: AccountingMethod.Accrual,
@@ -36,17 +32,16 @@ describe('ManageTenantAccountingConfig UseCases', () => {
     });
 
     it('should return existing config', async () => {
-      prismaMock.tenantAccountingConfig.findUnique.mockResolvedValue({
-        accountingMethod: 'cash',
-        costingMethod: 'lifo',
+      repositoryMock.findByTenantId.mockResolvedValue({
+        tenantId: 'tenant-2',
+        accountingMethod: AccountingMethod.Cash,
+        costingMethod: CostingMethod.LIFO,
       });
 
-      const useCase = new GetTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new GetTenantAccountingConfigUseCase(repositoryMock);
       const result = await useCase.execute('tenant-2');
 
-      expect(prismaMock.tenantAccountingConfig.findUnique).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-2' },
-      });
+      expect(repositoryMock.findByTenantId).toHaveBeenCalledWith('tenant-2');
       expect(result).toEqual({
         tenantId: 'tenant-2',
         accountingMethod: AccountingMethod.Cash,
@@ -54,63 +49,78 @@ describe('ManageTenantAccountingConfig UseCases', () => {
       });
     });
 
-    it('should handle database errors when finding unique config', async () => {
+    it('should handle repository errors when finding unique config', async () => {
       const dbError = new Error('Database connection failed');
-      prismaMock.tenantAccountingConfig.findUnique.mockRejectedValue(dbError);
+      repositoryMock.findByTenantId.mockRejectedValue(dbError);
 
-      const useCase = new GetTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new GetTenantAccountingConfigUseCase(repositoryMock);
 
       await expect(useCase.execute('tenant-3')).rejects.toThrow('Database connection failed');
-      expect(prismaMock.tenantAccountingConfig.findUnique).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-3' },
-      });
+      expect(repositoryMock.findByTenantId).toHaveBeenCalledWith('tenant-3');
     });
 
     it('should gracefully handle empty string for tenantId', async () => {
-      prismaMock.tenantAccountingConfig.findUnique.mockResolvedValue(null);
+      repositoryMock.findByTenantId.mockResolvedValue(null);
 
-      const useCase = new GetTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new GetTenantAccountingConfigUseCase(repositoryMock);
       const result = await useCase.execute('');
 
-      expect(prismaMock.tenantAccountingConfig.findUnique).toHaveBeenCalledWith({
-        where: { tenantId: '' },
-      });
+      expect(repositoryMock.findByTenantId).toHaveBeenCalledWith('');
       expect(result).toEqual({
         tenantId: '',
         accountingMethod: AccountingMethod.Accrual,
         costingMethod: CostingMethod.FIFO,
       });
     });
+
+    it('should throw InvalidOperationError if repository returns an invalid accountingMethod', async () => {
+      repositoryMock.findByTenantId.mockResolvedValue({
+        tenantId: 'tenant-4',
+        accountingMethod: 'invalid-accounting' as any,
+        costingMethod: CostingMethod.FIFO,
+      });
+
+      const useCase = new GetTenantAccountingConfigUseCase(repositoryMock);
+
+      await expect(useCase.execute('tenant-4')).rejects.toThrow(InvalidOperationError);
+      await expect(useCase.execute('tenant-4')).rejects.toThrow('Invalid accounting method found in database: invalid-accounting');
+    });
+
+    it('should throw InvalidOperationError if repository returns an invalid costingMethod', async () => {
+      repositoryMock.findByTenantId.mockResolvedValue({
+        tenantId: 'tenant-5',
+        accountingMethod: AccountingMethod.Accrual,
+        costingMethod: 'invalid-costing' as any,
+      });
+
+      const useCase = new GetTenantAccountingConfigUseCase(repositoryMock);
+
+      await expect(useCase.execute('tenant-5')).rejects.toThrow(InvalidOperationError);
+      await expect(useCase.execute('tenant-5')).rejects.toThrow('Invalid costing method found in database: invalid-costing');
+    });
   });
 
   describe('SaveTenantAccountingConfigUseCase', () => {
-    it('should save config correctly using upsert', async () => {
-      prismaMock.tenantAccountingConfig.upsert.mockResolvedValue({});
+    it('should save config correctly using repository', async () => {
+      repositoryMock.save.mockResolvedValue(undefined);
 
-      const useCase = new SaveTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new SaveTenantAccountingConfigUseCase(repositoryMock);
       const result = await useCase.execute({
         tenantId: 'tenant-3',
         accountingMethod: AccountingMethod.Cash,
         costingMethod: CostingMethod.WeightedAverageCost,
       });
 
-      expect(prismaMock.tenantAccountingConfig.upsert).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-3' },
-        create: {
-          tenantId: 'tenant-3',
-          accountingMethod: AccountingMethod.Cash,
-          costingMethod: CostingMethod.WeightedAverageCost,
-        },
-        update: {
-          accountingMethod: AccountingMethod.Cash,
-          costingMethod: CostingMethod.WeightedAverageCost,
-        },
+      expect(repositoryMock.save).toHaveBeenCalledWith({
+        tenantId: 'tenant-3',
+        accountingMethod: AccountingMethod.Cash,
+        costingMethod: CostingMethod.WeightedAverageCost,
       });
       expect(result).toBe(true);
     });
 
     it('should throw InvalidOperationError if tenantId is empty', async () => {
-      const useCase = new SaveTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new SaveTenantAccountingConfigUseCase(repositoryMock);
 
       await expect(
         useCase.execute({
@@ -128,11 +138,11 @@ describe('ManageTenantAccountingConfig UseCases', () => {
         })
       ).rejects.toThrow(InvalidOperationError);
 
-      expect(prismaMock.tenantAccountingConfig.upsert).not.toHaveBeenCalled();
+      expect(repositoryMock.save).not.toHaveBeenCalled();
     });
 
     it('should throw InvalidOperationError if accountingMethod is invalid', async () => {
-      const useCase = new SaveTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new SaveTenantAccountingConfigUseCase(repositoryMock);
 
       await expect(
         useCase.execute({
@@ -142,11 +152,11 @@ describe('ManageTenantAccountingConfig UseCases', () => {
         })
       ).rejects.toThrow(InvalidOperationError);
 
-      expect(prismaMock.tenantAccountingConfig.upsert).not.toHaveBeenCalled();
+      expect(repositoryMock.save).not.toHaveBeenCalled();
     });
 
     it('should throw InvalidOperationError if costingMethod is invalid', async () => {
-      const useCase = new SaveTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new SaveTenantAccountingConfigUseCase(repositoryMock);
 
       await expect(
         useCase.execute({
@@ -156,14 +166,14 @@ describe('ManageTenantAccountingConfig UseCases', () => {
         })
       ).rejects.toThrow(InvalidOperationError);
 
-      expect(prismaMock.tenantAccountingConfig.upsert).not.toHaveBeenCalled();
+      expect(repositoryMock.save).not.toHaveBeenCalled();
     });
 
-    it('should propagate errors thrown by the database', async () => {
+    it('should propagate errors thrown by the repository', async () => {
       const dbError = new Error('Database connection failed');
-      prismaMock.tenantAccountingConfig.upsert.mockRejectedValue(dbError);
+      repositoryMock.save.mockRejectedValue(dbError);
 
-      const useCase = new SaveTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+      const useCase = new SaveTenantAccountingConfigUseCase(repositoryMock);
 
       await expect(
         useCase.execute({
@@ -173,7 +183,7 @@ describe('ManageTenantAccountingConfig UseCases', () => {
         })
       ).rejects.toThrow('Database connection failed');
 
-      expect(prismaMock.tenantAccountingConfig.upsert).toHaveBeenCalledTimes(1);
+      expect(repositoryMock.save).toHaveBeenCalledTimes(1);
     });
   });
 });
