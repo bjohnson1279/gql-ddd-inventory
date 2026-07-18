@@ -2115,7 +2115,7 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin'], tenantId);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2125,7 +2125,7 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {

@@ -412,6 +412,33 @@ describe('ManageKits Use Cases', () => {
         quantity: 1
       })).rejects.toThrow('Failed to save to database');
     });
+
+    it('successfully adds an additional component to a kit that already has components', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+
+      const existingKit = new Kit(new KitId('K-EX'), new Sku('KIT-EX'), 'Existing Kit');
+      existingKit.addComponent(new ProductVariantId('V-EX1'), 2);
+      kitRepo.findById.mockResolvedValue(existingKit);
+      kitRepo.save.mockResolvedValue(undefined);
+
+      const input = {
+        kitId: 'K-EX',
+        variantId: 'V-EX2',
+        quantity: 5
+      };
+
+      const result = await useCase.execute(input);
+
+      expect(result).toBe(true);
+      expect(kitRepo.findById).toHaveBeenCalledWith(expect.any(KitId));
+      expect(kitRepo.findById.mock.calls[0][0].value).toBe('K-EX');
+
+      expect(kitRepo.save).toHaveBeenCalled();
+      const savedKit = kitRepo.save.mock.calls[0][0];
+      expect(savedKit.components).toHaveLength(2);
+      expect(savedKit.components[1].variantId.value).toBe('V-EX2');
+      expect(savedKit.components[1].quantity).toBe(5);
+    });
   });
 
   describe('CreateKitUseCase', () => {
@@ -471,6 +498,31 @@ describe('ManageKits Use Cases', () => {
       await expect(useCase.execute(input)).rejects.toThrow('Database error');
     });
 
+    it('throws error when SKU is empty', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K5',
+        sku: '',
+        name: 'Invalid Kit',
+        components: []
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('SKU cannot be empty.');
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws error when SKU contains invalid characters', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K6',
+        sku: 'INVALID SKU!',
+        name: 'Invalid Kit',
+        components: []
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('SKU must contain only alphanumeric characters and hyphens.');
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
     it('throws error if kit id is empty', async () => {
       const useCase = new CreateKitUseCase(kitRepo);
       const input = {
