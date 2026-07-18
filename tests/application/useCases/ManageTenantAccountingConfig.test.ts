@@ -101,8 +101,20 @@ describe('ManageTenantAccountingConfig UseCases', () => {
   });
 
   describe('SaveTenantAccountingConfigUseCase', () => {
-    it('should save config correctly using repository', async () => {
-      repositoryMock.save.mockResolvedValue(undefined);
+    it('should throw InvalidOperationError if input is missing', async () => {
+      const useCase = new SaveTenantAccountingConfigUseCase(prismaMock as PrismaClient);
+
+      await expect(useCase.execute(null as any)).rejects.toThrow(InvalidOperationError);
+      await expect(useCase.execute(null as any)).rejects.toThrow('Input is required');
+
+      await expect(useCase.execute(undefined as any)).rejects.toThrow(InvalidOperationError);
+      await expect(useCase.execute(undefined as any)).rejects.toThrow('Input is required');
+
+      expect(prismaMock.tenantAccountingConfig.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should save config correctly using upsert', async () => {
+      prismaMock.tenantAccountingConfig.upsert.mockResolvedValue({});
 
       const useCase = new SaveTenantAccountingConfigUseCase(repositoryMock);
       const result = await useCase.execute({
