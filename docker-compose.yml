@@ -52,15 +52,6 @@ services:
       - DB_NAME=inventory_db
       - KAFKA_URL=host.docker.internal:9092
 
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    ports:
-      - "3006:80"
-    depends_on:
-      - api
-
 volumes:
   postgres_data:
 
