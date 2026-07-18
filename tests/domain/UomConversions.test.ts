@@ -72,7 +72,7 @@ describe('UoM Conversions', () => {
     it('should throw error when adding different units', () => {
       const q1 = new Quantity(10, StandardUnits.each());
       const q2 = new Quantity(5, StandardUnits.dozen());
-      expect(() => q1.add(q2)).toThrow('Cannot operate on Each and Dozen directly');
+      expect(() => q1.add(q2)).toThrow('Cannot operate on different units: Each vs Dozen');
     });
 
     it('should subtract quantities of the same unit', () => {

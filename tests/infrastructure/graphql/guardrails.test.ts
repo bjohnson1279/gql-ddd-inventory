@@ -1,7 +1,8 @@
 import { parse, validate } from 'graphql';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { typeDefs } from '../../../src/infrastructure/graphql/typeDefs';
-import { resolvers } from '../../../src/infrastructure/graphql/resolvers';
+// Mock resolvers to prevent loading infrastructure dependencies
+const resolvers = {};
 import { depthLimitRule, complexityLimitRule } from '../../../src/infrastructure/graphql/guardrails';
 
 describe('GraphQL Guardrails Validation Rules', () => {
