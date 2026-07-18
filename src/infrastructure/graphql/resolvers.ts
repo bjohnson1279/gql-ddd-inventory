@@ -1980,12 +1980,10 @@ export const resolvers = {
           }
         });
 
-        const roleExists = await prisma.role.findUnique({ where: { id: role } });
-        if (!roleExists) {
-          await prisma.role.create({
-            data: { id: role, name: role.replace('_', ' ') }
-          });
-        }
+        await prisma.role.createMany({
+          data: [{ id: role, name: role.replace('_', ' ') }],
+          skipDuplicates: true
+        });
 
         await prisma.userRole.create({
           data: {
@@ -2016,12 +2014,10 @@ export const resolvers = {
           where: { userId }
         });
 
-        const roleExists = await prisma.role.findUnique({ where: { id: role } });
-        if (!roleExists) {
-          await prisma.role.create({
-            data: { id: role, name: role.replace('_', ' ') }
-          });
-        }
+        await prisma.role.createMany({
+          data: [{ id: role, name: role.replace('_', ' ') }],
+          skipDuplicates: true
+        });
 
         await prisma.userRole.create({
           data: {
