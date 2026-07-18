@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { hashPassword, verifyPassword } from '../utils/security';
+import { hashPassword, verifyPasswordSafe } from '../utils/security';
 import { pubsub } from './pubsub';
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
@@ -1941,16 +1941,7 @@ export const resolvers = {
           }
         });
 
-        // Dummy hash to perform timing-safe operations even if user doesn't exist
-        const dummyHash = '884cf3d1767e7d871e882e341133d7c3:bb2e4bbcb10e6f9d0495faf857119a1f0912be9f3d090ce9dd7a2833cf34ef59196c040719f1f044ba4fb9a8d7552a1e8fdf7f741bcf25b63dccbd16ce966ed1';
-        let isValidPassword = false;
-
-        if (user) {
-          isValidPassword = verifyPassword(password, user.passwordHash);
-        } else {
-          // Verify against dummy hash to mitigate timing attacks for non-existent users
-          verifyPassword(password, dummyHash);
-        }
+        const isValidPassword = verifyPasswordSafe(password, user?.passwordHash);
 
         if (!user || !user.active || !isValidPassword) {
           return handleFailedAttempt();
