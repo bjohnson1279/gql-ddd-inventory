@@ -25,3 +25,6 @@
 ## 2024-11-20 - Ensure exact match for issue loop targets
 **Learning:** An issue report might contain code snippets describing a bug that were partially optimized or slightly altered in the codebase prior to my run.
 **Action:** Always ensure you find and directly optimize the exact vulnerability or inefficiency *if it exists exactly*. If the snippet is not found, verify if it was already fixed or if the issue description is slightly off. In this case, `createMany` for the `roles` array was already implemented, so optimizing the remaining single-role occurrences in the file was the best functional equivalent.
+## 2023-10-27 - Encapsulate Dummy Hash Logic
+**Learning:** Encapsulating timing attack mitigation logic (verifying dummy hashes) inside security utility functions simplifies resolver code and avoids odd module-level dummy constants.
+**Action:** When refactoring auth logic to mitigate timing attacks (e.g., dummy hashes), extract the check into a `verifyPasswordSafe` utility to encapsulate the dummy hash and keep API/Resolver entry points clean.

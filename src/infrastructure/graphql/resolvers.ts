@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { hashPassword, verifyPassword } from '../utils/security';
+import { hashPassword, verifyPasswordSafe } from '../utils/security';
 import { pubsub } from './pubsub';
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
@@ -178,70 +178,12 @@ import { KafkaEventBus } from '../messaging/KafkaEventBus';
 import { LowStockAlertHandler } from '../../application/eventHandlers/LowStockAlertHandler';
 import { InventoryReconciledHandler } from '../../application/eventHandlers/InventoryReconciledHandler';
 import { ShopifyStockSyncHandler } from '../../application/eventHandlers/ShopifyStockSyncHandler';
+import { StubShipmentRepository } from '../shipping/StubShipmentRepository';
+import { StubCarrierService } from '../shipping/StubCarrierService';
 
 import { prisma, pool } from '../persistence/prismaClient';
 export { prisma, pool };
 
-// ── Shipping Stubs ────────────────────────────────────────────────────────────
-// These are lightweight stubs for shipping functionality.
-// They will be replaced once the full ManageShipping use case module is implemented.
-class _ShipmentRepository {
-  async save(_: any): Promise<void> {}
-  async findById(_: any): Promise<any> { return null; }
-  async findAll(): Promise<any[]> { return []; }
-  async update(_: any): Promise<void> {}
-}
-class _CarrierService {
-  private getDistance(origin: string, destination: string): number {
-    const org = origin.toUpperCase();
-    const dest = destination.toLowerCase();
-
-    let baseDist = 1000;
-    if (org.includes("EAST") && (dest.includes("ny") || dest.includes("new york") || dest.includes("10001"))) baseDist = 100;
-    else if (org.includes("WEST") && (dest.includes("la") || dest.includes("los angeles") || dest.includes("ca") || dest.includes("90210"))) baseDist = 100;
-    else if (org.includes("CENTRAL") && (dest.includes("chicago") || dest.includes("il") || dest.includes("60601"))) baseDist = 100;
-    else if (org.includes("EAST") && (dest.includes("la") || dest.includes("ca") || dest.includes("90210"))) baseDist = 4000;
-    else if (org.includes("WEST") && (dest.includes("ny") || dest.includes("new york") || dest.includes("10001"))) baseDist = 4000;
-
-    return baseDist;
-  }
-
-  async getRates(sku: string, qty: number, dest: string, origin?: string): Promise<any[]> {
-    const weightFactor = sku.length % 3 + 1;
-    const baseQuantity = qty || 1;
-    const distanceKm = this.getDistance(origin || "default", dest);
-    const distanceCost = Math.ceil(distanceKm * 0.1);
-
-    return [
-      {
-        carrier: "UPS Ground",
-        serviceName: "UPS Ground",
-        rateCents: Math.ceil((500 + (weightFactor * 50) + distanceCost) * baseQuantity),
-        deliveryDays: distanceKm > 2000 ? 5 : 2
-      },
-      {
-        carrier: "FedEx Express",
-        serviceName: "FedEx Express",
-        rateCents: Math.ceil((1500 + (weightFactor * 100) + distanceCost * 1.5) * baseQuantity),
-        deliveryDays: 1
-      },
-      {
-        carrier: "DHL Worldwide",
-        serviceName: "DHL Worldwide",
-        rateCents: Math.ceil((3500 + (weightFactor * 250) + distanceCost * 2) * baseQuantity),
-        deliveryDays: distanceKm > 2000 ? 3 : 1
-      },
-      {
-        carrier: "USPS Priority",
-        serviceName: "USPS Priority",
-        rateCents: Math.ceil((450 + (weightFactor * 35) + distanceCost * 0.8) * baseQuantity),
-        deliveryDays: distanceKm > 2000 ? 6 : 3
-      }
-    ];
-  }
-
-  async purchaseLabel(_: any): Promise<any> { return { trackingNumber: '', labelUrl: '', cost: 0 }; }
-}
 // ─────────────────────────────────────────────────────────────────────────────
 // DB Repositories
 const inventoryRepository = new PostgresInventoryRepository(prisma);
@@ -481,8 +423,8 @@ const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
   productRepository
 );
 
-const shipmentRepository = new _ShipmentRepository();
-const carrierService = new _CarrierService();
+const shipmentRepository = new StubShipmentRepository();
+const carrierService = new StubCarrierService();
 
 const calculateShippingRatesUseCase = new CalculateShippingRatesUseCase(carrierService);
 const purchaseShippingLabelUseCase = new PurchaseShippingLabelUseCase(
@@ -1941,16 +1883,7 @@ export const resolvers = {
           }
         });
 
-        // Dummy hash to perform timing-safe operations even if user doesn't exist
-        const dummyHash = '884cf3d1767e7d871e882e341133d7c3:bb2e4bbcb10e6f9d0495faf857119a1f0912be9f3d090ce9dd7a2833cf34ef59196c040719f1f044ba4fb9a8d7552a1e8fdf7f741bcf25b63dccbd16ce966ed1';
-        let isValidPassword = false;
-
-        if (user) {
-          isValidPassword = verifyPassword(password, user.passwordHash);
-        } else {
-          // Verify against dummy hash to mitigate timing attacks for non-existent users
-          verifyPassword(password, dummyHash);
-        }
+        const isValidPassword = verifyPasswordSafe(password, user?.passwordHash);
 
         if (!user || !user.active || !isValidPassword) {
           return handleFailedAttempt();
