@@ -71,7 +71,8 @@ export class AuditProcessorService {
                       }
                     `,
                     variables: { ids: batchIds }
-                  })
+                  }),
+                  redirect: 'error'
                 }
               );
 

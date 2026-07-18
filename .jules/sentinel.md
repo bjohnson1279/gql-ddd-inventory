@@ -154,3 +154,7 @@
 **Vulnerability:** The `validateOutboundUrl` function was vulnerable to Server-Side Request Forgery (SSRF) bypasses. An attacker could append a trailing dot to a blocked hostname (e.g., `http://localhost.`). The naive exact-string match check (`hostname === 'localhost'`) failed, but DNS resolvers typically ignore trailing dots and resolve the Fully Qualified Domain Name (FQDN) back to the loopback address.
 **Learning:** Checking hostnames directly against strings without considering domain name normalization rules (like trailing dots for FQDNs) is unsafe. The Node.js `URL` parser retains trailing dots in the `hostname` property.
 **Prevention:** Always normalize the parsed hostname (e.g., stripping trailing dots via `hostname.replace(/\.$/, '')`) before evaluating it against blocklists or allowlists to prevent FQDN-based bypasses.
+## 2025-02-23 - Missing redirect restriction in outbound fetches
+**Vulnerability:** Shopify integration `fetch` calls lacked `redirect: 'error'`, allowing SSRF bypass via 30x redirects from malicious store domains.
+**Learning:** Even if initial URLs are validated against SSRF blocklists, default `fetch` behavior follows redirects to any IP, negating the initial validation.
+**Prevention:** Always explicitly pass `redirect: 'error'` or `redirect: 'manual'` in native fetch options for outbound webhooks/integrations to prevent redirect-based SSRF.
