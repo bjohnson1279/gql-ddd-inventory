@@ -581,5 +581,4 @@ describe('ManageKits Use Cases', () => {
       expect(savedKit.components[0].quantity).toBe(5);
     });
   });
-
 });
