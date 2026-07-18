@@ -37,3 +37,6 @@
 ## 2023-10-27 - Encapsulate Dummy Hash Logic
 **Learning:** Encapsulating timing attack mitigation logic (verifying dummy hashes) inside security utility functions simplifies resolver code and avoids odd module-level dummy constants.
 **Action:** When refactoring auth logic to mitigate timing attacks (e.g., dummy hashes), extract the check into a `verifyPasswordSafe` utility to encapsulate the dummy hash and keep API/Resolver entry points clean.
+## 2024-10-31 - Sequential API Bottlenecks in Routing Algorithms
+**Learning:** In routing or matching algorithms (like `OrderRoutingEngine`), sequentially awaiting network/I/O responses within nested iterative loops evaluating plan candidates creates massive N+1 style execution delays when scaling to multiple splits.
+**Action:** Always pre-calculate or collect unique network dependencies (like rates or geocodes) in a first pass, resolve them concurrently using `Promise.all()`, and then evaluate the candidates using the cached results in a synchronous second pass.
