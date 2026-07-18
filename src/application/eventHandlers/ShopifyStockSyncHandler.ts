@@ -63,7 +63,8 @@ export class ShopifyStockSyncHandler {
                   ]
                 }
               }
-            })
+            }),
+            redirect: 'error'
           }
         );
 
