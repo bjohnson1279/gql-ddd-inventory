@@ -449,10 +449,6 @@ export const typeDefs = `#graphql
     bin: String!
     maxWeightGrams: Int!
     maxVolumeCubicMeters: Float!
-    gridX: Int!
-    gridY: Int!
-    width: Int!
-    height: Int!
   }
 
   input CreateWarehouseLocationInput {
@@ -465,10 +461,6 @@ export const typeDefs = `#graphql
     bin: String!
     maxWeightGrams: Int!
     maxVolumeCubicMeters: Float!
-    gridX: Int
-    gridY: Int
-    width: Int
-    height: Int
   }
 
   enum StockTransferStatus {
@@ -655,23 +647,9 @@ export const typeDefs = `#graphql
 
     suggestPutawayLocations(input: PutawayInput!): [PutawayRecommendation!]!
     optimizePickingRoute(tenantId: ID!, items: [PickItemInput!]!): [PickRoute!]!
-    slottingSuggestions: [SlottingSuggestion!]!
+
     suggestFefoPicking(sku: String!, quantity: Int!): [FefoPickSuggestion!]!
     traceProductRecall(lotNumber: String!): [ContaminatedDispatch!]!
-  }
-
-  type SlottingSuggestion {
-    sku: String!
-    currentLocationId: String!
-    currentDistance: Int!
-    currentVelocity: Int!
-    recommendedLocationId: String!
-    recommendedDistance: Int!
-    potentialSwapSku: String
-    estimatedSavings: Float!
-  }
-
-  extend type Query {
     users(tenantId: ID!): [UserDTO!]!
     rma(id: ID!): Rma
     rmas(tenantId: ID!): [Rma!]!
@@ -697,17 +675,6 @@ export const typeDefs = `#graphql
 
     # Eventual Consistency Audit
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
-  }
-
-  type SlottingSuggestion {
-    sku: String!
-    currentLocationId: String!
-    currentDistance: Int!
-    currentVelocity: Int!
-    recommendedLocationId: String!
-    recommendedDistance: Int!
-    potentialSwapSku: String
-    estimatedSavings: Float!
   }
 
   type InventoryCountResult {
@@ -1099,5 +1066,3 @@ export const typeDefs = `#graphql
     accountingDiscrepancies: Int!
   }
 `;
-
-

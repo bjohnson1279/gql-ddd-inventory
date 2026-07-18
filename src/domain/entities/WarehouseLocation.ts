@@ -10,11 +10,7 @@ export class WarehouseLocation {
     public readonly shelf: string,
     public readonly bin: string,
     public readonly maxWeightGrams: number,
-    public readonly maxVolumeCubicMeters: number,
-    public readonly gridX: number = 0,
-    public readonly gridY: number = 0,
-    public readonly width: number = 1,
-    public readonly height: number = 1
+    public readonly maxVolumeCubicMeters: number
   ) {
     if (!warehouseId || warehouseId.trim().length === 0) {
       throw new Error("Warehouse ID cannot be empty.");
@@ -43,7 +39,7 @@ export class WarehouseLocation {
   }
 
   // Parses a hierarchical path representation e.g. "WH1-ZONEA-A03-R02-S01-B10"
-  static parsePath(path: string, maxWeight = 1000000, maxVolume = 10, gridX = 0, gridY = 0, width = 1, height = 1): WarehouseLocation {
+  static parsePath(path: string, maxWeight = 1000000, maxVolume = 10): WarehouseLocation {
     const parts = path.split('-');
     if (parts.length < 6) {
       throw new Error("Invalid location path format. Expected: WH-ZONE-AISLE-RACK-SHELF-BIN");
@@ -57,11 +53,7 @@ export class WarehouseLocation {
       parts[4], // SHELF
       parts[5], // BIN
       maxWeight,
-      maxVolume,
-      gridX,
-      gridY,
-      width,
-      height
+      maxVolume
     );
   }
 

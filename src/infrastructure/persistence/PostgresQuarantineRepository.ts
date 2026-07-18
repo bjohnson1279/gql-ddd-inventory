@@ -5,7 +5,7 @@ import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { QuarantineStatus } from '../../domain/enums/ReturnEnums';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresQuarantineRepository implements IQuarantineRepository {
@@ -27,7 +27,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
 
   async findById(id: string): Promise<QuarantineItem | null> {
     const dbId = toUuid(id);
-    const record = await this.prisma.quarantineItem.findUnique({
+    const record = await (this.prisma as any).quarantineItem.findUnique({
       where: { id: dbId },
     });
 
@@ -36,7 +36,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<QuarantineItem[]> {
-    const records = await this.prisma.quarantineItem.findMany({
+    const records = await (this.prisma as any).quarantineItem.findMany({
       where: { tenantId: tenantId.value },
       orderBy: { createdAt: 'desc' },
     });
@@ -45,7 +45,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
 
   async save(item: QuarantineItem): Promise<void> {
     const dbId = toUuid(item.id);
-    await this.prisma.quarantineItem.upsert({
+    await (this.prisma as any).quarantineItem.upsert({
       where: { id: dbId },
       update: {
         status: item.status,
@@ -79,7 +79,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
       await Promise.all(
         uniqueItems.map((item) => {
           const dbId = toUuid(item.id);
-          return tx.quarantineItem.upsert({
+          return (tx as any).quarantineItem.upsert({
             where: { id: dbId },
             update: {
               status: item.status,

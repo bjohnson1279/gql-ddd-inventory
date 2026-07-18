@@ -341,6 +341,77 @@ describe('ManageKits Use Cases', () => {
 
       expect(kitRepo.save).not.toHaveBeenCalled();
     });
+
+    it('throws an InvalidOperationError if quantity is zero or negative', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+
+      await expect(useCase.execute({
+        kitId: 'K1',
+        variantId: 'V1',
+        quantity: 0
+      })).rejects.toThrow('Quantity must be greater than zero.');
+
+      await expect(useCase.execute({
+        kitId: 'K1',
+        variantId: 'V1',
+        quantity: -5
+      })).rejects.toThrow('Quantity must be greater than zero.');
+
+      expect(kitRepo.findById).not.toHaveBeenCalled();
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws an error if kitId is empty', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+
+      await expect(useCase.execute({
+        kitId: '',
+        variantId: 'V1',
+        quantity: 1
+      })).rejects.toThrow('KitId cannot be empty.');
+
+      expect(kitRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('throws an error if variantId is empty', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+      const kit = new Kit(new KitId('K1'), new Sku('KIT-1'), 'Test Kit');
+      kitRepo.findById.mockResolvedValue(kit);
+
+      await expect(useCase.execute({
+        kitId: 'K1',
+        variantId: '',
+        quantity: 1
+      })).rejects.toThrow('ProductVariantId cannot be empty.');
+
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('propagates errors if kitRepo.findById fails', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+      kitRepo.findById.mockRejectedValue(new Error('Database connection failed'));
+
+      await expect(useCase.execute({
+        kitId: 'K1',
+        variantId: 'V1',
+        quantity: 1
+      })).rejects.toThrow('Database connection failed');
+
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('propagates errors if kitRepo.save fails', async () => {
+      const useCase = new AddKitComponentUseCase(kitRepo);
+      const kit = new Kit(new KitId('K1'), new Sku('KIT-1'), 'Test Kit');
+      kitRepo.findById.mockResolvedValue(kit);
+      kitRepo.save.mockRejectedValue(new Error('Failed to save to database'));
+
+      await expect(useCase.execute({
+        kitId: 'K1',
+        variantId: 'V1',
+        quantity: 1
+      })).rejects.toThrow('Failed to save to database');
+    });
   });
 
   describe('CreateKitUseCase', () => {
@@ -459,47 +530,4 @@ describe('ManageKits Use Cases', () => {
     });
   });
 
-  describe('AddKitComponentUseCase', () => {
-    it('successfully adds a component to an existing kit', async () => {
-      const useCase = new AddKitComponentUseCase(kitRepo);
-
-      const existingKit = new Kit(new KitId('K-EX'), new Sku('KIT-EX'), 'Existing Kit');
-      existingKit.addComponent(new ProductVariantId('V-EX1'), 2);
-      kitRepo.findById.mockResolvedValue(existingKit);
-      kitRepo.save.mockResolvedValue(undefined);
-
-      const input = {
-        kitId: 'K-EX',
-        variantId: 'V-EX2',
-        quantity: 5
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result).toBe(true);
-      expect(kitRepo.findById).toHaveBeenCalledWith(expect.any(KitId));
-      expect(kitRepo.findById.mock.calls[0][0].value).toBe('K-EX');
-
-      expect(kitRepo.save).toHaveBeenCalled();
-      const savedKit = kitRepo.save.mock.calls[0][0];
-      expect(savedKit.components).toHaveLength(2);
-      expect(savedKit.components[1].variantId.value).toBe('V-EX2');
-      expect(savedKit.components[1].quantity).toBe(5);
-    });
-
-    it('throws an error if kit is not found', async () => {
-      const useCase = new AddKitComponentUseCase(kitRepo);
-
-      kitRepo.findById.mockResolvedValue(null);
-
-      const input = {
-        kitId: 'K-MISSING',
-        variantId: 'V-NEW',
-        quantity: 1
-      };
-
-      await expect(useCase.execute(input)).rejects.toThrow("Kit with ID 'K-MISSING' not found.");
-      expect(kitRepo.save).not.toHaveBeenCalled();
-    });
-  });
 });

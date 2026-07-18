@@ -6,7 +6,7 @@ import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
 import { RMAStatus, RMAItemStatus, RMADisposition } from '../../domain/enums/ReturnEnums';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresRmaRepository implements IRmaRepository {

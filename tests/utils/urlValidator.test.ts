@@ -18,10 +18,21 @@ describe('validateOutboundUrl', () => {
     expect(() => validateOutboundUrl('not-a-url')).toThrow();
   });
 
+  describe('Runtime type bypasses', () => {
+    it('should throw Error when given non-string or invalid runtime types', () => {
+      // Bypassing TS compiler checks using `as any` to simulate runtime vulnerabilities
+      expect(() => validateOutboundUrl(null as any)).toThrow();
+      expect(() => validateOutboundUrl(undefined as any)).toThrow();
+      expect(() => validateOutboundUrl(12345 as any)).toThrow();
+      expect(() => validateOutboundUrl({} as any)).toThrow();
+      expect(() => validateOutboundUrl([] as any)).toThrow();
+      expect(() => validateOutboundUrl('' as any)).toThrow();
+    });
+  });
+
   describe('SSRF Protection (Blocked IPs/Hostnames)', () => {
     const blockedUrls = [
       'http://localhost',
-      'http://localhost.',
       'https://localhost',
       'http://0.0.0.0',
       'http://127.0.0.1',
@@ -38,6 +49,10 @@ describe('validateOutboundUrl', () => {
       'http://[fe80::1]',
       'http://[fc00::1]',
       'http://[fd00::1]',
+      // FQDN trailing dots bypass
+      'http://localhost.',
+      'http://127.0.0.1.',
+      'http://169.254.169.254.',
     ];
 
     blockedUrls.forEach((url) => {

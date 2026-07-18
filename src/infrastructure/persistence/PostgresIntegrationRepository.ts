@@ -4,7 +4,7 @@ import { IntegrationConnection } from '../../domain/integrations/aggregates/Inte
 import { IntegrationId } from '../../domain/integrations/valueObjects/IntegrationId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { IntegrationPlatform } from '../../domain/integrations/enums/IntegrationEnums';
-import { toUuid } from '../../shared/utils/uuid';
+import { toUuid } from '../utils/uuid';
 
 
 export class PostgresIntegrationRepository implements IIntegrationRepository {

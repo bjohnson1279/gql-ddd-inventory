@@ -19,6 +19,7 @@ import { InventoryCostLayer, InventoryCostLayerId } from '../../domain/entities/
 import { CostLayerService } from '../../domain/services/CostLayerService';
 import { JournalEntry } from '../../domain/entities/JournalEntry';
 import { JournalEntryId } from '../../domain/valueObjects/JournalEntryId';
+import { InvalidOperationError } from '../../domain/exceptions/DomainErrors';
 import { AccountCode } from '../../domain/valueObjects/AccountCode';
 import { DebitCredit, AccountingMethod } from '../../domain/enums/AccountingEnums';
 
@@ -424,6 +425,10 @@ export class AddKitComponentUseCase {
   constructor(private readonly kitRepo: IKitRepository) {}
 
   async execute(input: { kitId: string; variantId: string; quantity: number }): Promise<boolean> {
+    if (input.quantity <= 0) {
+      throw new InvalidOperationError('Quantity must be greater than zero.');
+    }
+
     const kit = await this.kitRepo.findById(new KitId(input.kitId));
     if (!kit) {
       throw new Error(`Kit with ID '${input.kitId}' not found.`);

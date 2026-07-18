@@ -19,10 +19,6 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
         bin: location.bin,
         maxWeightGrams: location.maxWeightGrams,
         maxVolumeCubicMeters: location.maxVolumeCubicMeters,
-        gridX: location.gridX,
-        gridY: location.gridY,
-        width: location.width,
-        height: location.height
       },
       update: {
         warehouseId: location.warehouseId,
@@ -33,10 +29,6 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
         bin: location.bin,
         maxWeightGrams: location.maxWeightGrams,
         maxVolumeCubicMeters: location.maxVolumeCubicMeters,
-        gridX: location.gridX,
-        gridY: location.gridY,
-        width: location.width,
-        height: location.height
       },
     });
   }
@@ -55,11 +47,7 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
       model.shelf,
       model.bin,
       model.maxWeightGrams,
-      model.maxVolumeCubicMeters,
-      model.gridX,
-      model.gridY,
-      model.width,
-      model.height
+      model.maxVolumeCubicMeters
     );
   }
 
@@ -84,11 +72,7 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
           model.shelf,
           model.bin,
           model.maxWeightGrams,
-          model.maxVolumeCubicMeters,
-          model.gridX,
-          model.gridY,
-          model.width,
-          model.height
+          model.maxVolumeCubicMeters
         )
     );
   }
@@ -106,11 +90,7 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
           model.shelf,
           model.bin,
           model.maxWeightGrams,
-          model.maxVolumeCubicMeters,
-          model.gridX,
-          model.gridY,
-          model.width,
-          model.height
+          model.maxVolumeCubicMeters
         )
     );
   }
