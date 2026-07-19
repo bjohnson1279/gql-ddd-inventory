@@ -44,8 +44,9 @@ export class AuditProcessorService {
           for (let i = 0; i < externalItemIds.length; i += chunkSize) {
             const batchIds = externalItemIds.slice(i, i + chunkSize);
             try {
+              const validatedUrl = await validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`);
               const response = await fetch(
-                validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
+                validatedUrl,
                 {
                   method: 'POST',
                   headers: {
