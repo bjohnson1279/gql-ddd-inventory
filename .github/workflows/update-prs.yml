@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+# Grant the workflow the explicit permissions required to push code changes back to your branches
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   merge-main:
     runs-on: ubuntu-latest
