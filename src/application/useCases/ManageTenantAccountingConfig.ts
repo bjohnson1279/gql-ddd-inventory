@@ -1,5 +1,5 @@
 import { CostingMethod, AccountingMethod } from '../../domain/enums/AccountingEnums';
-import { ITenantAccountingConfigRepository } from '../../domain/repositories/ITenantAccountingConfigRepository';
+import { PrismaClient } from '@prisma/client';
 import { InvalidOperationError } from '../../domain/exceptions/DomainErrors';
 
 export interface TenantAccountingConfigDTO {
@@ -9,12 +9,12 @@ export interface TenantAccountingConfigDTO {
 }
 
 export class GetTenantAccountingConfigUseCase {
-  constructor(private readonly configRepo: ITenantAccountingConfigRepository) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
   async execute(tenantId: string): Promise<TenantAccountingConfigDTO> {
-    const config = await this.configRepo.findByTenantId(tenantId);
+    const row = await this.prisma.tenantAccountingConfig.findUnique({ where: { tenantId } });
 
-    if (!config) {
+    if (!row) {
       return {
         tenantId,
         accountingMethod: AccountingMethod.Accrual,
@@ -22,26 +22,18 @@ export class GetTenantAccountingConfigUseCase {
       };
     }
 
-    if (!Object.values(AccountingMethod).includes(config.accountingMethod)) {
-      throw new InvalidOperationError(`Invalid accounting method found in database: ${config.accountingMethod}`);
-    }
-
-    if (!Object.values(CostingMethod).includes(config.costingMethod)) {
-      throw new InvalidOperationError(`Invalid costing method found in database: ${config.costingMethod}`);
-    }
-
-    return config;
+    return {
+      tenantId,
+      accountingMethod: row.accountingMethod as AccountingMethod,
+      costingMethod: row.costingMethod as CostingMethod,
+    };
   }
 }
 
 export class SaveTenantAccountingConfigUseCase {
-  constructor(private readonly configRepo: ITenantAccountingConfigRepository) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
   async execute(input: TenantAccountingConfigDTO): Promise<boolean> {
-    if (!input) {
-      throw new InvalidOperationError('Input is required');
-    }
-
     if (!input.tenantId || input.tenantId.trim() === '') {
       throw new InvalidOperationError('tenantId is required');
     }
@@ -54,7 +46,18 @@ export class SaveTenantAccountingConfigUseCase {
       throw new InvalidOperationError(`Invalid costing method: ${input.costingMethod}`);
     }
 
-    await this.configRepo.save(input);
+    await this.prisma.tenantAccountingConfig.upsert({
+      where: { tenantId: input.tenantId },
+      create: {
+        tenantId: input.tenantId,
+        accountingMethod: input.accountingMethod,
+        costingMethod: input.costingMethod,
+      },
+      update: {
+        accountingMethod: input.accountingMethod,
+        costingMethod: input.costingMethod,
+      },
+    });
     return true;
   }
 }

@@ -36,9 +36,8 @@ export class ShopifyStockSyncHandler {
 
     for (const conn of connections) {
       if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock')) {
-        const validatedUrl = await validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`);
         const response = await fetch(
-          validatedUrl,
+          validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
           {
             method: 'POST',
             headers: {
@@ -64,8 +63,7 @@ export class ShopifyStockSyncHandler {
                   ]
                 }
               }
-            }),
-            redirect: 'error'
+            })
           }
         );
 

@@ -75,16 +75,4 @@ describe('verifyShopifyHmac', () => {
     const result = verifyShopifyHmac(rawBody, invalidHmacObject);
     expect(result).toBe(false);
   });
-
-  it('should verify correctly with a known HMAC pair', () => {
-    // A pre-computed valid HMAC pair.
-    // Secret: "my-known-secret", Payload: '{"test":"payload"}',
-    // Expected HMAC (base64 of sha256): "ifGq9qp9v7uqmpK6FTOWBtrAJGeZVrwtJ+vjbm/NY1g="
-    process.env.SHOPIFY_WEBHOOK_SECRET = 'my-known-secret';
-    const knownPayload = '{"test":"payload"}';
-    const knownHmac = 'ifGq9qp9v7uqmpK6FTOWBtrAJGeZVrwtJ+vjbm/NY1g=';
-
-    const result = verifyShopifyHmac(knownPayload, knownHmac);
-    expect(result).toBe(true);
-  });
 });

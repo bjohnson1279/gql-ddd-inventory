@@ -77,8 +77,7 @@ describe('WebhookDeliveryWorker (GraphQL)', () => {
         'X-Webhook-Signature-256': expectedSignature,
         'X-Webhook-Event': 'InventoryDecremented'
       },
-      body: mockDelivery.payload,
-      redirect: 'error'
+      body: mockDelivery.payload
     });
 
     expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({

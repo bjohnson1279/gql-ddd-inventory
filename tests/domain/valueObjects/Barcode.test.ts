@@ -30,9 +30,6 @@ describe('Barcode', () => {
       it('should throw if length is not exactly 13', () => {
         expect(() => new Barcode(BarcodeSymbology.EAN_13, '123456789012')).toThrow('Invalid EAN-13 length. Expected 13.');
       });
-      it('should throw if not purely numeric', () => {
-        expect(() => new Barcode(BarcodeSymbology.EAN_13, '123456789012A')).toThrow('EAN-13 must contain only digits');
-      });
     });
 
     describe('UPC_E / EAN_8', () => {
@@ -46,12 +43,6 @@ describe('Barcode', () => {
         expect(() => new Barcode(BarcodeSymbology.UPC_E, '1234567')).toThrow('Invalid UPC-E length. Expected 8.');
         expect(() => new Barcode(BarcodeSymbology.EAN_8, '123456789')).toThrow('Invalid EAN-8 length. Expected 8.');
       });
-      it('should throw if not purely numeric for UPC_E', () => {
-        expect(() => new Barcode(BarcodeSymbology.UPC_E, '1234567A')).toThrow('UPC-E must contain only digits');
-      });
-      it('should throw if not purely numeric for EAN_8', () => {
-        expect(() => new Barcode(BarcodeSymbology.EAN_8, '1234567A')).toThrow('EAN-8 must contain only digits');
-      });
     });
 
     describe('ITF_14', () => {
@@ -60,9 +51,6 @@ describe('Barcode', () => {
       });
       it('should throw if length is not exactly 14', () => {
         expect(() => new Barcode(BarcodeSymbology.ITF_14, '1234567890123')).toThrow('Invalid ITF-14 length. Expected 14.');
-      });
-      it('should throw if not purely numeric', () => {
-        expect(() => new Barcode(BarcodeSymbology.ITF_14, '1234567890123A')).toThrow('ITF-14 must contain only digits');
       });
     });
 

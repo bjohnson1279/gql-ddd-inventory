@@ -38,7 +38,6 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
-      createMany: jest.fn(),
       update: jest.fn()
     },
     outboxEvent: {
@@ -142,7 +141,7 @@ describe('GraphQL Audit Management Resolvers', () => {
     expect(summary.shopifyDiscrepancies).toBe(1);
     expect(summary.accountingDiscrepancies).toBe(1);
 
-    expect(prisma.auditDiscrepancy.createMany).toHaveBeenCalledTimes(2);
+    expect(prisma.auditDiscrepancy.create).toHaveBeenCalledTimes(2);
   });
 
   it('should resolveAuditDiscrepancy successfully', async () => {

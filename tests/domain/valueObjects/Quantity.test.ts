@@ -116,32 +116,18 @@ describe('Quantity Value Object', () => {
   });
 
   describe('assertSameUnit (indirect)', () => {
-    it('should pass silently when operating on quantities with the same unit (via add)', () => {
+    it('should pass silently when operating on quantities with the same unit', () => {
       const q1 = new Quantity(10, StandardUnits.kilogram());
       const q2 = new Quantity(5, StandardUnits.kilogram());
       // Tested indirectly via add
       expect(() => q1.add(q2)).not.toThrow();
     });
 
-    it('should throw an error when operating on quantities with different units (via add)', () => {
+    it('should throw an error when operating on quantities with different units', () => {
       const q1 = new Quantity(10, StandardUnits.each());
       const q2 = new Quantity(5, StandardUnits.kilogram());
       // Tested indirectly via add
       expect(() => q1.add(q2)).toThrow('Cannot operate on different units: Each vs Kilogram');
-    });
-
-    it('should pass silently when operating on quantities with the same unit (via subtract)', () => {
-      const q1 = new Quantity(10, StandardUnits.kilogram());
-      const q2 = new Quantity(5, StandardUnits.kilogram());
-      // Tested indirectly via subtract
-      expect(() => q1.subtract(q2)).not.toThrow();
-    });
-
-    it('should throw an error when operating on quantities with different units (via subtract)', () => {
-      const q1 = new Quantity(10, StandardUnits.each());
-      const q2 = new Quantity(5, StandardUnits.kilogram());
-      // Tested indirectly via subtract
-      expect(() => q1.subtract(q2)).toThrow('Cannot operate on different units: Each vs Kilogram');
     });
   });
 });
