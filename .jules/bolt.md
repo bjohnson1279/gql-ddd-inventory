@@ -22,3 +22,22 @@
 ## 2025-03-09 - Ensure Exception String Assertions Match Source Code
 **Learning:** When adding tests that assert an exact error message is thrown, ensure the expected string in `toThrow(...)` matches the *actual* source code exactly, rather than blindly copying an expected string from the prompt or issue description which might be outdated or hallucinated.
 **Action:** Before committing a test that uses `toThrow('exact string')`, always `grep` or `cat` the actual source file to verify the exact wording of the thrown `Error` or use a regex `toThrow(/partial string/)` to be more resilient to minor message changes.
+## 2025-02-18 - Ensure domain validation methods correctly handle missing inputs
+**Learning:** When creating domain logic or Use Cases, input parameters might be bypassed at runtime leading to raw TypeErrors, which bypass graceful exception handling.
+**Action:** When updating error messages or validation logic in domain models, proactively add checks for missing, null, or undefined inputs even in strictly-typed codebases, map them to application-specific domain errors (e.g. `InvalidOperationError`), and write explicitly typed runtime bypass tests using `as any`.
+## 2024-11-20 - Ensure exact match for issue loop targets
+**Learning:** An issue report might contain code snippets describing a bug that were partially optimized or slightly altered in the codebase prior to my run.
+**Action:** Always ensure you find and directly optimize the exact vulnerability or inefficiency *if it exists exactly*. If the snippet is not found, verify if it was already fixed or if the issue description is slightly off. In this case, `createMany` for the `roles` array was already implemented, so optimizing the remaining single-role occurrences in the file was the best functional equivalent.
+## 2023-10-27 - Encapsulate Dummy Hash Logic
+**Learning:** Encapsulating timing attack mitigation logic (verifying dummy hashes) inside security utility functions simplifies resolver code and avoids odd module-level dummy constants.
+**Action:** When refactoring auth logic to mitigate timing attacks (e.g., dummy hashes), extract the check into a `verifyPasswordSafe` utility to encapsulate the dummy hash and keep API/Resolver entry points clean.
+## 2024-10-31 - Sequential API Bottlenecks in Routing Algorithms
+**Learning:** In routing or matching algorithms (like `OrderRoutingEngine`), sequentially awaiting network/I/O responses within nested iterative loops evaluating plan candidates creates massive N+1 style execution delays when scaling to multiple splits.
+**Action:** Always pre-calculate or collect unique network dependencies (like rates or geocodes) in a first pass, resolve them concurrently using `Promise.all()`, and then evaluate the candidates using the cached results in a synchronous second pass.
+## 2026-07-29 - O(N) Database Lookups in Nested Loops
+**Learning:** In `AuditProcessorService.ts`, nested loops used for mapping external connections to internal representations repeatedly awaited single record retrievals (`findUnique`, `aggregate`), leading to massive O(N) performance degradation (e.g. slowing down from 2ms to over 240ms for just 100 variants).
+**Action:** Always prefetch necessary collections using `findMany` or `groupBy` and store them in memory hash maps (e.g., `variantMap` and `ledgerSumMap`) before entering nested iteration structures to prevent N+1 queries.
+## 2024-05-24 - Prisma batch operations N+1
+
+**Learning:** Using sequential `for...of` loops with `await` in batch database operations creates an N+1 query problem inside the Prisma interactive transaction, severely slowing down large batch saves.
+**Action:** Always wrap independent loop iterations inside batch methods with `Promise.all` mapped over the input array inside database transactions instead of sequential awaits (ensuring items are correctly deduplicated beforehand to avoid race conditions/deadlocks).

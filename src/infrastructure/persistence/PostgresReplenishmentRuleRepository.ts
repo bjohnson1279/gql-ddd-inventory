@@ -15,36 +15,45 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
   async saveBatch(rules: ReplenishmentRule[]): Promise<void> {
     if (rules.length === 0) return;
 
+    // Deduplicate rules, keeping the last occurrence of each ID to avoid race conditions
+    const uniqueRulesMap = new Map<string, ReplenishmentRule>();
+    for (const rule of rules) {
+      uniqueRulesMap.set(rule.id.value, rule);
+    }
+    const uniqueRules = Array.from(uniqueRulesMap.values());
+
     await this.prisma.$transaction(async (tx) => {
-      for (const rule of rules) {
-        const dbId = toUuid(rule.id.value);
-        await tx.replenishmentRule.upsert({
-          where: { id: dbId },
-          create: {
-            id: dbId,
-            tenantId: rule.tenantId.value,
-            sku: rule.sku.value,
-            locationId: rule.locationId.value,
-            reorderPoint: rule.reorderPoint,
-            reorderQuantity: rule.reorderQuantity,
-            safetyStock: rule.safetyStock,
-            leadTimeDays: rule.leadTimeDays,
-            replenishmentType: rule.replenishmentType,
-            sourceLocationId: rule.sourceLocationId ? rule.sourceLocationId.value : null,
-            supplierId: rule.supplierId,
-            isActive: rule.isActive,
-            dynamicRopEnabled: rule.dynamicRopEnabled,
-          },
-          update: {
-            reorderPoint: rule.reorderPoint,
-            reorderQuantity: rule.reorderQuantity,
-            safetyStock: rule.safetyStock,
-            leadTimeDays: rule.leadTimeDays,
-            isActive: rule.isActive,
-            dynamicRopEnabled: rule.dynamicRopEnabled,
-          },
-        });
-      }
+      await Promise.all(
+        uniqueRules.map((rule) => {
+          const dbId = toUuid(rule.id.value);
+          return tx.replenishmentRule.upsert({
+            where: { id: dbId },
+            create: {
+              id: dbId,
+              tenantId: rule.tenantId.value,
+              sku: rule.sku.value,
+              locationId: rule.locationId.value,
+              reorderPoint: rule.reorderPoint,
+              reorderQuantity: rule.reorderQuantity,
+              safetyStock: rule.safetyStock,
+              leadTimeDays: rule.leadTimeDays,
+              replenishmentType: rule.replenishmentType,
+              sourceLocationId: rule.sourceLocationId ? rule.sourceLocationId.value : null,
+              supplierId: rule.supplierId,
+              isActive: rule.isActive,
+              dynamicRopEnabled: rule.dynamicRopEnabled,
+            },
+            update: {
+              reorderPoint: rule.reorderPoint,
+              reorderQuantity: rule.reorderQuantity,
+              safetyStock: rule.safetyStock,
+              leadTimeDays: rule.leadTimeDays,
+              isActive: rule.isActive,
+              dynamicRopEnabled: rule.dynamicRopEnabled,
+            },
+          });
+        })
+      );
     });
   }
 
