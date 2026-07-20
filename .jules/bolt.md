@@ -13,12 +13,6 @@
 ## 2024-03-24 - [Cache shipping rates during routing]
 **Learning:** Generating all combinations of fulfillment allocations caused O(N!) redundant API calls to the rate calculator because identical allocations were re-evaluated repeatedly.
 **Action:** Introduced a rate cache map keyed by locationId and quantity in OrderRoutingEngine to reuse previously calculated rates across different allocation combinations.
-## 2025-02-28 - Test Validation for Missing Coverage
-**Learning:** Checking coverage metrics ensures you understand exactly what parts of a use case aren’t being tested. Tests should cover happy paths (like correct creation), and invalid/edge cases (like domain validation failures during ID/SKU instantiation or handling quantities properly).
-**Action:** Always check coverage and add edge cases like invalid domain primitive inputs (empty IDs, wrong SKU formats) and business logic edge cases (merging duplicate array inputs).
-## 2026-07-28 - Replace any with Prisma types in repositories
-**Learning:** The task requested fixing a code health issue where an `any` type was used for database records mapping in `PostgresQuarantineRepository.ts`. Since that file had already been fixed, I identified a similar issue in `PostgresRmaRepository.ts` and successfully refactored it. Using strongly typed objects in data layer mapping reduces errors and improves maintainability.
-**Action:** Replaced `record: any` with `record: PrismaRma & { items: PrismaRmaItem[] }` for safer and cleaner data transformation, ensuring `mapToDomain` receives exactly what the database provides.
 ## 2026-07-15 - Wrap verifyPassword in try/catch to handle invalid runtime types
 **Learning:** Functions dealing with buffer operations or string splitting on input parameters can crash (HTTP 500) if explicitly typed string parameters are bypassed at runtime with invalid types (e.g., null, undefined, Objects) unless protected by a try/catch.
 **Action:** Always consider the real-world boundaries of explicitly typed inputs. Wrap internal parsing or buffer manipulation in a try/catch and fallback gracefully (e.g., returning false) when dealing with security utils that should simply fail on bad input.

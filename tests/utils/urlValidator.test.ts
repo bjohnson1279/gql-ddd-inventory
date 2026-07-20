@@ -1,32 +1,32 @@
 import { validateOutboundUrl } from '../../src/utils/urlValidator';
 
 describe('validateOutboundUrl', () => {
-  it('should allow valid http and https URLs', async () => {
-    await expect(validateOutboundUrl('http://example.com')).resolves.toBe('http://example.com');
-    await expect(validateOutboundUrl('https://example.com')).resolves.toBe('https://example.com');
-    await expect(validateOutboundUrl('https://1.1.1.1')).resolves.toBe('https://1.1.1.1');
-    await expect(validateOutboundUrl('https://[2001:4860:4860::8888]')).resolves.toBe('https://[2001:4860:4860::8888]');
+  it('should allow valid http and https URLs', () => {
+    expect(validateOutboundUrl('http://example.com')).toBe('http://example.com');
+    expect(validateOutboundUrl('https://example.com')).toBe('https://example.com');
+    expect(validateOutboundUrl('https://1.1.1.1')).toBe('https://1.1.1.1');
+    expect(validateOutboundUrl('https://[2001:4860:4860::8888]')).toBe('https://[2001:4860:4860::8888]');
   });
 
-  it('should throw Error for invalid protocols', async () => {
-    await expect(validateOutboundUrl('ftp://example.com')).rejects.toThrow('Invalid protocol');
-    await expect(validateOutboundUrl('file:///etc/passwd')).rejects.toThrow('Invalid protocol');
-    await expect(validateOutboundUrl('gopher://example.com')).rejects.toThrow('Invalid protocol');
+  it('should throw Error for invalid protocols', () => {
+    expect(() => validateOutboundUrl('ftp://example.com')).toThrow('Invalid protocol');
+    expect(() => validateOutboundUrl('file:///etc/passwd')).toThrow('Invalid protocol');
+    expect(() => validateOutboundUrl('gopher://example.com')).toThrow('Invalid protocol');
   });
 
-  it('should throw Error for malformed URLs', async () => {
-    await expect(validateOutboundUrl('not-a-url')).rejects.toThrow();
+  it('should throw Error for malformed URLs', () => {
+    expect(() => validateOutboundUrl('not-a-url')).toThrow();
   });
 
   describe('Runtime type bypasses', () => {
-    it('should throw Error when given non-string or invalid runtime types', async () => {
+    it('should throw Error when given non-string or invalid runtime types', () => {
       // Bypassing TS compiler checks using `as any` to simulate runtime vulnerabilities
-      await expect(validateOutboundUrl(null as any)).rejects.toThrow();
-      await expect(validateOutboundUrl(undefined as any)).rejects.toThrow();
-      await expect(validateOutboundUrl(12345 as any)).rejects.toThrow();
-      await expect(validateOutboundUrl({} as any)).rejects.toThrow();
-      await expect(validateOutboundUrl([] as any)).rejects.toThrow();
-      await expect(validateOutboundUrl('' as any)).rejects.toThrow();
+      expect(() => validateOutboundUrl(null as any)).toThrow();
+      expect(() => validateOutboundUrl(undefined as any)).toThrow();
+      expect(() => validateOutboundUrl(12345 as any)).toThrow();
+      expect(() => validateOutboundUrl({} as any)).toThrow();
+      expect(() => validateOutboundUrl([] as any)).toThrow();
+      expect(() => validateOutboundUrl('' as any)).toThrow();
     });
   });
 
@@ -56,8 +56,8 @@ describe('validateOutboundUrl', () => {
     ];
 
     blockedUrls.forEach((url) => {
-      it(`should block internal/reserved URL: ${url}`, async () => {
-        await expect(validateOutboundUrl(url)).rejects.toThrow('Internal or reserved IP address blocked to prevent SSRF');
+      it(`should block internal/reserved URL: ${url}`, () => {
+        expect(() => validateOutboundUrl(url)).toThrow('Internal or reserved IP address blocked to prevent SSRF');
       });
     });
   });
@@ -71,8 +71,8 @@ describe('validateOutboundUrl', () => {
     ];
 
     allowedUrls.forEach((url) => {
-      it(`should allow external URL: ${url}`, async () => {
-        await expect(validateOutboundUrl(url)).resolves.toBe(url);
+      it(`should allow external URL: ${url}`, () => {
+        expect(validateOutboundUrl(url)).toBe(url);
       });
     });
   });

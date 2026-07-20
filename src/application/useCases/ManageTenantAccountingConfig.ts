@@ -34,10 +34,6 @@ export class SaveTenantAccountingConfigUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(input: TenantAccountingConfigDTO): Promise<boolean> {
-    if (!input) {
-      throw new InvalidOperationError('Input is required');
-    }
-
     if (!input.tenantId || input.tenantId.trim() === '') {
       throw new InvalidOperationError('tenantId is required');
     }

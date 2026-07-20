@@ -1,4 +1,4 @@
-import { hashPassword, verifyPassword, verifyPasswordSafe } from '../../../src/infrastructure/utils/security';
+import { hashPassword, verifyPassword } from '../../../src/infrastructure/utils/security';
 
 describe('security utils', () => {
   describe('hashPassword', () => {
@@ -78,31 +78,6 @@ describe('security utils', () => {
       expect(verifyPassword(password, 123 as any)).toBe(false);
       expect(verifyPassword(password, {} as any)).toBe(false);
       expect(verifyPassword(password, [] as any)).toBe(false);
-    });
-  });
-
-  describe('verifyPasswordSafe', () => {
-    it('should return true for a correct password', () => {
-      const password = 'my-secret-password';
-      const storedHash = hashPassword(password);
-
-      expect(verifyPasswordSafe(password, storedHash)).toBe(true);
-    });
-
-    it('should return false for an incorrect password', () => {
-      const password = 'my-secret-password';
-      const wrongPassword = 'wrong-password';
-      const storedHash = hashPassword(password);
-
-      expect(verifyPasswordSafe(wrongPassword, storedHash)).toBe(false);
-    });
-
-    it('should return false and verify against dummy hash when storedHash is missing', () => {
-      const password = 'my-secret-password';
-
-      expect(verifyPasswordSafe(password, null)).toBe(false);
-      expect(verifyPasswordSafe(password, undefined)).toBe(false);
-      expect(verifyPasswordSafe(password, '')).toBe(false);
     });
   });
 });
