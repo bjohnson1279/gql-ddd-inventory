@@ -1,0 +1,49 @@
+name: Update Open PRs
+
+on:
+  push:
+    branches:
+      - main
+
+# Grant the workflow the explicit permissions required to push code changes back to your branches
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches full history for all branches so we can track and merge them
+
+      - name: Merge main into Open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Configure the Git committer identity for the automated runner
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          # 2. Query the GitHub API for open PR branches targeting main
+          PR_BRANCHES=$(gh pr list --base main --state open --json headRefName --jq '.[].headRefName')
+
+          if [ -z "$PR_BRANCHES" ]; then
+            echo "No open pull requests targeting main found."
+            exit 0
+          fi
+
+          # 3. Loop through and merge main into each open branch
+          for branch in $PR_BRANCHES; do
+            echo "Targeting branch: $branch"
+            
+            # Fetch the specific feature branch from remote, switch to it, and merge main
+            git fetch origin $branch
+            git checkout $branch
+            git merge origin/main --no-edit
+            
+            # Push the updated feature branch back to GitHub
+            git push origin $branch
+          done

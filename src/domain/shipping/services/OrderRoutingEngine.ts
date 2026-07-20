@@ -27,7 +27,30 @@ export class OrderRoutingEngine {
       throw new Error(`Could not find any valid allocation combinations for quantity ${quantity}`);
     }
 
+    // ⚡ Bolt Optimization: Gather all unique rate calculations upfront to batch them concurrently.
+    // Instead of sequentially awaiting network responses inside the inner loop,
+    // we resolve them all at once, avoiding N+1 round trips and speeding up execution.
+    const uniqueRequests = new Map<string, { locationId: string, quantity: number }>();
+    for (const allocations of rawPlans) {
+      for (const alloc of allocations) {
+        const cacheKey = `${alloc.locationId}_${alloc.quantity}`;
+        if (!uniqueRequests.has(cacheKey)) {
+          uniqueRequests.set(cacheKey, { locationId: alloc.locationId, quantity: alloc.quantity });
+        }
+      }
+    }
+
+    const ratePromises = Array.from(uniqueRequests.entries()).map(async ([cacheKey, req]) => {
+      const rate = await rateCalculator(req.locationId, sku, req.quantity);
+      return { cacheKey, rate };
+    });
+
+    // Run all unique rate calculations in parallel
+    const rateResults = await Promise.all(ratePromises);
     const rateCache = new Map<string, number>();
+    for (const result of rateResults) {
+      rateCache.set(result.cacheKey, result.rate);
+    }
 
     const plans: FulfillmentPlan[] = [];
     for (const allocations of rawPlans) {
@@ -40,12 +63,10 @@ export class OrderRoutingEngine {
         totalDistance += dist;
 
         const cacheKey = `${alloc.locationId}_${alloc.quantity}`;
-        let rate = rateCache.get(cacheKey);
-        if (rate === undefined) {
-          rate = await rateCalculator(alloc.locationId, sku, alloc.quantity);
-          rateCache.set(cacheKey, rate);
+        const rate = rateCache.get(cacheKey);
+        if (rate !== undefined) {
+          totalCost += rate;
         }
-        totalCost += rate;
       }
 
       const splitCount = allocations.length - 1;
