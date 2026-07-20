@@ -43,3 +43,7 @@
 ## 2026-07-29 - O(N) Database Lookups in Nested Loops
 **Learning:** In `AuditProcessorService.ts`, nested loops used for mapping external connections to internal representations repeatedly awaited single record retrievals (`findUnique`, `aggregate`), leading to massive O(N) performance degradation (e.g. slowing down from 2ms to over 240ms for just 100 variants).
 **Action:** Always prefetch necessary collections using `findMany` or `groupBy` and store them in memory hash maps (e.g., `variantMap` and `ledgerSumMap`) before entering nested iteration structures to prevent N+1 queries.
+## 2024-05-24 - Prisma batch operations N+1
+
+**Learning:** Using sequential `for...of` loops with `await` in batch database operations creates an N+1 query problem inside the Prisma interactive transaction, severely slowing down large batch saves.
+**Action:** Always wrap independent loop iterations inside batch methods with `Promise.all` mapped over the input array inside database transactions instead of sequential awaits (ensuring items are correctly deduplicated beforehand to avoid race conditions/deadlocks).
