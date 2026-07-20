@@ -291,9 +291,12 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
   async saveBatch(items: SerializedItem[]): Promise<void> {
     if (items.length === 0) return;
 
+    // Deduplicate items by ID, keeping the last occurrence, to prevent deadlocks and reduce I/O during batch upserts
+    const deduplicatedItems = Array.from(new Map(items.map((item) => [item.id.value, item])).values());
+
     await this.prisma.$transaction(async (tx) => {
       await Promise.all(
-        items.map(async (item) => {
+        deduplicatedItems.map(async (item) => {
           await tx.serializedItem.upsert({
             where: { id: item.id.value },
             create: {
