@@ -76,43 +76,52 @@ export class PostgresStockTransferRepository implements IStockTransferRepository
   async saveBatch(transfers: StockTransfer[]): Promise<void> {
     if (transfers.length === 0) return;
 
+    // Deduplicate transfers, keeping the last occurrence of each ID to avoid race conditions
+    const uniqueTransfersMap = new Map<string, StockTransfer>();
+    for (const transfer of transfers) {
+      uniqueTransfersMap.set(transfer.id.value, transfer);
+    }
+    const uniqueTransfers = Array.from(uniqueTransfersMap.values());
+
     await this.prisma.$transaction(async (tx) => {
-      for (const transfer of transfers) {
-        const dbId = toUuid(transfer.id.value);
-        await tx.stockTransfer.upsert({
-          where: { id: dbId },
-          create: {
-            id: dbId,
-            tenantId: transfer.tenantId.value,
-            sourceLocationId: transfer.sourceLocationId.value,
-            destinationLocationId: transfer.destinationLocationId.value,
-            status: transfer.status,
-            referenceId: transfer.referenceId,
-            dispatchedAt: transfer.dispatchedAt,
-            receivedAt: transfer.receivedAt,
-            createdAt: transfer.createdAt,
-          },
-          update: {
-            status: transfer.status,
-            dispatchedAt: transfer.dispatchedAt,
-            receivedAt: transfer.receivedAt,
-          },
-        });
-
-        await tx.stockTransferItem.deleteMany({
-          where: { transferId: dbId },
-        });
-
-        if (transfer.items.length > 0) {
-          await tx.stockTransferItem.createMany({
-            data: transfer.items.map((item) => ({
-              transferId: dbId,
-              variantId: toUuid(item.variantId.value),
-              quantity: item.quantity,
-            })),
+      await Promise.all(
+        uniqueTransfers.map(async (transfer) => {
+          const dbId = toUuid(transfer.id.value);
+          await tx.stockTransfer.upsert({
+            where: { id: dbId },
+            create: {
+              id: dbId,
+              tenantId: transfer.tenantId.value,
+              sourceLocationId: transfer.sourceLocationId.value,
+              destinationLocationId: transfer.destinationLocationId.value,
+              status: transfer.status,
+              referenceId: transfer.referenceId,
+              dispatchedAt: transfer.dispatchedAt,
+              receivedAt: transfer.receivedAt,
+              createdAt: transfer.createdAt,
+            },
+            update: {
+              status: transfer.status,
+              dispatchedAt: transfer.dispatchedAt,
+              receivedAt: transfer.receivedAt,
+            },
           });
-        }
-      }
+
+          await tx.stockTransferItem.deleteMany({
+            where: { transferId: dbId },
+          });
+
+          if (transfer.items.length > 0) {
+            await tx.stockTransferItem.createMany({
+              data: transfer.items.map((item) => ({
+                transferId: dbId,
+                variantId: toUuid(item.variantId.value),
+                quantity: item.quantity,
+              })),
+            });
+          }
+        })
+      );
     });
   }
 
