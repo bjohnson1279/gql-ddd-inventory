@@ -470,6 +470,65 @@ describe('ManageKits Use Cases', () => {
 
       await expect(useCase.execute(input)).rejects.toThrow('Database error');
     });
+
+    it('throws error if KitId is empty', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: '',
+        sku: 'KIT-5',
+        name: 'Invalid Kit',
+        components: []
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('KitId cannot be empty.');
+    });
+
+    it('throws error if SKU is empty', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K6',
+        sku: '',
+        name: 'Invalid Kit',
+        components: []
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('SKU cannot be empty.');
+    });
+
+    it('throws error if SKU is invalid', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K7',
+        sku: 'INV@LID_SKU!',
+        name: 'Invalid Kit',
+        components: []
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('SKU must contain only alphanumeric characters and hyphens.');
+    });
+
+    it('throws error if ProductVariantId is empty in a component', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K8',
+        sku: 'KIT-8',
+        name: 'Invalid Component Variant',
+        components: [
+          { variantId: '', quantity: 1 }
+        ]
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('ProductVariantId cannot be empty.');
+    });
+
+    it('throws error if component quantity is less than 1', async () => {
+      const useCase = new CreateKitUseCase(kitRepo);
+      const input = {
+        id: 'K9',
+        sku: 'KIT-9',
+        name: 'Invalid Component Quantity',
+        components: [
+          { variantId: 'V1', quantity: 0 }
+        ]
+      };
+      await expect(useCase.execute(input)).rejects.toThrow('Kit component quantity must be at least 1.');
+    });
   });
 
 });
