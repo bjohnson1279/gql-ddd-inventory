@@ -46,3 +46,10 @@ export class CapacityExceededError extends Error {
     this.name = 'CapacityExceededError';
   }
 }
+
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}

@@ -7,7 +7,7 @@ import { InventoryItem } from '../../../src/domain/entities/InventoryItem';
 import { Sku } from '../../../src/domain/valueObjects/Sku';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { Quantity } from '../../../src/domain/valueObjects/Quantity';
-import { CapacityExceededError } from '../../../src/domain/exceptions/DomainErrors';
+import { CapacityExceededError, ValidationError } from '../../../src/domain/exceptions/DomainErrors';
 
 describe('SubmitInventoryCountUseCase', () => {
   let mockInventoryRepo: jest.Mocked<IInventoryRepository>;
@@ -43,6 +43,15 @@ describe('SubmitInventoryCountUseCase', () => {
   });
 
   describe('execute', () => {
+    it('should throw ValidationError if counts input is not an array (null/undefined bypass)', async () => {
+      // Simulate runtime type bypass using 'as any'
+      await expect(useCase.execute(null as any)).rejects.toThrow(ValidationError);
+      await expect(useCase.execute(undefined as any)).rejects.toThrow(ValidationError);
+      await expect(useCase.execute({} as any)).rejects.toThrow(ValidationError);
+
+      expect(mockInventoryRepo.findBySkuAndLocationBatch).not.toHaveBeenCalled();
+    });
+
     it('should return empty array if counts input is empty', async () => {
       const result = await useCase.execute([]);
 
@@ -182,6 +191,21 @@ describe('SubmitInventoryCountUseCase', () => {
       await expect(useCaseWithCapacity.execute(counts)).rejects.toThrow(CapacityExceededError);
 
       expect(mockInventoryRepo.findBySkuAndLocationBatch).not.toHaveBeenCalled();
+      expect(mockInventoryRepo.saveBatch).not.toHaveBeenCalled();
+      expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors from repository findBySkuAndLocationBatch', async () => {
+      const dbError = new Error('Database connection failed during fetch');
+      mockInventoryRepo.findBySkuAndLocationBatch.mockRejectedValue(dbError);
+
+      const counts: CountItemInputDTO[] = [
+        { sku: 'SKU1', locationId: 'LOC1', actualQuantity: 8 },
+      ];
+
+      await expect(useCase.execute(counts)).rejects.toThrow('Database connection failed during fetch');
+
+      expect(mockInventoryRepo.findBySkuAndLocationBatch).toHaveBeenCalled();
       expect(mockInventoryRepo.saveBatch).not.toHaveBeenCalled();
       expect(mockEventDispatcher.dispatch).not.toHaveBeenCalled();
     });

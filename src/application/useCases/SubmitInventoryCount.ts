@@ -5,6 +5,7 @@ import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { CountItemInputDTO, CountResultDTO } from '../dtos/SubmitInventoryCountDTO';
 import { DomainEventDispatcher } from '../services/DomainEventDispatcher';
 import { WMSCapacityService } from '../../domain/services/WMSCapacityService';
+import { ValidationError } from '../../domain/exceptions/DomainErrors';
 
 export class SubmitInventoryCountUseCase {
   constructor(
@@ -15,6 +16,10 @@ export class SubmitInventoryCountUseCase {
 
   async execute(counts: CountItemInputDTO[]): Promise<CountResultDTO[]> {
     const results: CountResultDTO[] = [];
+
+    if (!Array.isArray(counts)) {
+      throw new ValidationError('Input counts must be an array');
+    }
 
     if (counts.length === 0) return results;
 
