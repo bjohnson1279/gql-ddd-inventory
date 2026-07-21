@@ -65,6 +65,28 @@ export class SellKitUseCase {
   }
 }
 
+export class RemoveKitComponentUseCase {
+  constructor(private readonly kitRepo: IKitRepository) {}
+
+  async execute(input: { kitId: string; variantId: string }): Promise<boolean> {
+    if (!input.kitId) {
+      throw new Error('KitId cannot be empty.');
+    }
+    if (!input.variantId) {
+      throw new Error('ProductVariantId cannot be empty.');
+    }
+
+    const kit = await this.kitRepo.findById(new KitId(input.kitId));
+    if (!kit) {
+      throw new Error(`Kit with ID '${input.kitId}' not found.`);
+    }
+
+    kit.removeComponent(new ProductVariantId(input.variantId));
+    await this.kitRepo.save(kit);
+    return true;
+  }
+}
+
 export interface AssembleKitInput {
   tenantId: string;
   locationId: string;

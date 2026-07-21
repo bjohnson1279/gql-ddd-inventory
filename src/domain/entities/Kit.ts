@@ -22,6 +22,15 @@ export class Kit {
     }
   }
 
+  removeComponent(variantId: ProductVariantId): void {
+    const existingIndex = this._components.findIndex(c => c.variantId.equals(variantId));
+    if (existingIndex !== -1) {
+      this._components.splice(existingIndex, 1);
+    } else {
+      throw new Error(`Component with variant ID '${variantId.value}' not found in kit.`);
+    }
+  }
+
   get components(): ReadonlyArray<KitComponent> {
     return this._components;
   }
