@@ -44,6 +44,7 @@ export class ShopifyStockSyncHandler {
               'Content-Type': 'application/json',
               'X-Shopify-Access-Token': conn.accessToken
             },
+            redirect: 'error',
             body: JSON.stringify({
               query: `
                 mutation setQty($input: InventorySetOnHandQuantitiesInput!) {
