@@ -1,4 +1,4 @@
-import { AssembleKitUseCase, DisassembleKitUseCase, SellKitUseCase, CreateKitUseCase, AddKitComponentUseCase } from '../../../src/application/useCases/ManageKits';
+import { AssembleKitUseCase, DisassembleKitUseCase, SellKitUseCase, CreateKitUseCase, AddKitComponentUseCase, RemoveKitComponentUseCase } from '../../../src/application/useCases/ManageKits';
 import { IKitRepository } from '../../../src/domain/repositories/IKitRepository';
 import { IProductRepository } from '../../../src/domain/repositories/IProductRepository';
 import { ILedgerRepository } from '../../../src/domain/repositories/ILedgerRepository';
@@ -411,6 +411,82 @@ describe('ManageKits Use Cases', () => {
         variantId: 'V1',
         quantity: 1
       })).rejects.toThrow('Failed to save to database');
+    });
+  });
+
+  describe('RemoveKitComponentUseCase', () => {
+    it('successfully removes a component from an existing kit', async () => {
+      const useCase = new RemoveKitComponentUseCase(kitRepo);
+
+      const kitIdStr = 'K1';
+      const variantIdStr = 'V1';
+
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      kit.addComponent(new ProductVariantId(variantIdStr), 3);
+      kitRepo.findById.mockResolvedValue(kit);
+
+      const result = await useCase.execute({
+        kitId: kitIdStr,
+        variantId: variantIdStr
+      });
+
+      expect(result).toBe(true);
+      expect(kitRepo.findById).toHaveBeenCalledWith(expect.any(KitId));
+      expect(kitRepo.findById.mock.calls[0][0].value).toBe(kitIdStr);
+
+      expect(kitRepo.save).toHaveBeenCalled();
+      const savedKit = kitRepo.save.mock.calls[0][0];
+      expect(savedKit.components).toHaveLength(0);
+    });
+
+    it('throws an error if the kit is not found', async () => {
+      const useCase = new RemoveKitComponentUseCase(kitRepo);
+      kitRepo.findById.mockResolvedValue(null);
+
+      await expect(useCase.execute({
+        kitId: 'K99',
+        variantId: 'V1'
+      })).rejects.toThrow("Kit with ID 'K99' not found.");
+
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws an error if the component is not in the kit', async () => {
+      const useCase = new RemoveKitComponentUseCase(kitRepo);
+
+      const kitIdStr = 'K1';
+      const kit = new Kit(new KitId(kitIdStr), new Sku('KIT-1'), 'Test Kit');
+      kit.addComponent(new ProductVariantId('V2'), 3);
+      kitRepo.findById.mockResolvedValue(kit);
+
+      await expect(useCase.execute({
+        kitId: kitIdStr,
+        variantId: 'V1'
+      })).rejects.toThrow("Component with variant ID 'V1' not found in kit.");
+
+      expect(kitRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws an error if kitId is empty', async () => {
+      const useCase = new RemoveKitComponentUseCase(kitRepo);
+
+      await expect(useCase.execute({
+        kitId: '',
+        variantId: 'V1'
+      })).rejects.toThrow('KitId cannot be empty.');
+
+      expect(kitRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('throws an error if variantId is empty', async () => {
+      const useCase = new RemoveKitComponentUseCase(kitRepo);
+
+      await expect(useCase.execute({
+        kitId: 'K1',
+        variantId: ''
+      })).rejects.toThrow('ProductVariantId cannot be empty.');
+
+      expect(kitRepo.findById).not.toHaveBeenCalled();
     });
   });
 
