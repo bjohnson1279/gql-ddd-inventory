@@ -103,7 +103,7 @@ describe('TenantProvisioner', () => {
       );
 
       // Should mark as DEPROVISIONED
-      expect(mockRegistry.updateStatus).toHaveBeenCalledWith('new-tenant', 'DEPROVISIONED');
+      expect(mockRegistry.updateStatus).toHaveBeenCalledWith('failing-tenant', 'DEPROVISIONED');
     });
   });
 
