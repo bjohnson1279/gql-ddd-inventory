@@ -23,7 +23,8 @@ import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
 import { createDataLoaders } from './infrastructure/graphql/dataloaders';
 import { depthLimitRule, complexityLimitRule } from './infrastructure/graphql/guardrails';
-import { prisma, prismaContext, getTenantPrisma, globalPrisma } from './infrastructure/persistence/prismaClient';
+import { prisma, prismaContext, getTenantPrisma, globalPrisma, MULTI_TENANT_MODE, getTenantConnectionPool, getTenantRegistry } from './infrastructure/persistence/prismaClient';
+import { TenantProvisioner } from './infrastructure/persistence/TenantProvisioner';
 import { enableRowLevelSecurity } from './infrastructure/persistence/rls';
 import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
@@ -204,11 +205,40 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 }
 
 async function startApolloServer() {
-  // Set up Row-Level Security policies on startup
-  try {
-    await enableRowLevelSecurity(globalPrisma);
-  } catch (err: any) {
-    console.log("Database/RLS setup warning:", err.message);
+  // Initialize tenant isolation based on configured mode
+  if (MULTI_TENANT_MODE === 'schema') {
+    console.log('[Startup] Multi-tenant mode: SCHEMA (isolated schemas per tenant)');
+    try {
+      // Ensure the tenant_registry table exists
+      await globalPrisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS tenant_registry (
+          tenant_id    TEXT PRIMARY KEY,
+          schema_name  TEXT NOT NULL UNIQUE,
+          db_host      TEXT NOT NULL DEFAULT '127.0.0.1',
+          db_port      INTEGER NOT NULL DEFAULT 5432,
+          db_name      TEXT NOT NULL DEFAULT 'inventory_db',
+          status       TEXT NOT NULL DEFAULT 'PROVISIONING',
+          provisioned_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          migrated_version TEXT NOT NULL DEFAULT '0'
+        );
+      `);
+
+      // Warm the connection pool for active tenants
+      const pool = getTenantConnectionPool();
+      await pool.warmPool();
+      const stats = pool.getStats();
+      console.log(`[Startup] Tenant connection pool warmed: ${stats.size} active connections.`);
+    } catch (err: any) {
+      console.error('[Startup] Tenant provisioning initialization warning:', err.message);
+    }
+  } else {
+    console.log('[Startup] Multi-tenant mode: SHARED (RLS policies)');
+    // Set up Row-Level Security policies on startup
+    try {
+      await enableRowLevelSecurity(globalPrisma);
+    } catch (err: any) {
+      console.log("Database/RLS setup warning:", err.message);
+    }
   }
 
   const app = express();
@@ -238,4 +268,21 @@ async function startApolloServer() {
 
 startApolloServer().catch(err => {
   console.error("Failed to start server:", err);
+});
+
+// Graceful shutdown — clean up tenant connection pool
+process.on('SIGTERM', async () => {
+  console.log('[Shutdown] SIGTERM received, cleaning up...');
+  if (MULTI_TENANT_MODE === 'schema') {
+    await getTenantConnectionPool().shutdown();
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('[Shutdown] SIGINT received, cleaning up...');
+  if (MULTI_TENANT_MODE === 'schema') {
+    await getTenantConnectionPool().shutdown();
+  }
+  process.exit(0);
 });
