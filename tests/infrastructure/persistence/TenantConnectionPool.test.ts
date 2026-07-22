@@ -34,6 +34,7 @@ describe('TenantConnectionPool', () => {
     it('should throw if tenant is not ACTIVE', async () => {
       mockRegistry.lookupTenant.mockResolvedValue({
         tenantId: 'provisioning-tenant',
+
         dbHost: '127.0.0.1',
         dbPort: 5432,
         dbName: 'inventory_db',
