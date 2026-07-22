@@ -159,3 +159,7 @@
 **Vulnerability:** The `fetch` calls to external URLs did not restrict HTTP redirects. This could allow an attacker to bypass initial URL validation (e.g., SSRF protection) by pointing the URL to an external server that responds with a 3xx redirect to an internal or restricted IP address.
 **Learning:** Initial URL validation is insufficient if the HTTP client automatically follows redirects, as the redirect target is not subjected to the same validation.
 **Prevention:** Always explicitly disable automatic redirects (e.g., setting `redirect: 'error'` or `redirect: 'manual'`) when making outbound requests to user-controlled or potentially untrusted URLs, to prevent SSRF via malicious redirects.
+## 2024-05-20 - [Fix SQL Injection in TenantRegistry]
+**Vulnerability:** Found multiple critical SQL injection vulnerabilities in `TenantRegistry.ts` due to the use of `$queryRawUnsafe` and `$executeRawUnsafe` with unsanitized string interpolations for inputs like `tenantId` and `status`.
+**Learning:** Using `$queryRawUnsafe` or `$executeRawUnsafe` in Prisma with string interpolation \`${variable}\` bypasses Prisma's parameterization and allows arbitrary SQL execution if the input isn't fully trusted or correctly escaped.
+**Prevention:** Always use the parameterized `$queryRaw` and `$executeRaw` with standard JS tagged templates. If dynamic parts of the query are needed (like optional WHERE clauses), use `Prisma.sql` and `Prisma.empty`.
