@@ -42,7 +42,7 @@ services:
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
-    command: npx ts-node src/subgraphs/inventory/index.ts
+    command: npm run dev
     environment:
       - PORT=4001
     command: npx ts-node src/subgraphs/catalog/index.ts
