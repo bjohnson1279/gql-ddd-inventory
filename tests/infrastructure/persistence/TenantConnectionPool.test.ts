@@ -37,8 +37,6 @@ describe('TenantConnectionPool', () => {
         dbHost: '127.0.0.1',
         dbPort: 5432,
         dbName: 'inventory_db',
-        dbUser: 'user',
-        dbPassword: 'password',
         dbUser: 'test_user',
         dbPassword: 'test_password',
         status: 'PROVISIONING',
