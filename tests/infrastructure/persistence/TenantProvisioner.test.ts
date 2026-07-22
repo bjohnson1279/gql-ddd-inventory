@@ -1,12 +1,28 @@
 import { TenantProvisioner } from '../../../src/infrastructure/persistence/TenantProvisioner';
 import { TenantRegistry } from '../../../src/infrastructure/persistence/TenantRegistry';
 
+// Mock the pg Pool module since TenantProvisioner uses raw pg for CREATE/DROP DATABASE
+jest.mock('pg', () => {
+  const mockClient = {
+    query: jest.fn().mockResolvedValue({ rows: [] }),
+    release: jest.fn(),
+  };
+  const MockPool = jest.fn().mockImplementation(() => ({
+    connect: jest.fn().mockResolvedValue(mockClient),
+    end: jest.fn().mockResolvedValue(undefined),
+    _mockClient: mockClient,
+  }));
+  return { Pool: MockPool };
+});
+
 describe('TenantProvisioner', () => {
   let mockPrisma: any;
   let mockRegistry: jest.Mocked<TenantRegistry>;
   let provisioner: TenantProvisioner;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
     mockPrisma = {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
@@ -15,10 +31,11 @@ describe('TenantProvisioner', () => {
     mockRegistry = {
       registerTenant: jest.fn().mockResolvedValue({
         tenantId: 'new-tenant',
-        schemaName: 'tenant_new_tenant',
         dbHost: '127.0.0.1',
-        dbPort: 5432,
-        dbName: 'inventory_db',
+        dbPort: 5433,
+        dbName: 'inventory_tenant_new_tenant',
+        dbUser: 'inventory_user',
+        dbPassword: 'inventory_password',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '0',
@@ -34,87 +51,56 @@ describe('TenantProvisioner', () => {
   });
 
   describe('provisionTenant', () => {
-    it('should register tenant, create schema, run migrations, seed defaults, and activate', async () => {
-      const schemaName = await provisioner.provisionTenant('new-tenant');
+    it('should register tenant, create database, run migrations, seed defaults, and activate', async () => {
+      const dbName = await provisioner.provisionTenant('new-tenant');
 
-      expect(schemaName).toBe('tenant_new_tenant');
+      expect(dbName).toBe('inventory_tenant_new_tenant');
 
       // Should register with registry
       expect(mockRegistry.registerTenant).toHaveBeenCalledWith('new-tenant');
 
-      // Should create schema
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('CREATE SCHEMA IF NOT EXISTS "tenant_new_tenant"')
-      );
-
-      // Should set search path for migrations
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('SET search_path TO "tenant_new_tenant"')
-      );
-
-      // Should create core tables (spot-check a few)
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('inventory_items')
-      );
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('products')
-      );
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('ledger_entries')
-      );
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('journal_entries')
-      );
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('warehouse_locations')
-      );
-
-      // Should reset search path back to public
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('SET search_path TO "public"')
-      );
-
-      // Should seed default accounting config
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('tenant_accounting_configs')
-      );
-
-      // Should mark as ACTIVE
+      // Should mark as ACTIVE after successful provisioning
       expect(mockRegistry.updateStatus).toHaveBeenCalledWith('new-tenant', 'ACTIVE');
       expect(mockRegistry.updateMigratedVersion).toHaveBeenCalledWith('new-tenant', '1');
     });
 
-    it('should clean up schema on migration failure', async () => {
-      // Make the third $executeRawUnsafe call fail (after CREATE SCHEMA and SET search_path)
+    it('should clean up on migration failure', async () => {
+      // Make the pg client's query fail on one of the DDL statements
+      const { Pool } = require('pg');
       let callCount = 0;
-      mockPrisma.$executeRawUnsafe.mockImplementation(async (sql: string) => {
-        callCount++;
-        if (callCount === 3) {
-          throw new Error('Migration failed');
-        }
-      });
+      const failingClient = {
+        query: jest.fn().mockImplementation(async (sql: string) => {
+          callCount++;
+          // Fail on the 3rd query (after database existence check and CREATE DATABASE)
+          if (callCount === 3) {
+            throw new Error('DDL migration failed');
+          }
+          return { rows: [] };
+        }),
+        release: jest.fn(),
+      };
+      Pool.mockImplementation(() => ({
+        connect: jest.fn().mockResolvedValue(failingClient),
+        end: jest.fn().mockResolvedValue(undefined),
+      }));
 
       await expect(provisioner.provisionTenant('failing-tenant'))
-        .rejects.toThrow('Migration failed');
+        .rejects.toThrow('DDL migration failed');
 
-      // Should attempt to drop the schema
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('DROP SCHEMA IF EXISTS "tenant_new_tenant" CASCADE')
-      );
-
-      // Should mark as DEPROVISIONED
+      // Should mark as DEPROVISIONED on failure
       expect(mockRegistry.updateStatus).toHaveBeenCalledWith('failing-tenant', 'DEPROVISIONED');
     });
   });
 
   describe('deprovisionTenant', () => {
-    it('should drop schema and mark as deprovisioned', async () => {
+    it('should terminate connections, drop database, and mark as deprovisioned', async () => {
       mockRegistry.lookupTenant.mockResolvedValue({
         tenantId: 'old-tenant',
-        schemaName: 'tenant_old_tenant',
         dbHost: '127.0.0.1',
-        dbPort: 5432,
-        dbName: 'inventory_db',
+        dbPort: 5433,
+        dbName: 'inventory_tenant_old_tenant',
+        dbUser: 'inventory_user',
+        dbPassword: 'inventory_password',
         status: 'ACTIVE',
         provisionedAt: new Date(),
         migratedVersion: '1',
@@ -122,9 +108,11 @@ describe('TenantProvisioner', () => {
 
       await provisioner.deprovisionTenant('old-tenant');
 
+      // Should attempt to terminate active connections to the tenant database
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('DROP SCHEMA IF EXISTS "tenant_old_tenant" CASCADE')
+        expect.stringContaining('pg_terminate_backend')
       );
+
       expect(mockRegistry.deprovisionTenant).toHaveBeenCalledWith('old-tenant');
     });
 

@@ -12,17 +12,17 @@ interface PoolEntry {
   pool: Pool;
   lastAccessedAt: number;
   tenantId: string;
-  schemaName: string;
+  dbName: string;
 }
 
 /**
  * TenantConnectionPool maintains an LRU-evicting cache of PrismaClient
- * instances, one per tenant schema. On cache miss it creates a new
+ * instances, one per tenant database. On cache miss it creates a new
  * connection using the tenant's registry entry.
  *
- * This replaces the previous `getTenantPrisma()` approach which used
- * Prisma `$extends` to inject tenant_id into every query. Instead,
- * each tenant gets a PrismaClient pointed at their own PostgreSQL schema.
+ * With the "separate databases" strategy, each tenant gets its own
+ * PostgreSQL database and a dedicated PrismaClient pointing at that
+ * database's `public` schema.
  */
 export class TenantConnectionPool {
   private cache = new Map<string, PoolEntry>();
@@ -62,7 +62,7 @@ export class TenantConnectionPool {
       await this.evictLRU();
     }
 
-    // Create new connection
+    // Create new connection to the tenant's dedicated database
     const client = await this.createClient(entry);
     this.cache.set(tenantId, client);
     return client.prisma;
@@ -138,22 +138,21 @@ export class TenantConnectionPool {
   // ──────────────────────────────────────────────
 
   private async createClient(entry: TenantRegistryEntry): Promise<PoolEntry> {
-    const user = process.env.DB_USER || 'inventory_user';
-    const password = process.env.DB_PASSWORD || 'inventory_password';
-    const connectionString = `postgresql://${user}:${password}@${entry.dbHost}:${entry.dbPort}/${entry.dbName}?schema=${entry.schemaName}&connection_limit=10`;
+    // Each tenant has its own database — connect to it on the public schema
+    const connectionString = `postgresql://${entry.dbUser}:${entry.dbPassword}@${entry.dbHost}:${entry.dbPort}/${entry.dbName}?schema=public&connection_limit=10`;
 
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
     const prisma = new PrismaClient({ adapter } as any);
 
-    console.log(`[TenantConnectionPool] Created connection for tenant "${entry.tenantId}" (schema: "${entry.schemaName}").`);
+    console.log(`[TenantConnectionPool] Created connection for tenant "${entry.tenantId}" (database: "${entry.dbName}").`);
 
     return {
       prisma,
       pool,
       lastAccessedAt: Date.now(),
       tenantId: entry.tenantId,
-      schemaName: entry.schemaName,
+      dbName: entry.dbName,
     };
   }
 

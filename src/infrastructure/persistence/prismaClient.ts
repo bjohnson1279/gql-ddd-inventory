@@ -12,12 +12,12 @@ dotenv.config();
 // Multi-Tenant Mode Configuration
 // ──────────────────────────────────────────────
 // MULTI_TENANT_MODE controls how tenant isolation is achieved:
-//   'schema'  — Each tenant gets an isolated PostgreSQL schema (6.1)
-//   'shared'  — All tenants share one schema with RLS policies (legacy)
+//   'database' — Each tenant gets an isolated PostgreSQL database (6.1)
+//   'shared'   — All tenants share one database with RLS policies (legacy)
 //
 // Defaults to 'shared' for backward compatibility.
-export const MULTI_TENANT_MODE: 'schema' | 'shared' =
-  (process.env.MULTI_TENANT_MODE as 'schema' | 'shared') || 'shared';
+export const MULTI_TENANT_MODE: 'database' | 'shared' =
+  (process.env.MULTI_TENANT_MODE as 'database' | 'shared') || 'shared';
 
 const connectionString = `${process.env.DATABASE_URL}`;
 export const pool = new Pool({ connectionString });
@@ -27,9 +27,9 @@ export const globalPrisma = new PrismaClient({ adapter } as any);
 export const prismaContext = new AsyncLocalStorage<PrismaClient>();
 
 // ──────────────────────────────────────────────
-// Schema-per-tenant infrastructure (6.1)
+// Separate-database tenant infrastructure (6.1)
 // ──────────────────────────────────────────────
-// Lazily initialized — only created when MULTI_TENANT_MODE='schema'
+// Lazily initialized — only created when MULTI_TENANT_MODE='database'
 let _tenantRegistry: TenantRegistry | null = null;
 let _tenantConnectionPool: TenantConnectionPool | null = null;
 
@@ -64,17 +64,17 @@ export function getTenantConnectionPool(): TenantConnectionPool {
 /**
  * Get a PrismaClient scoped to a specific tenant.
  *
- * In 'schema' mode: returns a PrismaClient connected to the tenant's
- * isolated PostgreSQL schema via the TenantConnectionPool.
+ * In 'database' mode: returns a PrismaClient connected to the tenant's
+ * isolated PostgreSQL database via the TenantConnectionPool.
  *
  * In 'shared' mode: returns a Prisma $extends wrapper that injects
  * tenant_id into all queries (the legacy RLS approach).
  */
 export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any {
-  if (MULTI_TENANT_MODE === 'schema') {
-    // In schema mode, we can't do async here so we return a proxy
+  if (MULTI_TENANT_MODE === 'database') {
+    // In database mode, we can't do async here so we return a proxy
     // that lazily resolves the tenant client on first database access.
-    return createSchemaModeTenantProxy(tenantId);
+    return createDatabaseModeTenantProxy(tenantId);
   }
 
   // Legacy shared mode — use Prisma $extends to inject tenant_id
@@ -86,7 +86,7 @@ export function getTenantPrisma(basePrisma: PrismaClient, tenantId: string): any
  * Preferred over the synchronous version when possible.
  */
 export async function getTenantPrismaAsync(tenantId: string): Promise<PrismaClient> {
-  if (MULTI_TENANT_MODE === 'schema') {
+  if (MULTI_TENANT_MODE === 'database') {
     return getTenantConnectionPool().getClient(tenantId);
   }
   return createSharedModeTenantPrisma(globalPrisma, tenantId);
@@ -162,7 +162,7 @@ function createSharedModeTenantPrisma(basePrisma: PrismaClient, tenantId: string
 }
 
 // ──────────────────────────────────────────────
-// Schema-mode tenant proxy
+// Database-mode tenant proxy
 // ──────────────────────────────────────────────
 
 /**
@@ -171,7 +171,7 @@ function createSharedModeTenantPrisma(basePrisma: PrismaClient, tenantId: string
  * getTenantPrisma() to remain synchronous while the actual client
  * resolution happens asynchronously.
  */
-function createSchemaModeTenantProxy(tenantId: string): any {
+function createDatabaseModeTenantProxy(tenantId: string): any {
   let resolvedClient: PrismaClient | null = null;
   let resolving: Promise<PrismaClient> | null = null;
 

@@ -206,19 +206,20 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 
 async function startApolloServer() {
   // Initialize tenant isolation based on configured mode
-  if (MULTI_TENANT_MODE === 'schema') {
-    console.log('[Startup] Multi-tenant mode: SCHEMA (isolated schemas per tenant)');
+  if (MULTI_TENANT_MODE === 'database') {
+    console.log('[Startup] Multi-tenant mode: DATABASE (isolated databases per tenant)');
     try {
-      // Ensure the tenant_registry table exists
+      // Ensure the tenant_registry table exists in the control database
       await globalPrisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS tenant_registry (
-          tenant_id    TEXT PRIMARY KEY,
-          schema_name  TEXT NOT NULL UNIQUE,
-          db_host      TEXT NOT NULL DEFAULT '127.0.0.1',
-          db_port      INTEGER NOT NULL DEFAULT 5432,
-          db_name      TEXT NOT NULL DEFAULT 'inventory_db',
-          status       TEXT NOT NULL DEFAULT 'PROVISIONING',
-          provisioned_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          tenant_id        TEXT PRIMARY KEY,
+          db_host          TEXT NOT NULL DEFAULT '127.0.0.1',
+          db_port          INTEGER NOT NULL DEFAULT 5433,
+          db_name          TEXT NOT NULL,
+          db_user          TEXT NOT NULL DEFAULT 'inventory_user',
+          db_password      TEXT NOT NULL DEFAULT 'inventory_password',
+          status           TEXT NOT NULL DEFAULT 'PROVISIONING',
+          provisioned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           migrated_version TEXT NOT NULL DEFAULT '0'
         );
       `);
@@ -227,7 +228,7 @@ async function startApolloServer() {
       const pool = getTenantConnectionPool();
       await pool.warmPool();
       const stats = pool.getStats();
-      console.log(`[Startup] Tenant connection pool warmed: ${stats.size} active connections.`);
+      console.log(`[Startup] Tenant connection pool warmed: ${stats.size} active database connections.`);
     } catch (err: any) {
       console.error('[Startup] Tenant provisioning initialization warning:', err.message);
     }
@@ -273,7 +274,7 @@ startApolloServer().catch(err => {
 // Graceful shutdown — clean up tenant connection pool
 process.on('SIGTERM', async () => {
   console.log('[Shutdown] SIGTERM received, cleaning up...');
-  if (MULTI_TENANT_MODE === 'schema') {
+  if (MULTI_TENANT_MODE === 'database') {
     await getTenantConnectionPool().shutdown();
   }
   process.exit(0);
@@ -281,7 +282,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('[Shutdown] SIGINT received, cleaning up...');
-  if (MULTI_TENANT_MODE === 'schema') {
+  if (MULTI_TENANT_MODE === 'database') {
     await getTenantConnectionPool().shutdown();
   }
   process.exit(0);
