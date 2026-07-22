@@ -31,96 +31,25 @@ services:
     depends_on:
       - db
 
-  gateway:
+  api:
     build: .
     ports:
       - "4000:4000"
     depends_on:
-      - inventory-subgraph
-      - catalog-subgraph
-      - accounting-subgraph
-    volumes:
-      - ./:/usr/src/app
-      - /usr/src/app/node_modules
-    command: npx ts-node src/gateway/index.ts
-    environment:
-      - NODE_ENV=development
-      - INVENTORY_SUBGRAPH_URL=http://inventory-subgraph:4001/graphql
-      - CATALOG_SUBGRAPH_URL=http://catalog-subgraph:4002/graphql
-      - ACCOUNTING_SUBGRAPH_URL=http://accounting-subgraph:4003/graphql
-      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3006
-      - JWT_SECRET=dummy_jwt_secret
-
-  inventory-subgraph:
-    build: .
-    ports:
-      - "4001:4001"
-    depends_on:
       - db
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
-    command: npx ts-node src/subgraphs/inventory/index.ts
+    command: npm run dev
     environment:
-      - PORT=4001
       - NODE_ENV=development
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=inventory_user
       - DB_PASSWORD=inventory_password
       - DB_NAME=inventory_db
-      - MULTI_TENANT_MODE=database
-      - JWT_SECRET=dummy_jwt_secret
-      - KAFKA_URL=host.docker.internal:9092
-
-  catalog-subgraph:
-    build: .
-    ports:
-      - "4002:4002"
-    depends_on:
-      - db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./:/usr/src/app
-      - /usr/src/app/node_modules
-    command: npx ts-node src/subgraphs/catalog/index.ts
-    environment:
-      - PORT=4002
-      - NODE_ENV=development
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=inventory_user
-      - DB_PASSWORD=inventory_password
-      - DB_NAME=inventory_db
-      - MULTI_TENANT_MODE=database
-      - JWT_SECRET=dummy_jwt_secret
-      - KAFKA_URL=host.docker.internal:9092
-
-  accounting-subgraph:
-    build: .
-    ports:
-      - "4003:4003"
-    depends_on:
-      - db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./:/usr/src/app
-      - /usr/src/app/node_modules
-    command: npx ts-node src/subgraphs/accounting/index.ts
-    environment:
-      - PORT=4003
-      - NODE_ENV=development
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=inventory_user
-      - DB_PASSWORD=inventory_password
-      - DB_NAME=inventory_db
-      - MULTI_TENANT_MODE=database
-      - JWT_SECRET=dummy_jwt_secret
       - KAFKA_URL=host.docker.internal:9092
 
   web:
@@ -130,7 +59,7 @@ services:
     ports:
       - "3006:80"
     depends_on:
-      - gateway
+      - api
 
 volumes:
   postgres_data:
