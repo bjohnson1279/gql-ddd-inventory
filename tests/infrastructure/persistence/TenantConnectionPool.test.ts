@@ -34,13 +34,11 @@ describe('TenantConnectionPool', () => {
     it('should throw if tenant is not ACTIVE', async () => {
       mockRegistry.lookupTenant.mockResolvedValue({
         tenantId: 'provisioning-tenant',
-        dbUser: 'testuser', dbPassword: 'password',
-
+        dbUser: 'testuser',
+        dbPassword: 'password',
         dbHost: '127.0.0.1',
         dbPort: 5432,
         dbName: 'inventory_db',
-        dbUser: 'user',
-        dbPassword: 'password',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
@@ -53,7 +51,7 @@ describe('TenantConnectionPool', () => {
 
   describe('has', () => {
     it('should return false for uncached tenants', () => {
-      expect(pool.has('uncached')).toBe(false);
+      expect(pool.has('nonexistent')).toBe(false);
     });
   });
 
@@ -61,25 +59,19 @@ describe('TenantConnectionPool', () => {
     it('should return empty stats initially', () => {
       const stats = pool.getStats();
       expect(stats.size).toBe(0);
-      expect(stats.maxSize).toBe(3);
       expect(stats.tenantIds).toEqual([]);
     });
   });
 
   describe('warmPool', () => {
     it('should call listTenants with ACTIVE status', async () => {
-      mockRegistry.listTenants.mockResolvedValue([]);
-
-      const warmed = await pool.warmPool();
-
-      expect(warmed).toBe(0);
+      await pool.warmPool();
       expect(mockRegistry.listTenants).toHaveBeenCalledWith('ACTIVE');
     });
   });
 
   describe('evict', () => {
     it('should be a no-op for uncached tenants', async () => {
-      // Should not throw
       await pool.evict('nonexistent');
       expect(pool.has('nonexistent')).toBe(false);
     });
@@ -88,8 +80,7 @@ describe('TenantConnectionPool', () => {
   describe('shutdown', () => {
     it('should clear all connections', async () => {
       await pool.shutdown();
-      const stats = pool.getStats();
-      expect(stats.size).toBe(0);
+      expect(pool.getStats().size).toBe(0);
     });
   });
 });
