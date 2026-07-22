@@ -41,6 +41,8 @@ describe('TenantConnectionPool', () => {
         dbPassword: 'tenant_password',
         dbUser: 'test_user',
         dbPassword: 'test_password',
+        dbUser: 'user',
+        dbPassword: 'password',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
