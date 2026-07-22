@@ -34,13 +34,15 @@ describe('TenantConnectionPool', () => {
     it('should throw if tenant is not ACTIVE', async () => {
       mockRegistry.lookupTenant.mockResolvedValue({
         tenantId: 'provisioning-tenant',
-        schemaName: 'tenant_provisioning_tenant',
+
         dbHost: '127.0.0.1',
         dbPort: 5432,
         dbName: 'inventory_db',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
+        dbUser: 'user',
+        dbPassword: 'password'
       });
 
       await expect(pool.getClient('provisioning-tenant'))
