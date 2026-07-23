@@ -8,7 +8,6 @@ import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dummy_jwt_secret';
-const PYTHON_SIDECAR_URL = process.env.PYTHON_SIDECAR_URL || 'http://python-sidecar:5000/optimize';
 
 const typeDefs = parse(`
   extend schema
@@ -360,17 +359,6 @@ const typeDefs = parse(`
     id: ID! @external
   }
 
-  type SlottingSuggestion {
-    sku: String!
-    currentLocationId: String!
-    currentDistance: Float!
-    currentVelocity: Float!
-    recommendedLocationId: String!
-    recommendedDistance: Float!
-    potentialSwapSku: String
-    estimatedSavings: Float!
-  }
-
   input CreateRmaInput {
     rmaNumber: String!
     customerId: String!
@@ -566,8 +554,6 @@ const typeDefs = parse(`
     auditDiscrepancies: [AuditDiscrepancy!]!
     complianceLedger(sequenceNumber: Int): [ComplianceLedgerEntry!]!
     verifyComplianceLedger: Boolean!
-    slottingSuggestions: [SlottingSuggestion!]!
-    rfidTags(tenantId: ID!): [RfidTag!]!
 
     # Onboarding & users & logic
     users(tenantId: ID!): [UserDTO!]!
@@ -580,9 +566,6 @@ const typeDefs = parse(`
   }
 
   type Mutation {
-    assignRfidTag(epc: String!, sku: String!, serialNumber: String!): Boolean!
-    simulateRfidScan(locationId: String!, tags: [String!]!): Boolean!
-
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
@@ -645,29 +628,6 @@ const typeDefs = parse(`
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
   }
-
-  type Subscription {
-    rfidScanStream(tenantId: ID!): RfidScanUpdate!
-  }
-
-  type RfidTag {
-    epc: String!
-    sku: String!
-    serialNumber: String!
-    status: String!
-    lastSeenAt: String
-    lastLocation: String
-  }
-
-  type RfidScanUpdate {
-    id: ID!
-    tenantId: String!
-    locationId: String!
-    totalCount: Int!
-    matchedCount: Int!
-    unmatchedCount: Int!
-    unmatchedEpcs: [String!]!
-  }
 `);
 
 const inventoryResolvers = {
@@ -675,133 +635,6 @@ const inventoryResolvers = {
   WarehouseLocation: {
     __resolveReference(reference: any, context: any) {
       return context.prisma.warehouseLocationModel.findUnique({
-  Query: {
-    ...resolvers.Query,
-    slottingSuggestions: async (_: any, __: any, context: any) => {
-      // 1. Fetch locations
-      const locations = await context.prisma.warehouseLocation.findMany();
-      if (locations.length === 0) return [];
-
-      // 2. Fetch inventory
-      const inventory = await context.prisma.inventoryItem.findMany();
-      if (inventory.length === 0) return [];
-
-      // 3. Fetch dispatches
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const dispatchesRaw = await context.prisma.ledgerEntry.findMany({
-        where: {
-          quantity: { lt: 0 },
-          occurredAt: { gte: thirtyDaysAgo }
-        },
-        include: {
-          variant: true
-        }
-      });
-
-      const dispatches = dispatchesRaw.map((d: any) => ({
-        sku: d.variant.sku,
-        location_id: d.locationId,
-        quantity: d.quantity,
-        date: d.occurredAt.toISOString()
-      }));
-
-      // Map data to matching names/aliases for FastAPI
-      const sidecarLocations = locations.map((l: any) => ({
-        id: l.id,
-        grid_x: l.gridX,
-        grid_y: l.gridY
-
-      const sidecarInventory = inventory.map((i: any) => ({
-        sku: i.sku,
-        location_id: i.locationId
-
-      // Call Python sidecar, fallback to basic heuristic if offline
-      try {
-        const response = await fetch(PYTHON_SIDECAR_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            locations: sidecarLocations,
-            inventory: sidecarInventory,
-            dispatches
-          })
-        });
-
-        if (response.ok) {
-          return await response.json();
-        }
-      } catch (err: any) {
-        console.warn(`[Inventory Subgraph] Python sidecar down. Fallback to basic: ${err.message}`);
-      }
-
-      // Simple fallback sorting heuristic to keep tests passing offline
-      const locDistanceMap = new Map<string, number>();
-      for (const loc of locations) {
-        locDistanceMap.set(loc.id, Math.abs(loc.gridX) + Math.abs(loc.gridY));
-      }
-
-      const velocities = new Map<string, number>();
-      for (const d of dispatches) {
-        const key = `${d.sku}_${d.location_id}`;
-        velocities.set(key, (velocities.get(key) || 0) + Math.abs(d.quantity));
-      }
-
-      const itemRecords = inventory.map((item: any) => {
-        const key = `${item.sku}_${item.locationId}`;
-        const velocity = velocities.get(key) || 0;
-        const distance = locDistanceMap.get(item.locationId) ?? 9999;
-        return {
-          sku: item.sku,
-          locationId: item.locationId,
-          velocity,
-          distance
-        };
-
-      itemRecords.sort((a: any, b: any) => b.velocity - a.velocity);
-      const suggestions: any[] = [];
-      const matchedLocations = new Set<string>();
-
-      for (const item of itemRecords) {
-        if (item.velocity === 0) continue;
-        if (matchedLocations.has(item.locationId)) continue;
-
-        let bestSwapTarget: any = null;
-        let maxDistanceDiff = 0;
-
-        for (const target of itemRecords) {
-          if (target.locationId === item.locationId) continue;
-          if (matchedLocations.has(target.locationId)) continue;
-          
-          if (target.distance < item.distance && target.velocity < item.velocity) {
-            const distanceDiff = item.distance - target.distance;
-            if (distanceDiff > maxDistanceDiff) {
-              maxDistanceDiff = distanceDiff;
-              bestSwapTarget = target;
-            }
-          }
-        }
-
-        if (bestSwapTarget) {
-          suggestions.push({
-            sku: item.sku,
-            currentLocationId: item.locationId,
-            currentDistance: item.distance,
-            currentVelocity: item.velocity,
-            recommendedLocationId: bestSwapTarget.locationId,
-            recommendedDistance: bestSwapTarget.distance,
-            potentialSwapSku: bestSwapTarget.sku,
-            estimatedSavings: item.velocity * maxDistanceDiff * 2
-          });
-          matchedLocations.add(item.locationId);
-          matchedLocations.add(bestSwapTarget.locationId);
-        }
-      }
-
-      return suggestions.sort((a, b) => b.estimatedSavings - a.estimatedSavings);
-    }
-  },
-      return context.prisma.warehouseLocation.findUnique({
         where: { id: reference.id }
       });
     }
