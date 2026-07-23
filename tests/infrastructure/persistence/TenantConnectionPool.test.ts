@@ -34,19 +34,13 @@ describe('TenantConnectionPool', () => {
     it('should throw if tenant is not ACTIVE', async () => {
       mockRegistry.lookupTenant.mockResolvedValue({
         tenantId: 'provisioning-tenant',
-        dbUser: 'testuser',
-        dbPassword: 'password',
-        dbUser: "inventory_user",
-        dbPassword: "inventory_password",
-
+        schemaName: 'tenant_provisioning_tenant',
         dbHost: '127.0.0.1',
         dbPort: 5432,
         dbName: 'inventory_db',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
-        dbUser: 'user',
-        dbPassword: 'password'
       });
 
       await expect(pool.getClient('provisioning-tenant'))
@@ -56,7 +50,7 @@ describe('TenantConnectionPool', () => {
 
   describe('has', () => {
     it('should return false for uncached tenants', () => {
-      expect(pool.has('nonexistent')).toBe(false);
+      expect(pool.has('uncached')).toBe(false);
     });
   });
 
@@ -64,19 +58,25 @@ describe('TenantConnectionPool', () => {
     it('should return empty stats initially', () => {
       const stats = pool.getStats();
       expect(stats.size).toBe(0);
+      expect(stats.maxSize).toBe(3);
       expect(stats.tenantIds).toEqual([]);
     });
   });
 
   describe('warmPool', () => {
     it('should call listTenants with ACTIVE status', async () => {
-      await pool.warmPool();
+      mockRegistry.listTenants.mockResolvedValue([]);
+
+      const warmed = await pool.warmPool();
+
+      expect(warmed).toBe(0);
       expect(mockRegistry.listTenants).toHaveBeenCalledWith('ACTIVE');
     });
   });
 
   describe('evict', () => {
     it('should be a no-op for uncached tenants', async () => {
+      // Should not throw
       await pool.evict('nonexistent');
       expect(pool.has('nonexistent')).toBe(false);
     });
@@ -85,7 +85,8 @@ describe('TenantConnectionPool', () => {
   describe('shutdown', () => {
     it('should clear all connections', async () => {
       await pool.shutdown();
-      expect(pool.getStats().size).toBe(0);
+      const stats = pool.getStats();
+      expect(stats.size).toBe(0);
     });
   });
 });
