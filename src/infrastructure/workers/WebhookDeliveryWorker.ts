@@ -56,15 +56,7 @@ export class WebhookDeliveryWorker {
 
           // SSRF Protection: Validate target URL
           try {
-            if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
-              validateOutboundUrl(subscription.targetUrl);
-            } else {
-              // In test/dev we still need basic protocol checking
-              const parsedUrl = new URL(subscription.targetUrl);
-              if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-                throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
-              }
-            }
+            validateOutboundUrl(subscription.targetUrl);
           } catch (e: any) {
             throw new Error(e.message || 'Invalid URL format');
           }
