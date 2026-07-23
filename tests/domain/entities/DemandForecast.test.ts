@@ -6,20 +6,20 @@ import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 describe('DemandForecast', () => {
   const validId = new DemandForecastId('df-123');
   const validSku = new Sku('SKU-123');
-  const validLocationId = new LocationId('loc-456');
+  const validLocationId = new LocationId('LOC-1');
   const validQuantity = 100;
-  const validPeriodStart = new Date('2024-01-01T00:00:00Z');
-  const validPeriodEnd = new Date('2024-02-01T00:00:00Z');
-  const validConfidenceLevel = 0.9;
+  const validStartDate = new Date('2023-10-01T00:00:00Z');
+  const validEndDate = new Date('2023-10-31T23:59:59Z');
+  const validConfidenceLevel = 0.85;
 
-  it('should create a DemandForecast instance successfully when valid parameters are provided', () => {
+  it('should successfully create a DemandForecast when all inputs are valid', () => {
     const forecast = new DemandForecast(
       validId,
       validSku,
       validLocationId,
       validQuantity,
-      validPeriodStart,
-      validPeriodEnd,
+      validStartDate,
+      validEndDate,
       validConfidenceLevel
     );
 
@@ -27,77 +27,78 @@ describe('DemandForecast', () => {
     expect(forecast.sku).toBe(validSku);
     expect(forecast.locationId).toBe(validLocationId);
     expect(forecast.forecastedQuantity).toBe(validQuantity);
-    expect(forecast.periodStart).toBe(validPeriodStart);
-    expect(forecast.periodEnd).toBe(validPeriodEnd);
+    expect(forecast.periodStart).toBe(validStartDate);
+    expect(forecast.periodEnd).toBe(validEndDate);
     expect(forecast.confidenceLevel).toBe(validConfidenceLevel);
     expect(forecast.createdAt).toBeInstanceOf(Date);
   });
 
-  it('should throw an error when forecastedQuantity is less than 0', () => {
+  it('should throw an error if forecastedQuantity is negative', () => {
     expect(() => {
       new DemandForecast(
         validId,
         validSku,
         validLocationId,
-        -10, // Invalid quantity
-        validPeriodStart,
-        validPeriodEnd,
+        -10, // Invalid: negative quantity
+        validStartDate,
+        validEndDate,
         validConfidenceLevel
       );
     }).toThrow('Forecasted quantity cannot be negative.');
   });
 
-  it('should throw an error when confidenceLevel is less than 0', () => {
+  it('should throw an error if confidenceLevel is less than 0', () => {
     expect(() => {
       new DemandForecast(
         validId,
         validSku,
         validLocationId,
         validQuantity,
-        validPeriodStart,
-        validPeriodEnd,
-        -0.1 // Invalid confidence level
+        validStartDate,
+        validEndDate,
+        -0.1 // Invalid: confidence level < 0
       );
     }).toThrow('Confidence level must be between 0 and 1.');
   });
 
-  it('should throw an error when confidenceLevel is greater than 1', () => {
+  it('should throw an error if confidenceLevel is greater than 1', () => {
     expect(() => {
       new DemandForecast(
         validId,
         validSku,
         validLocationId,
         validQuantity,
-        validPeriodStart,
-        validPeriodEnd,
-        1.5 // Invalid confidence level
+        validStartDate,
+        validEndDate,
+        1.1 // Invalid: confidence level > 1
       );
     }).toThrow('Confidence level must be between 0 and 1.');
   });
 
-  it('should throw an error when periodStart is equal to periodEnd', () => {
+  it('should throw an error if periodStart is after periodEnd', () => {
     expect(() => {
       new DemandForecast(
         validId,
         validSku,
         validLocationId,
         validQuantity,
-        validPeriodStart,
-        validPeriodStart, // Start equals End
+        new Date('2023-10-31T23:59:59Z'), // Start is after end
+        new Date('2023-10-01T00:00:00Z'),
         validConfidenceLevel
       );
     }).toThrow('Period start must be before period end.');
   });
 
-  it('should throw an error when periodStart is after periodEnd', () => {
+  it('should throw an error if periodStart is equal to periodEnd', () => {
+    const sameDate = new Date('2023-10-15T12:00:00Z');
     expect(() => {
       new DemandForecast(
         validId,
         validSku,
         validLocationId,
         validQuantity,
-        validPeriodEnd, // Start is after End
-        validPeriodStart,
+        sameDate, // Start is equal to end
+        sameDate,
         validConfidenceLevel
       );
     }).toThrow('Period start must be before period end.');
