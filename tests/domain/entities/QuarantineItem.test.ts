@@ -71,6 +71,8 @@ describe('QuarantineItem', () => {
     variantId = new ProductVariantId('var-123');
     locationId = new LocationId('loc-123');
     tenantId = new TenantId('tenant-123');
+  beforeEach(() => {
+  });
 
   describe('constructor', () => {
     it('should successfully initialize a valid QuarantineItem', () => {
@@ -96,6 +98,12 @@ describe('QuarantineItem', () => {
     it('should throw an error if quantity is zero', () => {
           'quarantine-1',
           variantId,
+    });
+
+      expect(() => {
+        new QuarantineItem(
+          0,
+          'Damaged packaging',
           locationId,
           tenantId
         );
@@ -103,6 +111,15 @@ describe('QuarantineItem', () => {
 
     it('should throw an error if quantity is negative', () => {
           -5,
+    });
+
+      expect(() => {
+        new QuarantineItem(
+          'quarantine-1',
+          variantId,
+          'Damaged packaging',
+          locationId,
+          tenantId
         );
       }).toThrow('Quantity must be greater than zero.');
     });
@@ -131,10 +148,13 @@ describe('QuarantineItem', () => {
       });
 
       it('should throw an error if already resolved', () => {
+        item.resolveRestock();
 
         expect(() => {
           item.resolveRestock();
         }).toThrow('Quarantine item is already resolved.');
+      });
+    });
 
     describe('resolveScrap', () => {
       it('should change status to Scrapped and set resolvedAt', () => {
@@ -144,6 +164,15 @@ describe('QuarantineItem', () => {
 
 
           item.resolveScrap();
+        expect(item.resolvedAt).toBeInstanceOf(Date);
+      });
+
+      it('should throw an error if already resolved', () => {
+        item.resolveScrap();
+
+        expect(() => {
+        }).toThrow('Quarantine item is already resolved.');
+    });
 
     describe('resolveRtv', () => {
       it('should change status to Rtv and set resolvedAt', () => {
@@ -153,5 +182,14 @@ describe('QuarantineItem', () => {
 
 
           item.resolveRtv();
+        expect(item.resolvedAt).toBeInstanceOf(Date);
+      });
+
+      it('should throw an error if already resolved', () => {
+        item.resolveRtv();
+
+        expect(() => {
+        }).toThrow('Quarantine item is already resolved.');
+    });
   });
 });
