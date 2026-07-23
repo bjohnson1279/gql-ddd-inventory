@@ -44,6 +44,9 @@ describe('TenantConnectionPool', () => {
         provisionedAt: new Date(),
         migratedVersion: '1',
               });
+        dbUser: 'user',
+        dbPassword: 'password'
+      });
 
       await expect(pool.getClient('provisioning-tenant'))
         .rejects.toThrow('not active');
