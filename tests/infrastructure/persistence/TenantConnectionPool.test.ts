@@ -36,12 +36,17 @@ describe('TenantConnectionPool', () => {
         tenantId: 'provisioning-tenant',
         dbUser: 'testuser',
         dbPassword: 'password',
+        dbUser: "inventory_user",
+        dbPassword: "inventory_password",
+
         dbHost: '127.0.0.1',
         dbPort: 5432,
         dbName: 'inventory_db',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
+        dbUser: 'user',
+        dbPassword: 'password'
       });
 
       await expect(pool.getClient('provisioning-tenant'))
