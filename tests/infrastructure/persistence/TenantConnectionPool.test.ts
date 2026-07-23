@@ -38,6 +38,8 @@ describe('TenantConnectionPool', () => {
         dbPort: 5432,
         dbName: 'inventory_db',
         dbUser: 'postgres',
+
+        dbUser: 'user',
         dbPassword: 'password',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
