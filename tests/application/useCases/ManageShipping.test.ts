@@ -7,7 +7,6 @@ import {
   IShipmentRepository,
   IInventoryRepository,
   IAccountingJournalService,
-  IEventDispatcher
   IEventDispatcher,
 } from '../../../src/application/useCases/ManageShipping';
 
@@ -35,20 +34,8 @@ describe('ManageShipping Use Cases', () => {
   });
 
   describe('CalculateShippingRatesUseCase', () => {
-    it('should delegate to carrierService.getRates', async () => {
-      const useCase = new CalculateShippingRatesUseCase(mockCarrierService);
-      const rates = [{ rate: 10, carrier: 'UPS' }];
-      mockCarrierService.getRates.mockResolvedValue(rates);
-
-      const result = await useCase.execute('SKU1', 2, 'DEST');
-
-      expect(mockCarrierService.getRates).toHaveBeenCalledWith('SKU1', 2, 'DEST');
-      expect(result).toEqual(rates);
-    mockInventoryRepository = {}; // No methods defined in the interface for now
-    mockAccountingJournalService = {}; // No methods defined in the interface for now
-    mockEventDispatcher = {}; // No methods defined in the interface for now
-
     it('should delegate getRates to carrierService and return rates', async () => {
+      const useCase = new CalculateShippingRatesUseCase(mockCarrierService);
       const sku = 'SKU-123';
       const qty = 5;
       const dest = '123 Main St';
@@ -59,20 +46,20 @@ describe('ManageShipping Use Cases', () => {
       const result = await useCase.execute(sku, qty, dest);
 
       expect(mockCarrierService.getRates).toHaveBeenCalledWith(sku, qty, dest);
-      expect(result).toBe(expectedRates);
+      expect(result).toEqual(expectedRates);
     });
 
     it('should throw an error if carrierService throws an error', async () => {
+      const useCase = new CalculateShippingRatesUseCase(mockCarrierService);
       const error = new Error('Carrier API error');
 
       mockCarrierService.getRates.mockRejectedValue(error);
 
-      await expect(useCase.execute(sku, qty, dest)).rejects.toThrow('Carrier API error');
+      await expect(useCase.execute('SKU-123', 5, '123 Main St')).rejects.toThrow('Carrier API error');
     });
   });
 
   describe('PurchaseShippingLabelUseCase', () => {
-    it('should delegate purchaseLabel to the carrier service and return the result', async () => {
     it('should delegate purchaseLabel to carrierService and return label', async () => {
       const useCase = new PurchaseShippingLabelUseCase(
         mockShipmentRepository,
@@ -81,9 +68,6 @@ describe('ManageShipping Use Cases', () => {
         mockAccountingJournalService,
         mockEventDispatcher
       );
-      const input = { orderId: '123' };
-      const expectedOutput = { labelUrl: 'http://example.com/label.pdf' };
-      mockCarrierService.purchaseLabel.mockResolvedValue(expectedOutput);
       const input = { shipmentId: 'SHIP-123', packageWeight: 2.5 };
       const expectedLabel = { trackingNumber: 'TRACK-123', labelUrl: 'http://label.url' };
 
@@ -92,11 +76,8 @@ describe('ManageShipping Use Cases', () => {
       const result = await useCase.execute(input);
 
       expect(mockCarrierService.purchaseLabel).toHaveBeenCalledWith(input);
-      expect(result).toEqual(expectedOutput);
+      expect(result).toEqual(expectedLabel);
     });
-
-    it('should correctly propagate errors from carrierService', async () => {
-      expect(result).toBe(expectedLabel);
 
     it('should throw an error if carrierService throws an error during purchase', async () => {
       const useCase = new PurchaseShippingLabelUseCase(
@@ -106,10 +87,6 @@ describe('ManageShipping Use Cases', () => {
         mockAccountingJournalService,
         mockEventDispatcher
       );
-      const input = { orderId: '123' };
-      mockCarrierService.purchaseLabel.mockRejectedValue(new Error('API Error'));
-
-      await expect(useCase.execute(input)).rejects.toThrow('API Error');
       const input = { shipmentId: 'SHIP-123', packageWeight: 2.5 };
       const error = new Error('Failed to purchase label');
 
@@ -121,53 +98,46 @@ describe('ManageShipping Use Cases', () => {
   });
 
   describe('UpdateShipmentStatusUseCase', () => {
-    it('should update the shipment status via repository', async () => {
-      const useCase = new UpdateShipmentStatusUseCase(mockShipmentRepository, mockEventDispatcher);
-      mockShipmentRepository.update.mockResolvedValue(undefined);
-
-      const result = await useCase.execute('ship1', 'SHIPPED');
-
-      expect(mockShipmentRepository.update).toHaveBeenCalledWith({ id: 'ship1', status: 'SHIPPED' });
-      expect(result).toBe(true);
-    });
-  });
-
-  describe('GetShipmentsUseCase', () => {
-    it('should return all shipments from repository', async () => {
-      const useCase = new GetShipmentsUseCase(mockShipmentRepository);
-      const shipments = [{ id: 'ship1' }];
-      mockShipmentRepository.findAll.mockResolvedValue(shipments);
-
-      const result = await useCase.execute();
-
-      expect(mockShipmentRepository.findAll).toHaveBeenCalled();
-      expect(result).toEqual(shipments);
     it('should update shipment status using repository and return true', async () => {
+      const useCase = new UpdateShipmentStatusUseCase(mockShipmentRepository, mockEventDispatcher);
       const id = 'SHIP-123';
       const status = 'SHIPPED';
 
+      mockShipmentRepository.update.mockResolvedValue(undefined);
 
       const result = await useCase.execute(id, status);
 
       expect(mockShipmentRepository.update).toHaveBeenCalledWith({ id, status });
+      expect(result).toBe(true);
+    });
 
     it('should propagate repository errors when updating status fails', async () => {
+      const useCase = new UpdateShipmentStatusUseCase(mockShipmentRepository, mockEventDispatcher);
+      const id = 'SHIP-123';
+      const status = 'SHIPPED';
       const error = new Error('Database connection failed');
 
       mockShipmentRepository.update.mockRejectedValue(error);
 
       await expect(useCase.execute(id, status)).rejects.toThrow('Database connection failed');
+    });
+  });
 
+  describe('GetShipmentsUseCase', () => {
     it('should retrieve all shipments using repository', async () => {
+      const useCase = new GetShipmentsUseCase(mockShipmentRepository);
       const expectedShipments = [{ id: 'SHIP-123', status: 'PENDING' }, { id: 'SHIP-124', status: 'SHIPPED' }];
 
       mockShipmentRepository.findAll.mockResolvedValue(expectedShipments);
 
+      const result = await useCase.execute();
 
       expect(mockShipmentRepository.findAll).toHaveBeenCalledTimes(1);
-      expect(result).toBe(expectedShipments);
+      expect(result).toEqual(expectedShipments);
+    });
 
     it('should propagate repository errors when fetching shipments fails', async () => {
+      const useCase = new GetShipmentsUseCase(mockShipmentRepository);
       const error = new Error('Table not found');
 
       mockShipmentRepository.findAll.mockRejectedValue(error);
