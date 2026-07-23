@@ -12,4 +12,7 @@ module.exports = {
     ...tsJestTransformCfg,
   },
   modulePathIgnorePatterns: ["<rootDir>/web"],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
 };
