@@ -279,6 +279,19 @@ const shopifySyncHandler = new ShopifyStockSyncHandler();
 eventBus.subscribe('LowStockAlertEvent', lowStockHandler.handle.bind(lowStockHandler));
 eventBus.subscribe('InventoryReconciledEvent', reconciledHandler.handle.bind(reconciledHandler));
 eventBus.subscribe('ShopifyStockSyncRequested', shopifySyncHandler.handle.bind(shopifySyncHandler));
+eventBus.subscribe('RfidScanProcessedEvent', (event: any) => {
+  pubsub.publish(`RFID_SCAN_STREAM_${event.tenantId}`, {
+    rfidScanStream: {
+      id: event.id,
+      tenantId: event.tenantId,
+      locationId: event.locationId,
+      totalCount: event.totalCount,
+      matchedCount: event.matchedCount,
+      unmatchedCount: event.unmatchedCount,
+      unmatchedEpcs: event.unmatchedEpcs
+    }
+  }).catch((err: any) => console.error("Error publishing RFID scan processed event:", err));
+});
 
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
@@ -1309,8 +1322,67 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
+    rfidTags: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
+      return await context.prisma!.rfidTag.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+    },
   },
   Mutation: {
+    assignRfidTag: async (
+      _: any,
+      { epc, sku, serialNumber }: { epc: string; sku: string; serialNumber: string },
+      context: GraphQLContext
+    ) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        if (!/^[0-9A-Fa-f]{24}$/.test(epc)) {
+          throw new Error('RFID EPC must be a 24-character hexadecimal string.');
+        }
+        await context.prisma!.rfidTag.create({
+          data: {
+            epc,
+            sku,
+            serialNumber,
+            status: 'ACTIVE'
+          }
+        });
+        return true;
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    simulateRfidScan: async (
+      _: any,
+      { locationId, tags }: { locationId: string; tags: string[] },
+      context: GraphQLContext
+    ) => {
+      try {
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
+        const mqtt = await import('mqtt');
+        const client = mqtt.connect(process.env.MQTT_URL || 'mqtt://localhost:1883');
+        const payload = {
+          locationId,
+          tags: tags.map(epc => ({ epc }))
+        };
+        return new Promise<boolean>((resolve, reject) => {
+          client.on('connect', () => {
+            client.publish(`tenants/${auth.tenantId}/rfid/scans`, JSON.stringify(payload), { qos: 0 }, (err) => {
+              client.end();
+              if (err) reject(err);
+              else resolve(true);
+            });
+          });
+          client.on('error', (err) => {
+            client.end();
+            reject(err);
+          });
+        });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
     markNotificationAsRead: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
@@ -2205,6 +2277,12 @@ export const resolvers = {
     }
   },
   Subscription: {
+    rfidScanStream: {
+      subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: GraphQLContext) => {
+        const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], tenantId);
+        return (pubsub as any).asyncIterator(`RFID_SCAN_STREAM_${auth.tenantId}`);
+      }
+    },
     barcodeScanned: {
       subscribe: (_: any, { tenantId }: { tenantId: string }, ctx: GraphQLContext) => {
         // Enforce token check; only allow subscription to active tenant events

@@ -567,6 +567,7 @@ const typeDefs = parse(`
     complianceLedger(sequenceNumber: Int): [ComplianceLedgerEntry!]!
     verifyComplianceLedger: Boolean!
     slottingSuggestions: [SlottingSuggestion!]!
+    rfidTags(tenantId: ID!): [RfidTag!]!
 
     # Onboarding & users & logic
     users(tenantId: ID!): [UserDTO!]!
@@ -579,6 +580,9 @@ const typeDefs = parse(`
   }
 
   type Mutation {
+    assignRfidTag(epc: String!, sku: String!, serialNumber: String!): Boolean!
+    simulateRfidScan(locationId: String!, tags: [String!]!): Boolean!
+
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
@@ -640,6 +644,29 @@ const typeDefs = parse(`
     createStockOnboarding(input: CreateStockOnboardingInput!): Boolean!
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
+  }
+
+  type Subscription {
+    rfidScanStream(tenantId: ID!): RfidScanUpdate!
+  }
+
+  type RfidTag {
+    epc: String!
+    sku: String!
+    serialNumber: String!
+    status: String!
+    lastSeenAt: String
+    lastLocation: String
+  }
+
+  type RfidScanUpdate {
+    id: ID!
+    tenantId: String!
+    locationId: String!
+    totalCount: Int!
+    matchedCount: Int!
+    unmatchedCount: Int!
+    unmatchedEpcs: [String!]!
   }
 `);
 
