@@ -675,6 +675,7 @@ export const typeDefs = `#graphql
 
     # Eventual Consistency Audit
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
+    rfidTags(tenantId: ID!): [RfidTag!]!
   }
 
   type InventoryCountResult {
@@ -851,6 +852,9 @@ export const typeDefs = `#graphql
   }
 
   type Mutation {
+    assignRfidTag(epc: String!, sku: String!, serialNumber: String!): Boolean!
+    simulateRfidScan(locationId: String!, tags: [String!]!): Boolean!
+
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
@@ -935,6 +939,7 @@ export const typeDefs = `#graphql
   }
 
   type Subscription {
+    rfidScanStream(tenantId: ID!): RfidScanUpdate!
     barcodeScanned(tenantId: ID!): BarcodeScanEvent!
     stockChanged(tenantId: ID!): StockChangedEvent!
     webhookDeliveryFailed(tenantId: ID!): WebhookFailedEvent!
@@ -1064,5 +1069,24 @@ export const typeDefs = `#graphql
   type AuditSummary {
     shopifyDiscrepancies: Int!
     accountingDiscrepancies: Int!
+  }
+
+  type RfidTag {
+    epc: String!
+    sku: String!
+    serialNumber: String!
+    status: String!
+    lastSeenAt: String
+    lastLocation: String
+  }
+
+  type RfidScanUpdate {
+    id: ID!
+    tenantId: String!
+    locationId: String!
+    totalCount: Int!
+    matchedCount: Int!
+    unmatchedCount: Int!
+    unmatchedEpcs: [String!]!
   }
 `;
