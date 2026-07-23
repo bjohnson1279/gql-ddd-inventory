@@ -43,7 +43,7 @@ describe('TenantConnectionPool', () => {
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
-              });
+      });
 
       await expect(pool.getClient('provisioning-tenant'))
         .rejects.toThrow('not active');
