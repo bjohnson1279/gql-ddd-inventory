@@ -141,6 +141,15 @@ services:
     depends_on:
       - gateway
 
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: inventory-mqtt-gql
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
 volumes:
   postgres_data:
 
