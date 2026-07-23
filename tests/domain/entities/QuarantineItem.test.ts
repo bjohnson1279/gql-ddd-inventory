@@ -40,6 +40,41 @@ describe('QuarantineItem', () => {
           'Test',
           new LocationId('loc-1'),
           new TenantId('t-1')
+  let variantId: ProductVariantId;
+  let locationId: LocationId;
+  let tenantId: TenantId;
+
+    variantId = new ProductVariantId('var-123');
+    locationId = new LocationId('loc-123');
+    tenantId = new TenantId('tenant-123');
+
+    it('should successfully initialize a valid QuarantineItem', () => {
+      const item = new QuarantineItem(
+        'quarantine-1',
+        variantId,
+        10,
+        'Damaged packaging',
+        locationId,
+        tenantId
+      );
+
+      expect(item.id).toBe('quarantine-1');
+      expect(item.variantId).toBe(variantId);
+      expect(item.quantity).toBe(10);
+      expect(item.locationId).toBe(locationId);
+      expect(item.tenantId).toBe(tenantId);
+
+    it('should throw an error if quantity is zero', () => {
+          'quarantine-1',
+          variantId,
+          'Damaged packaging',
+          locationId,
+          tenantId
+        );
+      }).toThrow('Quantity must be greater than zero.');
+
+    it('should throw an error if quantity is negative', () => {
+          -5,
         );
       }).toThrow('Quantity must be greater than zero.');
     });
@@ -53,40 +88,67 @@ describe('QuarantineItem', () => {
     });
 
     it('should throw an error when trying to resolve an already resolved item as Restock', () => {
-      item.resolveRestock();
       expect(() => {
         item.resolveRestock();
       }).toThrow('Quarantine item is already resolved.');
-    });
   });
 
   describe('resolveScrap', () => {
     it('should correctly set status to Scrapped and update resolvedAt', () => {
       item.resolveScrap();
       expect(item.status).toBe(QuarantineStatus.Scrapped);
-      expect(item.resolvedAt).toBeInstanceOf(Date);
-    });
 
     it('should throw an error when trying to resolve an already resolved item as Scrap', () => {
-      item.resolveScrap();
-      expect(() => {
         item.resolveScrap();
-      }).toThrow('Quarantine item is already resolved.');
-    });
-  });
 
   describe('resolveRtv', () => {
     it('should correctly set status to Rtv and update resolvedAt', () => {
       item.resolveRtv();
       expect(item.status).toBe(QuarantineStatus.Rtv);
-      expect(item.resolvedAt).toBeInstanceOf(Date);
-    });
 
     it('should throw an error when trying to resolve an already resolved item as RTV', () => {
-      item.resolveRtv();
-      expect(() => {
         item.resolveRtv();
-      }).toThrow('Quarantine item is already resolved.');
+  describe('resolution methods', () => {
+    let item: QuarantineItem;
+
+    beforeEach(() => {
+      item = new QuarantineItem(
+        'quarantine-1',
+        variantId,
+        10,
+        'Damaged packaging',
+        locationId,
+        tenantId
+      );
+
+    describe('resolveRestock', () => {
+      it('should change status to Restocked and set resolvedAt', () => {
+
+        expect(item.status).toBe(QuarantineStatus.Restocked);
+        expect(item.resolvedAt).toBeInstanceOf(Date);
+      });
+
+      it('should throw an error if already resolved', () => {
+
+        expect(() => {
+          item.resolveRestock();
+        }).toThrow('Quarantine item is already resolved.');
+
+    describe('resolveScrap', () => {
+      it('should change status to Scrapped and set resolvedAt', () => {
+
+        expect(item.status).toBe(QuarantineStatus.Scrapped);
+
+
+          item.resolveScrap();
+
+    describe('resolveRtv', () => {
+      it('should change status to Rtv and set resolvedAt', () => {
+
+        expect(item.status).toBe(QuarantineStatus.Rtv);
+
+
+          item.resolveRtv();
     });
   });
 });
