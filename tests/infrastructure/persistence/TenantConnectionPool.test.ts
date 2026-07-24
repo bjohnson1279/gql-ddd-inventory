@@ -40,6 +40,9 @@ describe('TenantConnectionPool', () => {
         dbPort: 5432,
         dbName: 'inventory_db',
         migratedVersion: '1',
+        dbUser: "inventory_user",
+        dbPassword: "inventory_password",
+
         status: 'PROVISIONING',
         provisionedAt: new Date(),
       });
