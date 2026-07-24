@@ -141,5 +141,15 @@ describe('UoM Conversions', () => {
       config.addConversionRule(StandardUnits.dozen(), 12);
       expect(() => config.addConversionRule(StandardUnits.dozen(), 12)).toThrow('already exists');
     });
+
+    it('should throw error for incompatible base unit conversion', () => {
+      const config = new ProductUomConfiguration(sku, StandardUnits.each());
+      expect(() => config.addConversionRule(StandardUnits.kilogram(), 1))
+        .toThrow('Unit Kilogram is not compatible with base unit Each.');
+    });
+
+    it('should throw error when adding a conversion rule for the base unit itself', () => {
+      expect(() => config.addConversionRule(StandardUnits.each(), 1))
+        .toThrow('Cannot add a conversion rule for the base unit itself.');
   });
 });
