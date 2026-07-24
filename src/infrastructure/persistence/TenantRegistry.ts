@@ -1,4 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * TenantRegistryEntry represents a tenant's isolated database metadata
