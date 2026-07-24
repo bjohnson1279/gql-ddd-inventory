@@ -79,12 +79,7 @@ export class PostgresBarcodeRepository implements IBarcodeRepository {
       });
 
       // 2. Upsert remaining barcodes
-      const uniqueAssignments = new Map();
-      for (const a of set.all) {
-        uniqueAssignments.set(toUuid(a.id.value), a);
-      }
-
-      await Promise.all(Array.from(uniqueAssignments.values()).map(async (a) => {
+      await Promise.all(set.all.map(async (a) => {
         const dbId = toUuid(a.id.value);
         await tx.barcode.upsert({
           where: { id: dbId },
