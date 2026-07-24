@@ -63,6 +63,13 @@ describe('DemandForecast', () => {
     const sameDate = new Date('2023-10-15T12:00:00Z');
         sameDate, // Start is equal to end
         sameDate,
+
+
+
+
+
+
+
   const id = new DemandForecastId('df-123');
   const sku = new Sku('SKU-123');
   const locationId = new LocationId('loc-1');
