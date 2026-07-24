@@ -16,9 +16,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@apollo/gateway": "^2.7.2",
     "@apollo/server": "^5.5.1",
-    "@apollo/subgraph": "^2.7.2",
     "@as-integrations/express5": "^1.1.2",
     "@graphql-tools/schema": "^10.0.33",
     "@prisma/adapter-pg": "^7.8.0",
@@ -37,7 +35,6 @@
     "ioredis": "^5.11.0",
     "jsonwebtoken": "^9.0.3",
     "kafkajs": "^2.2.4",
-    "mqtt": "^5.15.2",
     "pg": "^8.21.0",
     "ws": "^8.21.0"
   },
