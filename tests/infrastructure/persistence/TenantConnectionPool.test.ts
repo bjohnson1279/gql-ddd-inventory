@@ -35,8 +35,6 @@ describe('TenantConnectionPool', () => {
       mockRegistry.lookupTenant.mockResolvedValue({
         tenantId: 'provisioning-tenant',
         dbUser: 'inventory_user',
-        dbPassword: 'inventory_password',
-        dbUser: "inventory_user",
         dbPassword: "inventory_password",
 
         dbHost: '127.0.0.1',
