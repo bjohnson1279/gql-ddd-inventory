@@ -7,7 +7,9 @@ describe('TenantRegistry', () => {
   beforeEach(() => {
     mockPrisma = {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+      $executeRaw: jest.fn().mockResolvedValue(undefined),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      $queryRaw: jest.fn().mockResolvedValue([]),
     };
     registry = new TenantRegistry(mockPrisma);
   });
@@ -20,6 +22,9 @@ describe('TenantRegistry', () => {
       expect(entry.dbName).toBe('inventory_tenant_acme_corp');
       expect(entry.status).toBe('PROVISIONING');
       expect(entry.migratedVersion).toBe('0');
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("INSERT INTO tenant_registry")]), "acme-corp", expect.any(String), expect.any(Number), expect.any(String), expect.any(String), expect.any(String), "PROVISIONING", "0");
+      expect(mockPrisma.$executeRaw.mock.calls[0][0][0]).toContain('INSERT INTO tenant_registry');
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining("INSERT INTO tenant_registry")
@@ -130,6 +135,8 @@ describe('TenantRegistry', () => {
 
       const tenants = await registry.listTenants();
       expect(tenants).toHaveLength(2);
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("SELECT tenant_id")]), expect.objectContaining({ values: [] }));
+      expect(mockPrisma.$queryRaw.mock.calls[0][1]).toEqual({ strings: [''], values: [] });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.not.stringContaining("WHERE status")
       );
@@ -142,6 +149,8 @@ describe('TenantRegistry', () => {
 
       const tenants = await registry.listTenants('ACTIVE');
       expect(tenants).toHaveLength(1);
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("SELECT tenant_id")]), expect.objectContaining({ values: ["ACTIVE"] }));
+      expect(mockPrisma.$queryRaw.mock.calls[0][1].strings[0]).toContain('WHERE status = ');
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining("WHERE status = 'ACTIVE'")
       );
@@ -152,6 +161,9 @@ describe('TenantRegistry', () => {
     it('should execute update SQL', async () => {
       await registry.updateStatus('acme-corp', 'ACTIVE');
 
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("UPDATE tenant_registry SET status = ")]), "ACTIVE", "acme-corp");
+      expect(mockPrisma.$executeRaw.mock.calls[0][0][0]).toContain('UPDATE tenant_registry SET status = ');
+      expect(mockPrisma.$executeRaw.mock.calls[0][1]).toBe('ACTIVE');
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining("UPDATE tenant_registry SET status = 'ACTIVE'")
       );
@@ -162,6 +174,9 @@ describe('TenantRegistry', () => {
     it('should mark tenant as DEPROVISIONED', async () => {
       await registry.deprovisionTenant('acme-corp');
 
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("UPDATE tenant_registry SET status = ")]), "DEPROVISIONED", "acme-corp");
+      expect(mockPrisma.$executeRaw.mock.calls[0][0][0]).toContain('UPDATE tenant_registry SET status = ');
+      expect(mockPrisma.$executeRaw.mock.calls[0][1]).toBe('DEPROVISIONED');
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
         expect.stringContaining("DEPROVISIONED")
       );
