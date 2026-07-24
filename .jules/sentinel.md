@@ -159,7 +159,3 @@
 **Vulnerability:** The `fetch` calls to external URLs did not restrict HTTP redirects. This could allow an attacker to bypass initial URL validation (e.g., SSRF protection) by pointing the URL to an external server that responds with a 3xx redirect to an internal or restricted IP address.
 **Learning:** Initial URL validation is insufficient if the HTTP client automatically follows redirects, as the redirect target is not subjected to the same validation.
 **Prevention:** Always explicitly disable automatic redirects (e.g., setting `redirect: 'error'` or `redirect: 'manual'`) when making outbound requests to user-controlled or potentially untrusted URLs, to prevent SSRF via malicious redirects.
-## 2026-07-23 - Prevent SQL Injection via Parameterized Queries
-**Vulnerability:** SQL injection vulnerability found in `TenantRegistry.ts` where `$executeRawUnsafe` and `$queryRawUnsafe` were used with string concatenation.
-**Learning:** Using `*RawUnsafe` methods with string concatenation allows user inputs (like `tenantId` and `status`) to modify SQL commands, introducing serious vulnerabilities.
-**Prevention:** Always use parameterized queries via `$executeRaw` and `$queryRaw` with template literals, and `Prisma.sql` for dynamic query segments.
