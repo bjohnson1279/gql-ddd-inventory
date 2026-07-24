@@ -39,9 +39,6 @@ describe('TenantConnectionPool', () => {
         dbName: 'inventory_db',
         dbUser: 'test_user',
         dbPassword: 'test_password',
-        dbUser: "inventory_user",
-        dbPassword: "inventory_password",
-
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '1',
