@@ -149,9 +149,7 @@ describe('UoM Conversions', () => {
     });
 
     it('should throw error when adding a conversion rule for the base unit itself', () => {
-      const config = new ProductUomConfiguration(sku, StandardUnits.each());
       expect(() => config.addConversionRule(StandardUnits.each(), 1))
         .toThrow('Cannot add a conversion rule for the base unit itself.');
-    });
   });
 });
