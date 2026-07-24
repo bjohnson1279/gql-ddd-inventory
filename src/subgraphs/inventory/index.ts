@@ -672,6 +672,9 @@ const typeDefs = parse(`
 
 const inventoryResolvers = {
   ...resolvers,
+  WarehouseLocation: {
+    __resolveReference(reference: any, context: any) {
+      return context.prisma.warehouseLocationModel.findUnique({
   Query: {
     ...resolvers.Query,
     slottingSuggestions: async (_: any, __: any, context: any) => {

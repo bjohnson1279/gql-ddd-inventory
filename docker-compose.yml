@@ -89,6 +89,32 @@ services:
       - ./:/usr/src/app
       - /usr/src/app/node_modules
     command: npx ts-node src/subgraphs/catalog/index.ts
+    command: npx ts-node src/subgraphs/inventory/index.ts
+    environment:
+      - PORT=4001
+      - PORT=4002
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=inventory_user
+      - DB_PASSWORD=inventory_password
+      - DB_NAME=inventory_db
+      - MULTI_TENANT_MODE=database
+      - JWT_SECRET=dummy_jwt_secret
+      - KAFKA_URL=host.docker.internal:9092
+
+  catalog-subgraph:
+    build: .
+    ports:
+      - "4002:4002"
+    depends_on:
+      - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run dev
     environment:
       - PORT=4002
       - NODE_ENV=development
@@ -99,6 +125,11 @@ services:
       - DB_NAME=inventory_db
       - MULTI_TENANT_MODE=database
       - JWT_SECRET=dummy_jwt_secret
+
+  accounting-subgraph:
+      - "4003:4003"
+    command: npx ts-node src/subgraphs/accounting/index.ts
+      - PORT=4003
       - KAFKA_URL=host.docker.internal:9092
 
   accounting-subgraph:
