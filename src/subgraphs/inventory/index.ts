@@ -8,6 +8,7 @@ import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dummy_jwt_secret';
+const PYTHON_SIDECAR_URL = process.env.PYTHON_SIDECAR_URL || 'http://python-sidecar:5000/optimize';
 
 const typeDefs = parse(`
   extend schema
@@ -359,6 +360,17 @@ const typeDefs = parse(`
     id: ID! @external
   }
 
+  type SlottingSuggestion {
+    sku: String!
+    currentLocationId: String!
+    currentDistance: Float!
+    currentVelocity: Float!
+    recommendedLocationId: String!
+    recommendedDistance: Float!
+    potentialSwapSku: String
+    estimatedSavings: Float!
+  }
+
   input CreateRmaInput {
     rmaNumber: String!
     customerId: String!
@@ -554,6 +566,8 @@ const typeDefs = parse(`
     auditDiscrepancies: [AuditDiscrepancy!]!
     complianceLedger(sequenceNumber: Int): [ComplianceLedgerEntry!]!
     verifyComplianceLedger: Boolean!
+    slottingSuggestions: [SlottingSuggestion!]!
+    rfidTags(tenantId: ID!): [RfidTag!]!
 
     # Onboarding & users & logic
     users(tenantId: ID!): [UserDTO!]!
@@ -566,6 +580,9 @@ const typeDefs = parse(`
   }
 
   type Mutation {
+    assignRfidTag(epc: String!, sku: String!, serialNumber: String!): Boolean!
+    simulateRfidScan(locationId: String!, tags: [String!]!): Boolean!
+
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
@@ -628,10 +645,36 @@ const typeDefs = parse(`
     saveStockOnboardingItems(input: SaveStockOnboardingItemsInput!): Boolean!
     submitStockOnboarding(id: ID!, actorId: ID!): Boolean!
   }
+
+  type Subscription {
+    rfidScanStream(tenantId: ID!): RfidScanUpdate!
+  }
+
+  type RfidTag {
+    epc: String!
+    sku: String!
+    serialNumber: String!
+    status: String!
+    lastSeenAt: String
+    lastLocation: String
+  }
+
+  type RfidScanUpdate {
+    id: ID!
+    tenantId: String!
+    locationId: String!
+    totalCount: Int!
+    matchedCount: Int!
+    unmatchedCount: Int!
+    unmatchedEpcs: [String!]!
+  }
 `);
 
 const inventoryResolvers = {
   ...resolvers,
+  WarehouseLocation: {
+    __resolveReference(reference: any, context: any) {
+      return context.prisma.warehouseLocationModel.findUnique({
   Query: {
     ...resolvers.Query,
     slottingSuggestions: async (_: any, __: any, context: any) => {
