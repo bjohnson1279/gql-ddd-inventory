@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 export interface TenantConfig {
   tenantId: string;
@@ -30,7 +32,7 @@ export class TenantDatabaseFactory {
     }
 
     const config = this.tenantConfigs.get(tenantId);
-    let dbUrl = process.env.DATABASE_URL;
+    let dbUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/postgres';
 
     if (config) {
       dbUrl = config.databaseUrl;
@@ -45,14 +47,9 @@ export class TenantDatabaseFactory {
       }
     }
 
-    // Provision new PrismaClient bound to tenant database URL / schema
-    const client = new PrismaClient({
-      datasources: {
-        db: {
-          url: dbUrl,
-        },
-      },
-    });
+    const pool = new Pool({ connectionString: dbUrl });
+    const adapter = new PrismaPg(pool);
+    const client = new PrismaClient({ adapter } as any);
 
     this.clientPool.set(tenantId, client);
     return client;
