@@ -625,3 +625,15 @@ model ComplianceLedgerModel {
   hash           String
   signature      String
 }
+
+model RfidTag {
+  epc          String    @id
+  sku          String
+  serialNumber String    @map("serial_number")
+  status       String    @default("ACTIVE")
+  lastSeenAt   DateTime? @map("last_seen_at") @db.Timestamptz
+  lastLocation String?   @map("last_location")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("rfid_tags")
+}
