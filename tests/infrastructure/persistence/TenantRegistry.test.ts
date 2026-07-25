@@ -7,9 +7,7 @@ describe('TenantRegistry', () => {
   beforeEach(() => {
     mockPrisma = {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
-      $executeRaw: jest.fn().mockResolvedValue(undefined),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
-      $queryRaw: jest.fn().mockResolvedValue([]),
     };
     registry = new TenantRegistry(mockPrisma);
   });
