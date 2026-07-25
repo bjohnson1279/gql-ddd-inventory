@@ -545,18 +545,6 @@ export class TenantProvisioner {
         )
       `);
 
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS rfid_tags (
-          epc TEXT PRIMARY KEY,
-          sku TEXT NOT NULL,
-          serial_number TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'ACTIVE',
-          last_seen_at TIMESTAMPTZ,
-          last_location TEXT,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `);
-
     } finally {
       client.release();
       await tenantPool.end();

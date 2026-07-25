@@ -45,22 +45,58 @@ describe('DemandForecast', () => {
         validConfidenceLevel
       );
     }).toThrow('Forecasted quantity cannot be negative.');
+  });
 
   it('should throw an error if confidenceLevel is less than 0', () => {
+    expect(() => {
+      new DemandForecast(
+        validId,
+        validSku,
+        validLocationId,
         validQuantity,
+        validStartDate,
+        validEndDate,
         -0.1 // Invalid: confidence level < 0
+      );
     }).toThrow('Confidence level must be between 0 and 1.');
+  });
 
   it('should throw an error if confidenceLevel is greater than 1', () => {
+    expect(() => {
+      new DemandForecast(
+        validId,
+        validSku,
+        validLocationId,
+        validQuantity,
+        validStartDate,
+        validEndDate,
         1.1 // Invalid: confidence level > 1
+      );
+    }).toThrow('Confidence level must be between 0 and 1.');
+  });
 
   it('should throw an error if periodStart is after periodEnd', () => {
+    expect(() => {
+      new DemandForecast(
+        validId,
+        validSku,
+        validLocationId,
+        validQuantity,
         new Date('2023-10-31T23:59:59Z'), // Start is after end
         new Date('2023-10-01T00:00:00Z'),
+        validConfidenceLevel
+      );
     }).toThrow('Period start must be before period end.');
+  });
 
   it('should throw an error if periodStart is equal to periodEnd', () => {
     const sameDate = new Date('2023-10-15T12:00:00Z');
+    expect(() => {
+      new DemandForecast(
+        validId,
+        validSku,
+        validLocationId,
+        validQuantity,
         sameDate, // Start is equal to end
         sameDate,
 
@@ -105,6 +141,8 @@ describe('DemandForecast', () => {
       new DemandForecast(id, sku, locationId, 100, periodEnd, periodStart, 0.8);
 
       new DemandForecast(id, sku, locationId, 100, periodStart, periodStart, 0.8);
+        validConfidenceLevel
+      );
     }).toThrow('Period start must be before period end.');
   });
 });
