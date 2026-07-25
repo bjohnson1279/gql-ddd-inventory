@@ -9,6 +9,7 @@ importers:
   .:
     dependencies:
       '@apollo/gateway':
+        specifier: ^2.7.2
         specifier: ^2.14.3
         version: 2.14.3(graphql@16.14.1)
       '@apollo/server':
