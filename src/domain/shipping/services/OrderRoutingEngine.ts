@@ -29,24 +29,6 @@ export class OrderRoutingEngine {
 
     const rateCache = new Map<string, number>();
 
-    // ⚡ Bolt: Pre-calculate unique rates concurrently to avoid sequential N+1 bottlenecks
-    const uniqueRateRequests = new Map<string, {locationId: string, qty: number}>();
-    for (const allocations of rawPlans) {
-      for (const alloc of allocations) {
-        const cacheKey = `${alloc.locationId}_${alloc.quantity}`;
-        if (!uniqueRateRequests.has(cacheKey)) {
-          uniqueRateRequests.set(cacheKey, { locationId: alloc.locationId, qty: alloc.quantity });
-        }
-      }
-    }
-
-    await Promise.all(
-      Array.from(uniqueRateRequests.entries()).map(async ([cacheKey, req]) => {
-        const rate = await rateCalculator(req.locationId, sku, req.qty);
-        rateCache.set(cacheKey, rate);
-      })
-    );
-
     const plans: FulfillmentPlan[] = [];
     for (const allocations of rawPlans) {
       let totalDistance = 0;
@@ -58,7 +40,11 @@ export class OrderRoutingEngine {
         totalDistance += dist;
 
         const cacheKey = `${alloc.locationId}_${alloc.quantity}`;
-        const rate = rateCache.get(cacheKey)!;
+        let rate = rateCache.get(cacheKey);
+        if (rate === undefined) {
+          rate = await rateCalculator(alloc.locationId, sku, alloc.quantity);
+          rateCache.set(cacheKey, rate);
+        }
         totalCost += rate;
       }
 
