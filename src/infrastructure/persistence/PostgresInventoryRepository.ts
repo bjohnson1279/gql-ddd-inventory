@@ -128,7 +128,6 @@ export class PostgresInventoryRepository implements IInventoryRepository {
   async saveBatch(items: InventoryItem[]): Promise<void> {
     if (items.length === 0) return;
 
-    // Fetch existing items to determine inserts vs updates
     const existingItems = await this.prisma.inventoryItem.findMany({
       where: {
         id: { in: items.map(i => i.id) }
@@ -139,78 +138,53 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     const existingIds = new Set(existingItems.map(i => i.id));
 
     await this.prisma.$transaction(async (tx) => {
-      const itemsToCreate = [];
-      const updatePromises = [];
-      const itemsToUpdateWithIndex: { item: InventoryItem }[] = [];
-      const allEventsData = [];
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-
+      const results = [];
+      for (const item of items) {
+        let count = 0;
         if (!existingIds.has(item.id)) {
-          itemsToCreate.push({
-            id: item.id,
-            sku: item.sku.value,
-            locationId: item.locationId.value,
-            quantity: item.quantity.value,
-            allocated: item.allocated.value,
-            inTransit: item.inTransit.value,
-            version: item.version
+          await tx.inventoryItem.create({
+            data: {
+              id: item.id,
+              sku: item.sku.value,
+              locationId: item.locationId.value,
+              quantity: item.quantity.value,
+              allocated: item.allocated.value,
+              inTransit: item.inTransit.value,
+              version: item.version
+            }
           });
+          count = 1;
         } else {
-          itemsToUpdateWithIndex.push({ item });
-          updatePromises.push(
-            tx.inventoryItem.updateMany({
-              where: {
-                id: item.id,
-                version: item.version - 1
-              },
-              data: {
-                quantity: item.quantity.value,
-                allocated: item.allocated.value,
-                inTransit: item.inTransit.value,
-                version: item.version
-              }
-            })
-          );
+          const updateResult = await tx.inventoryItem.updateMany({
+            where: {
+              id: item.id,
+              version: item.version - 1
+            },
+            data: {
+              quantity: item.quantity.value,
+              allocated: item.allocated.value,
+              inTransit: item.inTransit.value,
+              version: item.version
+            }
+          });
+          count = updateResult.count;
+        }
+
+        if (count === 0) {
+          throw new ConcurrencyError(item.sku.value, item.locationId.value);
         }
 
         const events = item.pullDomainEvents();
         for (const event of events) {
-          allEventsData.push({
-            eventType: event.constructor.name,
-            payload: JSON.stringify({
-              ...event,
-              traceId: (event as any).traceId || getTraceId()
-            }),
-            status: 'Pending'
-          });
-        }
-      }
-
-      if (itemsToCreate.length > 0) {
-        await tx.inventoryItem.createMany({
-          data: itemsToCreate
-        });
-      }
-
-      if (updatePromises.length > 0) {
-        const updateResults = await Promise.all(updatePromises);
-
-        for (let i = 0; i < updateResults.length; i++) {
-          if (updateResults[i].count === 0) {
-            const { item } = itemsToUpdateWithIndex[i];
-            throw new ConcurrencyError(item.sku.value, item.locationId.value);
-          }
-        }
-      }
-
-      if (allEventsData.length > 0) {
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < allEventsData.length; i += BATCH_SIZE) {
-          const chunk = allEventsData.slice(i, i + BATCH_SIZE);
-          await tx.outboxEvent.createMany({
-            data: chunk
+          await tx.outboxEvent.create({
+            data: {
+              eventType: event.constructor.name,
+              payload: JSON.stringify({
+                ...event,
+                traceId: (event as any).traceId || getTraceId()
+              }),
+              status: 'Pending'
+            }
           });
         }
       }
