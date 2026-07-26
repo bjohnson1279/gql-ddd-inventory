@@ -504,7 +504,7 @@ const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(
 const getStockValuationReportUseCase = new GetStockValuationReportUseCase(inventoryRepository, costLayerRepository, productRepository);
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+if (!JWT_SECRET) {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 
