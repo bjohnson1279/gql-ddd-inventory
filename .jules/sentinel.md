@@ -171,3 +171,8 @@
 **Vulnerability:** Prisma raw database queries used `$executeRawUnsafe` with string interpolation for `dbName`, exposing the database to SQL injection attacks during tenant operations.
 **Learning:** `$executeRawUnsafe` allows unsanitized inputs to be executed directly as SQL commands, bypassing parameterization.
 **Prevention:** Always use the parameterized `$executeRaw` and `$queryRaw` methods with tagged template literals to ensure inputs are safely parameterized before execution.
+
+## 2024-05-18 - Hardcoded JWT_SECRET in subgraphs
+**Vulnerability:** Subgraph services (`catalog`, `inventory`, `accounting`) fell back to a hardcoded `dummy_jwt_secret` if `JWT_SECRET` was missing.
+**Learning:** When migrating a monolithic app to a federated graph, shared secrets or configuration variables must be strictly enforced in all entry points (subgraphs) just as they are in the main gateway.
+**Prevention:** Do not use hardcoded fallbacks for cryptographic secrets. Enforce a fail-fast policy (e.g., throw error on startup) if secrets are missing across all application entry points.
