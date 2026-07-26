@@ -167,3 +167,8 @@
 **Vulnerability:** SQL injection vulnerability found in `TenantRegistry.ts` where `$executeRawUnsafe` and `$queryRawUnsafe` were used with string concatenation.
 **Learning:** Using `*RawUnsafe` methods with string concatenation allows user inputs (like `tenantId` and `status`) to modify SQL commands, introducing serious vulnerabilities.
 **Prevention:** Always use parameterized queries via `$executeRaw` and `$queryRaw` with template literals, and `Prisma.sql` for dynamic query segments.
+
+## 2024-07-25 - Prevent SQL Injection via executeRawUnsafe in TenantRegistry
+**Vulnerability:** Found critical SQL injection vulnerability where tenantId, status, and version were being directly interpolated into raw SQL queries using Prisma's $executeRawUnsafe and $queryRawUnsafe methods in src/infrastructure/persistence/TenantRegistry.ts.
+**Learning:** When using raw SQL queries in Prisma, it's easy to accidentally introduce SQL injection by using the *Unsafe variants with template literals if inputs are not sanitized. This occurred likely during a migration to raw queries where variables were passed via template literals directly instead of as prepared statement parameters.
+**Prevention:** Always use the parameterized $executeRaw and $queryRaw functions along with Prisma.sql tagged template literals to automatically parameterize inputs and prevent SQL injection. Never use $executeRawUnsafe or $queryRawUnsafe with dynamic variables unless strictly necessary and with explicit sanitization.
