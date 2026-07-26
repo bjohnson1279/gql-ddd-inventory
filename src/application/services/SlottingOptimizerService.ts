@@ -65,7 +65,7 @@ export class SlottingOptimizerService {
   ): SlottingRecommendation[] {
     const suggestions: SlottingRecommendation[] = [];
     const locMap = new Map<string, number>();
-    
+
     locations.forEach((loc) => {
       locMap.set(loc.id, Math.abs(loc.grid_x) + Math.abs(loc.grid_y) + (2 * Math.abs(loc.grid_z || 0)));
     });

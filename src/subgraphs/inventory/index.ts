@@ -711,10 +711,12 @@ const inventoryResolvers = {
         id: l.id,
         grid_x: l.gridX,
         grid_y: l.gridY
+      }));
 
       const sidecarInventory = inventory.map((i: any) => ({
         sku: i.sku,
         location_id: i.locationId
+      }));
 
       // Call Python sidecar, fallback to basic heuristic if offline
       try {
@@ -757,6 +759,7 @@ const inventoryResolvers = {
           velocity,
           distance
         };
+      });
 
       itemRecords.sort((a: any, b: any) => b.velocity - a.velocity);
       const suggestions: any[] = [];
@@ -801,6 +804,8 @@ const inventoryResolvers = {
       return suggestions.sort((a, b) => b.estimatedSavings - a.estimatedSavings);
     }
   },
+  WarehouseLocation: {
+    __resolveReference(reference: any, context: any) {
       return context.prisma.warehouseLocation.findUnique({
         where: { id: reference.id }
       });

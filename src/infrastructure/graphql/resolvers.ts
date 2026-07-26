@@ -504,7 +504,7 @@ const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(
 const getStockValuationReportUseCase = new GetStockValuationReportUseCase(inventoryRepository, costLayerRepository, productRepository);
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+if (!JWT_SECRET) {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 
@@ -2186,7 +2186,7 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin'], tenantId);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2196,7 +2196,7 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService');
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {

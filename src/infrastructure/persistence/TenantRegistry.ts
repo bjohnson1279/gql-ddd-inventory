@@ -68,6 +68,7 @@ export class TenantRegistry {
     };
 
     await this.controlPrisma.$executeRaw(Prisma.sql`
+    await this.controlPrisma.$executeRaw`
       INSERT INTO tenant_registry (tenant_id, db_host, db_port, db_name, db_user, db_password, status, provisioned_at, migrated_version)
       VALUES (${tenantId}, ${entry.dbHost}, ${entry.dbPort}, ${entry.dbName}, ${entry.dbUser}, ${entry.dbPassword}, ${entry.status}, NOW(), ${entry.migratedVersion})
       ON CONFLICT (tenant_id) DO UPDATE SET
@@ -79,7 +80,7 @@ export class TenantRegistry {
         status = EXCLUDED.status,
         provisioned_at = NOW(),
         migrated_version = EXCLUDED.migrated_version;
-    `);
+    `;
 
     return entry;
   }
@@ -93,6 +94,8 @@ export class TenantRegistry {
       FROM tenant_registry
       WHERE tenant_id = ${tenantId};
     `);
+    const results: any[] = await this.controlPrisma.$queryRaw`
+    `;
 
     if (results.length === 0) return null;
 
@@ -122,10 +125,13 @@ export class TenantRegistry {
           ORDER BY provisioned_at DESC;
         `)
       : await this.controlPrisma.$queryRaw(Prisma.sql`
-          SELECT tenant_id, db_host, db_port, db_name, db_user, db_password, status, provisioned_at, migrated_version
-          FROM tenant_registry
-          ORDER BY provisioned_at DESC;
         `);
+    const whereClause = status ? Prisma.sql`WHERE status = ${status}` : Prisma.empty;
+    const results: any[] = await this.controlPrisma.$queryRaw`
+      SELECT tenant_id, db_host, db_port, db_name, db_user, db_password, status, provisioned_at, migrated_version
+      FROM tenant_registry ${whereClause}
+      ORDER BY provisioned_at DESC;
+    `;
 
     return results.map((row: any) => ({
       tenantId: row.tenant_id,
@@ -147,6 +153,8 @@ export class TenantRegistry {
     await this.controlPrisma.$executeRaw(Prisma.sql`
       UPDATE tenant_registry SET status = ${status} WHERE tenant_id = ${tenantId};
     `);
+    await this.controlPrisma.$executeRaw`
+    `;
   }
 
   /**
@@ -156,6 +164,8 @@ export class TenantRegistry {
     await this.controlPrisma.$executeRaw(Prisma.sql`
       UPDATE tenant_registry SET migrated_version = ${version} WHERE tenant_id = ${tenantId};
     `);
+    await this.controlPrisma.$executeRaw`
+    `;
   }
 
   /**
