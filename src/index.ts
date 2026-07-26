@@ -33,7 +33,7 @@ import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryW
 
 // Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
 

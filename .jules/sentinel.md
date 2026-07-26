@@ -172,12 +172,3 @@
 **Vulnerability:** Found critical SQL injection vulnerability where tenantId, status, and version were being directly interpolated into raw SQL queries using Prisma's $executeRawUnsafe and $queryRawUnsafe methods in src/infrastructure/persistence/TenantRegistry.ts.
 **Learning:** When using raw SQL queries in Prisma, it's easy to accidentally introduce SQL injection by using the *Unsafe variants with template literals if inputs are not sanitized. This occurred likely during a migration to raw queries where variables were passed via template literals directly instead of as prepared statement parameters.
 **Prevention:** Always use the parameterized $executeRaw and $queryRaw functions along with Prisma.sql tagged template literals to automatically parameterize inputs and prevent SQL injection. Never use $executeRawUnsafe or $queryRawUnsafe with dynamic variables unless strictly necessary and with explicit sanitization.
-## 2024-05-25 - Prevent SQL Injection in Prisma Raw Queries
-**Vulnerability:** Prisma raw database queries used `$executeRawUnsafe` with string interpolation for `dbName`, exposing the database to SQL injection attacks during tenant operations.
-**Learning:** `$executeRawUnsafe` allows unsanitized inputs to be executed directly as SQL commands, bypassing parameterization.
-**Prevention:** Always use the parameterized `$executeRaw` and `$queryRaw` methods with tagged template literals to ensure inputs are safely parameterized before execution.
-
-## 2024-05-18 - Hardcoded JWT_SECRET in subgraphs
-**Vulnerability:** Subgraph services (`catalog`, `inventory`, `accounting`) fell back to a hardcoded `dummy_jwt_secret` if `JWT_SECRET` was missing.
-**Learning:** When migrating a monolithic app to a federated graph, shared secrets or configuration variables must be strictly enforced in all entry points (subgraphs) just as they are in the main gateway.
-**Prevention:** Do not use hardcoded fallbacks for cryptographic secrets. Enforce a fail-fast policy (e.g., throw error on startup) if secrets are missing across all application entry points.

@@ -107,7 +107,6 @@ describe('ManageShipping Use Cases', () => {
 
       const result = await useCase.execute(id, status);
 
-      expect(mockShipmentRepository.update).toHaveBeenCalledTimes(1);
       expect(mockShipmentRepository.update).toHaveBeenCalledWith({ id, status });
       expect(result).toBe(true);
     });

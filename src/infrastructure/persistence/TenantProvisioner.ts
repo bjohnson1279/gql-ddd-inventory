@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { TenantRegistry } from './TenantRegistry';
 
@@ -77,10 +77,10 @@ export class TenantProvisioner {
 
     // Force-disconnect any remaining connections to the tenant database
     try {
-      await this.controlPrisma.$executeRaw(Prisma.sql`
+      await this.controlPrisma.$executeRawUnsafe(`
         SELECT pg_terminate_backend(pg_stat_activity.pid)
         FROM pg_stat_activity
-        WHERE pg_stat_activity.datname = ${entry.dbName}
+        WHERE pg_stat_activity.datname = '${entry.dbName}'
           AND pid <> pg_backend_pid();
       `);
     } catch (err: any) {

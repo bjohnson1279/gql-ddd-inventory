@@ -24,7 +24,6 @@ describe('TenantProvisioner', () => {
     jest.clearAllMocks();
 
     mockPrisma = {
-      $executeRaw: jest.fn().mockResolvedValue(undefined),
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     };
@@ -110,7 +109,9 @@ describe('TenantProvisioner', () => {
       await provisioner.deprovisionTenant('old-tenant');
 
       // Should attempt to terminate active connections to the tenant database
-      expect(mockPrisma.$executeRaw.mock.calls[0][0].strings.join('')).toContain('pg_terminate_backend');
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        expect.stringContaining('pg_terminate_backend')
+      );
 
       expect(mockRegistry.deprovisionTenant).toHaveBeenCalledWith('old-tenant');
     });
