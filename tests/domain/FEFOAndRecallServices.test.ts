@@ -144,6 +144,128 @@ describe('FEFO picking and Product Recall Domain Services', () => {
       });
     });
 
+
+    it('should throw error if variant is not found in product', async () => {
+      const suggester = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+
+      const product = new Product(new ProductId('prod-2'), 'Mock Product');
+      const mockSku = new Sku('MOCK-SKU');
+      await productRepo.save(product);
+
+      jest.spyOn(productRepo, 'findBySku').mockResolvedValue(product);
+
+      await expect(suggester.suggestFefoPicking(mockSku, 5)).rejects.toThrow('Product variant with SKU MOCK-SKU not found.');
+    });
+
+    it('should ignore ledger entries without lot numbers when grouping balances', async () => {
+      const dateSoon = new Date('2026-06-30');
+      const layer = new InventoryCostLayer(new InventoryCostLayerId('c1'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-1', dateSoon));
+      await costLayerRepo.save(layer);
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l1'), tenantId, new LocationId('LOC-A'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-1' }
+      ));
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l2'), tenantId, new LocationId('LOC-A'), variantId, 5, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, {}
+      ));
+
+      const suggester = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+
+      const suggestions = await suggester.suggestFefoPicking(sku, 10);
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].quantity).toBe(10);
+
+      await expect(suggester.suggestFefoPicking(sku, 15)).rejects.toThrow('Insufficient lot-controlled inventory available to pick 15 units for SKU SKU-LOT (Missing: 5).');
+    });
+
+    it('should ignore lots that have no balance across locations or where location balance <= 0', async () => {
+      const dateSoon = new Date('2026-06-30');
+      const dateFar = new Date('2026-12-31');
+
+      const layer1 = new InventoryCostLayer(new InventoryCostLayerId('c1'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-ZERO', dateSoon));
+      const layer2 = new InventoryCostLayer(new InventoryCostLayerId('c2'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-VALID', dateFar));
+      await costLayerRepo.save(layer1);
+      await costLayerRepo.save(layer2);
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l1'), tenantId, new LocationId('LOC-A'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-ZERO' }
+      ));
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l2'), tenantId, new LocationId('LOC-A'), variantId, -10, ReasonCode.Sale, actorId, new Date(), undefined, { lotNumber: 'LOT-ZERO' }
+      ));
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l3'), tenantId, new LocationId('LOC-B'), variantId, 5, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-VALID' }
+      ));
+
+      const suggester = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+      const suggestions = await suggester.suggestFefoPicking(sku, 5);
+
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].lotNumber).toBe('LOT-VALID');
+    });
+
+    it('should stop processing lots when remainingToPick reaches 0 inside the layer loop', async () => {
+      const dateSoon = new Date('2026-06-30');
+      const dateFar = new Date('2026-12-31');
+
+      const layer1 = new InventoryCostLayer(new InventoryCostLayerId('c1'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-SOON', dateSoon));
+      const layer2 = new InventoryCostLayer(new InventoryCostLayerId('c2'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-FAR', dateFar));
+      await costLayerRepo.save(layer1);
+      await costLayerRepo.save(layer2);
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l1'), tenantId, new LocationId('LOC-A'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-SOON' }
+      ));
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l2'), tenantId, new LocationId('LOC-B'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-FAR' }
+      ));
+
+      const suggester = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+      const suggestions = await suggester.suggestFefoPicking(sku, 5);
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].lotNumber).toBe('LOT-SOON');
+    });
+
+    it('should break location loop if remainingToPick reaches 0 inside the layer loop', async () => {
+      const dateSoon = new Date('2026-06-30');
+
+      const layer1 = new InventoryCostLayer(new InventoryCostLayerId('c1'), variantId, 20, 100, new Date(), undefined, new Lot('LOT-SOON', dateSoon));
+      await costLayerRepo.save(layer1);
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l1'), tenantId, new LocationId('LOC-A'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-SOON' }
+      ));
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l2'), tenantId, new LocationId('LOC-B'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-SOON' }
+      ));
+
+      const suggester = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+      const suggestions = await suggester.suggestFefoPicking(sku, 10);
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].quantity).toBe(10);
+    });
+
+    it('should continue to next lot layer if no balance is found for current layer lot', async () => {
+      const dateSoon = new Date('2026-06-30');
+      const dateFar = new Date('2026-12-31');
+
+      const layer1 = new InventoryCostLayer(new InventoryCostLayerId('c1'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-NO-BALANCE', dateSoon));
+      const layer2 = new InventoryCostLayer(new InventoryCostLayerId('c2'), variantId, 10, 100, new Date(), undefined, new Lot('LOT-HAS-BALANCE', dateFar));
+      await costLayerRepo.save(layer1);
+      await costLayerRepo.save(layer2);
+
+      await ledgerRepo.append(new LedgerEntry(
+        new LedgerEntryId('l1'), tenantId, new LocationId('LOC-B'), variantId, 10, ReasonCode.PurchaseReceipt, actorId, new Date(), undefined, { lotNumber: 'LOT-HAS-BALANCE' }
+      ));
+
+      const suggester = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+      const suggestions = await suggester.suggestFefoPicking(sku, 5);
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].lotNumber).toBe('LOT-HAS-BALANCE');
+    });
+
     it('should throw error when insufficient stock is available', async () => {
       const dateSoon = new Date('2026-06-30');
       const layer = new InventoryCostLayer(new InventoryCostLayerId('c1'), variantId, 5, 100, new Date(), undefined, new Lot('LOT-1', dateSoon));
