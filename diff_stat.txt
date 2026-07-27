@@ -1,0 +1,34 @@
+ .jules/sentinel.md                                 |   14 +-
+ benchmark.ts                                       |   83 --
+ benchmark_test.ts                                  |   93 --
+ docker-compose.yml                                 |   27 +-
+ .../db/backups/daily/inventory_db-20260709.sql.gz  |  Bin 0 -> 9962 bytes
+ .../db/backups/daily/inventory_db-20260715.sql.gz  |  Bin 0 -> 10370 bytes
+ .../db/backups/daily/inventory_db-20260726.sql.gz  |  Bin 10713 -> 0 bytes
+ infra/db/backups/daily/inventory_db-latest.sql.gz  |    2 +-
+ .../last/inventory_db-20260722-000002.sql.gz       |  Bin 0 -> 10709 bytes
+ .../last/inventory_db-20260726-000000.sql.gz       |  Bin 10713 -> 0 bytes
+ infra/db/backups/last/inventory_db-latest.sql.gz   |    2 +-
+ .../db/backups/monthly/inventory_db-202607.sql.gz  |  Bin 10713 -> 10709 bytes
+ infra/db/backups/weekly/inventory_db-202630.sql.gz |  Bin 10713 -> 10709 bytes
+ jest.config.js                                     |    3 -
+ package-lock.json                                  |  155 ---
+ pnpm-lock.yaml                                     | 1131 --------------------
+ revert.js                                          |   74 --
+ src/gateway/index.ts                               |  107 --
+ src/index.ts                                       |    2 +-
+ src/infrastructure/graphql/resolvers.ts            |    6 +-
+ .../persistence/PostgresInventoryRepository.ts     |  104 +-
+ .../persistence/TenantProvisioner.ts               |    6 +-
+ src/infrastructure/persistence/TenantRegistry.ts   |   34 +-
+ src/infrastructure/tenant/TenantDatabaseFactory.ts |   15 +-
+ src/subgraphs/accounting/index.ts                  |  178 ---
+ src/subgraphs/catalog/index.ts                     |  240 -----
+ src/subgraphs/inventory/index.ts                   |   10 +-
+ tests/application/useCases/ManageShipping.test.ts  |    1 -
+ tests/domain/entities/DemandForecast.test.ts       |   73 +-
+ .../entities/ProductUomConfiguration.test.ts       |  153 ---
+ .../persistence/TenantProvisioner.test.ts          |    5 +-
+ .../persistence/TenantRegistry.test.ts             |   20 +-
+ tests/section6.test.ts                             |  149 ---
+ 33 files changed, 164 insertions(+), 2523 deletions(-)
