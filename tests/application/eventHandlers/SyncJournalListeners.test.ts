@@ -110,4 +110,24 @@ describe('SyncJournalListeners', () => {
     expect(xeroMappingsMock.saveMapping).not.toHaveBeenCalled();
     expect(quickbooksMappingsMock.saveMapping).not.toHaveBeenCalled();
   });
+
+  it('should handle Xero sync errors without crashing', async () => {
+    // Setup to make NetSuite and QuickBooks succeed or skip
+    netsuiteMappingsMock.findNetSuiteJournalId.mockResolvedValue('ns-existing');
+    quickbooksMappingsMock.findQuickBooksJournalId.mockResolvedValue('qb-existing');
+
+    // Setup Xero to fail
+    xeroMappingsMock.findXeroJournalId.mockResolvedValue(null);
+    const xeroError = new Error('Xero API Timeout');
+    xeroSyncMock.createManualJournal.mockRejectedValue(xeroError);
+
+    const event = new JournalEntryCreatedEvent('journal-xero-err', 'tenant-1', 'Test', '2023-01-01', 'sync', null, []);
+
+    // Execution - ensure it resolves (does not crash)
+    await expect(listener.handle(event)).resolves.toBeUndefined();
+
+    // Verification
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[Xero Sync] Failed for journal journal-xero-err:', xeroError);
+    expect(xeroMappingsMock.saveMapping).not.toHaveBeenCalled();
+  });
 });
