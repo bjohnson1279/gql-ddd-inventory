@@ -129,5 +129,32 @@ describe('SyncJournalListeners', () => {
     // Verification
     expect(consoleErrorSpy).toHaveBeenCalledWith('[Xero Sync] Failed for journal journal-xero-err:', xeroError);
     expect(xeroMappingsMock.saveMapping).not.toHaveBeenCalled();
+  it('should handle NetSuite sync error without crashing other syncs', async () => {
+    // NetSuite fails
+    netsuiteMappingsMock.findNetSuiteJournalId.mockResolvedValue(null);
+    const nsError = new Error('NetSuite API Down');
+    netsuiteSyncMock.createJournalEntry.mockRejectedValue(nsError);
+
+    // Xero succeeds
+    xeroSyncMock.createManualJournal.mockResolvedValue('xero-123');
+    xeroMappingsMock.saveMapping.mockResolvedValue(undefined);
+
+    // QuickBooks succeeds
+    quickbooksMappingsMock.findQuickBooksJournalId.mockResolvedValue(null);
+    quickbooksSyncMock.createJournalEntry.mockResolvedValue('qb-123');
+    quickbooksMappingsMock.saveMapping.mockResolvedValue(undefined);
+
+    const event = new JournalEntryCreatedEvent('journal-error-ns', 'tenant-1', 'Test', '2023-01-01', 'sync', null, []);
+    await listener.handle(event);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[NetSuite Sync] Failed for journal journal-error-ns:', nsError);
+    expect(netsuiteMappingsMock.saveMapping).not.toHaveBeenCalled();
+
+    // Verify Xero and QuickBooks still ran
+    expect(xeroSyncMock.createManualJournal).toHaveBeenCalled();
+    expect(xeroMappingsMock.saveMapping).toHaveBeenCalledWith('journal-error-ns', 'xero-123');
+
+    expect(quickbooksSyncMock.createJournalEntry).toHaveBeenCalled();
+    expect(quickbooksMappingsMock.saveMapping).toHaveBeenCalledWith('journal-error-ns', 'qb-123');
   });
 });
