@@ -45,3 +45,7 @@
 ## 2026-07-31 - N+1 in DemandPlanningReport via Promise.all map
 **Learning:** Calling `Promise.all(inventoryItems.map(async (item) => ...))` where the inner function executes multiple sequential DB queries (e.g. `productRepo.findBySku` and `ledgerRepo.entriesFor`) can still cause an N+1 performance bottleneck by emitting hundreds or thousands of queries concurrently, overloading the database connection pool.
 **Action:** Extract repetitive queries out of `Promise.all` loops using batched fetching (`findBySkus`, `entriesForBatch`), map the results in memory, and pass the pre-fetched data into the iteration callback.
+
+## 2024-05-18 - Avoid Promise.all() for Prisma batch inserts
+**Learning:** Using `Promise.all` with `prisma.<model>.create` inside loops can overload the connection pool and result in N+1 database queries.
+**Action:** Always utilize Prisma's `createMany` API for batch inserts when multiple records need to be created simultaneously, drastically reducing query overhead.

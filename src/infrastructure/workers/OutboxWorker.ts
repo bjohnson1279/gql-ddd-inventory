@@ -137,19 +137,17 @@ export class OutboxWorker {
           });
 
           if (subscriptions.length > 0) {
-            await Promise.all(subscriptions.map((sub: any) =>
-              prisma.webhookDelivery.create({
-                data: {
-                  tenantId: eventTenantId,
-                  subscriptionId: sub.id,
-                  eventType: event.eventType,
-                  payload: event.payload,
-                  status: 'Pending',
-                  attempts: 0,
-                  nextAttemptAt: new Date()
-                }
-              })
-            ));
+            await prisma.webhookDelivery.createMany({
+              data: subscriptions.map((sub: any) => ({
+                tenantId: eventTenantId,
+                subscriptionId: sub.id,
+                eventType: event.eventType,
+                payload: event.payload,
+                status: 'Pending',
+                attempts: 0,
+                nextAttemptAt: new Date()
+              }))
+            });
           }
 
           processedIds.push(event.id);
