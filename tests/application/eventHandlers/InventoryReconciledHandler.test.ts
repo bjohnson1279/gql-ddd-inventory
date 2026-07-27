@@ -61,4 +61,17 @@ describe('InventoryReconciledHandler', () => {
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith('[InventoryReconciledHandler] Failed to save/publish notification:', error);
   });
+
+  it('should log an error if saving notifications fails', async () => {
+    (prisma.ledgerEntry.findFirst as jest.Mock).mockResolvedValue({ tenantId: 'tenant-123' });
+    const error = new Error('Notification creation failed');
+    (prisma.notification.create as jest.Mock).mockRejectedValue(error);
+
+    const handler = new InventoryReconciledHandler();
+    const event = new InventoryReconciledEvent('SKU-1', 'LOC-1', 10, 8, -2);
+    await handler.handle(event);
+
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[InventoryReconciledHandler] Failed to save/publish notification:', error);
+  });
 });
