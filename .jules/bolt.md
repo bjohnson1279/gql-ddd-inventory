@@ -41,3 +41,7 @@
 
 **Learning:** Using sequential `for...of` loops with `await` in batch database operations creates an N+1 query problem inside the Prisma interactive transaction, severely slowing down large batch saves.
 **Action:** Always wrap independent loop iterations inside batch methods with `Promise.all` mapped over the input array inside database transactions instead of sequential awaits (ensuring items are correctly deduplicated beforehand to avoid race conditions/deadlocks).
+
+## 2026-07-31 - N+1 in DemandPlanningReport via Promise.all map
+**Learning:** Calling `Promise.all(inventoryItems.map(async (item) => ...))` where the inner function executes multiple sequential DB queries (e.g. `productRepo.findBySku` and `ledgerRepo.entriesFor`) can still cause an N+1 performance bottleneck by emitting hundreds or thousands of queries concurrently, overloading the database connection pool.
+**Action:** Extract repetitive queries out of `Promise.all` loops using batched fetching (`findBySkus`, `entriesForBatch`), map the results in memory, and pass the pre-fetched data into the iteration callback.
