@@ -48,12 +48,16 @@ export class DemandForecaster {
     private readonly demandForecastRepo: IDemandForecastRepository
   ) {}
 
-  async calculateSalesVelocity(sku: Sku, locationId: LocationId, preFetchedStock?: number): Promise<SalesVelocityResult> {
-    const product = await this.productRepo.findBySku(sku);
-    if (!product) {
-      throw new Error(`Product not found for SKU: ${sku.value}`);
+  async calculateSalesVelocity(sku: Sku, locationId: LocationId, preFetchedStock?: number, preFetchedVariant?: any, preFetchedEntries?: any[]): Promise<SalesVelocityResult> {
+    let variant = preFetchedVariant;
+    if (!variant) {
+      const product = await this.productRepo.findBySku(sku);
+      if (!product) {
+        throw new Error(`Product not found for SKU: ${sku.value}`);
+      }
+      variant = product.findVariantBySku(sku);
     }
-    const variant = product.findVariantBySku(sku);
+
     if (!variant) {
       throw new Error(`Variant not found for SKU: ${sku.value}`);
     }
@@ -63,7 +67,7 @@ export class DemandForecaster {
     const thirtyDaysAgoTime = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const sevenDaysAgoTime = now.getTime() - 7 * 24 * 60 * 60 * 1000;
 
-    const entries = await this.ledgerRepo.entriesFor(variant.id, locationId);
+    const entries = preFetchedEntries || await this.ledgerRepo.entriesFor(variant.id, locationId);
 
     const history90d = entries.filter((e) =>
       e.occurredAt >= ninetyDaysAgo &&
@@ -147,11 +151,31 @@ export class DemandForecaster {
     const policies = await this.replenishmentRuleRepo.findAllByLocation(locationId);
     const policyMap = new Map(policies.map((p) => [p.sku.value, p]));
 
+    // Pre-fetch products
+    const uniqueSkus = Array.from(new Set(inventoryItems.map(item => item.sku.value)));
+    const products = await this.productRepo.findBySkus(uniqueSkus.map(s => new Sku(s)));
+    const variantMap = new Map<string, any>();
+    for (const product of products) {
+      for (const variant of product.variants) {
+        variantMap.set(variant.sku.value, variant);
+      }
+    }
+
+    // Pre-fetch ledger entries
+    const variantIds = Array.from(variantMap.values()).map(v => v.id);
+    const ledgerEntriesBatch = await this.ledgerRepo.entriesForBatch(variantIds, locationId);
+
     const reportItemsPromises = inventoryItems.map(async (item) => {
       const skuStr = item.sku.value;
       const sku = new Sku(skuStr);
 
-      const velocity = await this.calculateSalesVelocity(sku, locationId, item.quantity.value);
+      const variant = variantMap.get(skuStr);
+      let entries: any[] = [];
+      if (variant) {
+        entries = ledgerEntriesBatch.get(variant.id.value) || [];
+      }
+
+      const velocity = await this.calculateSalesVelocity(sku, locationId, item.quantity.value, variant, entries);
       const policy = policyMap.get(skuStr);
 
       const reorderPoint = policy ? policy.reorderPoint : 10;

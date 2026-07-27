@@ -48,6 +48,23 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
     );
   }
 
+  async entriesForBatch(variantIds: ProductVariantId[], locationId?: LocationId): Promise<Map<string, LedgerEntry[]>> {
+    const variantIdStrs = new Set(variantIds.map(id => id.value));
+    const map = new Map<string, LedgerEntry[]>();
+
+    for (const e of this.entries) {
+      if (
+        variantIdStrs.has(e.variantId.value) &&
+        (!locationId || e.locationId.equals(locationId))
+      ) {
+        const list = map.get(e.variantId.value) || [];
+        list.push(e);
+        map.set(e.variantId.value, list);
+      }
+    }
+    return map;
+  }
+
   async findRecallEntries(lotNumber: string): Promise<LedgerEntry[]> {
     return this.entries.filter((e) => e.metadata?.lotNumber === lotNumber);
   }
