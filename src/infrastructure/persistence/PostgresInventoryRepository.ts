@@ -139,7 +139,20 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
     await this.prisma.$transaction(async (tx) => {
       const results = [];
+
+      // Deduplicate items to prevent concurrency errors if the same item is passed multiple times in the batch
+      const uniqueItems = new Map<string, InventoryItem>();
+      const allEvents: any[] = [];
+
       for (const item of items) {
+        // Collect events from all passed items, even if we deduplicate the save
+        allEvents.push(...item.pullDomainEvents());
+        uniqueItems.set(item.id, item);
+      }
+
+      const deduplicatedItems = Array.from(uniqueItems.values());
+
+      await Promise.all(deduplicatedItems.map(async (item) => {
         let count = 0;
         if (!existingIds.has(item.id)) {
           await tx.inventoryItem.create({
@@ -173,21 +186,25 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         if (count === 0) {
           throw new ConcurrencyError(item.sku.value, item.locationId.value);
         }
+      }));
 
-        const events = item.pullDomainEvents();
-        for (const event of events) {
-          await tx.outboxEvent.create({
-            data: {
+      if (allEvents.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < allEvents.length; i += BATCH_SIZE) {
+          const chunk = allEvents.slice(i, i + BATCH_SIZE);
+          await tx.outboxEvent.createMany({
+            data: chunk.map(event => ({
               eventType: event.constructor.name,
               payload: JSON.stringify({
                 ...event,
                 traceId: (event as any).traceId || getTraceId()
               }),
               status: 'Pending'
-            }
+            }))
           });
         }
       }
+
     });
   }
 }
