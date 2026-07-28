@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 export const rlsTables = [
   "ledger_entries",
@@ -25,21 +25,21 @@ export async function enableRowLevelSecurity(prisma: PrismaClient): Promise<void
 
   for (const table of rlsTables) {
     try {
-      if (!ALLOWED_TABLES.has(table) || !/^[a-zA-Z0-9_]+$/.test(table)) {
+      if (!ALLOWED_TABLES.has(table) || !/^[a-z_]+$/i.test(table)) {
         throw new Error(`Invalid table name: ${table}`);
       }
 
       // 1. Enable RLS
-      await prisma.$executeRaw`ALTER TABLE ${Prisma.raw(`"${table}"`)} ENABLE ROW LEVEL SECURITY;`;
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`);
       // 2. Force RLS for table owners (Prisma connections)
-      await prisma.$executeRaw`ALTER TABLE ${Prisma.raw(`"${table}"`)} FORCE ROW LEVEL SECURITY;`;
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY;`);
       // 3. Drop existing policy if it exists
-      await prisma.$executeRaw`DROP POLICY IF EXISTS tenant_isolation ON ${Prisma.raw(`"${table}"`)};`;
+      await prisma.$executeRawUnsafe(`DROP POLICY IF EXISTS tenant_isolation ON "${table}";`);
       // 4. Create policy to filter by current tenant ID
-      await prisma.$executeRaw`
-        CREATE POLICY tenant_isolation ON ${Prisma.raw(`"${table}"`)}
+      await prisma.$executeRawUnsafe(`
+        CREATE POLICY tenant_isolation ON "${table}"
         USING ("tenant_id" = current_setting('app.current_tenant_id', true));
-      `;
+      `);
       console.log(`Successfully enabled RLS on table "${table}".`);
     } catch (err: any) {
       console.log(`[RLS Setup Warning] Could not enable RLS on table "${table}":`, err.message);
