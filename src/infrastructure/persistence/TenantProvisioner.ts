@@ -144,6 +144,7 @@ export class TenantProvisioner {
     }
     const connectionString = process.env.DATABASE_URL ||
       `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME || 'inventory_db'}`;
+      `postgresql://${process.env.DB_USER || 'inventory_user'}:${process.env.DB_PASSWORD || 'inventory_password'}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME || 'inventory_db'}`;
     return new Pool({ connectionString, max: 2 });
   }
 
