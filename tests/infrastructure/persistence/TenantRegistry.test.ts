@@ -5,7 +5,6 @@ describe('TenantRegistry', () => {
   let registry: TenantRegistry;
 
   beforeEach(() => {
-    process.env.DB_PASSWORD = 'test_password';
     mockPrisma = {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
       $executeRaw: jest.fn().mockResolvedValue(undefined),

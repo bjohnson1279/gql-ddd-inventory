@@ -222,7 +222,7 @@ async function start() {
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          auth = jwt.verify(token, JWT_SECRET) as any;
+          auth = jwt.verify(token, JWT_SECRET as string) as any;
         } catch (err) {}
       }
       const tenantId = auth?.tenantId;
