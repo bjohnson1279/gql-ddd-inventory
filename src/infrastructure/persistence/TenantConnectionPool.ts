@@ -141,9 +141,10 @@ export class TenantConnectionPool {
       this.evictionTimer = null;
     }
 
-    for (const [tenantId, entry] of this.cache.entries()) {
-      await this.disconnectEntry(entry);
-    }
+    const disconnectPromises = Array.from(this.cache.values()).map(entry =>
+      this.disconnectEntry(entry)
+    );
+    await Promise.all(disconnectPromises);
     this.cache.clear();
     console.log('[TenantConnectionPool] All connections closed.');
   }
@@ -210,9 +211,7 @@ export class TenantConnectionPool {
         }
       }
 
-      for (const key of toEvict) {
-        await this.evict(key);
-      }
+      await Promise.all(toEvict.map(key => this.evict(key)));
 
       if (toEvict.length > 0) {
         console.log(`[TenantConnectionPool] Evicted ${toEvict.length} idle connections (${this.cache.size} remaining).`);
