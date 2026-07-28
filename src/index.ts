@@ -210,7 +210,7 @@ async function startApolloServer() {
     console.log('[Startup] Multi-tenant mode: DATABASE (isolated databases per tenant)');
     try {
       // Ensure the tenant_registry table exists in the control database
-      await globalPrisma.$executeRawUnsafe(`
+      await globalPrisma.$executeRaw`
         CREATE TABLE IF NOT EXISTS tenant_registry (
           tenant_id        TEXT PRIMARY KEY,
           db_host          TEXT NOT NULL DEFAULT '127.0.0.1',
@@ -222,7 +222,7 @@ async function startApolloServer() {
           provisioned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           migrated_version TEXT NOT NULL DEFAULT '0'
         );
-      `);
+      `;
 
       // Warm the connection pool for active tenants
       const pool = getTenantConnectionPool();
