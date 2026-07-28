@@ -11,7 +11,6 @@ describe('TenantRegistry', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
-  });
 
   beforeEach(() => {
     mockPrisma = {
@@ -82,7 +81,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_acme_corp',
         db_user: 'inventory_user',
-        db_password: 'test_password',
+        db_password: 'inventory_password',
         status: 'ACTIVE',
         provisioned_at: new Date(),
         migrated_version: '1',
@@ -99,7 +98,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_old_tenant',
         db_user: 'inventory_user',
-        db_password: 'test_password',
+        db_password: 'inventory_password',
         status: 'DEPROVISIONED',
         provisioned_at: new Date(),
         migrated_version: '1',
@@ -132,7 +131,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_acme_corp',
         db_user: 'inventory_user',
-        db_password: 'test_password',
+        db_password: 'inventory_password',
         status: 'ACTIVE',
         provisioned_at: new Date('2026-01-01'),
         migrated_version: '3',
