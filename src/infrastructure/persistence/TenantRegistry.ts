@@ -51,10 +51,6 @@ export class TenantRegistry {
     const password = dbPassword || process.env.DB_PASSWORD;
     if (!user || !password) {
       throw new Error('Database credentials must be provided either via parameters or DB_USER and DB_PASSWORD environment variables.');
-    const user = dbUser || process.env.DB_USER || 'inventory_user';
-
-    if (!password) {
-      throw new Error('Database password must be provided via dbPassword parameter or DB_PASSWORD environment variable.');
     }
 
     const existing = await this.lookupTenant(tenantId);

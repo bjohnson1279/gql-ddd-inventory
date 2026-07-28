@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS tenant_registry (
   db_port          INTEGER NOT NULL DEFAULT 5433,
   db_name          TEXT NOT NULL,
   db_user          TEXT NOT NULL,
-  db_password      TEXT NOT NULL,
+  db_password      TEXT NOT NULL DEFAULT 'inventory_password',
   status           TEXT NOT NULL DEFAULT 'PROVISIONING'
                     CHECK (status IN ('PROVISIONING', 'ACTIVE', 'MIGRATING', 'DEPROVISIONED')),
   provisioned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),

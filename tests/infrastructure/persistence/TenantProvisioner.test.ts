@@ -19,9 +19,20 @@ describe('TenantProvisioner', () => {
   let mockPrisma: any;
   let mockRegistry: jest.Mocked<TenantRegistry>;
   let provisioner: TenantProvisioner;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeAll(() => {
+    originalEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.DB_USER = 'test_user';
+    process.env.DB_PASSWORD = 'test_password';
     process.env.DB_PASSWORD = 'test_password';
 
     mockPrisma = {

@@ -144,10 +144,6 @@ export class TenantProvisioner {
     }
     const connectionString = process.env.DATABASE_URL ||
       `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME || 'inventory_db'}`;
-    if (!process.env.DATABASE_URL && !process.env.DB_PASSWORD) {
-      throw new Error('Database password must be provided via DATABASE_URL or DB_PASSWORD environment variable.');
-    }
-      `postgresql://${process.env.DB_USER || 'inventory_user'}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME || 'inventory_db'}`;
     return new Pool({ connectionString, max: 2 });
   }
 
