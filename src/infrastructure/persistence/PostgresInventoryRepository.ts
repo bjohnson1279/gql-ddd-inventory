@@ -152,46 +152,38 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
       const deduplicatedItems = Array.from(uniqueItems.values());
 
-      const itemsToCreate = [];
-      const itemsToUpdate = [];
-
-      for (const item of deduplicatedItems) {
+      await Promise.all(deduplicatedItems.map(async (item) => {
+        let count = 0;
         if (!existingIds.has(item.id)) {
-          itemsToCreate.push({
-            id: item.id,
-            sku: item.sku.value,
-            locationId: item.locationId.value,
-            quantity: item.quantity.value,
-            allocated: item.allocated.value,
-            inTransit: item.inTransit.value,
-            version: item.version
+          await tx.inventoryItem.create({
+            data: {
+              id: item.id,
+              sku: item.sku.value,
+              locationId: item.locationId.value,
+              quantity: item.quantity.value,
+              allocated: item.allocated.value,
+              inTransit: item.inTransit.value,
+              version: item.version
+            }
           });
+          count = 1;
         } else {
-          itemsToUpdate.push(item);
+          const updateResult = await tx.inventoryItem.updateMany({
+            where: {
+              id: item.id,
+              version: item.version - 1
+            },
+            data: {
+              quantity: item.quantity.value,
+              allocated: item.allocated.value,
+              inTransit: item.inTransit.value,
+              version: item.version
+            }
+          });
+          count = updateResult.count;
         }
-      }
 
-      if (itemsToCreate.length > 0) {
-        await tx.inventoryItem.createMany({
-          data: itemsToCreate
-        });
-      }
-
-      await Promise.all(itemsToUpdate.map(async (item) => {
-        const updateResult = await tx.inventoryItem.updateMany({
-          where: {
-            id: item.id,
-            version: item.version - 1
-          },
-          data: {
-            quantity: item.quantity.value,
-            allocated: item.allocated.value,
-            inTransit: item.inTransit.value,
-            version: item.version
-          }
-        });
-
-        if (updateResult.count === 0) {
+        if (count === 0) {
           throw new ConcurrencyError(item.sku.value, item.locationId.value);
         }
       }));
