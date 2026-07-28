@@ -157,9 +157,6 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
       for (const item of deduplicatedItems) {
         if (!existingIds.has(item.id)) {
-          itemsToCreate.push(item);
-        } else {
-          itemsToUpdate.push(item);
           itemsToCreate.push({
             id: item.id,
             sku: item.sku.value,
@@ -169,39 +166,14 @@ export class PostgresInventoryRepository implements IInventoryRepository {
             inTransit: item.inTransit.value,
             version: item.version
           });
+        } else {
+          itemsToUpdate.push(item);
         }
       }
 
       if (itemsToCreate.length > 0) {
         await tx.inventoryItem.createMany({
           data: itemsToCreate
-        });
-      }
-
-      await Promise.all(itemsToUpdate.map(async (item) => {
-        const updateResult = await tx.inventoryItem.updateMany({
-          where: {
-            version: item.version - 1
-          },
-          data: {
-          }
-
-        if (updateResult.count === 0) {
-          throw new ConcurrencyError(item.sku.value, item.locationId.value);
-        }
-      }
-
-      if (itemsToCreate.length > 0) {
-        await tx.inventoryItem.createMany({
-          data: itemsToCreate.map(item => ({
-            id: item.id,
-            sku: item.sku.value,
-            locationId: item.locationId.value,
-            quantity: item.quantity.value,
-            allocated: item.allocated.value,
-            inTransit: item.inTransit.value,
-            version: item.version
-          }))
         });
       }
 

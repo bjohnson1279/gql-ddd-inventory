@@ -7,7 +7,7 @@ import { globalPrisma, getTenantPrisma } from '../../infrastructure/persistence/
 import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET as string;
 if (!JWT_SECRET) {
   throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
 }
@@ -222,7 +222,7 @@ async function start() {
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          auth = jwt.verify(token, JWT_SECRET as string) as any;
+          auth = jwt.verify(token, JWT_SECRET) as any;
         } catch (err) {}
       }
       const tenantId = auth?.tenantId;
