@@ -40,12 +40,10 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
 
   async findBySkuAndLocationBatch(pairs: { sku: string; locationId: string }[]): Promise<InventoryItem[]> {
     const results: InventoryItem[] = [];
-    const allItems = Array.from(this.items.values());
-    for (const pair of pairs) {
-      const item = allItems.find(
-        i => i.sku.value === pair.sku && i.locationId.value === pair.locationId
-      );
-      if (item) {
+    const pairKeys = new Set(pairs.map(p => `${p.sku}|${p.locationId}`));
+
+    for (const item of this.items.values()) {
+      if (pairKeys.has(`${item.sku.value}|${item.locationId.value}`)) {
         results.push(this.cloneItem(item));
       }
     }

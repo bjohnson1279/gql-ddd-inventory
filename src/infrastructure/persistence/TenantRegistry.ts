@@ -53,6 +53,7 @@ export class TenantRegistry {
     if (!password) {
       throw new Error('Database password must be provided via dbPassword parameter or DB_PASSWORD environment variable.');
     }
+    const password = dbPassword || process.env.DB_PASSWORD || 'inventory_password';
 
     const existing = await this.lookupTenant(tenantId);
     if (existing && existing.status !== 'DEPROVISIONED') {
