@@ -176,3 +176,8 @@
 **Vulnerability:** Subgraph services (`catalog`, `inventory`, `accounting`) fell back to a hardcoded `dummy_jwt_secret` if `JWT_SECRET` was missing.
 **Learning:** When migrating a monolithic app to a federated graph, shared secrets or configuration variables must be strictly enforced in all entry points (subgraphs) just as they are in the main gateway.
 **Prevention:** Do not use hardcoded fallbacks for cryptographic secrets. Enforce a fail-fast policy (e.g., throw error on startup) if secrets are missing across all application entry points.
+
+## 2026-07-28 - Remove $executeRawUnsafe in src/index.ts
+**Vulnerability:** The application used Prisma's `$executeRawUnsafe` method to create the tenant_registry table during startup. While this specific instance didn't interpolate variables, using Unsafe methods bypasses Prisma's parameterization and allows arbitrary SQL execution if dynamic inputs are ever introduced.
+**Learning:** Using `$executeRawUnsafe` in Prisma is a significant security risk, even for static queries, because it sets a dangerous precedent and invites SQL injection if the query is later modified to include variables.
+**Prevention:** Always strictly use the tagged template literal method `$executeRaw` for raw SQL queries in Prisma to automatically parameterize inputs and prevent SQL injection.
