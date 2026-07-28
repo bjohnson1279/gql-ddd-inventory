@@ -91,17 +91,32 @@ export class TenantConnectionPool {
    */
   async warmPool(): Promise<number> {
     const activeTenants = await this.registry.listTenants('ACTIVE');
+
+    const tenantsToWarm = activeTenants.filter(
+      (tenant) => !this.cache.has(tenant.tenantId)
+    ).slice(0, this.maxSize - this.cache.size);
+
     let warmed = 0;
-    for (const tenant of activeTenants) {
-      if (!this.cache.has(tenant.tenantId) && this.cache.size < this.maxSize) {
+
+    await Promise.all(
+      tenantsToWarm.map(async (tenant) => {
         try {
-          await this.getClient(tenant.tenantId);
-          warmed++;
+          // We bypass getClient() here to avoid duplicate registry lookups,
+          // since listTenants already gave us the TenantRegistryEntry
+          const client = await this.createClient(tenant);
+          if (!this.cache.has(tenant.tenantId) && this.cache.size < this.maxSize) {
+            this.cache.set(tenant.tenantId, client);
+            warmed++;
+          } else {
+            // Disconnect if cache got filled or tenant was added concurrently
+            await this.disconnectEntry(client);
+          }
         } catch (err: any) {
           console.error(`[TenantConnectionPool] Failed to warm tenant "${tenant.tenantId}":`, err.message);
         }
-      }
-    }
+      })
+    );
+
     console.log(`[TenantConnectionPool] Warmed ${warmed} tenant connections (${this.cache.size} total cached).`);
     return warmed;
   }
