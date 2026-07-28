@@ -932,6 +932,11 @@ export const typeDefs = `#graphql
     # Eventual Consistency Audit
     runAudit(tenantId: ID!): AuditSummary!
     resolveAuditDiscrepancy(id: ID!, notes: String!): Boolean!
+
+    # ERP Sync Integration Mutations (QuickBooks, NetSuite, Xero)
+    syncQuickBooksJournal(realmId: String!, accessToken: String!, journalId: String!, sandboxMode: Boolean): String!
+    syncNetSuiteJournal(accountId: String!, token: String!, journalId: String!): String!
+    syncXeroJournal(xeroTenantId: String!, accessToken: String!, journalId: String!): String!
   }
 
   type Subscription {

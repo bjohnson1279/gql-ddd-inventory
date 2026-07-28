@@ -98,6 +98,13 @@ import { PostgresInventoryCostLayerRepository } from '../persistence/PostgresInv
 import { PostgresIntegrationRepository } from '../persistence/PostgresIntegrationRepository';
 import { PostgresExternalMappingRepository } from '../persistence/PostgresExternalMappingRepository';
 import { PostgresProductUomConfigurationRepository } from '../persistence/PostgresProductUomConfigurationRepository';
+import { QuickBooksClient } from '../integrations/QuickBooksClient';
+import { NetSuiteClient } from '../integrations/NetSuiteClient';
+import { XeroClient } from '../integrations/XeroClient';
+
+const quickbooksClient = new QuickBooksClient();
+const netsuiteClient = new NetSuiteClient();
+const xeroClient = new XeroClient();
 import { PostgresJournalRepository } from '../persistence/PostgresJournalRepository';
 import { PostgresKitRepository } from '../persistence/PostgresKitRepository';
 import { Kit } from '../../domain/entities/Kit';
@@ -2199,6 +2206,72 @@ export const resolvers = {
         const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    syncQuickBooksJournal: async (_: any, { realmId, accessToken, journalId, sandboxMode }: { realmId: string; accessToken: string; journalId: string; sandboxMode?: boolean }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'accountant']);
+        const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
+        const found = entries.find(j => j.id === journalId);
+        const payload = {
+          aggregateId: journalId,
+          tenantId: context.auth?.tenantId || 'tenant-1',
+          date: found ? found.createdAt.toISOString() : new Date().toISOString(),
+          description: found ? found.description : `Sync Journal ${journalId}`,
+          lines: found ? found.lines.map(l => ({
+            accountCode: l.accountCode,
+            amountCents: l.amountCents,
+            type: l.type,
+            memo: l.memo
+          })) : []
+        };
+        return await quickbooksClient.publishJournalEntry(realmId, accessToken, payload, sandboxMode);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    syncNetSuiteJournal: async (_: any, { accountId, token, journalId }: { accountId: string; token: string; journalId: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'accountant']);
+        const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
+        const found = entries.find(j => j.id === journalId);
+        const payload = {
+          aggregateId: journalId,
+          tenantId: context.auth?.tenantId || 'tenant-1',
+          date: found ? found.createdAt.toISOString() : new Date().toISOString(),
+          description: found ? found.description : `Sync Journal ${journalId}`,
+          lines: found ? found.lines.map(l => ({
+            accountCode: l.accountCode,
+            amountCents: l.amountCents,
+            type: l.type,
+            memo: l.memo
+          })) : []
+        };
+        return await netsuiteClient.publishJournalEntry(accountId, token, payload);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    syncXeroJournal: async (_: any, { xeroTenantId, accessToken, journalId }: { xeroTenantId: string; accessToken: string; journalId: string }, context: GraphQLContext) => {
+      try {
+        enforceRole(context, ['admin', 'accountant']);
+        const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
+        const found = entries.find(j => j.id === journalId);
+        const payload = {
+          aggregateId: journalId,
+          tenantId: context.auth?.tenantId || 'tenant-1',
+          date: found ? found.createdAt.toISOString() : new Date().toISOString(),
+          description: found ? found.description : `Sync Journal ${journalId}`,
+          lines: found ? found.lines.map(l => ({
+            accountCode: l.accountCode,
+            amountCents: l.amountCents,
+            type: l.type,
+            memo: l.memo
+          })) : []
+        };
+        return await xeroClient.publishJournalEntry(xeroTenantId, accessToken, payload);
       } catch (error: any) {
         throw new Error(error.message);
       }
