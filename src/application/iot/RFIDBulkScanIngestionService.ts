@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 export interface RFIDScanItem {
   epc: string; // Electronic Product Code
