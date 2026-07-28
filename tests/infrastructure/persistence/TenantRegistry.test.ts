@@ -4,8 +4,12 @@ describe('TenantRegistry', () => {
   let mockPrisma: any;
   let registry: TenantRegistry;
 
+  let originalEnvDbPassword: string | undefined;
+
   beforeEach(() => {
+    originalEnvDbPassword = process.env.DB_PASSWORD;
     process.env.DB_PASSWORD = 'test_password';
+
     mockPrisma = {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
       $executeRaw: jest.fn().mockResolvedValue(undefined),
@@ -13,6 +17,14 @@ describe('TenantRegistry', () => {
       $queryRaw: jest.fn().mockResolvedValue([]),
     };
     registry = new TenantRegistry(mockPrisma);
+  });
+
+  afterEach(() => {
+    if (originalEnvDbPassword === undefined) {
+      delete process.env.DB_PASSWORD;
+    } else {
+      process.env.DB_PASSWORD = originalEnvDbPassword;
+    }
   });
 
   describe('registerTenant', () => {
@@ -56,7 +68,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_acme_corp',
         db_user: 'inventory_user',
-        db_password: 'inventory_password',
+        db_password: 'test_password',
         status: 'ACTIVE',
         provisioned_at: new Date(),
         migrated_version: '1',
@@ -73,7 +85,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_old_tenant',
         db_user: 'inventory_user',
-        db_password: 'inventory_password',
+        db_password: 'test_password',
         status: 'DEPROVISIONED',
         provisioned_at: new Date(),
         migrated_version: '1',
@@ -86,6 +98,12 @@ describe('TenantRegistry', () => {
     it('should sanitize special characters in tenant ID for database name', async () => {
       const entry = await registry.registerTenant('tenant@2024!special');
       expect(entry.dbName).toBe('inventory_tenant_tenant_2024_special');
+    });
+
+    it('should throw an error if no database password is provided', async () => {
+      delete process.env.DB_PASSWORD;
+      await expect(registry.registerTenant('tenant-no-password'))
+        .rejects.toThrow('Database password must be provided');
     });
   });
 
@@ -104,7 +122,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_acme_corp',
         db_user: 'inventory_user',
-        db_password: 'inventory_password',
+        db_password: 'test_password',
         status: 'ACTIVE',
         provisioned_at: new Date('2026-01-01'),
         migrated_version: '3',

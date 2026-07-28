@@ -160,6 +160,34 @@ export class PostgresInventoryRepository implements IInventoryRepository {
           itemsToCreate.push(item);
         } else {
           itemsToUpdate.push(item);
+          itemsToCreate.push({
+            id: item.id,
+            sku: item.sku.value,
+            locationId: item.locationId.value,
+            quantity: item.quantity.value,
+            allocated: item.allocated.value,
+            inTransit: item.inTransit.value,
+            version: item.version
+          });
+        }
+      }
+
+      if (itemsToCreate.length > 0) {
+        await tx.inventoryItem.createMany({
+          data: itemsToCreate
+        });
+      }
+
+      await Promise.all(itemsToUpdate.map(async (item) => {
+        const updateResult = await tx.inventoryItem.updateMany({
+          where: {
+            version: item.version - 1
+          },
+          data: {
+          }
+
+        if (updateResult.count === 0) {
+          throw new ConcurrencyError(item.sku.value, item.locationId.value);
         }
       }
 
