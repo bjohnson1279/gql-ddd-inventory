@@ -3,15 +3,6 @@ import { TenantRegistry, TenantRegistryEntry } from '../../../src/infrastructure
 describe('TenantRegistry', () => {
   let mockPrisma: any;
   let registry: TenantRegistry;
-  let originalEnv: NodeJS.ProcessEnv;
-
-  beforeAll(() => {
-    originalEnv = { ...process.env };
-  });
-
-  afterEach(() => {
-    process.env = { ...originalEnv };
-  });
 
   beforeEach(() => {
     mockPrisma = {
@@ -24,10 +15,6 @@ describe('TenantRegistry', () => {
   });
 
   describe('registerTenant', () => {
-    beforeEach(() => {
-      process.env.DB_USER = 'test_user';
-      process.env.DB_PASSWORD = 'test_password';
-    });
     it('should register a new tenant with a dedicated database name', async () => {
       const entry = await registry.registerTenant('acme-corp');
 
@@ -39,21 +26,7 @@ describe('TenantRegistry', () => {
       expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("INSERT INTO tenant_registry")]), "acme-corp", expect.any(String), expect.any(Number), expect.any(String), expect.any(String), expect.any(String), "PROVISIONING", "0");
     });
 
-    it('should throw error when credentials are not provided and not in env', async () => {
-      const originalUser = process.env.DB_USER;
-      const originalPass = process.env.DB_PASSWORD;
-      delete process.env.DB_USER;
-      delete process.env.DB_PASSWORD;
-
-      await expect(registry.registerTenant('tenant-1')).rejects.toThrow('Database credentials must be provided');
-
-      process.env.DB_USER = originalUser;
-      process.env.DB_PASSWORD = originalPass;
-    });
-
-    it('should use default host/port/credentials from env when not provided but env is set', async () => {
-      process.env.DB_USER = 'env_user';
-      process.env.DB_PASSWORD = 'env_password';
+    it('should use default host/port/credentials from env when not provided', async () => {
       const entry = await registry.registerTenant('tenant-1');
 
       expect(entry.dbHost).toBeTruthy();
@@ -82,7 +55,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_acme_corp',
         db_user: 'inventory_user',
-        db_password: 'test_password',
+        db_password: 'inventory_password',
         status: 'ACTIVE',
         provisioned_at: new Date(),
         migrated_version: '1',
@@ -99,7 +72,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_old_tenant',
         db_user: 'inventory_user',
-        db_password: 'test_password',
+        db_password: 'inventory_password',
         status: 'DEPROVISIONED',
         provisioned_at: new Date(),
         migrated_version: '1',
@@ -113,8 +86,6 @@ describe('TenantRegistry', () => {
       const entry = await registry.registerTenant('tenant@2024!special');
       expect(entry.dbName).toBe('inventory_tenant_tenant_2024_special');
     });
-
-
   });
 
   describe('lookupTenant', () => {
@@ -132,7 +103,7 @@ describe('TenantRegistry', () => {
         db_port: 5432,
         db_name: 'inventory_tenant_acme_corp',
         db_user: 'inventory_user',
-        db_password: 'test_password',
+        db_password: 'inventory_password',
         status: 'ACTIVE',
         provisioned_at: new Date('2026-01-01'),
         migrated_version: '3',

@@ -1,4 +1,4 @@
-import { PrismaClient, InventoryItem as PrismaInventoryItem } from '@prisma/client';
+import { PrismaClient, Prisma, InventoryItem as PrismaInventoryItem } from '@prisma/client';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { ConcurrencyError } from '../../domain/exceptions/DomainErrors';
@@ -157,15 +157,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
       for (const item of deduplicatedItems) {
         if (!existingIds.has(item.id)) {
-          itemsToCreate.push({
-            id: item.id,
-            sku: item.sku.value,
-            locationId: item.locationId.value,
-            quantity: item.quantity.value,
-            allocated: item.allocated.value,
-            inTransit: item.inTransit.value,
-            version: item.version
-          });
+          itemsToCreate.push(item);
         } else {
           itemsToUpdate.push(item);
         }
@@ -173,28 +165,44 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
       if (itemsToCreate.length > 0) {
         await tx.inventoryItem.createMany({
-          data: itemsToCreate
-        });
-      }
-
-      await Promise.all(itemsToUpdate.map(async (item) => {
-        const updateResult = await tx.inventoryItem.updateMany({
-          where: {
+          data: itemsToCreate.map(item => ({
             id: item.id,
-            version: item.version - 1
-          },
-          data: {
+            sku: item.sku.value,
+            locationId: item.locationId.value,
             quantity: item.quantity.value,
             allocated: item.allocated.value,
             inTransit: item.inTransit.value,
             version: item.version
-          }
+          }))
         });
+      }
 
-        if (updateResult.count === 0) {
-          throw new ConcurrencyError(item.sku.value, item.locationId.value);
+      if (itemsToUpdate.length > 0) {
+        const updateRows = itemsToUpdate.map(i => Prisma.sql`(${i.id}::text, ${i.quantity.value}::int, ${i.allocated.value}::int, ${i.inTransit.value}::int, ${i.version}::int)`);
+
+        const result = await tx.$queryRaw<{id: string}>`
+          UPDATE inventory_items AS t
+          SET
+            quantity = v.quantity::int,
+            allocated = v.allocated::int,
+            in_transit = v.in_transit::int,
+            version = v.version::int
+          FROM (
+            VALUES
+              ${Prisma.join(updateRows)}
+          ) AS v(id, quantity, allocated, in_transit, version)
+          WHERE t.id = v.id AND t.version = v.version - 1
+          RETURNING t.id;
+        `;
+
+        const updatedIds = new Set(Array.isArray(result) ? result.map(r => r.id) : []);
+
+        for (const item of itemsToUpdate) {
+          if (!updatedIds.has(item.id)) {
+            throw new ConcurrencyError(item.sku.value, item.locationId.value);
+          }
         }
-      }));
+      }
 
       if (allEvents.length > 0) {
         const BATCH_SIZE = 500;
