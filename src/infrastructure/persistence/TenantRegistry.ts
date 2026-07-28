@@ -48,16 +48,7 @@ export class TenantRegistry {
     const port = dbPort || parseInt(process.env.DB_PORT || '5433', 10);
     const name = dbName || `inventory_tenant_${safeName}`;
     const user = dbUser || process.env.DB_USER || 'inventory_user';
-    const password = dbPassword || process.env.DB_PASSWORD;
-
-    if (!password) {
-      throw new Error('Database password must be provided via dbPassword parameter or DB_PASSWORD environment variable.');
-    }
     const password = dbPassword || process.env.DB_PASSWORD || 'inventory_password';
-    const user = dbUser || process.env.DB_USER;
-    if (!user || !password) {
-      throw new Error('Database credentials must be provided either via parameters or DB_USER and DB_PASSWORD environment variables.');
-    }
 
     const existing = await this.lookupTenant(tenantId);
     if (existing && existing.status !== 'DEPROVISIONED') {

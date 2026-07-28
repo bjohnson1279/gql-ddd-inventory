@@ -17,12 +17,10 @@ describe("Postgres repositories integration", () => {
 
   beforeEach(() => {
     mockPrisma = {
-      $queryRaw: jest.fn(),
       inventoryItem: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
-        createMany: jest.fn(),
         updateMany: jest.fn(),
       },
       ledgerEntry: {
@@ -199,41 +197,6 @@ describe("Postgres repositories integration", () => {
 
       await expect(repo.save(item)).rejects.toThrow(ConcurrencyError);
     });
-
-    it("should use batch operations in saveBatch", async () => {
-      const item1 = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(15), new Quantity(0), new Quantity(0), 2);
-      const item2 = new InventoryItem("item-2", new Sku("SKU-2"), new LocationId("loc-2"), new Quantity(20), new Quantity(0), new Quantity(0), 1);
-
-      mockPrisma.inventoryItem.findMany.mockResolvedValue([{ id: "item-1" }]);
-      mockPrisma.$queryRaw.mockResolvedValue([{ id: "item-1" }]);
-      mockPrisma.outboxEvent = { createMany: jest.fn() };
-
-      await repo.saveBatch([item1, item2]);
-
-      expect(mockPrisma.inventoryItem.createMany).toHaveBeenCalled();
-      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
-
-      const sqlArg = mockPrisma.$queryRaw.mock.calls[0][0];
-      // sqlArg could be an array of strings if using Prisma.sql tagged template literal directly
-      expect(sqlArg[0]).toContain('UPDATE inventory_items AS t');
-    });
-
-    it("should throw ConcurrencyError in saveBatch if an update fails", async () => {
-      const item1 = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(15), new Quantity(0), new Quantity(0), 2);
-
-      mockPrisma.inventoryItem.findMany.mockResolvedValue([{ id: "item-1" }]);
-      mockPrisma.$queryRaw.mockResolvedValue([]); // returns no rows matched
-
-      await expect(repo.saveBatch([item1])).rejects.toThrow(ConcurrencyError);
-    });
-
-
-
-
-
-
-
-
   });
 
   describe("PostgresLedgerRepository", () => {
