@@ -3,6 +3,15 @@ import { TenantRegistry, TenantRegistryEntry } from '../../../src/infrastructure
 describe('TenantRegistry', () => {
   let mockPrisma: any;
   let registry: TenantRegistry;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeAll(() => {
+    originalEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
 
   beforeEach(() => {
     mockPrisma = {
@@ -15,7 +24,13 @@ describe('TenantRegistry', () => {
   });
 
   describe('registerTenant', () => {
+    beforeEach(() => {
+      process.env.DB_USER = 'test_user';
+      process.env.DB_PASSWORD = 'test_password';
+    });
     it('should register a new tenant with a dedicated database name', async () => {
+      process.env.DB_USER = 'test_user';
+      process.env.DB_PASSWORD = 'test_password';
       const entry = await registry.registerTenant('acme-corp');
 
       expect(entry.tenantId).toBe('acme-corp');
@@ -26,7 +41,21 @@ describe('TenantRegistry', () => {
       expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(expect.arrayContaining([expect.stringContaining("INSERT INTO tenant_registry")]), "acme-corp", expect.any(String), expect.any(Number), expect.any(String), expect.any(String), expect.any(String), "PROVISIONING", "0");
     });
 
-    it('should use default host/port/credentials from env when not provided', async () => {
+    it('should throw error when credentials are not provided and not in env', async () => {
+      const originalUser = process.env.DB_USER;
+      const originalPass = process.env.DB_PASSWORD;
+      delete process.env.DB_USER;
+      delete process.env.DB_PASSWORD;
+
+      await expect(registry.registerTenant('tenant-1')).rejects.toThrow('Database credentials must be provided');
+
+      process.env.DB_USER = originalUser;
+      process.env.DB_PASSWORD = originalPass;
+    });
+
+    it('should use default host/port/credentials from env when not provided but env is set', async () => {
+      process.env.DB_USER = 'env_user';
+      process.env.DB_PASSWORD = 'env_password';
       const entry = await registry.registerTenant('tenant-1');
 
       expect(entry.dbHost).toBeTruthy();

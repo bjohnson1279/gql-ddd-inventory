@@ -19,6 +19,15 @@ describe('TenantProvisioner', () => {
   let mockPrisma: any;
   let mockRegistry: jest.Mocked<TenantRegistry>;
   let provisioner: TenantProvisioner;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeAll(() => {
+    originalEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -28,6 +37,9 @@ describe('TenantProvisioner', () => {
       $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     };
+
+    process.env.DB_USER = 'test_user';
+    process.env.DB_PASSWORD = 'test_password';
 
     mockRegistry = {
       registerTenant: jest.fn().mockResolvedValue({
