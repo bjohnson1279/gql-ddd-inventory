@@ -1070,4 +1070,63 @@ export const typeDefs = `#graphql
     shopifyDiscrepancies: Int!
     accountingDiscrepancies: Int!
   }
+
+  type LotBatch {
+    id: ID!
+    tenantId: String!
+    lotNumber: String!
+    variantId: ID!
+    status: String!
+    manufacturedDate: String
+    expirationDate: String
+    supplierId: String
+    quarantinedAt: String
+    quarantineReason: String
+    recalledAt: String
+    createdAt: String!
+  }
+
+  type LotOrderImpact {
+    orderId: String!
+    quantity: Int!
+  }
+
+  type LotTraceabilityReport {
+    lotNumber: String!
+    variantId: ID!
+    status: String!
+    quarantineReason: String
+    affectedCostLayersCount: Int!
+    affectedOrders: [LotOrderImpact!]!
+    affectedCustomers: [String!]!
+  }
+
+  type BackorderMatch {
+    orderId: String!
+    requiredQuantity: Int!
+    priority: Int!
+  }
+
+  type CrossDockOpportunity {
+    purchaseOrderId: String!
+    variantId: ID!
+    inboundQuantity: Int!
+    matchingBackorders: [BackorderMatch!]!
+    recommendedCrossDockQuantity: Int!
+    destinationBay: String!
+  }
+
+  extend type Query {
+    getLotTraceability(lotNumber: String!, variantId: ID!): LotTraceabilityReport
+    getLotBatches(variantId: ID): [LotBatch!]!
+  }
+
+  extend type Mutation {
+    quarantineLotBatch(lotNumber: String!, variantId: ID!, reason: String!): LotBatch!
+    recallLotBatch(lotNumber: String!, variantId: ID!, reason: String!): LotBatch!
+    releaseLotBatch(lotNumber: String!, variantId: ID!): LotBatch!
+    evaluateCrossDocking(purchaseOrderId: String!, inboundItemsJson: String!, backordersJson: String!): [CrossDockOpportunity!]!
+    createDropShipOrder(orderId: String!, variantId: ID!, quantity: Int!, supplierId: String!): JSON
+  }
 `;
+

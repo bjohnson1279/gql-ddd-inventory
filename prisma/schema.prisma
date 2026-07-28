@@ -625,3 +625,22 @@ model ComplianceLedgerModel {
   hash           String
   signature      String
 }
+
+model LotBatch {
+  id               String    @id @db.Uuid
+  tenantId         String    @map("tenant_id")
+  lotNumber        String    @map("lot_number")
+  variantId        String    @map("variant_id") @db.Uuid
+  status           String    @default("ACTIVE")
+  manufacturedDate DateTime? @map("manufactured_date") @db.Timestamptz
+  expirationDate   DateTime? @map("expiration_date") @db.Timestamptz
+  supplierId       String?   @map("supplier_id")
+  quarantinedAt    DateTime? @map("quarantined_at") @db.Timestamptz
+  quarantineReason String?   @map("quarantine_reason")
+  recalledAt       DateTime? @map("recalled_at") @db.Timestamptz
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([tenantId, lotNumber, variantId])
+  @@map("lot_batches")
+}
+

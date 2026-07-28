@@ -159,6 +159,10 @@ import { GetPutawayRecommendationsUseCase, OptimizePickingRouteUseCase } from '.
 
 import { FEFOPickingSuggester } from '../../domain/services/FEFOPickingSuggester';
 import { ProductRecallService } from '../../domain/services/ProductRecallService';
+import { LotBatch } from '../../domain/entities/LotBatch';
+import { LotRecallWorkflowService } from '../../domain/services/LotRecallWorkflowService';
+import { CrossDockingEngine } from '../../domain/services/CrossDockingEngine';
+
 import {
   UpdateVariantCostingMethodUseCase,
   ReceiveStockWithLotUseCase,
@@ -613,7 +617,64 @@ export const resolvers = {
     }
   },
   Query: {
+    getLotBatches: async (_: any, { variantId }: { variantId?: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const db = context.prisma || prisma;
+      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const where: any = { tenantId };
+      if (variantId) where.variantId = variantId;
+      const lots = await (db as any).lotBatch.findMany({ where });
+      return lots.map((l: any) => ({
+        id: l.id,
+        tenantId: l.tenantId,
+        lotNumber: l.lotNumber,
+        variantId: l.variantId,
+        status: l.status,
+        manufacturedDate: l.manufacturedDate ? l.manufacturedDate.toISOString() : null,
+        expirationDate: l.expirationDate ? l.expirationDate.toISOString() : null,
+        supplierId: l.supplierId,
+        quarantinedAt: l.quarantinedAt ? l.quarantinedAt.toISOString() : null,
+        quarantineReason: l.quarantineReason,
+        recalledAt: l.recalledAt ? l.recalledAt.toISOString() : null,
+        createdAt: l.createdAt.toISOString()
+      }));
+    },
+    getLotTraceability: async (_: any, { lotNumber, variantId }: { lotNumber: string; variantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const db = context.prisma || prisma;
+      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const lot = await (db as any).lotBatch.findUnique({
+        where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } }
+      });
+      const costLayers = await db.inventoryCostLayer.findMany({
+        where: { variantId, lotNumber }
+      });
+      const shipments = await db.shipment.findMany({
+        where: { sku: variantId }
+      });
+
+      const lotEntity = new LotBatch(
+        lot?.id || crypto.randomUUID(),
+        tenantId,
+        lotNumber,
+        variantId,
+        (lot?.status as any) || 'ACTIVE',
+        lot?.manufacturedDate,
+        lot?.expirationDate,
+        lot?.supplierId,
+        lot?.quarantinedAt,
+        lot?.quarantineReason,
+        lot?.recalledAt
+      );
+
+      return LotRecallWorkflowService.generateTraceabilityReport(
+        lotEntity,
+        costLayers.map((c: any) => ({ id: c.id, consumedQuantity: c.consumedQuantity, initialQuantity: c.initialQuantity })),
+        shipments.map((s: any) => ({ id: s.id, orderId: s.id, customerId: s.destinationAddress, quantity: s.quantity }))
+      );
+    },
     inventoryItems: async (_: any, __: any, context: GraphQLContext) => {
+
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsUseCase.execute();
     },
@@ -1318,7 +1379,114 @@ export const resolvers = {
     },
   },
   Mutation: {
+    quarantineLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator']);
+      const db = context.prisma || prisma;
+      const tenantId = context.auth?.tenantId || 'tenant-1';
+      let lot = await (db as any).lotBatch.findUnique({
+        where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } }
+      });
+      if (!lot) {
+        lot = await (db as any).lotBatch.create({
+          data: {
+            id: crypto.randomUUID(),
+            tenantId,
+            lotNumber,
+            variantId,
+            status: 'QUARANTINED',
+            quarantinedAt: new Date(),
+            quarantineReason: reason
+          }
+        });
+      } else {
+        lot = await (db as any).lotBatch.update({
+          where: { id: lot.id },
+          data: {
+            status: 'QUARANTINED',
+            quarantinedAt: new Date(),
+            quarantineReason: reason
+          }
+        });
+      }
+      return {
+        ...lot,
+        createdAt: lot.createdAt.toISOString(),
+        quarantinedAt: lot.quarantinedAt ? lot.quarantinedAt.toISOString() : null
+      };
+    },
+    recallLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin']);
+      const db = context.prisma || prisma;
+      const tenantId = context.auth?.tenantId || 'tenant-1';
+      let lot = await (db as any).lotBatch.findUnique({
+        where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } }
+      });
+      if (!lot) {
+        lot = await (db as any).lotBatch.create({
+          data: {
+            id: crypto.randomUUID(),
+            tenantId,
+            lotNumber,
+            variantId,
+            status: 'RECALLED',
+            recalledAt: new Date(),
+            quarantineReason: reason
+          }
+        });
+      } else {
+        lot = await (db as any).lotBatch.update({
+          where: { id: lot.id },
+          data: {
+            status: 'RECALLED',
+            recalledAt: new Date(),
+            quarantineReason: reason
+          }
+        });
+      }
+      return {
+        ...lot,
+        createdAt: lot.createdAt.toISOString(),
+        recalledAt: lot.recalledAt ? lot.recalledAt.toISOString() : null
+      };
+    },
+    releaseLotBatch: async (_: any, { lotNumber, variantId }: { lotNumber: string; variantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin']);
+      const db = context.prisma || prisma;
+      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const lot = await (db as any).lotBatch.update({
+        where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } },
+        data: {
+          status: 'ACTIVE',
+          quarantinedAt: null,
+          recalledAt: null,
+          quarantineReason: null
+        }
+      });
+      return {
+        ...lot,
+        createdAt: lot.createdAt.toISOString()
+      };
+    },
+    evaluateCrossDocking: async (_: any, { purchaseOrderId, inboundItemsJson, backordersJson }: { purchaseOrderId: string; inboundItemsJson: string; backordersJson: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator']);
+      const inboundItems = JSON.parse(inboundItemsJson || '[]');
+      const backorders = JSON.parse(backordersJson || '[]');
+      return CrossDockingEngine.evaluate(purchaseOrderId, inboundItems, backorders);
+    },
+    createDropShipOrder: async (_: any, { orderId, variantId, quantity, supplierId }: { orderId: string; variantId: string; quantity: number; supplierId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator']);
+      return {
+        status: 'SUCCESS',
+        dropShipPoId: crypto.randomUUID(),
+        orderId,
+        variantId,
+        quantity,
+        supplierId,
+        createdAt: new Date().toISOString()
+      };
+    },
     markNotificationAsRead: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+
       try {
         enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         await prisma.notification.update({
