@@ -48,7 +48,6 @@ export class TenantRegistry {
     const port = dbPort || parseInt(process.env.DB_PORT || '5433', 10);
     const name = dbName || `inventory_tenant_${safeName}`;
     const user = dbUser || process.env.DB_USER || 'inventory_user';
-    const password = dbPassword || process.env.DB_PASSWORD || 'inventory_password';
     const password = dbPassword || process.env.DB_PASSWORD;
 
     if (!password) {
