@@ -19,9 +19,20 @@ describe('TenantProvisioner', () => {
   let mockPrisma: any;
   let mockRegistry: jest.Mocked<TenantRegistry>;
   let provisioner: TenantProvisioner;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeAll(() => {
+    originalEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.DB_USER = 'test_user';
+    process.env.DB_PASSWORD = 'test_password';
 
     mockPrisma = {
       $executeRaw: jest.fn().mockResolvedValue(undefined),
@@ -36,7 +47,7 @@ describe('TenantProvisioner', () => {
         dbPort: 5433,
         dbName: 'inventory_tenant_new_tenant',
         dbUser: 'inventory_user',
-        dbPassword: 'inventory_password',
+        dbPassword: 'test_password',
         status: 'PROVISIONING',
         provisionedAt: new Date(),
         migratedVersion: '0',
@@ -101,7 +112,7 @@ describe('TenantProvisioner', () => {
         dbPort: 5433,
         dbName: 'inventory_tenant_old_tenant',
         dbUser: 'inventory_user',
-        dbPassword: 'inventory_password',
+        dbPassword: 'test_password',
         status: 'ACTIVE',
         provisionedAt: new Date(),
         migratedVersion: '1',
