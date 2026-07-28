@@ -22,6 +22,7 @@ describe('TenantProvisioner', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.DB_PASSWORD = 'test_password';
 
     mockPrisma = {
       $executeRaw: jest.fn().mockResolvedValue(undefined),
