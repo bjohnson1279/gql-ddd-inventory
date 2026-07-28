@@ -1,5 +1,3 @@
-import * as crypto from 'crypto';
-
 export interface RFIDScanItem {
   epc: string; // Electronic Product Code
   sku: string;
@@ -21,7 +19,7 @@ export class RFIDBulkScanIngestionService {
 
   public async processBulkScanBatch(scans: RFIDScanItem[]): Promise<IngestionResult> {
     const startTime = Date.now();
-    const batchId = `rfid-batch-${Date.now()}-${crypto.randomUUID()}`;
+    const batchId = `rfid-batch-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     let uniqueCount = 0;
     let duplicateCount = 0;
