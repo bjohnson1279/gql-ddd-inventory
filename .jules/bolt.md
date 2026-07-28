@@ -49,3 +49,6 @@
 ## 2024-05-18 - Avoid Promise.all() for Prisma batch inserts
 **Learning:** Using `Promise.all` with `prisma.<model>.create` inside loops can overload the connection pool and result in N+1 database queries.
 **Action:** Always utilize Prisma's `createMany` API for batch inserts when multiple records need to be created simultaneously, drastically reducing query overhead.
+## 2024-10-24 - N+1 Bottleneck in nested loops
+**Learning:** In `src/domain/services/AuditProcessorService.ts`, there was an O(N*M) nested loop running `await this.prisma.productVariant.findUnique` and `await this.prisma.ledgerEntry.aggregate`. Even though the data was already pre-fetched in batch into maps (`variantMap`, `ledgerSumMap`) right above the loop, the maps weren't being utilized.
+**Action:** Always verify if maps containing pre-fetched batch data already exist in scope before assuming you need to run queries inside a loop. This simple lookup substitution eliminated all N+1 database roundtrips.
