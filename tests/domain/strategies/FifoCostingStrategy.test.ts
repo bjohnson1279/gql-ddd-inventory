@@ -64,6 +64,15 @@ describe('FifoCostingStrategy', () => {
         strategy.calculateCost(layers, 10, variantId);
       }).toThrow('Insufficient cost layers to cover the quantity.');
     });
+
+    it('should calculate cost of 0 when quantity is 0', () => {
+      const layers = [
+        createLayer('layer1', 10, 100, new Date('2023-01-01'))
+      ];
+      const breakdown = strategy.calculateCost(layers, 0, variantId);
+      expect(breakdown.quantity).toBe(0);
+      expect(breakdown.totalCostCents).toBe(0);
+    });
   });
 
   describe('consumeLayers', () => {
@@ -90,6 +99,37 @@ describe('FifoCostingStrategy', () => {
       expect(() => {
         strategy.consumeLayers(layers, 10, variantId);
       }).toThrow('Insufficient cost layers to cover the quantity.');
+    });
+
+    it('should break early if quantity is fulfilled before checking all layers', () => {
+      const layers = [
+        createLayer('layer2', 10, 150, new Date('2023-01-02')),
+        createLayer('layer1', 5, 100, new Date('2023-01-01')),
+        createLayer('layer3', 10, 200, new Date('2023-01-03'))
+      ];
+      // Will consume all 5 of layer1 and 2 of layer2. Layer3 remains untouched and loop breaks.
+      const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 7, variantId);
+      expect(breakdown.quantity).toBe(7);
+      expect(breakdown.totalCostCents).toBe(800); // 5*100 + 2*150
+
+      expect(sortedLayers[0].id.value).toBe('layer1');
+      expect(sortedLayers[0].remainingQuantity()).toBe(0);
+
+      expect(sortedLayers[1].id.value).toBe('layer2');
+      expect(sortedLayers[1].remainingQuantity()).toBe(8);
+
+      expect(sortedLayers[2].id.value).toBe('layer3');
+      expect(sortedLayers[2].remainingQuantity()).toBe(10);
+    });
+
+    it('should consume 0 layers and return breakdown of 0 when quantity is 0', () => {
+      const layers = [
+        createLayer('layer1', 10, 100, new Date('2023-01-01'))
+      ];
+      const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 0, variantId);
+      expect(breakdown.quantity).toBe(0);
+      expect(breakdown.totalCostCents).toBe(0);
+      expect(sortedLayers[0].remainingQuantity()).toBe(10);
     });
   });
 });
