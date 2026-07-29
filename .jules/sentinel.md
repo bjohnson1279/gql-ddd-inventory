@@ -181,3 +181,7 @@
 **Vulnerability:** The application used Prisma's `$executeRawUnsafe` method to create the tenant_registry table during startup. While this specific instance didn't interpolate variables, using Unsafe methods bypasses Prisma's parameterization and allows arbitrary SQL execution if dynamic inputs are ever introduced.
 **Learning:** Using `$executeRawUnsafe` in Prisma is a significant security risk, even for static queries, because it sets a dangerous precedent and invites SQL injection if the query is later modified to include variables.
 **Prevention:** Always strictly use the tagged template literal method `$executeRaw` for raw SQL queries in Prisma to automatically parameterize inputs and prevent SQL injection.
+## 2026-07-29 - Remove Hardcoded Database Password Fallback
+**Vulnerability:** The application used a hardcoded fallback database password (`inventory_password`) across multiple components (TenantRegistry, TenantProvisioner, and startup table creation).
+**Learning:** Providing hardcoded default passwords for critical database connections exposes the application to unauthorized access if environment variables are accidentally omitted. It violates the fail-secure principle.
+**Prevention:** Always enforce strict configuration validation. Ensure that missing critical secrets (like passwords) result in a fail-fast error on startup rather than quietly falling back to a guessable default.
