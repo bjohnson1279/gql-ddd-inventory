@@ -146,4 +146,82 @@ describe('WMSCapacityService', () => {
     ).resolves.not.toThrow();
     expect(productRepository.findBySkus).not.toHaveBeenCalled();
   });
+
+    it('should handle multiple SKUs correctly', async () => {
+    const location = new WarehouseLocation(
+      new LocationId('WH1-ZONEA-A03-R02-S01-B10'),
+      'WH1', 'ZONEA', 'A03', 'R02', 'S01', 'B10',
+      1000, 10
+    );
+
+    const sku1 = new Sku('TEST-SKU-1');
+    const sku2 = new Sku('TEST-SKU-2');
+
+    const product1 = new Product(new ProductId('prod-1'), 'Test Product 1');
+    const variant1 = product1.addVariant(sku1, [{ name: 'Color', value: 'Red', equals: () => false } as any], VariantTrackingMode.Quantity);
+    Object.defineProperty(variant1, 'weightGrams', { value: 100, writable: true });
+    Object.defineProperty(variant1, 'volumeCubicMeters', { value: 1, writable: true });
+
+    const product2 = new Product(new ProductId('prod-2'), 'Test Product 2');
+    const variant2 = product2.addVariant(sku2, [{ name: 'Size', value: 'L', equals: () => false } as any], VariantTrackingMode.Quantity);
+    Object.defineProperty(variant2, 'weightGrams', { value: 200, writable: true });
+    Object.defineProperty(variant2, 'volumeCubicMeters', { value: 2, writable: true });
+
+    locationRepository.findById.mockResolvedValue(location);
+    inventoryRepository.findByLocation.mockResolvedValue([]);
+    productRepository.findBySkus.mockResolvedValue([product1, product2]);
+
+    await expect(
+      service.validateCapacity('WH1-ZONEA-A03-R02-S01-B10', [
+        { sku: 'TEST-SKU-1', mode: 'absolute', quantity: 2 },
+        { sku: 'TEST-SKU-2', mode: 'absolute', quantity: 3 },
+      ])
+    ).resolves.not.toThrow();
+
+    await expect(
+      service.validateCapacity('WH1-ZONEA-A03-R02-S01-B10', [
+        { sku: 'TEST-SKU-1', mode: 'absolute', quantity: 3 },
+        { sku: 'TEST-SKU-2', mode: 'absolute', quantity: 4 },
+      ])
+    ).rejects.toThrow(CapacityExceededError);
+  });
+
+  it('should add relative adjustment for new SKU not currently in location', async () => {
+    setupMocks(1000, 10, 0, 100, 1);
+    inventoryRepository.findByLocation.mockResolvedValue([]);
+
+    await expect(
+      service.validateCapacity('WH1-ZONEA-A03-R02-S01-B10', [
+        { sku: 'TEST-SKU', mode: 'relative', quantity: 5 },
+      ])
+    ).resolves.not.toThrow();
+  });
+
+  it('should ignore SKUs that are not found in product repository (missing variant)', async () => {
+    setupMocks(1000, 10, 2, 100, 1);
+    productRepository.findBySkus.mockResolvedValue([]);
+
+    await expect(
+      service.validateCapacity('WH1-ZONEA-A03-R02-S01-B10', [
+        { sku: 'TEST-SKU', mode: 'relative', quantity: 1000 },
+      ])
+    ).resolves.not.toThrow();
+  });
+
+  it('should fallback to 0 if variant weight or volume is undefined', async () => {
+    setupMocks(1000, 10, 2, 100, 1);
+    const product = new Product(new ProductId('prod-1'), 'Test Product');
+    const variant = product.addVariant(new Sku('TEST-SKU'), [{ name: 'Color', value: 'Red', equals: () => false } as any], VariantTrackingMode.Quantity);
+
+    Object.defineProperty(variant, 'weightGrams', { value: undefined, writable: true });
+    Object.defineProperty(variant, 'volumeCubicMeters', { value: undefined, writable: true });
+
+    productRepository.findBySkus.mockResolvedValue([product]);
+
+    await expect(
+      service.validateCapacity('WH1-ZONEA-A03-R02-S01-B10', [
+        { sku: 'TEST-SKU', mode: 'relative', quantity: 1000 },
+      ])
+    ).resolves.not.toThrow();
+  });
 });
