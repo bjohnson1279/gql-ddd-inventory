@@ -1,6 +1,16 @@
 import { TenantRegistry, TenantRegistryEntry } from '../../../src/infrastructure/persistence/TenantRegistry';
 
 describe('TenantRegistry', () => {
+  let originalEnv: any;
+
+  beforeAll(() => {
+    originalEnv = process.env;
+    process.env = { ...originalEnv, DB_PASSWORD: 'test_password' };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
   let mockPrisma: any;
   let registry: TenantRegistry;
 
