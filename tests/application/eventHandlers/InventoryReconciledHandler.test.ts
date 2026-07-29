@@ -50,7 +50,7 @@ describe('InventoryReconciledHandler', () => {
     expect(pubsub.publish).toHaveBeenCalled();
   });
 
-  it('should log an error if notification creation or publish fails', async () => {
+  it('should log an error if ledger entry fetch fails', async () => {
     const error = new Error('Database connection failed');
     (prisma.ledgerEntry.findFirst as jest.Mock).mockRejectedValue(error);
 
@@ -66,6 +66,20 @@ describe('InventoryReconciledHandler', () => {
     (prisma.ledgerEntry.findFirst as jest.Mock).mockResolvedValue({ tenantId: 'tenant-123' });
     const error = new Error('Notification creation failed');
     (prisma.notification.create as jest.Mock).mockRejectedValue(error);
+
+    const handler = new InventoryReconciledHandler();
+    const event = new InventoryReconciledEvent('SKU-1', 'LOC-1', 10, 8, -2);
+    await handler.handle(event);
+
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[InventoryReconciledHandler] Failed to save/publish notification:', error);
+  });
+
+  it('should log an error if publishing notification fails', async () => {
+    (prisma.ledgerEntry.findFirst as jest.Mock).mockResolvedValue({ tenantId: 'tenant-123' });
+    (prisma.notification.create as jest.Mock).mockResolvedValue({});
+    const error = new Error('Pubsub publish failed');
+    (pubsub.publish as jest.Mock).mockRejectedValue(error);
 
     const handler = new InventoryReconciledHandler();
     const event = new InventoryReconciledEvent('SKU-1', 'LOC-1', 10, 8, -2);
