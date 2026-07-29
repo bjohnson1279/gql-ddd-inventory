@@ -14,5 +14,17 @@ describe('DemandForecastId', () => {
     expect(() => {
       new DemandForecastId('');
     }).toThrow('DemandForecastId cannot be empty.');
+
+    expect(() => {
+      new DemandForecastId('   ');
+    }).toThrow('DemandForecastId cannot be empty.');
+
+    expect(() => {
+      new DemandForecastId(null as unknown as string);
+    }).toThrow('DemandForecastId cannot be empty.');
+
+    expect(() => {
+      new DemandForecastId(undefined as unknown as string);
+    }).toThrow('DemandForecastId cannot be empty.');
   });
 });
