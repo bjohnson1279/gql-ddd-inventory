@@ -161,4 +161,44 @@ it('should handle Xero sync errors without crashing', async () => {
     expect(xeroMappingsMock.saveMapping).not.toHaveBeenCalled();
 
   });
+
+  it('should handle NetSuite sync errors without crashing', async () => {
+    // Setup to make Xero and QuickBooks succeed or skip
+    xeroMappingsMock.findXeroJournalId.mockResolvedValue('xero-existing');
+    quickbooksMappingsMock.findQuickBooksJournalId.mockResolvedValue('qb-existing');
+
+    // Setup NetSuite to fail
+    netsuiteMappingsMock.findNetSuiteJournalId.mockResolvedValue(null);
+    const nsError = new Error('NetSuite API Timeout');
+    netsuiteSyncMock.createJournalEntry.mockRejectedValue(nsError);
+
+    const event = new JournalEntryCreatedEvent('journal-ns-err', 'tenant-1', 'Test', '2023-01-01', 'sync', null, []);
+
+    // Execution - ensure it resolves (does not crash)
+    await expect(listener.handle(event)).resolves.toBeUndefined();
+
+    // Verification
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[NetSuite Sync] Failed for journal journal-ns-err:', nsError);
+    expect(netsuiteMappingsMock.saveMapping).not.toHaveBeenCalled();
+  });
+
+  it('should handle QuickBooks sync errors without crashing', async () => {
+    // Setup to make NetSuite and Xero succeed or skip
+    netsuiteMappingsMock.findNetSuiteJournalId.mockResolvedValue('ns-existing');
+    xeroMappingsMock.findXeroJournalId.mockResolvedValue('xero-existing');
+
+    // Setup QuickBooks to fail
+    quickbooksMappingsMock.findQuickBooksJournalId.mockResolvedValue(null);
+    const qbError = new Error('QuickBooks API Timeout');
+    quickbooksSyncMock.createJournalEntry.mockRejectedValue(qbError);
+
+    const event = new JournalEntryCreatedEvent('journal-qb-err', 'tenant-1', 'Test', '2023-01-01', 'sync', null, []);
+
+    // Execution - ensure it resolves (does not crash)
+    await expect(listener.handle(event)).resolves.toBeUndefined();
+
+    // Verification
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[QuickBooks Sync] Failed for journal journal-qb-err:', qbError);
+    expect(quickbooksMappingsMock.saveMapping).not.toHaveBeenCalled();
+  });
 });
