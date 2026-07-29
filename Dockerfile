@@ -6,6 +6,7 @@ WORKDIR /usr/src/app
 # Install app dependencies (will use package-lock.json if present)
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm ci --silent
 
 # Copy source
