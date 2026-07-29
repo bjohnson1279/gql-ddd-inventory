@@ -585,6 +585,12 @@ function getTenantAndActor(context: GraphQLContext, tenantId?: string, actorId?:
   return enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId, actorId);
 }
 
+import { AnomalyDetectionService } from '../../domain/services/AnomalyDetectionService';
+import { RebalanceOptimizationService } from '../../domain/services/RebalanceOptimizationService';
+
+const anomalyDetectionService = new AnomalyDetectionService(prisma);
+const rebalanceOptimizationService = new RebalanceOptimizationService(prisma);
+
 export const resolvers = {
   Product: {
     variants: async (parent: any, _: any, context: GraphQLContext) => {
@@ -617,6 +623,14 @@ export const resolvers = {
     }
   },
   Query: {
+    analyzeInventoryAnomalies: async (_: any, { tenantId, startDate, endDate }: { tenantId: string; startDate?: string; endDate?: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+      return await anomalyDetectionService.analyzeAnomalies(tenantId, startDate, endDate);
+    },
+    rebalanceMatrix: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
+      return await rebalanceOptimizationService.getRebalanceMatrix(tenantId);
+    },
     getLotBatches: async (_: any, { variantId }: { variantId?: string }, context: GraphQLContext) => {
       enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const db = context.prisma || prisma;
