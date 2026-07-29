@@ -18,4 +18,4 @@ RUN npx prisma generate
 EXPOSE 4000
 
 # Push database schema if needed and start app
-CMD ["sh", "-c", "npx prisma db push --url \"$DATABASE_URL\" --accept-data-loss && npm start"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm start"]
