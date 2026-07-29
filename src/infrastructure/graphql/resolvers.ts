@@ -2396,14 +2396,14 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin', 'accountant']);
         const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
-        const found = entries.find(j => j.id === journalId);
+        const found = entries.find(j => j.id.value === journalId);
         const payload = {
           aggregateId: journalId,
           tenantId: context.auth?.tenantId || 'tenant-1',
-          date: found ? found.createdAt.toISOString() : new Date().toISOString(),
+          date: found ? found.date.toISOString() : new Date().toISOString(),
           description: found ? found.description : `Sync Journal ${journalId}`,
           lines: found ? found.lines.map(l => ({
-            accountCode: l.accountCode,
+            accountCode: l.account.code,
             amountCents: l.amountCents,
             type: l.type,
             memo: l.memo
@@ -2418,14 +2418,14 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin', 'accountant']);
         const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
-        const found = entries.find(j => j.id === journalId);
+        const found = entries.find(j => j.id.value === journalId);
         const payload = {
           aggregateId: journalId,
           tenantId: context.auth?.tenantId || 'tenant-1',
-          date: found ? found.createdAt.toISOString() : new Date().toISOString(),
+          date: found ? found.date.toISOString() : new Date().toISOString(),
           description: found ? found.description : `Sync Journal ${journalId}`,
           lines: found ? found.lines.map(l => ({
-            accountCode: l.accountCode,
+            accountCode: l.account.code,
             amountCents: l.amountCents,
             type: l.type,
             memo: l.memo
@@ -2440,14 +2440,14 @@ export const resolvers = {
       try {
         enforceRole(context, ['admin', 'accountant']);
         const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
-        const found = entries.find(j => j.id === journalId);
+        const found = entries.find(j => j.id.value === journalId);
         const payload = {
           aggregateId: journalId,
           tenantId: context.auth?.tenantId || 'tenant-1',
-          date: found ? found.createdAt.toISOString() : new Date().toISOString(),
+          date: found ? found.date.toISOString() : new Date().toISOString(),
           description: found ? found.description : `Sync Journal ${journalId}`,
           lines: found ? found.lines.map(l => ({
-            accountCode: l.accountCode,
+            accountCode: l.account.code,
             amountCents: l.amountCents,
             type: l.type,
             memo: l.memo

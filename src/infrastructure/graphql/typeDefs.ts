@@ -1,4 +1,6 @@
 export const typeDefs = `#graphql
+  scalar JSON
+
   enum TrackingMode {
     quantity
     serial
