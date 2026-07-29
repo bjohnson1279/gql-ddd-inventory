@@ -18,5 +18,5 @@ RUN npx prisma generate
 # Expose GraphQL default port
 EXPOSE 4000
 
-# Push database schema if needed and start app
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm start"]
+# Use the start script (uses ts-node in this project)
+CMD ["npm", "start"]
