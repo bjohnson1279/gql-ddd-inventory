@@ -9,9 +9,16 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => ({
   }
 }));
 
+jest.mock('../../../src/infrastructure/graphql/pubsub', () => ({
+  pubsub: {
+    publish: jest.fn().mockResolvedValue({})
+  }
+}));
+
 import { LowStockAlertHandler } from '../../../src/application/eventHandlers/LowStockAlertHandler';
 import { LowStockAlertEvent } from '../../../src/domain/events/InventoryEvents';
 import { prisma } from '../../../src/infrastructure/persistence/prismaClient';
+import { pubsub } from '../../../src/infrastructure/graphql/pubsub';
 
 describe('LowStockAlertHandler', () => {
   let consoleSpy: jest.SpyInstance;
@@ -67,6 +74,40 @@ describe('LowStockAlertHandler', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       '[LowStockAlertHandler] Failed to save/publish notification:',
       mockError
+    );
+  });
+
+  it('should safely catch and log errors if publishing the notification fails', async () => {
+    const mockError = new Error('PubSub connection failed');
+    (pubsub.publish as jest.Mock).mockRejectedValueOnce(mockError);
+
+    const handler = new LowStockAlertHandler();
+    const event = new LowStockAlertEvent('SKU-ERR', 'LOC-ERR', 1);
+
+    await handler.handle(event);
+
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[LowStockAlertHandler] Failed to save/publish notification:',
+      mockError
+    );
+  });
+
+  it('should use default tenant-1 if ledgerEntry is not found', async () => {
+    (prisma.ledgerEntry.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const handler = new LowStockAlertHandler();
+    const event = new LowStockAlertEvent('SKU-NO-LEDGER', 'LOC-X', 2);
+
+    await handler.handle(event);
+
+    expect(prisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tenantId: 'tenant-1',
+          message: 'SKU SKU-NO-LEDGER at location LOC-X dropped to 2 items!',
+        })
+      })
     );
   });
 });
