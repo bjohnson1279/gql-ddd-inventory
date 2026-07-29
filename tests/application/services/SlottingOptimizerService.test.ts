@@ -27,7 +27,10 @@ describe('SlottingOptimizerService', () => {
   });
 
   it('should fallback to local heuristic on network error', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+    const error = new Error('Network error');
+    global.fetch = jest.fn().mockRejectedValue(error);
+    const fallbackSpy = jest.spyOn(service as any, 'fallbackLocalHeuristic');
+    const consoleWarnSpy = jest.spyOn(console, 'warn');
 
     // Setup locations so LOC-FAR has distance 20 and LOC-NEAR has distance 2
     // locMap logic: |x| + |y| + 2*|z|
@@ -45,6 +48,9 @@ describe('SlottingOptimizerService', () => {
     ];
 
     const result = await service.getSlottingOptimization(locations, inventory, dispatches);
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith('Python sidecar unavailable, fallback to local heuristic:', error);
+    expect(fallbackSpy).toHaveBeenCalledWith(locations, inventory, dispatches);
 
     // FAST-ITEM distance=20, velocity=100
     // SLOW-ITEM distance=2, velocity=1
@@ -68,6 +74,8 @@ describe('SlottingOptimizerService', () => {
       ok: false,
       status: 500
     });
+    const fallbackSpy = jest.spyOn(service as any, 'fallbackLocalHeuristic');
+    const consoleWarnSpy = jest.spyOn(console, 'warn');
 
     const locations: LocationCoordinate[] = [
       { id: 'LOC-FAR', grid_x: 10, grid_y: 10 },
@@ -83,6 +91,10 @@ describe('SlottingOptimizerService', () => {
     ];
 
     const result = await service.getSlottingOptimization(locations, inventory, dispatches);
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith('Python sidecar unavailable, fallback to local heuristic:', expect.any(Error));
+    expect(consoleWarnSpy.mock.calls[0][1].message).toContain('Sidecar HTTP error! status: 500');
+    expect(fallbackSpy).toHaveBeenCalledWith(locations, inventory, dispatches);
 
     expect(result).toHaveLength(1);
     expect(result[0].sku).toBe('FAST-ITEM');
