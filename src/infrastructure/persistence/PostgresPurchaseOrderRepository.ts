@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { IPurchaseOrderRepository } from '../../domain/repositories/IPurchaseOrderRepository';
 import { PurchaseOrder } from '../../domain/entities/PurchaseOrder';
 import { PurchaseOrderId } from '../../domain/valueObjects/PurchaseOrderId';
@@ -19,12 +19,20 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
     await this.prisma.$transaction(async (tx) => {
       const orderIds = orders.map(o => toUuid(o.id.value));
 
-      // Batch upsert purchase orders concurrently
-      await Promise.all(orders.map(async (order) => {
+      // ⚡ Bolt: Prevent N+1 connection pool exhaustion by splitting into createMany and a single raw UPDATE
+      const existingOrders = await tx.purchaseOrder.findMany({
+        where: { id: { in: orderIds } },
+        select: { id: true }
+      });
+      const existingIds = new Set(existingOrders.map(o => o.id));
+
+      const ordersToCreate: any[] = [];
+      const ordersToUpdate: PurchaseOrder[] = [];
+
+      for (const order of orders) {
         const dbId = toUuid(order.id.value);
-        await tx.purchaseOrder.upsert({
-          where: { id: dbId },
-          create: {
+        if (!existingIds.has(dbId)) {
+          ordersToCreate.push({
             id: dbId,
             tenantId: order.tenantId.value,
             supplierId: order.supplierId,
@@ -32,13 +40,35 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
             status: order.status,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
-          },
-          update: {
-            status: order.status,
-            updatedAt: order.updatedAt,
-          },
+          });
+        } else {
+          ordersToUpdate.push(order);
+        }
+      }
+
+      if (ordersToCreate.length > 0) {
+        await tx.purchaseOrder.createMany({
+          data: ordersToCreate,
         });
-      }));
+      }
+
+      if (ordersToUpdate.length > 0) {
+        const updateRows = ordersToUpdate.map(order =>
+          Prisma.sql`(${toUuid(order.id.value)}::uuid, ${order.status}::"PurchaseOrderStatus", ${order.updatedAt}::timestamp)`
+        );
+
+        await tx.$executeRaw`
+          UPDATE purchase_orders AS t
+          SET
+            status = v.status::"PurchaseOrderStatus",
+            updated_at = v.updated_at::timestamp
+          FROM (
+            VALUES
+              ${Prisma.join(updateRows)}
+          ) AS v(id, status, updated_at)
+          WHERE t.id = v.id::uuid;
+        `;
+      }
 
       // Delete items for all these orders in a single query
       await tx.purchaseOrderItem.deleteMany({

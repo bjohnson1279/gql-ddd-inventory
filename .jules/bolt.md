@@ -52,3 +52,6 @@
 ## 2024-10-24 - N+1 Bottleneck in nested loops
 **Learning:** In `src/domain/services/AuditProcessorService.ts`, there was an O(N*M) nested loop running `await this.prisma.productVariant.findUnique` and `await this.prisma.ledgerEntry.aggregate`. Even though the data was already pre-fetched in batch into maps (`variantMap`, `ledgerSumMap`) right above the loop, the maps weren't being utilized.
 **Action:** Always verify if maps containing pre-fetched batch data already exist in scope before assuming you need to run queries inside a loop. This simple lookup substitution eliminated all N+1 database roundtrips.
+## 2026-07-31 - N+1 Bottleneck with Promise.all and Upsert
+**Learning:** Using `Promise.all` with `prisma.<model>.upsert` inside a loop for batch operations creates an N+1 query bottleneck within Prisma transactions.
+**Action:** Replace `Promise.all` upserts by splitting the data into items to create and update (using a single `findMany` for existing IDs). Then use `createMany` for new records and a single raw `UPDATE ... FROM (VALUES ...)` query via `$executeRaw` for the updates.
