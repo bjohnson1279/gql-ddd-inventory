@@ -1118,9 +1118,53 @@ export const typeDefs = `#graphql
     destinationBay: String!
   }
 
+  type AnomalyAlert {
+    alertType: String!
+    severity: String!
+    confidence: Float!
+    sku: String
+    locationId: String
+    actorId: String
+    title: String!
+    description: String!
+    evidence: JSON!
+    detectedAt: String!
+  }
+
+  type AnomalySummary {
+    alerts: [AnomalyAlert!]!
+    totalCritical: Int!
+    totalHigh: Int!
+    totalMedium: Int!
+    totalLow: Int!
+    overallRiskScore: Float!
+  }
+
+  type RebalanceRecommendation {
+    sku: String!
+    sourceWarehouseId: String!
+    destWarehouseId: String!
+    quantity: Int!
+    priority: String!
+    estimatedShippingCost: Float!
+    sourceCurrentDoc: Float!
+    destCurrentDoc: Float!
+    sourceProjectedDoc: Float!
+    destProjectedDoc: Float!
+    urgencyReason: String!
+  }
+
+  type RebalanceMatrix {
+    recommendations: [RebalanceRecommendation!]!
+    matrix: JSON!
+    summary: JSON!
+  }
+
   extend type Query {
     getLotTraceability(lotNumber: String!, variantId: ID!): LotTraceabilityReport
     getLotBatches(variantId: ID): [LotBatch!]!
+    analyzeInventoryAnomalies(tenantId: String!, startDate: String, endDate: String): AnomalySummary!
+    rebalanceMatrix(tenantId: String!): RebalanceMatrix!
   }
 
   extend type Mutation {
