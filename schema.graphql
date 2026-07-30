@@ -227,6 +227,53 @@ type ComplianceLedgerEntry {
   signature: String!
 }
 
+type ReconstructedState {
+  timestamp: String!
+  tenantId: String!
+  eventsReplayedCount: Int!
+  lastSequenceNumber: Int!
+  stockLevels: [ReconstructedStockLevel!]!
+  binConfigurations: [ReconstructedBinConfig!]!
+  accountBalances: [ReconstructedAccountBalance!]!
+}
+
+type ReconstructedStockLevel {
+  sku: String!
+  locationId: String!
+  quantity: Int!
+}
+
+type ReconstructedBinConfig {
+  binCode: String!
+  locationId: String!
+  currentCapacity: Int!
+  maxCapacity: Int!
+}
+
+type ReconstructedAccountBalance {
+  accountCode: String!
+  accountName: String!
+  balance: Float!
+}
+
+type AuditReplayStep {
+  sequenceNumber: Int!
+  eventType: String!
+  timestamp: String!
+  hash: String!
+  previousHash: String!
+  payload: String!
+}
+
+type CacheStats {
+  hits: Int!
+  misses: Int!
+  hitRatio: Float!
+  invalidations: Int!
+  activeKeysCount: Int!
+}
+
+
 type PurchaseOrderItem {
   id: ID!
   purchaseOrderId: ID!
@@ -557,6 +604,9 @@ type Query {
   auditDiscrepancies: [AuditDiscrepancy!]!
   complianceLedger(sequenceNumber: Int): [ComplianceLedgerEntry!]!
   verifyComplianceLedger: Boolean!
+  reconstructState(tenantId: String!, timestamp: String): ReconstructedState!
+  replayAudit(tenantId: String!, upToTimestamp: String): [AuditReplayStep!]!
+  cacheStats: CacheStats!
   slottingSuggestions: [SlottingSuggestion!]!
   rfidTags(tenantId: ID!): [RfidTag!]!
   users(tenantId: ID!): [UserDTO!]!
@@ -569,7 +619,9 @@ type Query {
 }
 
 type Mutation {
+  clearCache(tenantId: String): Boolean!
   assignRfidTag(epc: String!, sku: String!, serialNumber: String!): Boolean!
+
   simulateRfidScan(locationId: String!, tags: [String!]!): Boolean!
   createRma(input: CreateRmaInput!): Rma!
   authorizeRma(id: ID!): Boolean!
