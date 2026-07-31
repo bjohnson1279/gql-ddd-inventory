@@ -47,15 +47,19 @@ export class OrderRoutingEngine {
       })
     );
 
+    // ⚡ Bolt: Cache distance lookups to prevent O(N*M) CPU bottlenecks
+    const distanceCache = new Map<string, number>();
+    for (const c of activeCandidates) {
+      distanceCache.set(c.locationId, c.geoLocation.distanceTo(destination));
+    }
+
     const plans: FulfillmentPlan[] = [];
     for (const allocations of rawPlans) {
       let totalDistance = 0;
       let totalCost = 0;
 
       for (const alloc of allocations) {
-        const candidate = activeCandidates.find(c => c.locationId === alloc.locationId)!;
-        const dist = candidate.geoLocation.distanceTo(destination);
-        totalDistance += dist;
+        totalDistance += distanceCache.get(alloc.locationId)!;
 
         const cacheKey = `${alloc.locationId}_${alloc.quantity}`;
         const rate = rateCache.get(cacheKey)!;
