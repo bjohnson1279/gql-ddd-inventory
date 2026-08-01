@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { validateOutboundUrl } from '../../utils/urlValidator';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { pubsub } from './pubsub';
 import crypto from 'crypto';
@@ -2325,6 +2326,16 @@ export const resolvers = {
     createWebhookSubscription: async (_: any, { targetUrl, secret, eventTypes }: { targetUrl: string; secret: string; eventTypes: string[] }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
+
+        if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+          validateOutboundUrl(targetUrl);
+        } else {
+          const parsedUrl = new URL(targetUrl);
+          if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+            throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
+          }
+        }
+
         return await prisma.webhookSubscription.create({
           data: {
             id: crypto.randomUUID(),
@@ -2346,6 +2357,18 @@ export const resolvers = {
         if (!sub || sub.tenantId !== auth.tenantId) {
           throw new Error(`Webhook subscription ${id} not found.`);
         }
+
+        if (targetUrl !== undefined) {
+          if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
+            validateOutboundUrl(targetUrl);
+          } else {
+            const parsedUrl = new URL(targetUrl);
+            if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+              throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
+            }
+          }
+        }
+
         return await prisma.webhookSubscription.update({
           where: { id },
           data: {
