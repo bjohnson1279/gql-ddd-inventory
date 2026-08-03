@@ -679,7 +679,10 @@ export const typeDefs = `#graphql
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
 
     # Enterprise Logistics Queries
-    calculateShippingRates(input: RateQuoteInput!): ShippingRateQuote!
+    calculateShippingRates(input: RateQuoteInput!): [ShippingRateQuote!]!
+    getSupplierOTIFScorecard(supplierId: String!): SupplierScorecard!
+    queryCopilot(query: String!): CopilotQueryResult!
+    getEsgEmissionsReport(tenantId: String!): EsgEmissionsReport!
   }
 
   type InventoryCountResult {
@@ -1167,110 +1170,78 @@ export const typeDefs = `#graphql
     summary: JSON!
   }
 
-  extend type Query {
-    getLotTraceability(lotNumber: String!, variantId: ID!): LotTraceabilityReport
-    getLotBatches(variantId: ID): [LotBatch!]!
-    analyzeInventoryAnomalies(tenantId: String!, startDate: String, endDate: String): AnomalySummary!
-    rebalanceMatrix(tenantId: String!): RebalanceMatrix!
-  }
-
-  extend type Mutation {
-    quarantineLotBatch(lotNumber: String!, variantId: ID!, reason: String!): LotBatch!
-    recallLotBatch(lotNumber: String!, variantId: ID!, reason: String!): LotBatch!
-    releaseLotBatch(lotNumber: String!, variantId: ID!): LotBatch!
-    evaluateCrossDocking(purchaseOrderId: String!, inboundItemsJson: String!, backordersJson: String!): [CrossDockOpportunity!]!
-    createDropShipOrder(orderId: String!, variantId: ID!, quantity: Int!, supplierId: String!): JSON
-  }
-
-  enum CarrierProvider {
-    FEDEX
-    UPS
-    DHL
-    GENERIC_LTL
-  }
-
-  enum LabelFormatOption {
-    ZPL
-    PDF
-    BOTH
-  }
-
-  enum ERPProvider {
-    QUICKBOOKS
-    NETSUITE
-    XERO
-  }
-
-  enum ERPPostingType {
-    DEBIT
-    CREDIT
-  }
-
-  input RateQuoteInput {
+  type BillOfLading {
+    bolNumber: String!
     carrier: CarrierProvider!
-    originPostalCode: String!
-    destinationPostalCode: String!
+    originAddress: String!
+    destinationAddress: String!
     weightKg: Float!
-    lengthCm: Float
-    widthCm: Float
-    heightCm: Float
-    serviceLevel: String
-  }
-
-  type ShippingRateQuote {
-    carrier: CarrierProvider!
-    serviceLevel: String!
-    baseRateCents: Int!
-    fuelSurchargeCents: Int!
-    totalRateCents: Int!
-    estimatedDeliveryDays: Int!
-    currency: String!
-  }
-
-  input ShippingLabelInput {
-    carrier: CarrierProvider!
-    recipientName: String!
-    shippingAddress: String!
-    weightKg: Float!
-    serviceLevel: String
-    format: LabelFormatOption
-  }
-
-  type ShippingLabel {
-    carrier: CarrierProvider!
-    trackingNumber: String!
-    serviceLevel: String!
-    labelFormat: LabelFormatOption!
-    zplString: String
+    totalPackages: Int!
+    status: String!
     pdfBase64: String
-    bolUrl: String
     createdAt: String!
   }
 
-  input ERPJournalLineInput {
-    accountCode: String!
-    description: String!
-    amountCents: Int!
-    postingType: ERPPostingType!
+  type SupplierScorecard {
+    supplierId: String!
+    onTimeRate: Float!
+    inFullRate: Float!
+    defectRate: Float!
+    otifScore: Float!
+    totalShipments: Int!
+    evaluatedAt: String!
   }
 
-  input ERPJournalInput {
-    provider: ERPProvider!
-    referenceId: String!
-    memo: String
-    lines: [ERPJournalLineInput!]!
-    apiKey: String
-  }
-
-  type ERPJournalSyncResult {
+  type ZplPrintResult {
     success: Boolean!
-    provider: ERPProvider!
-    externalJournalId: String!
-    postedAmountCents: Int!
-    lineCount: Int!
-    message: String!
-    syncedAt: String!
+    jobId: String!
+    printerName: String!
+    zplCode: String!
+    sentAt: String!
+  }
+
+  type DigitalTwinSimulationResult {
+    scenarioId: String!
+    durationSeconds: Int!
+    totalOrdersProcessed: Int!
+    averageFulfillmentTimeMinutes: Float!
+    bottleneckBinId: String
+    throughputPerHour: Float!
+    pickerUtilizationRate: Float!
+    congestionHotspots: [String!]!
+  }
+
+  type CopilotQueryResult {
+    query: String!
+    intent: String!
+    insights: String!
+    metricData: JSON
+    suggestedActions: [String!]!
+  }
+
+  type EsgEmissionsReport {
+    tenantId: String!
+    period: String!
+    transportEmissionsCo2eKg: Float!
+    facilityEmissionsCo2eKg: Float!
+    totalEmissionsCo2eKg: Float!
+    emissionsIntensityPerOrder: Float!
+    breakdownByMode: JSON!
+    generatedAt: String!
+  }
+
+
+
+  extend type Mutation {
+    generateShippingLabel(input: ShippingLabelInput!): ShippingLabel!
+    generateBillOfLading(carrier: CarrierProvider!, originAddress: String!, destinationAddress: String!, weightKg: Float!, totalPackages: Int!): BillOfLading!
+    syncERPJournal(input: ERPJournalInput!): ERPJournalSyncResult!
+    inspectRMAItem(rmaNumber: String!, sku: String!, disposition: RMADisposition!, notes: String): JSON!
+    submitSupplierASN(asnNumber: String!, supplierId: String!, expectedDelivery: String!, lineItemsJson: String!): JSON!
+    printZplThermalLabel(printerName: String!, labelType: String!, barcodeValue: String!, subtitle: String): ZplPrintResult!
+    runDigitalTwinSimulation(warehouseId: String!, orderWaveCount: Int!, activePickersCount: Int!): DigitalTwinSimulationResult!
   }
 `;
+
 
 
