@@ -23,37 +23,64 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
     const uniqueRules = Array.from(uniqueRulesMap.values());
 
     await this.prisma.$transaction(async (tx) => {
-      await Promise.all(
-        uniqueRules.map((rule) => {
-          const dbId = toUuid(rule.id.value);
-          return tx.replenishmentRule.upsert({
-            where: { id: dbId },
-            create: {
-              id: dbId,
-              tenantId: rule.tenantId.value,
-              sku: rule.sku.value,
-              locationId: rule.locationId.value,
-              reorderPoint: rule.reorderPoint,
-              reorderQuantity: rule.reorderQuantity,
-              safetyStock: rule.safetyStock,
-              leadTimeDays: rule.leadTimeDays,
-              replenishmentType: rule.replenishmentType,
-              sourceLocationId: rule.sourceLocationId ? rule.sourceLocationId.value : null,
-              supplierId: rule.supplierId,
-              isActive: rule.isActive,
-              dynamicRopEnabled: rule.dynamicRopEnabled,
-            },
-            update: {
-              reorderPoint: rule.reorderPoint,
-              reorderQuantity: rule.reorderQuantity,
-              safetyStock: rule.safetyStock,
-              leadTimeDays: rule.leadTimeDays,
-              isActive: rule.isActive,
-              dynamicRopEnabled: rule.dynamicRopEnabled,
-            },
-          });
-        })
-      );
+      const existingRules = await tx.replenishmentRule.findMany({
+        where: {
+          id: { in: uniqueRules.map(r => toUuid(r.id.value)) }
+        },
+        select: { id: true }
+      });
+
+      const existingIds = new Set(existingRules.map(r => r.id));
+
+      const toCreate = [];
+      const toUpdate = [];
+
+      for (const rule of uniqueRules) {
+        if (existingIds.has(toUuid(rule.id.value))) {
+          toUpdate.push(rule);
+        } else {
+          toCreate.push(rule);
+        }
+      }
+
+      if (toCreate.length > 0) {
+        await tx.replenishmentRule.createMany({
+          data: toCreate.map(rule => ({
+            id: toUuid(rule.id.value),
+            tenantId: rule.tenantId.value,
+            sku: rule.sku.value,
+            locationId: rule.locationId.value,
+            reorderPoint: rule.reorderPoint,
+            reorderQuantity: rule.reorderQuantity,
+            safetyStock: rule.safetyStock,
+            leadTimeDays: rule.leadTimeDays,
+            replenishmentType: rule.replenishmentType,
+            sourceLocationId: rule.sourceLocationId ? rule.sourceLocationId.value : null,
+            supplierId: rule.supplierId,
+            isActive: rule.isActive,
+            dynamicRopEnabled: rule.dynamicRopEnabled,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (toUpdate.length > 0) {
+        await Promise.all(
+          toUpdate.map(rule =>
+            tx.replenishmentRule.update({
+              where: { id: toUuid(rule.id.value) },
+              data: {
+                reorderPoint: rule.reorderPoint,
+                reorderQuantity: rule.reorderQuantity,
+                safetyStock: rule.safetyStock,
+                leadTimeDays: rule.leadTimeDays,
+                isActive: rule.isActive,
+                dynamicRopEnabled: rule.dynamicRopEnabled,
+              },
+            })
+          )
+        );
+      }
     });
   }
 
