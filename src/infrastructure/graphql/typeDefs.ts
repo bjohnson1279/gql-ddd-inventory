@@ -677,6 +677,9 @@ export const typeDefs = `#graphql
 
     # Eventual Consistency Audit
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
+
+    # Enterprise Logistics Queries
+    calculateShippingRates(input: RateQuoteInput!): ShippingRateQuote!
   }
 
   type InventoryCountResult {
@@ -939,6 +942,10 @@ export const typeDefs = `#graphql
     syncQuickBooksJournal(realmId: String!, accessToken: String!, journalId: String!, sandboxMode: Boolean): String!
     syncNetSuiteJournal(accountId: String!, token: String!, journalId: String!): String!
     syncXeroJournal(xeroTenantId: String!, accessToken: String!, journalId: String!): String!
+
+    # Enterprise Logistics & Unified ERP Integrations
+    generateShippingLabel(input: ShippingLabelInput!): ShippingLabel!
+    syncERPJournal(input: ERPJournalInput!): ERPJournalSyncResult!
   }
 
   type Subscription {
@@ -1174,5 +1181,96 @@ export const typeDefs = `#graphql
     evaluateCrossDocking(purchaseOrderId: String!, inboundItemsJson: String!, backordersJson: String!): [CrossDockOpportunity!]!
     createDropShipOrder(orderId: String!, variantId: ID!, quantity: Int!, supplierId: String!): JSON
   }
+
+  enum CarrierProvider {
+    FEDEX
+    UPS
+    DHL
+    GENERIC_LTL
+  }
+
+  enum LabelFormatOption {
+    ZPL
+    PDF
+    BOTH
+  }
+
+  enum ERPProvider {
+    QUICKBOOKS
+    NETSUITE
+    XERO
+  }
+
+  enum ERPPostingType {
+    DEBIT
+    CREDIT
+  }
+
+  input RateQuoteInput {
+    carrier: CarrierProvider!
+    originPostalCode: String!
+    destinationPostalCode: String!
+    weightKg: Float!
+    lengthCm: Float
+    widthCm: Float
+    heightCm: Float
+    serviceLevel: String
+  }
+
+  type ShippingRateQuote {
+    carrier: CarrierProvider!
+    serviceLevel: String!
+    baseRateCents: Int!
+    fuelSurchargeCents: Int!
+    totalRateCents: Int!
+    estimatedDeliveryDays: Int!
+    currency: String!
+  }
+
+  input ShippingLabelInput {
+    carrier: CarrierProvider!
+    recipientName: String!
+    shippingAddress: String!
+    weightKg: Float!
+    serviceLevel: String
+    format: LabelFormatOption
+  }
+
+  type ShippingLabel {
+    carrier: CarrierProvider!
+    trackingNumber: String!
+    serviceLevel: String!
+    labelFormat: LabelFormatOption!
+    zplString: String
+    pdfBase64: String
+    bolUrl: String
+    createdAt: String!
+  }
+
+  input ERPJournalLineInput {
+    accountCode: String!
+    description: String!
+    amountCents: Int!
+    postingType: ERPPostingType!
+  }
+
+  input ERPJournalInput {
+    provider: ERPProvider!
+    referenceId: String!
+    memo: String
+    lines: [ERPJournalLineInput!]!
+    apiKey: String
+  }
+
+  type ERPJournalSyncResult {
+    success: Boolean!
+    provider: ERPProvider!
+    externalJournalId: String!
+    postedAmountCents: Int!
+    lineCount: Int!
+    message: String!
+    syncedAt: String!
+  }
 `;
+
 

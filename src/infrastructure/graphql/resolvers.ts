@@ -5,6 +5,8 @@ import { pubsub } from './pubsub';
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
+import { logisticsService } from '../../domain/shipping/logisticsService.js';
+import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService.js';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 const STOCK_CHANGED_TOPIC = 'STOCK_CHANGED';
 const WEBHOOK_FAILED_TOPIC = 'WEBHOOK_FAILED';
@@ -1392,6 +1394,13 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
+    calculateShippingRates: async (_: any, { input }: { input: any }, ctx: any) => {
+      try {
+        return await logisticsService.calculateRates(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
   },
   Mutation: {
     quarantineLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
@@ -2477,6 +2486,20 @@ export const resolvers = {
           })) : []
         };
         return await xeroClient.publishJournalEntry(xeroTenantId, accessToken, payload);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    generateShippingLabel: async (_: any, { input }: { input: any }, ctx: any) => {
+      try {
+        return await logisticsService.generateLabel(input);
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    syncERPJournal: async (_: any, { input }: { input: any }, ctx: any) => {
+      try {
+        return await erpIntegrationService.syncJournal(input);
       } catch (error: any) {
         throw new Error(error.message);
       }
