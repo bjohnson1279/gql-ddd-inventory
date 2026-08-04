@@ -658,54 +658,6 @@ model BillOfLading {
   @@map("bills_of_lading")
 }
 
-model ReturnMerchandiseAuthorization {
-  id        String    @id @default(uuid())
-  rmaNumber String    @unique @map("rma_number")
-  orderId   String    @map("order_id")
-  customerId String   @map("customer_id")
-  status    String    @default("PENDING_INSPECTION")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  items     RmaItem[]
-
-  @@map("return_merchandise_authorizations")
-}
-
-model RmaItem {
-  id          String   @id @default(uuid())
-  rmaId       String   @map("rma_id")
-  sku         String
-  quantity    Int
-  reason      String
-  disposition String   @default("PENDING")
-  inspectedAt DateTime? @map("inspected_at") @db.Timestamptz
-  rma         ReturnMerchandiseAuthorization @relation(fields: [rmaId], references: [id], onDelete: Cascade)
-
-  @@map("rma_items")
-}
-
-model SupplierASN {
-  id               String    @id @default(uuid())
-  asnNumber        String    @unique @map("asn_number")
-  supplierId       String    @map("supplier_id")
-  expectedDelivery DateTime  @map("expected_delivery") @db.Timestamptz
-  actualDelivery   DateTime? @map("actual_delivery") @db.Timestamptz
-  status           String    @default("IN_TRANSIT")
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-
-  @@map("supplier_asns")
-}
-
-model SupplierScorecard {
-  id          String   @id @default(uuid())
-  supplierId  String   @map("supplier_id")
-  onTimeRate  Float    @map("on_time_rate")
-  inFullRate  Float    @map("in_full_rate")
-  defectRate  Float    @map("defect_rate")
-  otifScore   Float    @map("otif_score")
-  evaluatedAt DateTime @default(now()) @map("evaluated_at") @db.Timestamptz
-
-  @@map("supplier_scorecards")
-}
 
 model EsgEmissionsRecord {
   id            String   @id @default(uuid())
