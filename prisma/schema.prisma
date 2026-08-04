@@ -665,12 +665,12 @@ model ReturnMerchandiseAuthorization {
   customerId String   @map("customer_id")
   status    String    @default("PENDING_INSPECTION")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  items     RmaItem[]
+  items     ReturnMerchandiseAuthorizationItem[]
 
   @@map("return_merchandise_authorizations")
 }
 
-model RmaItem {
+model ReturnMerchandiseAuthorizationItem {
   id          String   @id @default(uuid())
   rmaId       String   @map("rma_id")
   sku         String
@@ -680,7 +680,7 @@ model RmaItem {
   inspectedAt DateTime? @map("inspected_at") @db.Timestamptz
   rma         ReturnMerchandiseAuthorization @relation(fields: [rmaId], references: [id], onDelete: Cascade)
 
-  @@map("rma_items")
+  @@map("rma_items_v2")
 }
 
 model SupplierASN {
