@@ -54,12 +54,6 @@ describe('AutonomousInventoryEngine', () => {
       const results = engine.evaluateStockHealth(items);
       expect(results).toHaveLength(1);
 
-      // salesVelocity = 5
-      // reorderThreshold = 20 + (5 * 2) = 30
-      // daysUntilStockout = 25 / 5 = 5
-      // recommendedQty = ceil((5 * 30) + 20 - 25) = ceil(150 + 20 - 25) = 145
-      // totalCost = 145 * 10 = 1450
-
       expect(results[0]).toEqual({
         sku: 'TEST-1',
         name: 'Test Item',
@@ -67,7 +61,7 @@ describe('AutonomousInventoryEngine', () => {
         predictedDaysUntilStockout: 5,
         recommendedOrderQuantity: 145,
         totalEstimatedCost: 1450,
-        urgency: 'OPTIONAL', // daysUntilStockout(5) > 1.5 * leadTime(3)
+        urgency: 'OPTIONAL',
         status: 'DRAFT_PO_CREATED',
       });
     });
@@ -76,7 +70,6 @@ describe('AutonomousInventoryEngine', () => {
       const items: StockItemMetric[] = [{
         sku: 'TEST-1', name: 'Test Item', currentStock: 10, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'SUP-1'
       }];
-      // daysUntilStockout = 10 / 5 = 2. 2 <= 2 (lead time) -> CRITICAL
       const results = engine.evaluateStockHealth(items);
       expect(results[0].urgency).toBe('CRITICAL');
     });
@@ -85,7 +78,6 @@ describe('AutonomousInventoryEngine', () => {
       const items: StockItemMetric[] = [{
         sku: 'TEST-1', name: 'Test Item', currentStock: 15, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'SUP-1'
       }];
-      // daysUntilStockout = 15 / 5 = 3. 3 <= 1.5 * 2 (3) -> WARNING
       const results = engine.evaluateStockHealth(items);
       expect(results[0].urgency).toBe('WARNING');
     });
@@ -96,10 +88,6 @@ describe('AutonomousInventoryEngine', () => {
       }];
       const results = engine.evaluateStockHealth(items);
 
-      // salesVelocity = 0.1
-      // daysUntilStockout = 5 / 0.1 = 50
-      // recommendedQty = ceil((0.1 * 30) + 10 - 5) = ceil(3 + 10 - 5) = 8
-      // totalCost = 8 * 10 = 80
       expect(results[0].predictedDaysUntilStockout).toBe(50);
       expect(results[0].recommendedOrderQuantity).toBe(8);
       expect(results[0].totalEstimatedCost).toBe(80);
@@ -107,16 +95,16 @@ describe('AutonomousInventoryEngine', () => {
 
     it('should sort recommendations by predictedDaysUntilStockout ascending', () => {
       const items: StockItemMetric[] = [
-        { sku: 'ITEM-A', name: 'A', currentStock: 50, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' }, // not recommended (50 > 30)
-        { sku: 'ITEM-B', name: 'B', currentStock: 10, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' }, // days: 2
-        { sku: 'ITEM-C', name: 'C', currentStock: 20, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' }, // days: 4
-        { sku: 'ITEM-D', name: 'D', currentStock: 5, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' }, // days: 1
+        { sku: 'ITEM-A', name: 'A', currentStock: 50, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' },
+        { sku: 'ITEM-B', name: 'B', currentStock: 10, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' },
+        { sku: 'ITEM-C', name: 'C', currentStock: 20, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' },
+        { sku: 'ITEM-D', name: 'D', currentStock: 5, safetyStock: 20, avgDailySales: 5, supplierLeadTimeDays: 2, unitCost: 10, supplierId: 'S1' },
       ];
       const results = engine.evaluateStockHealth(items);
       expect(results).toHaveLength(3);
-      expect(results[0].sku).toBe('ITEM-D'); // days: 1
-      expect(results[1].sku).toBe('ITEM-B'); // days: 2
-      expect(results[2].sku).toBe('ITEM-C'); // days: 4
+      expect(results[0].sku).toBe('ITEM-D');
+      expect(results[1].sku).toBe('ITEM-B');
+      expect(results[2].sku).toBe('ITEM-C');
     });
   });
 });
