@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { validateOutboundUrl } from '../../utils/urlValidator';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { pubsub } from './pubsub';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 import { logisticsService } from '../../domain/shipping/logisticsService.js';
@@ -2551,7 +2551,7 @@ export const resolvers = {
       }
     },
     generateBillOfLading: async (_: any, { carrier, originAddress, destinationAddress, weightKg, totalPackages }: any) => {
-      const bolNumber = `BOL-${Math.floor(100000 + Math.random() * 900000)}`;
+      const bolNumber = `BOL-${crypto.randomInt(100000, 1000000)}`;
       return {
         bolNumber,
         carrier,
@@ -2590,7 +2590,7 @@ export const resolvers = {
       const zplCode = `^XA\n^FO50,50^A0N,36,36^FD${labelType.toUpperCase()} TAG^FS\n^FO50,100^BCN,100,Y,N,N^FD${barcodeValue}^FS\n^FO50,220^A0N,24,24^FD${subtitle || ''}^FS\n^XZ`;
       return {
         success: true,
-        jobId: `PRINT-JOB-${Math.floor(1000 + Math.random() * 9000)}`,
+        jobId: `PRINT-JOB-${crypto.randomInt(1000, 10000)}`,
         printerName,
         zplCode,
         sentAt: new Date().toISOString()
@@ -2600,7 +2600,7 @@ export const resolvers = {
       const totalOrdersProcessed = orderWaveCount * 25;
       const throughputPerHour = Math.round((totalOrdersProcessed / 2) * 10) / 10;
       return {
-        scenarioId: `SIM-${Math.floor(1000 + Math.random() * 9000)}`,
+        scenarioId: `SIM-${crypto.randomInt(1000, 10000)}`,
         durationSeconds: 3600,
         totalOrdersProcessed,
         averageFulfillmentTimeMinutes: Math.round((12.5 / (activePickersCount / 5)) * 10) / 10,

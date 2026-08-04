@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+
 export enum ERPProvider {
   QUICKBOOKS = 'QUICKBOOKS',
   NETSUITE = 'NETSUITE',
@@ -50,7 +52,7 @@ export class QuickBooksClient implements IQuickBooksClient {
   async syncJournalEntry(input: ERPJournalInput): Promise<ERPJournalSyncResult> {
     const isMock = !input.apiKey || input.apiKey.toLowerCase().includes('mock') || input.apiKey === '';
     const totalCents = input.lines.reduce((sum, line) => sum + line.amountCents, 0);
-    const mockId = `qbo-jrnl-${Math.floor(100000 + Math.random() * 900000)}`;
+    const mockId = `qbo-jrnl-${crypto.randomInt(100000, 1000000)}`;
 
     // In a production setup with credentials, this would make an HTTPS request to Intuit V3 API
     // converting cents to decimal dollars: amountCents / 100
@@ -72,7 +74,7 @@ export class NetSuiteClient implements INetSuiteClient {
   async syncJournalEntry(input: ERPJournalInput): Promise<ERPJournalSyncResult> {
     const isMock = !input.apiKey || input.apiKey.toLowerCase().includes('mock') || input.apiKey === '';
     const totalCents = input.lines.reduce((sum, line) => sum + line.amountCents, 0);
-    const mockId = `ns-jrnl-${Math.floor(100000 + Math.random() * 900000)}`;
+    const mockId = `ns-jrnl-${crypto.randomInt(100000, 1000000)}`;
 
     return {
       success: true,
@@ -92,7 +94,7 @@ export class XeroClient implements IXeroClient {
   async syncJournalEntry(input: ERPJournalInput): Promise<ERPJournalSyncResult> {
     const isMock = !input.apiKey || input.apiKey.toLowerCase().includes('mock') || input.apiKey === '';
     const totalCents = input.lines.reduce((sum, line) => sum + line.amountCents, 0);
-    const mockId = `xero-jrnl-${Math.floor(100000 + Math.random() * 900000)}`;
+    const mockId = `xero-jrnl-${crypto.randomInt(100000, 1000000)}`;
 
     return {
       success: true,
