@@ -39,16 +39,23 @@ export class WebhookDeliveryWorker {
       if (deliveries.length === 0) return;
 
       const deliveryIds = deliveries.map((d: any) => d.id);
-      await prisma.webhookDelivery.updateMany({
-        where: { id: { in: deliveryIds } },
-        data: { status: 'Processing' },
-      });
+      const subscriptionIds = [...new Set(deliveries.map((d: any) => d.subscriptionId))];
 
-      for (const delivery of deliveries) {
+      const [subscriptions] = await Promise.all([
+        prisma.webhookSubscription.findMany({
+          where: { id: { in: subscriptionIds as string[] } }
+        }),
+        prisma.webhookDelivery.updateMany({
+          where: { id: { in: deliveryIds } },
+          data: { status: 'Processing' },
+        })
+      ]);
+
+      const subscriptionMap = new Map(subscriptions.map((s: any) => [s.id, s]));
+
+      await Promise.all(deliveries.map(async (delivery: any) => {
         try {
-          const subscription = await prisma.webhookSubscription.findUnique({
-            where: { id: delivery.subscriptionId }
-          });
+          const subscription: any = subscriptionMap.get(delivery.subscriptionId);
 
           if (!subscription || !subscription.isActive) {
             throw new Error(`Subscription ${delivery.subscriptionId} not found or inactive`);
@@ -108,9 +115,7 @@ export class WebhookDeliveryWorker {
           console.error(`[WebhookDeliveryWorker] Failed to deliver webhook ${delivery.id}:`, err.message);
 
           // Get tenantId from subscription if available
-          const subscription = await prisma.webhookSubscription.findUnique({
-            where: { id: delivery.subscriptionId }
-          });
+          const subscription: any = subscriptionMap.get(delivery.subscriptionId);
           const tenantId = subscription ? subscription.tenantId : 'default-tenant';
 
           // Publish failed webhook event to subscribers
@@ -140,7 +145,7 @@ export class WebhookDeliveryWorker {
             }
           });
         }
-      }
+      }));
     } catch (error) {
       console.error('[WebhookDeliveryWorker] Error in background worker loop:', error);
     } finally {
