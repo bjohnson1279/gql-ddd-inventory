@@ -10,6 +10,12 @@ import { SerializedItemStatus } from '../../domain/enums/SerializedItemStatus';
 import { StatusTransition } from '../../domain/valueObjects/StatusTransition';
 import { ActorId } from '../../domain/valueObjects/ActorId';
 
+const DEFAULT_STATUS_COUNTS = Object.freeze(
+  Object.fromEntries(
+    Object.values(SerializedItemStatus).map((status) => [status, 0])
+  )
+) as Record<SerializedItemStatus, number>;
+
 export class PostgresSerializedItemRepository implements ISerializedItemRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -273,19 +279,12 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
       _count: { status: true },
     });
 
-    const result: Partial<Record<SerializedItemStatus, number>> = {};
-    for (const row of rows) {
-      result[row.status as SerializedItemStatus] = row._count.status;
+    const result = { ...DEFAULT_STATUS_COUNTS };
+    for (let i = 0; i < rows.length; i++) {
+      result[rows[i].status as SerializedItemStatus] = rows[i]._count.status;
     }
 
-    // Fill missing statuses with 0
-    for (const status of Object.values(SerializedItemStatus)) {
-      if (!(status in result)) {
-        result[status] = 0;
-      }
-    }
-
-    return result as Record<SerializedItemStatus, number>;
+    return result;
   }
 
   async saveBatch(items: SerializedItem[]): Promise<void> {
