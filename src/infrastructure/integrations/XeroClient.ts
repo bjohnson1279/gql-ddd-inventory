@@ -1,6 +1,7 @@
 import { IXeroClient } from "../../domain/integrations/services/IXeroClient";
 import { JournalEntryPayload } from "../../domain/integrations/services/IQuickBooksClient";
 import * as crypto from 'crypto';
+import * as crypto from "crypto";
 
 export class XeroClient implements IXeroClient {
   public async publishJournalEntry(
@@ -10,6 +11,7 @@ export class XeroClient implements IXeroClient {
   ): Promise<string> {
     if (!xeroTenantId || xeroTenantId.includes("mock") || !accessToken || accessToken.includes("mock")) {
       return `mock-xero-journal-${crypto.randomUUID().substring(0, 8)}`;
+      return `mock-xero-journal-${crypto.randomUUID()}`;
     }
 
     const baseUrl = "https://api.xro.com/api.xro/2.0";
@@ -54,5 +56,6 @@ export class XeroClient implements IXeroClient {
 
     const data: any = await response.json();
     return data.ManualJournals?.[0]?.ManualJournalID || `mock-xero-journal-${crypto.randomUUID().substring(0, 8)}`;
+    return data.ManualJournals?.[0]?.ManualJournalID || `mock-xero-journal-${crypto.randomUUID()}`;
   }
 }

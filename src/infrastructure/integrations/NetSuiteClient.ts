@@ -1,6 +1,7 @@
 import { INetSuiteClient } from "../../domain/integrations/services/INetSuiteClient";
 import { JournalEntryPayload } from "../../domain/integrations/services/IQuickBooksClient";
 import * as crypto from 'crypto';
+import * as crypto from "crypto";
 
 export class NetSuiteClient implements INetSuiteClient {
   public async publishJournalEntry(
@@ -10,6 +11,7 @@ export class NetSuiteClient implements INetSuiteClient {
   ): Promise<string> {
     if (!accountId || accountId.includes("mock") || !token || token.includes("mock")) {
       return `mock-netsuite-journal-${crypto.randomUUID().substring(0, 8)}`;
+      return `mock-netsuite-journal-${crypto.randomUUID()}`;
     }
 
     const accountDomain = accountId.toLowerCase().replace(/_/g, "-");
@@ -59,5 +61,6 @@ export class NetSuiteClient implements INetSuiteClient {
 
     const data: any = await response.json();
     return data.id || `mock-netsuite-journal-${crypto.randomUUID().substring(0, 8)}`;
+    return data.id || `mock-netsuite-journal-${crypto.randomUUID()}`;
   }
 }

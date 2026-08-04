@@ -52,6 +52,7 @@ describe('WebhookDeliveryWorker (GraphQL)', () => {
 
     (prisma.webhookDelivery.findMany as jest.Mock).mockResolvedValue([mockDelivery]);
     (prisma.webhookSubscription.findUnique as jest.Mock).mockResolvedValue(mockSubscription);
+    (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValue([mockSubscription]);
     fetchSpy.mockResolvedValue({
       ok: true,
       status: 200
@@ -109,6 +110,7 @@ describe('WebhookDeliveryWorker (GraphQL)', () => {
 
     (prisma.webhookDelivery.findMany as jest.Mock).mockResolvedValue([mockDelivery]);
     (prisma.webhookSubscription.findUnique as jest.Mock).mockResolvedValue(mockSubscription);
+    (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValue([mockSubscription]);
     fetchSpy.mockResolvedValue({
       ok: false,
       status: 500

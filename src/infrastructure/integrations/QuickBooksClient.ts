@@ -1,5 +1,6 @@
 import { IQuickBooksClient, JournalEntryPayload } from "../../domain/integrations/services/IQuickBooksClient";
 import * as crypto from 'crypto';
+import * as crypto from "crypto";
 
 export class QuickBooksClient implements IQuickBooksClient {
   public async publishJournalEntry(
@@ -10,6 +11,7 @@ export class QuickBooksClient implements IQuickBooksClient {
   ): Promise<string> {
     if (!realmId || realmId.includes("mock") || !accessToken || accessToken.includes("mock")) {
       return `mock-qbo-journal-${crypto.randomUUID().substring(0, 8)}`;
+      return `mock-qbo-journal-${crypto.randomUUID()}`;
     }
 
     const baseUrl = sandboxMode
@@ -63,5 +65,6 @@ export class QuickBooksClient implements IQuickBooksClient {
 
     const data: any = await response.json();
     return data.JournalEntry?.Id || data.Id || `mock-qbo-journal-${crypto.randomUUID().substring(0, 8)}`;
+    return data.JournalEntry?.Id || data.Id || `mock-qbo-journal-${crypto.randomUUID()}`;
   }
 }
