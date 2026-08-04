@@ -139,11 +139,15 @@ export class TenantProvisioner {
    * that can't run inside Prisma transactions.
    */
   private getControlPool(): Pool {
-    if (!process.env.DATABASE_URL && !process.env.DB_PASSWORD) {
-      throw new Error('Database password must be provided via DATABASE_URL or DB_PASSWORD environment variable.');
+    if (process.env.DATABASE_URL) {
+      return new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
     }
-    const connectionString = process.env.DATABASE_URL ||
-      `postgresql://${process.env.DB_USER || 'inventory_user'}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME || 'inventory_db'}`;
+
+    if (!process.env.DB_PASSWORD || !process.env.DB_USER || !process.env.DB_HOST || !process.env.DB_PORT || !process.env.DB_NAME) {
+      throw new Error('Database credentials (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME) must be explicitly provided via environment variables if DATABASE_URL is not set.');
+    }
+
+    const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
     return new Pool({ connectionString, max: 2 });
   }
 

@@ -213,10 +213,10 @@ async function startApolloServer() {
       await globalPrisma.$executeRaw`
         CREATE TABLE IF NOT EXISTS tenant_registry (
           tenant_id        TEXT PRIMARY KEY,
-          db_host          TEXT NOT NULL DEFAULT '127.0.0.1',
-          db_port          INTEGER NOT NULL DEFAULT 5433,
+          db_host          TEXT NOT NULL,
+          db_port          INTEGER NOT NULL,
           db_name          TEXT NOT NULL,
-          db_user          TEXT NOT NULL DEFAULT 'inventory_user',
+          db_user          TEXT NOT NULL,
           db_password      TEXT NOT NULL,
           status           TEXT NOT NULL DEFAULT 'PROVISIONING',
           provisioned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
