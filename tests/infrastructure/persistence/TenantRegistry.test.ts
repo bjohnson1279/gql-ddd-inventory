@@ -5,7 +5,13 @@ describe('TenantRegistry', () => {
 
   beforeAll(() => {
     originalEnv = process.env;
-    process.env = { ...originalEnv, DB_PASSWORD: 'test_password' };
+    process.env = {
+      ...originalEnv,
+      DB_PASSWORD: 'test_password',
+      DB_USER: 'test_user',
+      DB_HOST: '127.0.0.1',
+      DB_PORT: '5432'
+    };
   });
 
   afterAll(() => {

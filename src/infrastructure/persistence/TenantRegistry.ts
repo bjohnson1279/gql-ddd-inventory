@@ -44,14 +44,14 @@ export class TenantRegistry {
     dbPassword?: string
   ): Promise<TenantRegistryEntry> {
     const safeName = tenantId.replace(/[^a-zA-Z0-9_]/g, '_');
-    const host = dbHost || process.env.DB_HOST || '127.0.0.1';
-    const port = dbPort || parseInt(process.env.DB_PORT || '5433', 10);
+    const host = dbHost || process.env.DB_HOST;
+    const port = dbPort || (process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined);
     const name = dbName || `inventory_tenant_${safeName}`;
-    const user = dbUser || process.env.DB_USER || 'inventory_user';
+    const user = dbUser || process.env.DB_USER;
     const password = dbPassword || process.env.DB_PASSWORD;
 
-    if (!password) {
-      throw new Error('Database password must be provided via argument or DB_PASSWORD environment variable.');
+    if (!password || !user || !host || !port) {
+      throw new Error('Database credentials (user, password, host, port) must be explicitly provided via arguments or environment variables.');
     }
 
     const existing = await this.lookupTenant(tenantId);
