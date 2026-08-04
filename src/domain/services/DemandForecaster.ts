@@ -173,6 +173,17 @@ export class DemandForecaster {
     const variantIds = Array.from(variantMap.values()).map(v => v.id);
     const ledgerEntriesBatch = await this.ledgerRepo.entriesForBatch(variantIds, locationId);
 
+    const now = new Date();
+    const endWindow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // ⚡ Bolt: Pre-calculate active forecasts into a Map to prevent O(N*M) lookups inside the loop
+    const activeForecastMap = new Map<string, DemandForecast>();
+    for (const f of forecasts) {
+      if (f.periodEnd >= now && f.periodStart <= endWindow) {
+        activeForecastMap.set(f.sku.value, f);
+      }
+    }
+
     const reportItemsPromises = inventoryItems.map(async (item) => {
       const skuStr = item.sku.value;
       const sku = new Sku(skuStr);
@@ -190,14 +201,7 @@ export class DemandForecaster {
       const reorderQuantity = policy ? policy.reorderQuantity : 20;
       const safetyStock = policy ? policy.safetyStock : 5;
 
-      const now = new Date();
-      const endWindow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      const activeForecast = forecasts.find(
-        (f) =>
-          f.sku.value === skuStr &&
-          f.periodEnd >= now &&
-          f.periodStart <= endWindow
-      );
+      const activeForecast = activeForecastMap.get(skuStr);
 
       const forecastedDemand30d = activeForecast ? activeForecast.forecastedQuantity : Math.ceil(velocity.averageDailySales30d * 30);
       const defaultConfidence = velocity.averageDailySales30d > 0 ? 0.70 : 0.50;
