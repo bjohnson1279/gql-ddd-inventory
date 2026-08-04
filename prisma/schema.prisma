@@ -658,30 +658,6 @@ model BillOfLading {
   @@map("bills_of_lading")
 }
 
-model ReturnMerchandiseAuthorization {
-  id        String    @id @default(uuid())
-  rmaNumber String    @unique @map("rma_number")
-  orderId   String    @map("order_id")
-  customerId String   @map("customer_id")
-  status    String    @default("PENDING_INSPECTION")
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  items     RmaItem[]
-
-  @@map("return_merchandise_authorizations")
-}
-
-model RmaItem {
-  id          String   @id @default(uuid())
-  rmaId       String   @map("rma_id")
-  sku         String
-  quantity    Int
-  reason      String
-  disposition String   @default("PENDING")
-  inspectedAt DateTime? @map("inspected_at") @db.Timestamptz
-  rma         ReturnMerchandiseAuthorization @relation(fields: [rmaId], references: [id], onDelete: Cascade)
-
-  @@map("rma_items")
-}
 
 model SupplierASN {
   id               String    @id @default(uuid())

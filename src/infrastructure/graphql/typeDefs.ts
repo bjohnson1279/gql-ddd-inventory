@@ -678,8 +678,6 @@ export const typeDefs = `#graphql
     # Eventual Consistency Audit
     auditDiscrepancies(tenantId: ID!, status: String): [AuditDiscrepancy!]!
 
-    # Enterprise Logistics Queries
-    calculateShippingRates(input: RateQuoteInput!): [ShippingRateQuote!]!
     getSupplierOTIFScorecard(supplierId: String!): SupplierScorecard!
     queryCopilot(query: String!): CopilotQueryResult!
     getEsgEmissionsReport(tenantId: String!): EsgEmissionsReport!
@@ -947,8 +945,6 @@ export const typeDefs = `#graphql
     syncXeroJournal(xeroTenantId: String!, accessToken: String!, journalId: String!): String!
 
     # Enterprise Logistics & Unified ERP Integrations
-    generateShippingLabel(input: ShippingLabelInput!): ShippingLabel!
-    syncERPJournal(input: ERPJournalInput!): ERPJournalSyncResult!
   }
 
   type Subscription {
@@ -1172,7 +1168,6 @@ export const typeDefs = `#graphql
 
   type BillOfLading {
     bolNumber: String!
-    carrier: CarrierProvider!
     originAddress: String!
     destinationAddress: String!
     weightKg: Float!
@@ -1233,9 +1228,6 @@ export const typeDefs = `#graphql
 
 
   extend type Mutation {
-    generateShippingLabel(input: ShippingLabelInput!): ShippingLabel!
-    generateBillOfLading(carrier: CarrierProvider!, originAddress: String!, destinationAddress: String!, weightKg: Float!, totalPackages: Int!): BillOfLading!
-    syncERPJournal(input: ERPJournalInput!): ERPJournalSyncResult!
     inspectRMAItem(rmaNumber: String!, sku: String!, disposition: RMADisposition!, notes: String): JSON!
     submitSupplierASN(asnNumber: String!, supplierId: String!, expectedDelivery: String!, lineItemsJson: String!): JSON!
     printZplThermalLabel(printerName: String!, labelType: String!, barcodeValue: String!, subtitle: String): ZplPrintResult!
