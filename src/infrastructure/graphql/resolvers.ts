@@ -1444,13 +1444,6 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    calculateShippingRates: async (_: any, { input }: { input: any }, ctx: any) => {
-      try {
-        return await logisticsService.calculateRates(input);
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
-    },
   },
   Mutation: {
     quarantineLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {

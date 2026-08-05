@@ -63,30 +63,38 @@ export class DemandForecaster {
     }
 
     const now = new Date();
-    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgoTime = now.getTime() - 90 * 24 * 60 * 60 * 1000;
     const thirtyDaysAgoTime = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const sevenDaysAgoTime = now.getTime() - 7 * 24 * 60 * 60 * 1000;
 
     const entries = preFetchedEntries || await this.ledgerRepo.entriesFor(variant.id, locationId);
 
-    const history90d = entries.filter((e) =>
-      e.occurredAt >= ninetyDaysAgo &&
-      e.quantity < 0 &&
-      (e.reason === ReasonCode.Sale || e.reason === ReasonCode.KitSale)
-    );
+    let sum7d = 0;
+    let sum30d = 0;
+    let sum90d = 0;
 
-    const history30d = history90d.filter((r) => r.occurredAt.getTime() >= thirtyDaysAgoTime);
-    const history7d = history30d.filter((r) => r.occurredAt.getTime() >= sevenDaysAgoTime);
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      if (e.quantity < 0 && (e.reason === ReasonCode.Sale || e.reason === ReasonCode.KitSale)) {
+        const time = e.occurredAt.getTime();
+        if (time >= ninetyDaysAgoTime) {
+          const absQty = Math.abs(e.quantity);
+          sum90d += absQty;
+          if (time >= thirtyDaysAgoTime) {
+            sum30d += absQty;
+            if (time >= sevenDaysAgoTime) {
+              sum7d += absQty;
+            }
+          }
+        }
+      }
+    }
 
     let currentStock = preFetchedStock;
     if (currentStock === undefined) {
       const inventoryItem = await this.inventoryRepo.findBySkuAndLocation(sku.value, locationId.value);
       currentStock = inventoryItem ? inventoryItem.quantity.value : 0;
     }
-
-    const sum7d = history7d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
-    const sum30d = history30d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
-    const sum90d = history90d.reduce((acc, r) => acc + Math.abs(r.quantity), 0);
 
     const ads7d = parseFloat((sum7d / 7).toFixed(3));
     const ads30d = parseFloat((sum30d / 30).toFixed(3));
@@ -165,6 +173,17 @@ export class DemandForecaster {
     const variantIds = Array.from(variantMap.values()).map(v => v.id);
     const ledgerEntriesBatch = await this.ledgerRepo.entriesForBatch(variantIds, locationId);
 
+    const now = new Date();
+    const endWindow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // ⚡ Bolt: Pre-calculate active forecasts into a Map to prevent O(N*M) lookups inside the loop
+    const activeForecastMap = new Map<string, DemandForecast>();
+    for (const f of forecasts) {
+      if (f.periodEnd >= now && f.periodStart <= endWindow) {
+        activeForecastMap.set(f.sku.value, f);
+      }
+    }
+
     const reportItemsPromises = inventoryItems.map(async (item) => {
       const skuStr = item.sku.value;
       const sku = new Sku(skuStr);
@@ -182,14 +201,7 @@ export class DemandForecaster {
       const reorderQuantity = policy ? policy.reorderQuantity : 20;
       const safetyStock = policy ? policy.safetyStock : 5;
 
-      const now = new Date();
-      const endWindow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      const activeForecast = forecasts.find(
-        (f) =>
-          f.sku.value === skuStr &&
-          f.periodEnd >= now &&
-          f.periodStart <= endWindow
-      );
+      const activeForecast = activeForecastMap.get(skuStr);
 
       const forecastedDemand30d = activeForecast ? activeForecast.forecastedQuantity : Math.ceil(velocity.averageDailySales30d * 30);
       const defaultConfidence = velocity.averageDailySales30d > 0 ? 0.70 : 0.50;
