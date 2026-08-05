@@ -91,3 +91,15 @@ export class GetJournalEntriesUseCase {
     return await this.journalRepo.findAllByTenant(new TenantId(tenantId));
   }
 }
+
+export class GetJournalEntryByIdUseCase {
+  constructor(private readonly journalRepo: IJournalRepository) {}
+
+  async execute(tenantId: string, journalId: string): Promise<JournalEntry | null> {
+    const entry = await this.journalRepo.findById(new JournalEntryId(journalId));
+    if (entry && entry.tenantId.value === tenantId) {
+      return entry;
+    }
+    return null;
+  }
+}
