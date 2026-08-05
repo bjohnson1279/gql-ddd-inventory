@@ -565,8 +565,12 @@ function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?:
     if (actorId && context.auth.actorId !== actorId) {
       throw new Error('Forbidden: Cross-actor access is not allowed.');
     }
+    const resolvedTenantId = context.auth.tenantId || tenantId;
+    if (!resolvedTenantId) {
+      throw new Error('Forbidden: Tenant identification is missing from the request context.');
+    }
     return {
-      tenantId: context.auth.tenantId || tenantId || 'tenant-1',
+      tenantId: resolvedTenantId,
       actorId: context.auth.actorId || actorId || 'admin-user',
       role
     };
@@ -681,9 +685,9 @@ export const resolvers = {
       };
     },
     getLotBatches: async (_: any, { variantId }: { variantId?: string }, context: GraphQLContext) => {
-      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const db = context.prisma || prisma;
-      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const tenantId = auth.tenantId;
       const where: any = { tenantId };
       if (variantId) where.variantId = variantId;
       const lots = await (db as any).lotBatch.findMany({ where });
@@ -703,9 +707,9 @@ export const resolvers = {
       }));
     },
     getLotTraceability: async (_: any, { lotNumber, variantId }: { lotNumber: string; variantId: string }, context: GraphQLContext) => {
-      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const db = context.prisma || prisma;
-      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const tenantId = auth.tenantId;
       const lot = await (db as any).lotBatch.findUnique({
         where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } }
       });
@@ -1443,9 +1447,9 @@ export const resolvers = {
   },
   Mutation: {
     quarantineLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
-      enforceRole(context, ['admin', 'warehouse_operator']);
+      const auth = enforceRole(context, ['admin', 'warehouse_operator']);
       const db = context.prisma || prisma;
-      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const tenantId = auth.tenantId;
       let lot = await (db as any).lotBatch.findUnique({
         where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } }
       });
@@ -1478,9 +1482,9 @@ export const resolvers = {
       };
     },
     recallLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
-      enforceRole(context, ['admin']);
+      const auth = enforceRole(context, ['admin']);
       const db = context.prisma || prisma;
-      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const tenantId = auth.tenantId;
       let lot = await (db as any).lotBatch.findUnique({
         where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } }
       });
@@ -1513,9 +1517,9 @@ export const resolvers = {
       };
     },
     releaseLotBatch: async (_: any, { lotNumber, variantId }: { lotNumber: string; variantId: string }, context: GraphQLContext) => {
-      enforceRole(context, ['admin']);
+      const auth = enforceRole(context, ['admin']);
       const db = context.prisma || prisma;
-      const tenantId = context.auth?.tenantId || 'tenant-1';
+      const tenantId = auth.tenantId;
       const lot = await (db as any).lotBatch.update({
         where: { tenantId_lotNumber_variantId: { tenantId, lotNumber, variantId } },
         data: {
@@ -1853,7 +1857,7 @@ export const resolvers = {
     },
     dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: GraphQLContext) => {
       try {
-        const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], payload.tenantId || 'tenant-1');
+        const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], payload.tenantId);
         const result = await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
         
         // Publish real-time scan event to active tenant subscription channel
@@ -1870,19 +1874,21 @@ export const resolvers = {
         
         return result;
       } catch (error: any) {
-        const tenantId = ctx?.auth?.tenantId || payload?.tenantId || 'tenant-1';
+        const tenantId = ctx?.auth?.tenantId || payload?.tenantId;
         
         // Publish failure scan events to subscription channel for supervisor auditing
-        pubsub.publish(`${BARCODE_SCANNED_TOPIC}_${tenantId}`, {
-          barcodeScanned: {
-            scanValue: rawScan,
-            symbology: 'unknown',
-            context: String(context),
-            status: `Error: ${error.message}`,
-            time: new Date().toLocaleTimeString(),
-            payload: JSON.stringify(payload)
-          }
-        });
+        if (tenantId) {
+          pubsub.publish(`${BARCODE_SCANNED_TOPIC}_${tenantId}`, {
+            barcodeScanned: {
+              scanValue: rawScan,
+              symbology: 'unknown',
+              context: String(context),
+              status: `Error: ${error.message}`,
+              time: new Date().toLocaleTimeString(),
+              payload: JSON.stringify(payload)
+            }
+          });
+        }
         
         throw new Error(error.message);
       }
@@ -2465,12 +2471,12 @@ export const resolvers = {
     },
     syncQuickBooksJournal: async (_: any, { realmId, accessToken, journalId, sandboxMode }: { realmId: string; accessToken: string; journalId: string; sandboxMode?: boolean }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'accountant']);
-        const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
+        const auth = enforceRole(context, ['admin', 'accountant']);
+        const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
         const found = entries.find(j => j.id.value === journalId);
         const payload = {
           aggregateId: journalId,
-          tenantId: context.auth?.tenantId || 'tenant-1',
+          tenantId: auth.tenantId,
           date: found ? found.date.toISOString() : new Date().toISOString(),
           description: found ? found.description : `Sync Journal ${journalId}`,
           lines: found ? found.lines.map(l => ({
@@ -2487,12 +2493,12 @@ export const resolvers = {
     },
     syncNetSuiteJournal: async (_: any, { accountId, token, journalId }: { accountId: string; token: string; journalId: string }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'accountant']);
-        const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
+        const auth = enforceRole(context, ['admin', 'accountant']);
+        const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
         const found = entries.find(j => j.id.value === journalId);
         const payload = {
           aggregateId: journalId,
-          tenantId: context.auth?.tenantId || 'tenant-1',
+          tenantId: auth.tenantId,
           date: found ? found.date.toISOString() : new Date().toISOString(),
           description: found ? found.description : `Sync Journal ${journalId}`,
           lines: found ? found.lines.map(l => ({
@@ -2509,12 +2515,12 @@ export const resolvers = {
     },
     syncXeroJournal: async (_: any, { xeroTenantId, accessToken, journalId }: { xeroTenantId: string; accessToken: string; journalId: string }, context: GraphQLContext) => {
       try {
-        enforceRole(context, ['admin', 'accountant']);
-        const entries = await getJournalEntriesUseCase.execute(context.auth?.tenantId || 'tenant-1');
+        const auth = enforceRole(context, ['admin', 'accountant']);
+        const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
         const found = entries.find(j => j.id.value === journalId);
         const payload = {
           aggregateId: journalId,
-          tenantId: context.auth?.tenantId || 'tenant-1',
+          tenantId: auth.tenantId,
           date: found ? found.date.toISOString() : new Date().toISOString(),
           description: found ? found.description : `Sync Journal ${journalId}`,
           lines: found ? found.lines.map(l => ({
