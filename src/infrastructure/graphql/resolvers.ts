@@ -58,7 +58,7 @@ import {
   RemoveUomConversionRuleUseCase,
   SetUomUnitsUseCase
 } from '../../application/useCases/ManageUoms';
-import { CreateJournalEntryUseCase, GetJournalEntriesUseCase } from '../../application/useCases/ManageJournals';
+import { CreateJournalEntryUseCase, GetJournalEntriesUseCase, GetJournalEntryByIdUseCase } from '../../application/useCases/ManageJournals';
 import { GetTenantAccountingConfigUseCase, SaveTenantAccountingConfigUseCase } from '../../application/useCases/ManageTenantAccountingConfig';
 import { GetStockValuationReportUseCase } from '../../application/useCases/GetStockValuationReport';
 import { CostingMethod } from '../../domain/enums/AccountingEnums';
@@ -369,6 +369,7 @@ const removeUomConversionRuleUseCase = new RemoveUomConversionRuleUseCase(uomRep
 const setUomUnitsUseCase = new SetUomUnitsUseCase(uomRepository);
 const createJournalEntryUseCase = new CreateJournalEntryUseCase(journalRepository, eventDispatcher);
 const getJournalEntriesUseCase = new GetJournalEntriesUseCase(journalRepository);
+const getJournalEntryByIdUseCase = new GetJournalEntryByIdUseCase(journalRepository);
 
 // Barcode Repositories & Services
 const barcodeRepository = new PostgresBarcodeRepository(prisma);
@@ -2472,8 +2473,7 @@ export const resolvers = {
     syncQuickBooksJournal: async (_: any, { realmId, accessToken, journalId, sandboxMode }: { realmId: string; accessToken: string; journalId: string; sandboxMode?: boolean }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant']);
-        const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
-        const found = entries.find(j => j.id.value === journalId);
+        const found = await getJournalEntryByIdUseCase.execute(auth.tenantId, journalId);
         const payload = {
           aggregateId: journalId,
           tenantId: auth.tenantId,
@@ -2494,8 +2494,7 @@ export const resolvers = {
     syncNetSuiteJournal: async (_: any, { accountId, token, journalId }: { accountId: string; token: string; journalId: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant']);
-        const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
-        const found = entries.find(j => j.id.value === journalId);
+        const found = await getJournalEntryByIdUseCase.execute(auth.tenantId, journalId);
         const payload = {
           aggregateId: journalId,
           tenantId: auth.tenantId,
@@ -2516,8 +2515,7 @@ export const resolvers = {
     syncXeroJournal: async (_: any, { xeroTenantId, accessToken, journalId }: { xeroTenantId: string; accessToken: string; journalId: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin', 'accountant']);
-        const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
-        const found = entries.find(j => j.id.value === journalId);
+        const found = await getJournalEntryByIdUseCase.execute(auth.tenantId, journalId);
         const payload = {
           aggregateId: journalId,
           tenantId: auth.tenantId,
