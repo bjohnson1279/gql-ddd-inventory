@@ -81,11 +81,23 @@ export class RebalanceOptimizationService {
     const lead_times: { source_warehouse_id: string; dest_warehouse_id: string; transit_days: number }[] = [];
     const shipping_costs: { source_warehouse_id: string; dest_warehouse_id: string; cost_per_unit: number }[] = [];
 
+    // ⚡ Bolt: Pre-calculate unique rates concurrently to avoid O(N*M) lookups inside the loop below
+    // Expected impact: reduces time complexity for lead time calculations and prevents N^2 nested lookups.
+    const ruleBySourceWarehouse = new Map<string, any>();
+    for (const r of rules) {
+      if (r.sourceLocationId) {
+        const whId = locToWarehouse.get(r.sourceLocationId);
+        if (whId && !ruleBySourceWarehouse.has(whId)) {
+          ruleBySourceWarehouse.set(whId, r);
+        }
+      }
+    }
+
     // Build default lead times between all warehouse pairs
     for (const w1 of warehouses) {
+      const rule = ruleBySourceWarehouse.get(w1.id);
       for (const w2 of warehouses) {
         if (w1.id !== w2.id) {
-          const rule = rules.find(r => r.sourceLocationId && locToWarehouse.get(r.sourceLocationId) === w1.id);
           lead_times.push({ source_warehouse_id: w1.id, dest_warehouse_id: w2.id, transit_days: rule?.leadTimeDays || 3 });
           shipping_costs.push({ source_warehouse_id: w1.id, dest_warehouse_id: w2.id, cost_per_unit: 1.5 });
         }
