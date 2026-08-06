@@ -13,3 +13,6 @@
 ## 2024-05-31 - Array.find Bottleneck in Sync Resolvers
 **Learning:** Fetching an entire collection from a database repository (e.g., all `JournalEntry` records for a tenant) and then using `Array.prototype.find()` to locate a single item creates a severe O(N) memory and execution bottleneck, particularly dangerous in GraphQL mutations handling external syncs.
 **Action:** Always implement a dedicated `findById` Use Case (or equivalent repository lookup) to leverage the database's native O(1) index lookup and avoid loading unnecessary records into application memory.
+## 2024-05-31 - Array.find Bottleneck in Nested Loops
+**Learning:** Using `Array.find()` inside nested loops across large datasets creates O(N*M*P) performance bottlenecks. In `RebalanceOptimizationService.getRebalanceMatrix`, the rule lookup depended only on the outer loop but was placed inside the inner loop.
+**Action:** Always pre-compute map lookups outside loops and hoist invariant variables out of inner loops.
