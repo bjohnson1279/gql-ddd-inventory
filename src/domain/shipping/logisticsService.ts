@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+
 export enum CarrierProvider {
   FEDEX = 'FEDEX',
   UPS = 'UPS',
@@ -102,7 +104,8 @@ export class LogisticsService {
         ? 'DHL'
         : 'LTL';
 
-    const trackingNumber = `${trackingPrefix}${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+    // Note: randomInt upper bound is exclusive. Math.floor(1e9 + rand * 9e9) has upper bound < 10e9.
+    const trackingNumber = `${trackingPrefix}${crypto.randomInt(1000000000, 10000000000)}`;
     const serviceLevel = input.serviceLevel || 'STANDARD_GROUND';
 
     const zplString =
