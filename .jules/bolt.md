@@ -16,3 +16,6 @@
 ## 2024-05-31 - Array.find Bottleneck in Nested Loops
 **Learning:** Using `Array.find()` inside nested loops across large datasets creates O(N*M*P) performance bottlenecks. In `RebalanceOptimizationService.getRebalanceMatrix`, the rule lookup depended only on the outer loop but was placed inside the inner loop.
 **Action:** Always pre-compute map lookups outside loops and hoist invariant variables out of inner loops.
+## 2024-06-07 - CrossDockingEngine Array Filter Bottleneck
+**Learning:** Using `Array.filter()` inside a loop across inbound items to match backorders creates an O(N*M) performance bottleneck in `CrossDockingEngine.evaluate`.
+**Action:** Always pre-compute conditions matching active records into an O(1) `Map` keyed by the lookup property before iterating over the array to reduce time complexity to O(N+M).
