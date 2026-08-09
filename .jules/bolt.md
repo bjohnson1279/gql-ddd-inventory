@@ -16,3 +16,6 @@
 ## 2024-05-31 - Array.find Bottleneck in Nested Loops
 **Learning:** Using `Array.find()` inside nested loops across large datasets creates O(N*M*P) performance bottlenecks. In `RebalanceOptimizationService.getRebalanceMatrix`, the rule lookup depended only on the outer loop but was placed inside the inner loop.
 **Action:** Always pre-compute map lookups outside loops and hoist invariant variables out of inner loops.
+## 2024-05-19 - N+1 Query in ManageReturns
+ **Learning:** I learned that there was a database fetch (`findManyBySerialsAndVariant`) inside a `for (const item of dto.items)` loop during RMA item receipt. This query was unnecessary because the exact same serial numbers were already being batch-fetched and mapped to an `existingSerialItemsList` immediately before the loop! I only had to correctly index into this existing map.
+ **Action:** In future optimizations, always check if the data being fetched inside a loop is already available in the surrounding scope. Reusing O(1) in-memory maps instead of making N duplicate database calls is a huge performance win.
