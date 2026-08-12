@@ -104,6 +104,9 @@ export class TenantProvisioner {
    * Uses a raw pg Pool because CREATE DATABASE cannot run inside a transaction.
    */
   private async createDatabase(dbName: string): Promise<void> {
+    if (!/^[a-zA-Z0-9_-]+$/.test(dbName)) {
+      throw new Error(`Invalid database name: ${dbName}. Only alphanumeric characters, hyphens, and underscores are allowed.`);
+    }
     const controlPool = this.getControlPool();
     const client = await controlPool.connect();
     try {
@@ -124,6 +127,9 @@ export class TenantProvisioner {
    * Drop a PostgreSQL database.
    */
   private async dropDatabase(dbName: string): Promise<void> {
+    if (!/^[a-zA-Z0-9_-]+$/.test(dbName)) {
+      throw new Error(`Invalid database name: ${dbName}. Only alphanumeric characters, hyphens, and underscores are allowed.`);
+    }
     const controlPool = this.getControlPool();
     const client = await controlPool.connect();
     try {

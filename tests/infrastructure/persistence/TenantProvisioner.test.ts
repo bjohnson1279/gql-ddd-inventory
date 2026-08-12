@@ -93,6 +93,23 @@ describe('TenantProvisioner', () => {
     });
   });
 
+  describe('security validation', () => {
+    it('should reject invalid database names in deprovisionTenant', async () => {
+      mockRegistry.lookupTenant.mockResolvedValueOnce({
+        tenantId: 'bad-tenant',
+        dbHost: '127.0.0.1',
+        dbPort: 5433,
+        dbName: 'bad"name"; DROP DATABASE postgres; --',
+        dbUser: 'inventory_user',
+        dbPassword: 'inventory_password',
+        status: 'ACTIVE',
+        provisionedAt: new Date(),
+        migratedVersion: '1',
+      });
+      await expect(provisioner.deprovisionTenant('bad-tenant')).rejects.toThrow('Invalid database name');
+    });
+  });
+
   describe('deprovisionTenant', () => {
     it('should terminate connections, drop database, and mark as deprovisioned', async () => {
       mockRegistry.lookupTenant.mockResolvedValue({
