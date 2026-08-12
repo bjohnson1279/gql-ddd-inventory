@@ -83,20 +83,16 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
   // Set up Apollo Server
   const server = new ApolloServer({
     schema,
-    formatError: (formattedError: any, error: unknown) => {
+    formatError: (formattedError: any) => {
       // Security fix: Strip stack traces from error responses to prevent information leakage
       if (process.env.NODE_ENV === 'production') {
-        // In GraphQL 16+, formattedError.extensions might contain exception details
-        if (formattedError.extensions && formattedError.extensions.exception) {
-          delete formattedError.extensions.exception;
+        if (formattedError.extensions) {
+          if (formattedError.extensions.exception) {
+            delete formattedError.extensions.exception;
+          }
+          delete formattedError.extensions.stacktrace;
         }
-        // We can also just return a generic message if we want to be overly cautious,
-        // but typically removing the stack trace is sufficient.
-        return {
-          message: formattedError.message,
-          locations: formattedError.locations,
-          path: formattedError.path,
-        };
+        return formattedError;
       }
 
       if (formattedError.extensions) {
