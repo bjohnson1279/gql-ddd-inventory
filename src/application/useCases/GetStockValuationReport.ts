@@ -59,7 +59,27 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
-    const itemsToCalculate: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
+    const variantQuantities = new Map<string, number>();
+    for (const invItem of filteredItems) {
+      const qtyOnHand = invItem.quantity.value;
+      if (qtyOnHand <= 0) continue;
+      const variantIdStr = skuToVariantId.get(invItem.sku.value);
+      if (!variantIdStr) continue;
+
+      variantQuantities.set(variantIdStr, (variantQuantities.get(variantIdStr) || 0) + qtyOnHand);
+    }
+
+    const batchRequest = Array.from(variantQuantities.entries()).map(([variantIdStr, quantity]) => ({
+      variantId: new ProductVariantId(variantIdStr),
+      quantity,
+    }));
+
+    const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
+
+    const costMap = new Map<string, import('../../domain/valueObjects/CostBreakdown').CostBreakdown | null>();
+    for (let i = 0; i < batchRequest.length; i++) {
+        costMap.set(batchRequest[i].variantId.value, batchResults[i]);
+    }
 
     for (const invItem of filteredItems) {
       const qtyOnHand = invItem.quantity.value;
@@ -68,14 +88,36 @@ export class GetStockValuationReportUseCase {
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      itemsToCalculate.push({
-        invItem,
-        variantIdStr,
-        qtyOnHand,
-        variantId: new ProductVariantId(variantIdStr),
-      });
-    }
+      const totalVariantQty = variantQuantities.get(variantIdStr) || 1;
+      const costBreakdown = costMap.get(variantIdStr);
 
+<<<<<<< HEAD
+      if (costBreakdown && costBreakdown.totalCostCents > 0) {
+        const unitCostCents = Math.round(costBreakdown.totalCostCents / totalVariantQty);
+        const itemTotalCents = Math.round(unitCostCents * qtyOnHand);
+
+        lineItems.push({
+          sku: invItem.sku.value,
+          variantId: variantIdStr,
+          locationId: invItem.locationId.value,
+          quantityOnHand: qtyOnHand,
+          unitCostCents,
+          totalValueCents: itemTotalCents,
+          costingMethod: method,
+        });
+        totalValueCents += itemTotalCents;
+      } else {
+        lineItems.push({
+          sku: invItem.sku.value,
+          variantId: variantIdStr,
+          locationId: invItem.locationId.value,
+          quantityOnHand: qtyOnHand,
+          unitCostCents: 0,
+          totalValueCents: 0,
+          costingMethod: method,
+        });
+      }
+=======
     const aggregatedRequestMap = new Map<string, { variantId: ProductVariantId; quantity: number }>();
 
     for (const item of itemsToCalculate) {
@@ -120,6 +162,7 @@ export class GetStockValuationReportUseCase {
         costingMethod: method,
       });
       totalValueCents += totalCostCents;
+>>>>>>> origin/main
     }
 
     return {
