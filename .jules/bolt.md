@@ -19,3 +19,6 @@
 ## 2024-05-19 - N+1 Query in ManageReturns
  **Learning:** I learned that there was a database fetch (`findManyBySerialsAndVariant`) inside a `for (const item of dto.items)` loop during RMA item receipt. This query was unnecessary because the exact same serial numbers were already being batch-fetched and mapped to an `existingSerialItemsList` immediately before the loop! I only had to correctly index into this existing map.
  **Action:** In future optimizations, always check if the data being fetched inside a loop is already available in the surrounding scope. Reusing O(1) in-memory maps instead of making N duplicate database calls is a huge performance win.
+## 2026-08-11 - Batch Operations replacing N+1 Query correctly implemented
+ **Learning:** In Prisma and TypeScript DDD environments, N+1 lookups inside mapped array loops (e.g. `items.map(async i => await repo.findById(i))`) can be effectively resolved by performing a `findMany` with an `IN` clause (e.g., `findBySkuAndLocationBatch`), creating a `Map` of the results, and then performing O(1) lookups inside the loop (`map.get(key)`). The implementation in `ManageReplenishment.ts` was perfectly executed prior to this task evaluation.
+ **Action:** Apply this identical batching and `Map`-caching pattern whenever encountering N+1 sequential `await`s inside loops in future application Use Cases.
