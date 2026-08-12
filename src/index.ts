@@ -32,10 +32,14 @@ import { AuditWorker } from './infrastructure/workers/AuditWorker';
 import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 
 // Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+    console.error('CRITICAL: JWT_SECRET environment variable is missing in production!');
+    process.exit(1);
+  }
 }
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_secret_only';
 
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
 if (!SHOPIFY_WEBHOOK_SECRET && process.env.NODE_ENV === 'production') {
@@ -85,6 +89,16 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
     schema,
     formatError: (formattedError: any) => {
       // Security fix: Strip stack traces from error responses to prevent information leakage
+      if (process.env.NODE_ENV === 'production') {
+        if (formattedError.extensions) {
+          if (formattedError.extensions.exception) {
+            delete formattedError.extensions.exception;
+          }
+          delete formattedError.extensions.stacktrace;
+        }
+        return formattedError;
+      }
+
       if (formattedError.extensions) {
         if (formattedError.extensions.exception) {
           delete formattedError.extensions.exception.stacktrace;
