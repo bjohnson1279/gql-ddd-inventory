@@ -89,6 +89,16 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
     schema,
     formatError: (formattedError: any) => {
       // Security fix: Strip stack traces from error responses to prevent information leakage
+      if (process.env.NODE_ENV === 'production') {
+        if (formattedError.extensions) {
+          if (formattedError.extensions.exception) {
+            delete formattedError.extensions.exception;
+          }
+          delete formattedError.extensions.stacktrace;
+        }
+        return formattedError;
+      }
+
       if (formattedError.extensions) {
         if (formattedError.extensions.exception) {
           delete formattedError.extensions.exception.stacktrace;

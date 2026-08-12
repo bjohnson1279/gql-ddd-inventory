@@ -82,7 +82,7 @@ import {
 } from '../../application/useCases/ManageBarcodes';
 import { BarcodeRegistry } from '../../domain/services/BarcodeRegistry';
 import { InternalBarcodeGenerator } from '../../domain/services/InternalBarcodeGenerator';
-import { BarcodeScanDispatcher, ScanContext } from '../../domain/services/BarcodeScanDispatcher';
+import { BarcodeScanDispatcher, ScanContext, ScanPayload } from '../../domain/services/BarcodeScanDispatcher';
 import { PostgresBarcodeRepository } from '../persistence/PostgresBarcodeRepository';
 import { Sku } from '../../domain/valueObjects/Sku';
 
@@ -1856,7 +1856,7 @@ export const resolvers = {
         throw new Error(error.message);
       }
     },
-    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: GraphQLContext) => {
+    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: ScanPayload }, ctx: GraphQLContext) => {
       try {
         const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], payload.tenantId);
         const result = await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
