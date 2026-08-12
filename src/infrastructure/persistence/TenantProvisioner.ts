@@ -115,7 +115,8 @@ export class TenantProvisioner {
         `SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]
       );
       if (result.rows.length === 0) {
-        await client.query(`CREATE DATABASE "${dbName}"`);
+        const escapedDbName = client.escapeIdentifier(dbName);
+        await client.query(`CREATE DATABASE ${escapedDbName}`);
       }
     } finally {
       client.release();
@@ -133,7 +134,8 @@ export class TenantProvisioner {
     const controlPool = this.getControlPool();
     const client = await controlPool.connect();
     try {
-      await client.query(`DROP DATABASE IF EXISTS "${dbName}"`);
+      const escapedDbName = client.escapeIdentifier(dbName);
+      await client.query(`DROP DATABASE IF EXISTS ${escapedDbName}`);
     } finally {
       client.release();
       await controlPool.end();

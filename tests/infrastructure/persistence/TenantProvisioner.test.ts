@@ -6,6 +6,7 @@ jest.mock('pg', () => {
   const mockClient = {
     query: jest.fn().mockResolvedValue({ rows: [] }),
     release: jest.fn(),
+    escapeIdentifier: jest.fn().mockImplementation((val) => `"${val}"`),
   };
   const MockPool = jest.fn().mockImplementation(() => ({
     connect: jest.fn().mockResolvedValue(mockClient),
@@ -79,6 +80,7 @@ describe('TenantProvisioner', () => {
           return { rows: [] };
         }),
         release: jest.fn(),
+        escapeIdentifier: jest.fn().mockImplementation((val) => `"${val}"`),
       };
       Pool.mockImplementation(() => ({
         connect: jest.fn().mockResolvedValue(failingClient),
