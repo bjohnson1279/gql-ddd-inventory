@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { ISerializedItemRepository } from '../../domain/repositories/ISerializedItemRepository';
 import { SerializedItem } from '../../domain/entities/SerializedItem';
 import { SerializedItemId } from '../../domain/valueObjects/SerializedItemId';
@@ -294,43 +294,59 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
     const deduplicatedItems = Array.from(new Map(items.map((item) => [item.id.value, item])).values());
 
     await this.prisma.$transaction(async (tx) => {
-      await Promise.all(
-        deduplicatedItems.map(async (item) => {
-          await tx.serializedItem.upsert({
-            where: { id: item.id.value },
-            create: {
-              id: item.id.value,
-              variantId: item.variantId.value,
-              serialNumber: item.serialNumber.value,
-              tenantId: item.tenantId.value,
-              locationId: item.locationId.value,
-              status: item.status,
-            },
-            update: {
-              locationId: item.locationId.value,
-              status: item.status,
-            },
-          });
+      // 1. Create new serialized items
+      await tx.serializedItem.createMany({
+        data: deduplicatedItems.map((item) => ({
+          id: item.id.value,
+          variantId: item.variantId.value,
+          serialNumber: item.serialNumber.value,
+          tenantId: item.tenantId.value,
+          locationId: item.locationId.value,
+          status: item.status,
+        })),
+        skipDuplicates: true,
+      });
 
-          await tx.serializedItemHistory.deleteMany({
-            where: { itemId: item.id.value },
-          });
+      // 2. Update existing serialized items
+      // To avoid N+1 queries for updates, we use a single raw query using Prisma.sql to prevent SQL injection.
+      if (deduplicatedItems.length > 0) {
+        const updateValues = deduplicatedItems.map(
+          (item) => Prisma.sql`(${item.id.value}::uuid, ${item.locationId.value}, ${item.status})`
+        );
 
-          if (item.history.length > 0) {
-            await tx.serializedItemHistory.createMany({
-              data: item.history.map((h) => ({
-                itemId: item.id.value,
-                fromStatus: h.from,
-                toStatus: h.to,
-                reason: h.reason,
-                actorId: h.actor.value,
-                occurredAt: h.occurredAt,
-                referenceId: h.referenceId || null,
-              })),
-            });
-          }
-        })
+        await tx.$executeRaw`
+          UPDATE serialized_items AS s
+          SET
+            location_id = v.location_id,
+            status = v.status
+          FROM (VALUES ${Prisma.join(updateValues)}) AS v(id, location_id, status)
+          WHERE s.id = v.id::uuid;
+        `;
+      }
+
+      // 3. Batch delete and recreate history
+      const itemIds = deduplicatedItems.map((item) => item.id.value);
+      await tx.serializedItemHistory.deleteMany({
+        where: { itemId: { in: itemIds } },
+      });
+
+      const historyData = deduplicatedItems.flatMap((item) =>
+        item.history.map((h) => ({
+          itemId: item.id.value,
+          fromStatus: h.from,
+          toStatus: h.to,
+          reason: h.reason,
+          actorId: h.actor.value,
+          occurredAt: h.occurredAt,
+          referenceId: h.referenceId || null,
+        }))
       );
+
+      if (historyData.length > 0) {
+        await tx.serializedItemHistory.createMany({
+          data: historyData,
+        });
+      }
     });
   }
 }
