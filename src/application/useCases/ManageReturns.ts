@@ -165,8 +165,15 @@ export class ReceiveRmaUseCase {
       existingSerialItems.set(`${item.variantId.value}_${item.serialNumber.value}`, item);
     }
 
+    const rmaItemsMap = new Map<string, any>();
+    for (const item of rma.items) {
+      if (!rmaItemsMap.has(item.variantId.value)) {
+        rmaItemsMap.set(item.variantId.value, item);
+      }
+    }
+
     for (const item of dto.items) {
-      const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
+      const rmaItem = rmaItemsMap.get(item.variantId);
       if (!rmaItem) {
         throw new Error(`Item with variant ID ${item.variantId} not found in RMA.`);
       }
