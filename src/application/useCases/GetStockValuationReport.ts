@@ -76,40 +76,50 @@ export class GetStockValuationReportUseCase {
       });
     }
 
-    const batchRequest = itemsToCalculate.map((item) => ({
-      variantId: item.variantId,
-      quantity: item.qtyOnHand,
-    }));
+    const aggregatedRequestMap = new Map<string, { variantId: ProductVariantId; quantity: number }>();
 
+    for (const item of itemsToCalculate) {
+      const existing = aggregatedRequestMap.get(item.variantIdStr);
+      if (existing) {
+        existing.quantity += item.qtyOnHand;
+      } else {
+        aggregatedRequestMap.set(item.variantIdStr, {
+          variantId: item.variantId,
+          quantity: item.qtyOnHand,
+        });
+      }
+    }
+
+    const batchRequest = Array.from(aggregatedRequestMap.values());
     const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
+
+    const variantUnitCosts = new Map<string, number>();
+    for (let i = 0; i < batchRequest.length; i++) {
+      const req = batchRequest[i];
+      const costBreakdown = batchResults[i];
+      if (costBreakdown && req.quantity > 0) {
+        variantUnitCosts.set(req.variantId.value, costBreakdown.totalCostCents / req.quantity);
+      } else {
+        variantUnitCosts.set(req.variantId.value, 0);
+      }
+    }
 
     for (let i = 0; i < itemsToCalculate.length; i++) {
       const { invItem, variantIdStr, qtyOnHand } = itemsToCalculate[i];
-      const costBreakdown = batchResults[i];
+      const unitCost = variantUnitCosts.get(variantIdStr) || 0;
+      const roundedUnitCost = Math.round(unitCost);
+      const totalCostCents = Math.round(unitCost * qtyOnHand);
 
-      if (costBreakdown) {
-        const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
-        lineItems.push({
-          sku: invItem.sku.value,
-          variantId: variantIdStr,
-          locationId: invItem.locationId.value,
-          quantityOnHand: qtyOnHand,
-          unitCostCents,
-          totalValueCents: costBreakdown.totalCostCents,
-          costingMethod: method,
-        });
-        totalValueCents += costBreakdown.totalCostCents;
-      } else {
-        lineItems.push({
-          sku: invItem.sku.value,
-          variantId: variantIdStr,
-          locationId: invItem.locationId.value,
-          quantityOnHand: qtyOnHand,
-          unitCostCents: 0,
-          totalValueCents: 0,
-          costingMethod: method,
-        });
-      }
+      lineItems.push({
+        sku: invItem.sku.value,
+        variantId: variantIdStr,
+        locationId: invItem.locationId.value,
+        quantityOnHand: qtyOnHand,
+        unitCostCents: roundedUnitCost,
+        totalValueCents: totalCostCents,
+        costingMethod: method,
+      });
+      totalValueCents += totalCostCents;
     }
 
     return {
