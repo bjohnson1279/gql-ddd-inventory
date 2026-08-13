@@ -35,7 +35,7 @@ export class ShopifyStockSyncHandler {
     const localQty = ledgerSum._sum.quantity || 0;
 
     await Promise.all(
-      connections.map(async (conn) => {
+      connections.map(async (conn: any) => {
         if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock')) {
           const response = await fetch(
             validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
