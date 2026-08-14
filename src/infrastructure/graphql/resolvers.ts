@@ -2214,7 +2214,7 @@ export const resolvers = {
       throw new Error('Email and password are required.');
     },
     setup: async (_: any, { orgName, tenantId, adminName, adminEmail, adminPassword }: { orgName: string; tenantId: string; adminName: string; adminEmail: string; adminPassword: string }) => {
-      // Security fix: Restrict setup mutation to non-production environments to prevent unauthorized admin creation
+      // Security fix: Restrict setup mutation to non-production environments to prevent unauthorized admin creation.
       if (process.env.NODE_ENV === 'production') {
         throw new Error('Setup mutation is disabled in production environments.');
       }
