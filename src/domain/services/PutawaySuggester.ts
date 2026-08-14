@@ -43,7 +43,9 @@ export class PutawaySuggester {
     const allItems = await this.inventoryRepo.findAll();
     const itemSkusMap = new Map<string, Sku>();
     for (const item of allItems) {
-      itemSkusMap.set(item.sku.value, item.sku);
+      if (!itemSkusMap.has(item.sku.value)) {
+        itemSkusMap.set(item.sku.value, item.sku);
+      }
     }
 
     const itemVariantMap = new Map<string, ProductVariant>();
@@ -51,7 +53,9 @@ export class PutawaySuggester {
       const itemProducts = await this.productRepo.findBySkus(Array.from(itemSkusMap.values()));
       for (const ip of itemProducts) {
         for (const iv of ip.variants) {
-          itemVariantMap.set(iv.sku.value, iv);
+          if (!itemVariantMap.has(iv.sku.value)) {
+            itemVariantMap.set(iv.sku.value, iv);
+          }
         }
       }
     }
