@@ -1,4 +1,12 @@
-## 2025-02-23 - Missing JSON Body Parser Limit
-**Vulnerability:** The Express application (`src/index.ts` and `src/gateway/index.ts`) used `bodyParser.json()` without specifying a maximum payload size.
-**Learning:** By default, body-parser has a limit (usually 100kb), but leaving it implicit or unconfigured can leave the application vulnerable to Denial of Service (DoS) attacks if large JSON payloads are sent, consuming excessive memory and potentially crashing the Node.js process.
-**Prevention:** Always configure an explicit, reasonable payload size limit (e.g., `bodyParser.json({ limit: '2mb' })`) to document the architectural boundary and prevent memory exhaustion attacks.
+## 2025-02-24 - [SSRF Protection]
+**Vulnerability:** User-provided webhook URLs were not validated for SSRF when creating or updating webhook subscriptions in `src/infrastructure/graphql/resolvers.ts`.
+**Learning:** While the delivery worker (`WebhookDeliveryWorker.ts`) protected against SSRF by validating the URL at delivery time, the GraphQL resolvers lacked this validation, allowing users to configure malicious/invalid internal URLs (e.g. localhost) which could lead to SSRF vulnerabilities.
+**Prevention:** Implement input validation for URLs directly in the GraphQL resolvers using the `validateOutboundUrl` utility to prevent malicious/invalid URLs from being stored in the database.
+## 2024-06-25 - [Insecure Randomness for Identifiers]
+**Vulnerability:** The application used `Math.random()` to generate identifiers for Bill of Lading numbers, shipping tracking numbers, mock ERP journal IDs, and IoT bulk scan batch IDs. `Math.random()` generates pseudo-random values that are predictable, allowing potential attackers to guess these identifiers.
+**Learning:** `Math.random()` should not be used in contexts where predictability could lead to security issues, such as guessing tracking or batch numbers to bypass business logic or spoof data. This applies even to mock IDs if they leak into persistent storage or external systems.
+**Prevention:** Always use Node's native `crypto` module (e.g., `crypto.randomInt()`, `crypto.randomUUID()`) for generating secure random values and identifiers. Ensure to import it via `import * as crypto from 'crypto'` in TypeScript files to avoid Web Crypto API conflicts.
+## 2024-08-15 - [Rate Limiter Memory DoS]
+**Vulnerability:** Unbounded Map used for failed login attempt rate limiting (`loginAttempts`) in `resolvers.ts`.
+**Learning:** In-memory Maps tracking user activity based on unbounded input (like email addresses) can be exploited to cause a memory exhaustion Denial of Service by sending thousands of requests with unique keys.
+**Prevention:** Always bound the size of in-memory maps or caches. When the limit is reached, use an eviction strategy (like deleting the oldest key `map.keys().next().value`) rather than `clear()`, which would bypass the rate limit for all users.
