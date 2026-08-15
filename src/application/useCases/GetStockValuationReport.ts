@@ -59,7 +59,27 @@ export class GetStockValuationReportUseCase {
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
-    const itemsToCalculate: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
+    const variantQuantities = new Map<string, number>();
+    for (const invItem of filteredItems) {
+      const qtyOnHand = invItem.quantity.value;
+      if (qtyOnHand <= 0) continue;
+      const variantIdStr = skuToVariantId.get(invItem.sku.value);
+      if (!variantIdStr) continue;
+
+      variantQuantities.set(variantIdStr, (variantQuantities.get(variantIdStr) || 0) + qtyOnHand);
+    }
+
+    const batchRequest = Array.from(variantQuantities.entries()).map(([variantIdStr, quantity]) => ({
+      variantId: new ProductVariantId(variantIdStr),
+      quantity,
+    }));
+
+    const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
+
+    const costMap = new Map<string, import('../../domain/valueObjects/CostBreakdown').CostBreakdown | null>();
+    for (let i = 0; i < batchRequest.length; i++) {
+        costMap.set(batchRequest[i].variantId.value, batchResults[i]);
+    }
 
     for (const invItem of filteredItems) {
       const qtyOnHand = invItem.quantity.value;
@@ -68,58 +88,34 @@ export class GetStockValuationReportUseCase {
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      itemsToCalculate.push({
-        invItem,
-        variantIdStr,
-        qtyOnHand,
-        variantId: new ProductVariantId(variantIdStr),
-      });
-    }
+      const totalVariantQty = variantQuantities.get(variantIdStr) || 1;
+      const costBreakdown = costMap.get(variantIdStr);
 
-    const aggregatedRequestMap = new Map<string, { variantId: ProductVariantId; quantity: number }>();
+      if (costBreakdown && costBreakdown.totalCostCents > 0) {
+        const unitCostCents = Math.round(costBreakdown.totalCostCents / totalVariantQty);
+        const itemTotalCents = Math.round(unitCostCents * qtyOnHand);
 
-    for (const item of itemsToCalculate) {
-      const existing = aggregatedRequestMap.get(item.variantIdStr);
-      if (existing) {
-        existing.quantity += item.qtyOnHand;
+        lineItems.push({
+          sku: invItem.sku.value,
+          variantId: variantIdStr,
+          locationId: invItem.locationId.value,
+          quantityOnHand: qtyOnHand,
+          unitCostCents,
+          totalValueCents: itemTotalCents,
+          costingMethod: method,
+        });
+        totalValueCents += itemTotalCents;
       } else {
-        aggregatedRequestMap.set(item.variantIdStr, {
-          variantId: item.variantId,
-          quantity: item.qtyOnHand,
+        lineItems.push({
+          sku: invItem.sku.value,
+          variantId: variantIdStr,
+          locationId: invItem.locationId.value,
+          quantityOnHand: qtyOnHand,
+          unitCostCents: 0,
+          totalValueCents: 0,
+          costingMethod: method,
         });
       }
-    }
-
-    const batchRequest = Array.from(aggregatedRequestMap.values());
-    const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
-
-    const variantUnitCosts = new Map<string, number>();
-    for (let i = 0; i < batchRequest.length; i++) {
-      const req = batchRequest[i];
-      const costBreakdown = batchResults[i];
-      if (costBreakdown && req.quantity > 0) {
-        variantUnitCosts.set(req.variantId.value, costBreakdown.totalCostCents / req.quantity);
-      } else {
-        variantUnitCosts.set(req.variantId.value, 0);
-      }
-    }
-
-    for (let i = 0; i < itemsToCalculate.length; i++) {
-      const { invItem, variantIdStr, qtyOnHand } = itemsToCalculate[i];
-      const unitCost = variantUnitCosts.get(variantIdStr) || 0;
-      const roundedUnitCost = Math.round(unitCost);
-      const totalCostCents = Math.round(unitCost * qtyOnHand);
-
-      lineItems.push({
-        sku: invItem.sku.value,
-        variantId: variantIdStr,
-        locationId: invItem.locationId.value,
-        quantityOnHand: qtyOnHand,
-        unitCostCents: roundedUnitCost,
-        totalValueCents: totalCostCents,
-        costingMethod: method,
-      });
-      totalValueCents += totalCostCents;
     }
 
     return {
