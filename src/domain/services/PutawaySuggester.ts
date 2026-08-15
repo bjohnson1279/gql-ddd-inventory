@@ -83,25 +83,32 @@ export class PutawaySuggester {
       }
     }
 
-    // ⚡ Bolt: Aggregate occupied capacity in O(N) by mapping straight to locations, avoiding intermediate arrays and loops
-    const locationOccupied = new Map<string, { weight: number, volume: number }>();
+    // Map location items for fast O(1) lookups
+    const itemsByLocation = new Map<string, typeof allItems>();
     for (const item of allItems) {
-      const v = itemVariantMap.get(item.sku.value);
-      if (v) {
-        const stats = locationOccupied.get(item.locationId.value) || { weight: 0, volume: 0 };
-        stats.weight += item.quantity.value * v.weightGrams;
-        stats.volume += item.quantity.value * v.volumeCubicMeters;
-        locationOccupied.set(item.locationId.value, stats);
-      }
+      const locItems = itemsByLocation.get(item.locationId.value) || [];
+      locItems.push(item);
+      itemsByLocation.set(item.locationId.value, locItems);
     }
 
-    // For each location, calculate remaining weight & volume
+    // For each location, calculate occupied weight & volume
     const locationCapacities = [];
     for (const loc of locations) {
-      const stats = locationOccupied.get(loc.id.value) || { weight: 0, volume: 0 };
+      const items = itemsByLocation.get(loc.id.value) || [];
       
-      const remainingWeight = loc.maxWeightGrams - stats.weight;
-      const remainingVolume = loc.maxVolumeCubicMeters - stats.volume;
+      let occupiedWeight = 0;
+      let occupiedVolume = 0;
+
+      for (const item of items) {
+        const v = itemVariantMap.get(item.sku.value);
+        if (v) {
+          occupiedWeight += item.quantity.value * v.weightGrams;
+          occupiedVolume += item.quantity.value * v.volumeCubicMeters;
+        }
+      }
+
+      const remainingWeight = loc.maxWeightGrams - occupiedWeight;
+      const remainingVolume = loc.maxVolumeCubicMeters - occupiedVolume;
 
       locationCapacities.push({
         location: loc,
@@ -111,14 +118,6 @@ export class PutawaySuggester {
     }
 
     // Now, score candidates (they are already pre-filtered for matching zone types)
-    // Now, filter and score candidates based on matching attributes
-    // Extract attributes of target variant: temperatureZone, hazardClass, velocity
-    // ⚡ Bolt: Use O(1) Map lookup instead of sequential array searches to avoid O(N*M) lookups for multiple attributes
-    const attrsMap = new Map(variant.attributes.all().map(a => [a.name, a.value]));
-    const tempZoneAttr = attrsMap.get('temperatureZone');
-    const hazardAttr = attrsMap.get('hazardClass');
-    const velocityAttr = attrsMap.get('velocity');
-
     const scoredCandidates = locationCapacities.map(c => {
       let score = 0;
       const matchesZoneType = true; // Pre-filtered above

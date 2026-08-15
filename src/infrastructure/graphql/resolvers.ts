@@ -2172,13 +2172,6 @@ export const resolvers = {
             record.count += 1;
             record.lastAttemptAt = now;
           } else {
-            // Security Fix: Prevent memory exhaustion DoS using LRU-like eviction
-            if (loginAttempts.size >= 10000) {
-              const firstKey = loginAttempts.keys().next().value;
-              if (firstKey) {
-                loginAttempts.delete(firstKey);
-              }
-            }
             loginAttempts.set(rateLimitKey, { count: 1, firstAttemptAt: now, lastAttemptAt: now });
           }
           throw new Error('Invalid credentials.');

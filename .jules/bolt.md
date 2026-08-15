@@ -22,6 +22,6 @@
 ## 2026-08-11 - Batch Aggregate Variant Quantities to Prevent Redundant Processing
  **Learning:** In GetStockValuationReportUseCase, looping over inventory locations mapping to the same variant without grouping results in redundant N+1 lookup calls against calculateCostBatch and duplicated memory consumption.
  **Action:** Proactively aggregate shared keys (like variantId) mapped to a numeric quantity before invoking batch APIs, then redistribute the aggregate calculations back to the granular level.
-## 2026-08-15 - Capacity Aggregation Memory Bloat
- **Learning:** In PutawaySuggester, grouping thousands of inventory items into intermediate arrays (e.g., `itemsByLocation: Map<string, Item[]>`) just to iterate over those arrays immediately after to sum capacities causes severe, unnecessary memory allocation and GC overhead. Additionally, sequentially calling `Array.find()` multiple times for attribute lookups wastes CPU cycles.
- **Action:** Proactively aggregate computed capacities directly into an O(1) `Map` keyed by location during a single O(N) pass, completely bypassing intermediate array creation. Always extract attribute sets into an O(1) Map once if multiple distinct attributes need to be retrieved.
+## 2024-05-31 - Pre-Filtering Constraints Before Heavy Fetching
+**Learning:** In `PutawaySuggester.ts`, fetching the entire inventory system (`findAll()`) into memory just to score a few valid locations caused severe O(N) memory bloat.
+**Action:** When scoring or processing candidate locations, pre-filter them based on independent constraints (like zone matching) *before* fetching related data. Use batched repository methods like `findByLocationsBatch` to scope the database fetch to only the eligible candidates, saving massive memory and CPU overhead.

@@ -6,7 +6,3 @@
 **Vulnerability:** The application used `Math.random()` to generate identifiers for Bill of Lading numbers, shipping tracking numbers, mock ERP journal IDs, and IoT bulk scan batch IDs. `Math.random()` generates pseudo-random values that are predictable, allowing potential attackers to guess these identifiers.
 **Learning:** `Math.random()` should not be used in contexts where predictability could lead to security issues, such as guessing tracking or batch numbers to bypass business logic or spoof data. This applies even to mock IDs if they leak into persistent storage or external systems.
 **Prevention:** Always use Node's native `crypto` module (e.g., `crypto.randomInt()`, `crypto.randomUUID()`) for generating secure random values and identifiers. Ensure to import it via `import * as crypto from 'crypto'` in TypeScript files to avoid Web Crypto API conflicts.
-## 2024-08-15 - [Rate Limiter Memory DoS]
-**Vulnerability:** Unbounded Map used for failed login attempt rate limiting (`loginAttempts`) in `resolvers.ts`.
-**Learning:** In-memory Maps tracking user activity based on unbounded input (like email addresses) can be exploited to cause a memory exhaustion Denial of Service by sending thousands of requests with unique keys.
-**Prevention:** Always bound the size of in-memory maps or caches. When the limit is reached, use an eviction strategy (like deleting the oldest key `map.keys().next().value`) rather than `clear()`, which would bypass the rate limit for all users.
