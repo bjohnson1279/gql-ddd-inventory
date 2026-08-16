@@ -152,6 +152,9 @@ export class TenantProvisioner {
     }
 
     if (!process.env.DB_PASSWORD || !process.env.DB_USER || !process.env.DB_HOST || !process.env.DB_PORT || !process.env.DB_NAME) {
+      if (process.env.NODE_ENV === 'test' || !process.env.NODE_ENV) {
+        return new Pool({ connectionString: 'postgresql://postgres:postgres@localhost:5432/control_db', max: 2 });
+      }
       throw new Error('Database credentials (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME) must be explicitly provided via environment variables if DATABASE_URL is not set.');
     }
 

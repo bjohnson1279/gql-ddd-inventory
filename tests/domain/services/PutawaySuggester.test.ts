@@ -28,6 +28,7 @@ describe('PutawaySuggester', () => {
       findBySkuAndLocation: jest.fn(),
       findBySkuAndLocationBatch: jest.fn(),
       findByLocation: jest.fn(),
+      findByLocationsBatch: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
       saveBatch: jest.fn(),
       findAll: jest.fn().mockResolvedValue([]),
@@ -101,7 +102,7 @@ describe('PutawaySuggester', () => {
     mockProductRepo.findBySku.mockResolvedValue(product);
     const loc = new WarehouseLocation(new LocationId('WH1-A-A01-R01-S01-B01'), 'WH1', 'STANDARD', 'A01', 'R01', 'S01', 'B01', 1000, 10);
     mockLocationRepo.findAll.mockResolvedValue([loc]);
-    mockInventoryRepo.findAll.mockResolvedValue([]);
+    mockInventoryRepo.findByLocationsBatch.mockResolvedValue([]);
 
     const recommendations = await suggester.suggestPutaway(sku, 5);
     expect(recommendations).toHaveLength(1);
@@ -120,7 +121,7 @@ describe('PutawaySuggester', () => {
     mockLocationRepo.findAll.mockResolvedValue([loc]);
 
     const item = new InventoryItem('item-1', sku, loc.id, new Quantity(5));
-    mockInventoryRepo.findAll.mockResolvedValue([item]);
+    mockInventoryRepo.findByLocationsBatch.mockResolvedValue([item]);
     mockProductRepo.findBySkus.mockResolvedValue([product]);
 
     const recommendations = await suggester.suggestPutaway(sku, 2);

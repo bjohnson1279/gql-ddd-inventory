@@ -33,14 +33,41 @@ export class PutawaySuggester {
       throw new Error(`Product variant with SKU ${sku.value} not found.`);
     }
 
+    // Extract attributes of target variant: temperatureZone, hazardClass, velocity
+    const attrs = variant.attributes.all();
+    const tempZoneAttr = attrs.find(a => a.name === 'temperatureZone')?.value;
+    const hazardAttr = attrs.find(a => a.name === 'hazardClass')?.value;
+    const velocityAttr = attrs.find(a => a.name === 'velocity')?.value;
+
     // Load all locations
-    const locations = await this.locationRepo.findAll();
+    const allLocations = await this.locationRepo.findAll();
+    if (allLocations.length === 0) {
+      return [];
+    }
+
+    // Pre-filter locations based on required zone constraints to avoid fetching inventory for incompatible locations
+    const locations = allLocations.filter(loc => {
+      // 1. Temperature Zone: must match if variant specifies it
+      if (tempZoneAttr && loc.zone.toLowerCase() !== tempZoneAttr.toLowerCase()) {
+        return false;
+      }
+      // 2. Hazard Class: standard items cannot go in hazmat, hazmat items must go in hazmat
+      if (hazardAttr && loc.zone.toLowerCase() !== 'hazmat') {
+        return false;
+      }
+      if (!hazardAttr && loc.zone.toLowerCase() === 'hazmat') {
+        return false;
+      }
+      return true;
+    });
+
     if (locations.length === 0) {
       return [];
     }
 
-    // Batch lookup: fetch all inventory items and needed variants once (fix N+1 query)
-    const allItems = await this.inventoryRepo.findAll();
+    // Batch lookup: fetch inventory items only for eligible locations (prevents loading the entire database)
+    const locationIds = locations.map(loc => loc.id.value);
+    const allItems = await this.inventoryRepo.findByLocationsBatch(locationIds);
     const itemSkusMap = new Map<string, Sku>();
     for (const item of allItems) {
       itemSkusMap.set(item.sku.value, item.sku);
@@ -56,25 +83,32 @@ export class PutawaySuggester {
       }
     }
 
-    // ⚡ Bolt: Aggregate occupied capacity in O(N) by mapping straight to locations, avoiding intermediate arrays and loops
-    const locationOccupied = new Map<string, { weight: number, volume: number }>();
+    // Map location items for fast O(1) lookups
+    const itemsByLocation = new Map<string, typeof allItems>();
     for (const item of allItems) {
-      const v = itemVariantMap.get(item.sku.value);
-      if (v) {
-        const stats = locationOccupied.get(item.locationId.value) || { weight: 0, volume: 0 };
-        stats.weight += item.quantity.value * v.weightGrams;
-        stats.volume += item.quantity.value * v.volumeCubicMeters;
-        locationOccupied.set(item.locationId.value, stats);
-      }
+      const locItems = itemsByLocation.get(item.locationId.value) || [];
+      locItems.push(item);
+      itemsByLocation.set(item.locationId.value, locItems);
     }
 
-    // For each location, calculate remaining weight & volume
+    // For each location, calculate occupied weight & volume
     const locationCapacities = [];
     for (const loc of locations) {
-      const stats = locationOccupied.get(loc.id.value) || { weight: 0, volume: 0 };
+      const items = itemsByLocation.get(loc.id.value) || [];
       
-      const remainingWeight = loc.maxWeightGrams - stats.weight;
-      const remainingVolume = loc.maxVolumeCubicMeters - stats.volume;
+      let occupiedWeight = 0;
+      let occupiedVolume = 0;
+
+      for (const item of items) {
+        const v = itemVariantMap.get(item.sku.value);
+        if (v) {
+          occupiedWeight += item.quantity.value * v.weightGrams;
+          occupiedVolume += item.quantity.value * v.volumeCubicMeters;
+        }
+      }
+
+      const remainingWeight = loc.maxWeightGrams - occupiedWeight;
+      const remainingVolume = loc.maxVolumeCubicMeters - occupiedVolume;
 
       locationCapacities.push({
         location: loc,
@@ -83,39 +117,17 @@ export class PutawaySuggester {
       });
     }
 
-    // Now, filter and score candidates based on matching attributes
-    // Extract attributes of target variant: temperatureZone, hazardClass, velocity
-    // ⚡ Bolt: Use O(1) Map lookup instead of sequential array searches to avoid O(N*M) lookups for multiple attributes
-    const attrsMap = new Map(variant.attributes.all().map(a => [a.name, a.value]));
-    const tempZoneAttr = attrsMap.get('temperatureZone');
-    const hazardAttr = attrsMap.get('hazardClass');
-    const velocityAttr = attrsMap.get('velocity');
-
+    // Now, score candidates (they are already pre-filtered for matching zone types)
     const scoredCandidates = locationCapacities.map(c => {
       let score = 0;
-      let matchesZoneType = true;
+      const matchesZoneType = true; // Pre-filtered above
 
-      // 1. Temperature Zone: must match if variant specifies it
-      if (tempZoneAttr) {
-        if (c.location.zone.toLowerCase() === tempZoneAttr.toLowerCase()) {
-          score += 100;
-        } else {
-          matchesZoneType = false;
-        }
+      if (tempZoneAttr && c.location.zone.toLowerCase() === tempZoneAttr.toLowerCase()) {
+        score += 100;
       }
 
-      // 2. Hazard Class: if hazard class is present (e.g. flammable), prioritize HAZMAT zone.
-      // If hazard class is NOT present, do NOT put it in HAZMAT zone.
-      if (hazardAttr) {
-        if (c.location.zone.toLowerCase() === 'hazmat') {
-          score += 200;
-        } else {
-          matchesZoneType = false;
-        }
-      } else {
-        if (c.location.zone.toLowerCase() === 'hazmat') {
-          matchesZoneType = false; // standard item should not be in HAZMAT
-        }
+      if (hazardAttr && c.location.zone.toLowerCase() === 'hazmat') {
+        score += 200;
       }
 
       // 3. Velocity: fast-moving items go to FAST zone or front aisles (e.g., A01, A02)
