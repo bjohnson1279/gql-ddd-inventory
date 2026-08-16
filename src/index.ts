@@ -179,7 +179,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     cors<cors.CorsRequest>({
       origin: allowedOrigins
     }),
-    bodyParser.json(),
+    bodyParser.json({ limit: '2mb' }),
     (req: express.Request, res: express.Response, next: express.NextFunction) => {
       const authHeader = req.headers.authorization || req.headers.Authorization || '';
       let tenantId: string | undefined;
