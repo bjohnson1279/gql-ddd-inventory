@@ -154,6 +154,11 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     message: 'Too many webhook requests from this IP, please try again after 1 minute'
   });
 
+  // Healthcheck endpoints for container probes and conformance tests
+  app.get(['/api/health', '/health'], (_req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
   app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json' }), shopifyWebhookHandler);
 
