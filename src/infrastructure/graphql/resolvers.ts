@@ -5,8 +5,9 @@ import { pubsub } from './pubsub';
 import * as crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
-import { logisticsService } from '../../domain/shipping/logisticsService.js';
-import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService.js';
+import { logisticsService } from '../../domain/shipping/logisticsService';
+import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService';
+import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 const STOCK_CHANGED_TOPIC = 'STOCK_CHANGED';
 const WEBHOOK_FAILED_TOPIC = 'WEBHOOK_FAILED';
@@ -2460,7 +2461,6 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforceRole(context, ['admin'], tenantId);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2470,7 +2470,6 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforceRole(context, ['admin']);
-        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {
