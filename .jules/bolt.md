@@ -25,3 +25,6 @@
 ## 2024-05-31 - Pre-Filtering Constraints Before Heavy Fetching
 **Learning:** In `PutawaySuggester.ts`, fetching the entire inventory system (`findAll()`) into memory just to score a few valid locations caused severe O(N) memory bloat.
 **Action:** When scoring or processing candidate locations, pre-filter them based on independent constraints (like zone matching) *before* fetching related data. Use batched repository methods like `findByLocationsBatch` to scope the database fetch to only the eligible candidates, saving massive memory and CPU overhead.
+## 2025-01-20 - Optimize ReplenishmentEvaluator
+**Learning:** In src/domain/services/ReplenishmentEvaluator.ts, iterating over all products inside the rules loop to find variants caused a severe O(N*M) bottleneck.
+**Action:** Always pre-compute a mapped lookup from keys to variants directly (O(1)) instead of mapping to parent entities (Products) and doing nested linear scans.
