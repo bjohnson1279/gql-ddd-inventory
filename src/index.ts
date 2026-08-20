@@ -31,15 +31,13 @@ import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
 import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 
-// Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
-if (process.env.NODE_ENV === 'production') {
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
-    console.error('CRITICAL: JWT_SECRET environment variable is missing in production!');
-    process.exit(1);
-  }
+// Security fix: Enforce JWT_SECRET in all environments to prevent hardcoded fallback vulnerabilities.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+  console.error('CRITICAL: JWT_SECRET environment variable is missing!');
+  process.exit(1);
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_secret_only';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
 if (!SHOPIFY_WEBHOOK_SECRET && process.env.NODE_ENV === 'production') {
