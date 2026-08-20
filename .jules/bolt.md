@@ -28,3 +28,6 @@
 ## 2025-01-20 - Optimize ReplenishmentEvaluator
 **Learning:** In src/domain/services/ReplenishmentEvaluator.ts, iterating over all products inside the rules loop to find variants caused a severe O(N*M) bottleneck.
 **Action:** Always pre-compute a mapped lookup from keys to variants directly (O(1)) instead of mapping to parent entities (Products) and doing nested linear scans.
+## 2025-01-20 - Optimize ReplenishmentEvaluator
+**Learning:** In src/domain/services/ReplenishmentEvaluator.ts, iterating over all products inside the rules loop to find variants caused a severe O(N*M) bottleneck. However, directly iterating the resulting `product.variants` without filtering will process unrequested SKUs.
+**Action:** Always pre-compute a `Set` of requested SKUs for O(1) membership checking and use it to filter the direct iteration over variants to preserve both performance and behavioral correctness.
