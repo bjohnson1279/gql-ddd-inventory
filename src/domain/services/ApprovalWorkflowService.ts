@@ -19,8 +19,14 @@ export interface InterceptResult {
   requestId?: string;
 }
 
+import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
+import { ApprovalRequestApprovedEvent, ApprovalRequestRejectedEvent } from '../events/ApprovalEvents';
+
 export class ApprovalWorkflowService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly eventDispatcher?: DomainEventDispatcher
+  ) {}
 
   /**
    * Evaluates whether a domain action should be intercepted.
@@ -175,6 +181,30 @@ export class ApprovalWorkflowService {
         }
       })
     ]);
+
+    if (this.eventDispatcher) {
+      if (request.status === ApprovalRequestStatus.Approved) {
+        this.eventDispatcher.dispatch([
+          new ApprovalRequestApprovedEvent(
+            request.id,
+            request.tenantId,
+            request.referenceType,
+            request.referenceId,
+            request.payload
+          )
+        ]);
+      } else if (request.status === ApprovalRequestStatus.Rejected) {
+        this.eventDispatcher.dispatch([
+          new ApprovalRequestRejectedEvent(
+            request.id,
+            request.tenantId,
+            request.referenceType,
+            request.referenceId,
+            request.payload
+          )
+        ]);
+      }
+    }
 
     return {
       status: request.status,

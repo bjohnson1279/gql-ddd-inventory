@@ -299,6 +299,8 @@ eventBus.subscribe('ShopifyStockSyncRequested', shopifySyncHandler.handle.bind(s
 
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
+const approvalWorkflowService = new (require('../../domain/services/ApprovalWorkflowService').ApprovalWorkflowService)(prisma, eventDispatcher);
+
 // Accounting Sync Initialization
 const netsuiteSync = new NetSuiteJournalSync(process.env.NETSUITE_ACCOUNT_ID || 'mock', process.env.NETSUITE_TOKEN || 'mock');
 const netsuiteMappings = new NetSuiteMappingRepository(prisma);
@@ -324,7 +326,7 @@ const dispatchStockUseCase = AutoRetryDecorator.wrap(new DispatchStockUseCase(in
 const getStockLevelsUseCase = new GetStockLevelsUseCase(inventoryRepository);
 const getStockLevelsBySkuUseCase = new GetStockLevelsBySkuUseCase(inventoryRepository);
 const getStockLevelBySkuAndLocationUseCase = new GetStockLevelBySkuAndLocationUseCase(inventoryRepository);
-const submitInventoryCountUseCase = AutoRetryDecorator.wrap(new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService));
+const submitInventoryCountUseCase = AutoRetryDecorator.wrap(new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService, approvalWorkflowService));
 const submitOpeningBalanceUseCase = AutoRetryDecorator.wrap(new SubmitOpeningBalanceUseCase(openingBalanceService));
 const allocateStockUseCase = AutoRetryDecorator.wrap(new AllocateStockUseCase(inventoryRepository));
 const releaseAllocationUseCase = AutoRetryDecorator.wrap(new ReleaseAllocationUseCase(inventoryRepository));
@@ -448,7 +450,7 @@ const evaluateReplenishmentUseCase = new EvaluateReplenishmentUseCase(replenishm
 const getReplenishmentRulesUseCase = new GetReplenishmentRulesUseCase(replenishmentRuleRepository);
 
 const createPurchaseOrderUseCase = new CreatePurchaseOrderUseCase(purchaseOrderRepository);
-const placePurchaseOrderUseCase = new PlacePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
+const placePurchaseOrderUseCase = new PlacePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository, approvalWorkflowService);
 const receivePurchaseOrderUseCase = new ReceivePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository, ledgerRepository);
 const cancelPurchaseOrderUseCase = new CancelPurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository);
 const getPurchaseOrdersUseCase = new GetPurchaseOrdersUseCase(purchaseOrderRepository);
@@ -496,7 +498,8 @@ const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
   inventoryRepository,
   costLayerRepository,
   journalRepository,
-  productRepository
+  productRepository,
+  approvalWorkflowService
 );
 
 const shipmentRepository = new _ShipmentRepository();
@@ -1780,7 +1783,7 @@ export const resolvers = {
     submitInventoryCount: async (_: any, { counts }: { counts: { sku: string; locationId: string; actualQuantity: number }[] }, context: GraphQLContext) => {
       try {
         enforcePermission(context, 'inventory', 'adjust', 'warehouse_operator']);
-        return await submitInventoryCountUseCase.execute(counts);
+        return await submitInventoryCountUseCase.execute(counts, context.tenantId, context.actorId);
       } catch (error: any) {
         throw new Error(error.message);
       }
@@ -2268,7 +2271,7 @@ export const resolvers = {
     resolveQuarantineItem: async (_: any, { id, resolution }: { id: string; resolution: string }, context: GraphQLContext) => {
       try {
         enforcePermission(context, 'rma', 'resolve', 'warehouse_operator']);
-        await resolveQuarantineItemUseCase.execute({ quarantineItemId: id, resolution: resolution as any });
+        await resolveQuarantineItemUseCase.execute({ quarantineItemId: id, resolution: resolution as any }, context.tenantId, context.actorId);
         return true;
       } catch (error: any) {
         throw new Error(error.message);
