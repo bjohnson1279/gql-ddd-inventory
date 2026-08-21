@@ -564,11 +564,18 @@ function publishStockChange(tenantId: string, item: any) {
  */
 function enforcePermission(context: GraphQLContext, resource: string, action: string, tenantId?: string, actorId?: string): { tenantId: string; actorId: string } {
   if (context?.auth) {
-    const required = `${resource}:${action}`;
-    const permissions = context.auth.permissions || [];
+    const reqRes = resource.toLowerCase();
+    const reqAct = action.toLowerCase();
+    const required = `${reqRes}:${reqAct}`;
+    const permissions = (context.auth.permissions || []).map(p => p.toLowerCase());
 
-    if (!permissions.includes(required)) {
-      throw new Error(`Forbidden: Missing permission '${required}'.`);
+    const hasPermission = 
+      permissions.includes(required) || 
+      permissions.includes('*:*') || 
+      permissions.includes(`${reqRes}:*`);
+
+    if (!hasPermission) {
+      throw new Error(`Forbidden: Missing permission '${resource}:${action}'.`);
     }
 
     if (tenantId && context.auth.tenantId !== tenantId) {
