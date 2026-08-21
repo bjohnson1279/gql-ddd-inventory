@@ -84,7 +84,9 @@ export class ReplenishmentEvaluator {
       const products = await this.productRepo.findBySkus(skusToFetch);
       for (const product of products) {
         for (const v of product.variants) {
-          variantMap.set(v.sku.value, v);
+          if (skuMap.has(v.sku.value)) {
+            variantMap.set(v.sku.value, v);
+          }
         }
       }
     }
