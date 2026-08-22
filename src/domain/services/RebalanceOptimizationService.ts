@@ -119,7 +119,8 @@ export class RebalanceOptimizationService {
       const response = await fetch(`${sidecarBaseUrl}/rebalance-optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ warehouses, stock_levels, demand_forecasts, lead_times, shipping_costs, constraints: { max_transfers_per_run: 20, min_transfer_quantity: 5, min_days_of_cover_target: 14.0 } })
+        body: JSON.stringify({ warehouses, stock_levels, demand_forecasts, lead_times, shipping_costs, constraints: { max_transfers_per_run: 20, min_transfer_quantity: 5, min_days_of_cover_target: 14.0 } }),
+        signal: AbortSignal.timeout(15000)
       });
 
       if (response.ok) {

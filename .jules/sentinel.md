@@ -10,3 +10,7 @@
 **Vulnerability:** Unbounded Map used for failed login attempt rate limiting (`loginAttempts`) in `resolvers.ts`.
 **Learning:** In-memory Maps tracking user activity based on unbounded input (like email addresses) can be exploited to cause a memory exhaustion Denial of Service by sending thousands of requests with unique keys.
 **Prevention:** Always bound the size of in-memory maps or caches. When the limit is reached, use an eviction strategy (like deleting the oldest key `map.keys().next().value`) rather than `clear()`, which would bypass the rate limit for all users.
+## 2024-05-18 - Add Timeouts to External Fetch Calls
+**Vulnerability:** External fetch calls in WebhookDeliveryWorker, ERP integrations, and Shopify sync handlers were missing timeouts.
+**Learning:** An attacker controlling a webhook destination (or a misconfigured/unresponsive external service) could hold connections open indefinitely, potentially exhausting server resources and causing Denial of Service (DoS) (a tarpit attack).
+**Prevention:** Always configure an `AbortSignal.timeout()` when making outbound `fetch` calls.

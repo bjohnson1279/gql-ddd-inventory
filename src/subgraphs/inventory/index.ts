@@ -869,7 +869,8 @@ const inventoryResolvers = {
             locations: sidecarLocations,
             inventory: sidecarInventory,
             dispatches
-          })
+          }),
+          signal: AbortSignal.timeout(15000)
         });
 
         if (response.ok) {

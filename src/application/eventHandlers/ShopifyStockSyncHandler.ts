@@ -46,6 +46,7 @@ export class ShopifyStockSyncHandler {
                 'X-Shopify-Access-Token': conn.accessToken
               },
               redirect: 'error',
+              signal: AbortSignal.timeout(10000),
               body: JSON.stringify({
                 query: `
                   mutation setQty($input: InventorySetOnHandQuantitiesInput!) {
