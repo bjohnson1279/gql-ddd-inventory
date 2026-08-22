@@ -618,7 +618,26 @@ export const typeDefs = `#graphql
     createdAt: String!
   }
 
+  type Permission {
+    id: ID!
+    resource: String!
+    action: String!
+    description: String!
+  }
+
+  type Role {
+    id: ID!
+    name: String!
+    description: String!
+    isCustom: Boolean!
+    permissions: [Permission!]!
+  }
+
   type Query {
+    roles(tenantId: String!): [Role!]!
+    permissions: [Permission!]!
+    userEffectivePermissions(userId: String!): [Permission!]!
+    
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
     inventoryItemBySkuAndLocation(sku: String!, locationId: String!): InventoryItem
@@ -1244,6 +1263,19 @@ export const typeDefs = `#graphql
     submitSupplierASN(asnNumber: String!, supplierId: String!, expectedDelivery: String!, lineItemsJson: String!): JSON!
     printZplThermalLabel(printerName: String!, labelType: String!, barcodeValue: String!, subtitle: String): ZplPrintResult!
     runDigitalTwinSimulation(warehouseId: String!, orderWaveCount: Int!, activePickersCount: Int!): DigitalTwinSimulationResult!
+
+    # Role Management
+    createCustomRole(tenantId: String!, name: String!, description: String!, permissionIds: [String!]!): Role!
+    updateRolePermissions(roleId: String!, permissionIds: [String!]!): Role!
+    deleteCustomRole(roleId: String!): Boolean!
+    assignRolesToUser(userId: String!, roleIds: [String!]!): Boolean!
+    removeRolesFromUser(userId: String!, roleIds: [String!]!): Boolean!
+
+    # Approval Workflows
+    createApprovalWorkflow(tenantId: String!, name: String!, triggerEvent: String!, config: JSON!): JSON!
+    updateApprovalWorkflow(id: ID!, config: JSON!): JSON!
+    toggleApprovalWorkflow(id: ID!, isActive: Boolean!): JSON!
+    submitApprovalDecision(requestId: ID!, decision: String!, notes: String): JSON!
 
     # Lot Quarantine & Recall Mutations
     quarantineLotBatch(lotNumber: String!, variantId: String!, reason: String!): LotBatch!
