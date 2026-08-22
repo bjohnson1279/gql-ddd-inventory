@@ -31,3 +31,6 @@
 ## 2025-01-20 - Optimize ReplenishmentEvaluator
 **Learning:** In src/domain/services/ReplenishmentEvaluator.ts, iterating over all products inside the rules loop to find variants caused a severe O(N*M) bottleneck. However, directly iterating the resulting `product.variants` without filtering will process unrequested SKUs.
 **Action:** Always pre-compute a `Set` of requested SKUs for O(1) membership checking and use it to filter the direct iteration over variants to preserve both performance and behavioral correctness.
+## 2024-08-21 - Filter Unrequested Variants
+**Learning:** Iterating over all product variants without filtering processes unrequested SKUs, causing O(N*M) bottlenecks.
+**Action:** Filter variant iterations against a pre-computed Set of requested SKUs.

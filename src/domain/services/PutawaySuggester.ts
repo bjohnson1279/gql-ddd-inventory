@@ -78,7 +78,9 @@ export class PutawaySuggester {
       const itemProducts = await this.productRepo.findBySkus(Array.from(itemSkusMap.values()));
       for (const ip of itemProducts) {
         for (const iv of ip.variants) {
-          itemVariantMap.set(iv.sku.value, iv);
+          if (itemSkusMap.has(iv.sku.value)) {
+            itemVariantMap.set(iv.sku.value, iv);
+          }
         }
       }
     }

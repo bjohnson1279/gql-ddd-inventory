@@ -43,7 +43,8 @@ export class GetStockValuationReportUseCase {
       : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
-    const uniqueSkus = Array.from(new Set(filteredItems.map(item => item.sku.value)));
+    const uniqueSkusSet = new Set(filteredItems.map(item => item.sku.value));
+    const uniqueSkus = Array.from(uniqueSkusSet);
 
     // Batch-lookup products to get variant IDs for each SKU
     const products = await this.productRepo.findBySkus(uniqueSkus.map(s => new Sku(s)));
@@ -52,7 +53,9 @@ export class GetStockValuationReportUseCase {
     const skuToVariantId = new Map<string, string>();
     for (const product of products) {
       for (const variant of product.variants) {
-        skuToVariantId.set(variant.sku.value, variant.id.value);
+        if (uniqueSkusSet.has(variant.sku.value)) {
+          skuToVariantId.set(variant.sku.value, variant.id.value);
+        }
       }
     }
 
