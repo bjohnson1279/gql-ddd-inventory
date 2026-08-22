@@ -53,6 +53,7 @@ export class AuditProcessorService {
                     'X-Shopify-Access-Token': conn.accessToken!
                   },
                   redirect: 'error',
+                  signal: AbortSignal.timeout(10000),
                   body: JSON.stringify({
                     query: `
                       query getBatchInventoryLevels($ids: [ID!]!) {
