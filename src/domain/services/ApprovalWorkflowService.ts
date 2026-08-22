@@ -10,7 +10,7 @@
 import { PrismaClient } from '@prisma/client';
 import { ApprovalWorkflow, ApprovalWorkflowConfig } from '../entities/ApprovalWorkflow';
 import { ApprovalRequest, ApprovalRequestStatus, ApprovalDecisionRecord } from '../entities/ApprovalRequest';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
 
 export interface InterceptResult {
   /** Whether the action was intercepted and requires approval */
@@ -75,7 +75,7 @@ export class ApprovalWorkflowService {
       : null;
 
     // Create the approval request
-    const requestId = uuidv4();
+    const requestId = crypto.randomUUID();
     await this.prisma.approvalRequest.create({
       data: {
         id: requestId,
@@ -144,7 +144,7 @@ export class ApprovalWorkflowService {
       requestRecord.updatedAt
     );
 
-    const decisionId = uuidv4();
+    const decisionId = crypto.randomUUID();
     const decisionRecord: ApprovalDecisionRecord = {
       id: decisionId,
       stepIndex: request.currentStep,

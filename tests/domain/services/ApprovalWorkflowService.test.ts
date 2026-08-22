@@ -1,6 +1,6 @@
 import { ApprovalWorkflowService } from '../../../src/domain/services/ApprovalWorkflowService';
 import { PrismaClient } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
 
 jest.mock('@prisma/client', () => {
   return {
