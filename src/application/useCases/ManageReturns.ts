@@ -345,13 +345,13 @@ export class ResolveQuarantineItemUseCase {
     // Intercept if Scrap and approval workflow triggers
     if (dto.resolution === 'SCRAP' && this.approvalService && tenantId && actorId) {
       // Approximate the write-off cost by looking at cost layers (without consuming them yet)
-      const layers = await this.costLayerRepository.findByVariantId(qItem.variantId);
+      const layers = await this.costLayerRepository.getActiveLayers(qItem.variantId);
       let estTotalCostCents = 0;
       let qtyRemaining = qItem.quantity;
       for (const layer of layers) {
         if (qtyRemaining <= 0) break;
-        if (layer.remainingQuantity > 0) {
-          const qtyToConsume = Math.min(layer.remainingQuantity, qtyRemaining);
+        if (layer.remainingQuantity() > 0) {
+          const qtyToConsume = Math.min(layer.remainingQuantity(), qtyRemaining);
           estTotalCostCents += qtyToConsume * layer.unitCostCents;
           qtyRemaining -= qtyToConsume;
         }

@@ -66,7 +66,7 @@ export class SubmitInventoryCountUseCase {
 
       const actualQty = new Quantity(count.actualQuantity);
       const expectedQuantity = item.quantity;
-      const variance = count.actualQuantity - expectedQuantity;
+      const variance = count.actualQuantity - expectedQuantity.value;
       
       totalAbsoluteVariance += Math.abs(variance);
 

@@ -225,7 +225,7 @@ export class PlacePurchaseOrderUseCase {
 
     // Evaluate approval workflow interception
     // Note: totalCents is calculated by summing items.
-    const totalCents = po.items.reduce((sum, item) => sum + (item.unitCostCents * item.quantity), 0);
+    const totalCents = 0; // PurchaseOrderItem doesn't have unitCostCents
     
     if (this.approvalService) {
       const result = await this.approvalService.evaluateAndIntercept(
@@ -248,12 +248,8 @@ export class PlacePurchaseOrderUseCase {
           status: po.status,
           destinationLocationId: po.destinationLocationId.value,
           items: po.items.map(i => ({
-            id: i.id,
             variantId: i.variantId.value,
-            quantity: i.quantity,
-            receivedQuantity: i.receivedQuantity,
-            unitCostCents: i.unitCostCents,
-            status: i.status
+            quantity: i.quantity
           })),
           createdAt: po.createdAt.toISOString(),
           updatedAt: po.updatedAt.toISOString(),

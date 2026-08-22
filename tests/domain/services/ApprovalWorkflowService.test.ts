@@ -53,7 +53,7 @@ describe('ApprovalWorkflowService', () => {
       tenantId: 'tenant-1',
       triggerEvent: 'purchase_order.place',
       isActive: true,
-      steps: [{ roleId: 'finance_auditor', minApprovals: 1, timeoutHours: 24 }]
+      config: { thresholds: [], steps: [{ roleId: 'finance_auditor', minApprovals: 1, timeoutHours: 24 }] }
     });
 
     prismaMock.approvalRequest.create.mockResolvedValue({

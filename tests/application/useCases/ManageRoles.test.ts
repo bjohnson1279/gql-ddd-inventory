@@ -1,4 +1,4 @@
-import { ManageRolesUseCase } from '../../../../src/application/useCases/ManageRoles';
+import { ManageRolesUseCase } from '../../../src/application/useCases/ManageRoles';
 import { PrismaClient } from '@prisma/client';
 
 jest.mock('@prisma/client', () => {

@@ -1,6 +1,6 @@
-import { ManageApprovalWorkflowsUseCase } from '../../../../src/application/useCases/ManageApprovalWorkflows';
+import { ManageApprovalWorkflowsUseCase } from '../../../src/application/useCases/ManageApprovalWorkflows';
 import { PrismaClient } from '@prisma/client';
-import { ApprovalWorkflowService } from '../../../../src/domain/services/ApprovalWorkflowService';
+import { ApprovalWorkflowService } from '../../../src/domain/services/ApprovalWorkflowService';
 
 jest.mock('@prisma/client', () => {
   return {
@@ -19,7 +19,7 @@ jest.mock('@prisma/client', () => {
   };
 });
 
-jest.mock('../../../../src/domain/services/ApprovalWorkflowService');
+jest.mock('../../../src/domain/services/ApprovalWorkflowService');
 
 describe('ManageApprovalWorkflowsUseCase', () => {
   let useCase: ManageApprovalWorkflowsUseCase;
