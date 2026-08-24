@@ -148,6 +148,18 @@ const typeDefs = parse(`
 
 const server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers: resolvers as any }),
+  formatError: (formattedError: any) => {
+    if (formattedError.extensions) {
+      if (formattedError.extensions.exception) {
+        delete formattedError.extensions.exception.stacktrace;
+        if (process.env.NODE_ENV === 'production') {
+          delete formattedError.extensions.exception;
+        }
+      }
+      delete formattedError.extensions.stacktrace;
+    }
+    return formattedError;
+  }
 });
 
 async function start() {

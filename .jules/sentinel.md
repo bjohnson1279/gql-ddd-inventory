@@ -14,3 +14,7 @@
 **Vulnerability:** External fetch calls in WebhookDeliveryWorker, ERP integrations, and Shopify sync handlers were missing timeouts.
 **Learning:** An attacker controlling a webhook destination (or a misconfigured/unresponsive external service) could hold connections open indefinitely, potentially exhausting server resources and causing Denial of Service (DoS) (a tarpit attack).
 **Prevention:** Always configure an `AbortSignal.timeout()` when making outbound `fetch` calls.
+## 2025-02-25 - [Information Leakage via Subgraphs]
+**Vulnerability:** Federated GraphQL subgraphs (Inventory, Catalog, Accounting) were not explicitly configured to strip stack traces from errors, meaning sensitive internal exception details could leak even if the main gateway was configured securely.
+**Learning:** In a federated GraphQL architecture, `formatError` must be explicitly configured to strip sensitive stack traces and exceptions on every individual subgraph server, not just the main gateway, to prevent internal error leakage when errors propagate.
+**Prevention:** Always configure `formatError` to remove `extensions.exception` and `extensions.stacktrace` on all Apollo Server instances across all microservices/subgraphs.
