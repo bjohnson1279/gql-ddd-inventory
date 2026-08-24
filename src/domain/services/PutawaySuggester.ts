@@ -35,9 +35,14 @@ export class PutawaySuggester {
 
     // Extract attributes of target variant: temperatureZone, hazardClass, velocity
     const attrs = variant.attributes.all();
-    const tempZoneAttr = attrs.find(a => a.name === 'temperatureZone')?.value;
-    const hazardAttr = attrs.find(a => a.name === 'hazardClass')?.value;
-    const velocityAttr = attrs.find(a => a.name === 'velocity')?.value;
+    let tempZoneAttr: string | undefined;
+    let hazardAttr: string | undefined;
+    let velocityAttr: string | undefined;
+    for (const a of attrs) {
+      if (a.name === 'temperatureZone') tempZoneAttr = a.value;
+      else if (a.name === 'hazardClass') hazardAttr = a.value;
+      else if (a.name === 'velocity') velocityAttr = a.value;
+    }
 
     // Load all locations
     const allLocations = await this.locationRepo.findAll();
@@ -85,32 +90,26 @@ export class PutawaySuggester {
       }
     }
 
-    // Map location items for fast O(1) lookups
-    const itemsByLocation = new Map<string, typeof allItems>();
+    // Aggregate occupied weight & volume directly to avoid nested loops and temporary arrays
+    const locationOccupancy = new Map<string, { weight: number, volume: number }>();
     for (const item of allItems) {
-      const locItems = itemsByLocation.get(item.locationId.value) || [];
-      locItems.push(item);
-      itemsByLocation.set(item.locationId.value, locItems);
+      const locId = item.locationId.value;
+      const v = itemVariantMap.get(item.sku.value);
+      if (v) {
+        const occ = locationOccupancy.get(locId) || { weight: 0, volume: 0 };
+        occ.weight += item.quantity.value * v.weightGrams;
+        occ.volume += item.quantity.value * v.volumeCubicMeters;
+        locationOccupancy.set(locId, occ);
+      }
     }
 
-    // For each location, calculate occupied weight & volume
+    // For each location, calculate remaining capacity
     const locationCapacities = [];
     for (const loc of locations) {
-      const items = itemsByLocation.get(loc.id.value) || [];
-      
-      let occupiedWeight = 0;
-      let occupiedVolume = 0;
+      const occ = locationOccupancy.get(loc.id.value) || { weight: 0, volume: 0 };
 
-      for (const item of items) {
-        const v = itemVariantMap.get(item.sku.value);
-        if (v) {
-          occupiedWeight += item.quantity.value * v.weightGrams;
-          occupiedVolume += item.quantity.value * v.volumeCubicMeters;
-        }
-      }
-
-      const remainingWeight = loc.maxWeightGrams - occupiedWeight;
-      const remainingVolume = loc.maxVolumeCubicMeters - occupiedVolume;
+      const remainingWeight = loc.maxWeightGrams - occ.weight;
+      const remainingVolume = loc.maxVolumeCubicMeters - occ.volume;
 
       locationCapacities.push({
         location: loc,
