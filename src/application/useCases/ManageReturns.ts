@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { JournalEntry } from '../../domain/entities/JournalEntry';
 import { IRmaRepository } from '../../domain/repositories/IRmaRepository';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { IInventoryCostLayerRepository } from '../../domain/repositories/IInventoryCostLayerRepository';
@@ -141,7 +142,7 @@ export class ReceiveRmaUseCase {
     const costLayersToSave: InventoryCostLayer[] = [];
     const quarantineItemsToSave: QuarantineItem[] = [];
     const serializedItemsToSave: SerializedItem[] = [];
-    const journalEntriesToSave: any[] = [];
+    const journalEntriesToSave: JournalEntry[] = [];
 
     // Batch Serialized Item Lookups
     const serialPairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[] = [];
