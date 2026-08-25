@@ -158,7 +158,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   });
 
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
-  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json' }), shopifyWebhookHandler);
+  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json', limit: '2mb' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS

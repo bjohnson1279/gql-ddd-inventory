@@ -14,3 +14,7 @@
 **Vulnerability:** External fetch calls in WebhookDeliveryWorker, ERP integrations, and Shopify sync handlers were missing timeouts.
 **Learning:** An attacker controlling a webhook destination (or a misconfigured/unresponsive external service) could hold connections open indefinitely, potentially exhausting server resources and causing Denial of Service (DoS) (a tarpit attack).
 **Prevention:** Always configure an `AbortSignal.timeout()` when making outbound `fetch` calls.
+## 2024-10-14 - [Express Request Body Size Limits]
+**Vulnerability:** Missing request body size limit on the `express.raw` middleware used in the Shopify webhook endpoint.
+**Learning:** Express middleware like `body-parser.json()` or `express.raw()` must explicitly define size limits. Without constraints, attackers can send excessively large payloads, leading to memory exhaustion and Denial of Service (DoS).
+**Prevention:** Always set an explicit `limit` option (e.g., `{ limit: '2mb' }`) on all input parsing middleware.
