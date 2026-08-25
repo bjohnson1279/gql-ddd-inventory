@@ -31,11 +31,13 @@ import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
 import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 
-// Security fix: Enforce JWT_SECRET in production to prevent hardcoded fallback vulnerabilities.
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+// Security fix: Enforce JWT_SECRET in all environments to prevent hardcoded fallback vulnerabilities.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+  console.error('CRITICAL: JWT_SECRET environment variable is missing!');
+  process.exit(1);
 }
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
 if (!SHOPIFY_WEBHOOK_SECRET && process.env.NODE_ENV === 'production') {
@@ -85,6 +87,16 @@ async function setupApolloServer(schema: any, httpServer: any, serverCleanup: an
     schema,
     formatError: (formattedError: any) => {
       // Security fix: Strip stack traces from error responses to prevent information leakage
+      if (process.env.NODE_ENV === 'production') {
+        if (formattedError.extensions) {
+          if (formattedError.extensions.exception) {
+            delete formattedError.extensions.exception;
+          }
+          delete formattedError.extensions.stacktrace;
+        }
+        return formattedError;
+      }
+
       if (formattedError.extensions) {
         if (formattedError.extensions.exception) {
           delete formattedError.extensions.exception.stacktrace;
@@ -140,8 +152,13 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     message: 'Too many webhook requests from this IP, please try again after 1 minute'
   });
 
+  // Healthcheck endpoints for container probes and conformance tests
+  app.get(['/api/health', '/health'], (_req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // Shopify Webhook Endpoint (verifies HMAC and dispatches corresponding use cases)
-  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json' }), shopifyWebhookHandler);
+  app.post('/webhooks/shopify', webhookLimiter, express.raw({ type: 'application/json', limit: '2mb' }), shopifyWebhookHandler);
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
@@ -169,7 +186,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     cors<cors.CorsRequest>({
       origin: allowedOrigins
     }),
-    bodyParser.json(),
+    bodyParser.json({ limit: '2mb' }),
     (req: express.Request, res: express.Response, next: express.NextFunction) => {
       const authHeader = req.headers.authorization || req.headers.Authorization || '';
       let tenantId: string | undefined;

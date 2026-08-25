@@ -19,3 +19,21 @@
 ## 2024-05-19 - N+1 Query in ManageReturns
  **Learning:** I learned that there was a database fetch (`findManyBySerialsAndVariant`) inside a `for (const item of dto.items)` loop during RMA item receipt. This query was unnecessary because the exact same serial numbers were already being batch-fetched and mapped to an `existingSerialItemsList` immediately before the loop! I only had to correctly index into this existing map.
  **Action:** In future optimizations, always check if the data being fetched inside a loop is already available in the surrounding scope. Reusing O(1) in-memory maps instead of making N duplicate database calls is a huge performance win.
+## 2026-08-11 - Batch Aggregate Variant Quantities to Prevent Redundant Processing
+ **Learning:** In GetStockValuationReportUseCase, looping over inventory locations mapping to the same variant without grouping results in redundant N+1 lookup calls against calculateCostBatch and duplicated memory consumption.
+ **Action:** Proactively aggregate shared keys (like variantId) mapped to a numeric quantity before invoking batch APIs, then redistribute the aggregate calculations back to the granular level.
+## 2024-05-31 - Pre-Filtering Constraints Before Heavy Fetching
+**Learning:** In `PutawaySuggester.ts`, fetching the entire inventory system (`findAll()`) into memory just to score a few valid locations caused severe O(N) memory bloat.
+**Action:** When scoring or processing candidate locations, pre-filter them based on independent constraints (like zone matching) *before* fetching related data. Use batched repository methods like `findByLocationsBatch` to scope the database fetch to only the eligible candidates, saving massive memory and CPU overhead.
+## 2025-01-20 - Optimize ReplenishmentEvaluator
+**Learning:** In src/domain/services/ReplenishmentEvaluator.ts, iterating over all products inside the rules loop to find variants caused a severe O(N*M) bottleneck.
+**Action:** Always pre-compute a mapped lookup from keys to variants directly (O(1)) instead of mapping to parent entities (Products) and doing nested linear scans.
+## 2025-01-20 - Optimize ReplenishmentEvaluator
+**Learning:** In src/domain/services/ReplenishmentEvaluator.ts, iterating over all products inside the rules loop to find variants caused a severe O(N*M) bottleneck. However, directly iterating the resulting `product.variants` without filtering will process unrequested SKUs.
+**Action:** Always pre-compute a `Set` of requested SKUs for O(1) membership checking and use it to filter the direct iteration over variants to preserve both performance and behavioral correctness.
+## 2024-08-21 - Filter Unrequested Variants
+**Learning:** Iterating over all product variants without filtering processes unrequested SKUs, causing O(N*M) bottlenecks.
+**Action:** Filter variant iterations against a pre-computed Set of requested SKUs.
+## 2026-08-24 - Optimize PutawaySuggester
+**Learning:** In PutawaySuggester, multiple Array.find() calls on attributes and building intermediate arrays for location items caused unnecessary overhead. Aggregating data directly into an O(1) Map instead of intermediate arrays prevents nested loops and memory bloat.
+**Action:** Iterate once over collections and aggregate data directly into a Map to avoid O(N*M) nested loops and intermediate array allocations.
