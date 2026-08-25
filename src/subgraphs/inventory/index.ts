@@ -741,7 +741,15 @@ const inventoryResolvers = {
         entries = [];
       }
       const cutoffDate = timestamp ? new Date(timestamp) : new Date();
-      const filtered = entries.filter((e: any) => new Date(e.timestamp) <= cutoffDate);
+      const cutoffTime = cutoffDate.getTime();
+      // ⚡ Bolt: Replace O(N) Date allocations in loop with O(1) numeric comparison
+      const filtered = entries.filter((e: any) => {
+        const eTime = !e.timestamp ? 0
+          : typeof e.timestamp === 'string' ? Date.parse(e.timestamp)
+          : typeof e.timestamp === 'number' ? e.timestamp
+          : e.timestamp.getTime();
+        return eTime <= cutoffTime;
+      });
 
       const stockLevels: Record<string, any> = {};
       const binConfigurations: Record<string, any> = {};
@@ -799,7 +807,15 @@ const inventoryResolvers = {
       }
       if (upToTimestamp) {
         const cutoffDate = new Date(upToTimestamp);
-        entries = entries.filter((e: any) => new Date(e.timestamp) <= cutoffDate);
+        const cutoffTime = cutoffDate.getTime();
+        // ⚡ Bolt: Replace O(N) Date allocations in loop with O(1) numeric comparison
+        entries = entries.filter((e: any) => {
+          const eTime = !e.timestamp ? 0
+            : typeof e.timestamp === 'string' ? Date.parse(e.timestamp)
+            : typeof e.timestamp === 'number' ? e.timestamp
+            : e.timestamp.getTime();
+          return eTime <= cutoffTime;
+        });
       }
       return entries.map((e: any) => ({
         sequenceNumber: e.sequenceNumber,
