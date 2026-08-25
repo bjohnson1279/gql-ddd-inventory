@@ -32,5 +32,23 @@ export const accountingResolvers = {
 export function createAccountingSubgraphServer() {
   return new ApolloServer({
     schema: buildSubgraphSchema({ typeDefs: accountingTypeDefs, resolvers: accountingResolvers }),
+    formatError: (formattedError: any) => {
+      if (process.env.NODE_ENV === 'production') {
+        if (formattedError.extensions) {
+          if (formattedError.extensions.exception) {
+            delete formattedError.extensions.exception;
+          }
+          delete formattedError.extensions.stacktrace;
+        }
+        return formattedError;
+      }
+      if (formattedError.extensions) {
+        if (formattedError.extensions.exception) {
+          delete formattedError.extensions.exception.stacktrace;
+        }
+        delete formattedError.extensions.stacktrace;
+      }
+      return formattedError;
+    },
   });
 }
