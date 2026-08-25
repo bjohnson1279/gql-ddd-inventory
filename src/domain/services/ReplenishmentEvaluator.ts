@@ -79,11 +79,15 @@ export class ReplenishmentEvaluator {
       skuMap.set(rule.sku.value, rule.sku);
     }
     const skusToFetch = Array.from(skuMap.values());
-    const productMap = new Map<string, any>();
+    const variantMap = new Map<string, any>();
     if (skusToFetch.length > 0) {
       const products = await this.productRepo.findBySkus(skusToFetch);
       for (const product of products) {
-        productMap.set(product.id.value, product);
+        for (const v of product.variants) {
+          if (skuMap.has(v.sku.value)) {
+            variantMap.set(v.sku.value, v);
+          }
+        }
       }
     }
 
@@ -109,14 +113,7 @@ export class ReplenishmentEvaluator {
           rule.updateReorderPoint(forecastedRop);
           rulesToSave.push(rule);
         }
-        let variant;
-        for (const product of productMap.values()) {
-          const v = product.findVariantBySku(skuObj);
-          if (v) {
-            variant = v;
-            break;
-          }
-        }
+        const variant = variantMap.get(skuObj.value);
 
         if (!variant) {
           results.push({

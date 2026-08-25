@@ -1,7 +1,7 @@
 import { IBarcodeRepository } from '../../domain/repositories/IBarcodeRepository';
 import { BarcodeRegistry } from '../../domain/services/BarcodeRegistry';
 import { InternalBarcodeGenerator } from '../../domain/services/InternalBarcodeGenerator';
-import { BarcodeScanDispatcher, ScanContext, IScanHandler } from '../../domain/services/BarcodeScanDispatcher';
+import { BarcodeScanDispatcher, ScanContext, IScanHandler, ScanPayload } from '../../domain/services/BarcodeScanDispatcher';
 import { Barcode } from '../../domain/valueObjects/Barcode';
 import { BarcodeSymbology, BarcodeSource } from '../../domain/enums/BarcodeEnums';
 import { Sku } from '../../domain/valueObjects/Sku';
@@ -95,7 +95,7 @@ export class LookupBarcodeUseCase {
 export class DispatchBarcodeScanUseCase {
   constructor(private readonly dispatcher: BarcodeScanDispatcher) {}
 
-  async execute(rawScan: string, context: ScanContext, payload: any): Promise<boolean> {
+  async execute(rawScan: string, context: ScanContext, payload: ScanPayload): Promise<boolean> {
     await this.dispatcher.dispatch(rawScan, context, payload);
     return true;
   }
@@ -106,7 +106,7 @@ export class DispatchBarcodeScanUseCase {
 export class POSScanHandler implements IScanHandler {
   constructor(private readonly dispatchStockUseCase: DispatchStockUseCase) {}
 
-  async handle(sku: Sku, rawScan: string, payload: any): Promise<void> {
+  async handle(sku: Sku, rawScan: string, payload: ScanPayload): Promise<void> {
     if (!payload.locationId) {
       throw new Error('locationId is required for POS scan dispatch.');
     }
@@ -121,7 +121,7 @@ export class POSScanHandler implements IScanHandler {
 export class ReceivingScanHandler implements IScanHandler {
   constructor(private readonly receiveStockUseCase: ReceiveStockUseCase) {}
 
-  async handle(sku: Sku, rawScan: string, payload: any): Promise<void> {
+  async handle(sku: Sku, rawScan: string, payload: ScanPayload): Promise<void> {
     if (!payload.locationId) {
       throw new Error('locationId is required for Receiving scan dispatch.');
     }
@@ -136,7 +136,7 @@ export class ReceivingScanHandler implements IScanHandler {
 export class CycleCountScanHandler implements IScanHandler {
   constructor(private readonly submitInventoryCountUseCase: SubmitInventoryCountUseCase) {}
 
-  async handle(sku: Sku, rawScan: string, payload: any): Promise<void> {
+  async handle(sku: Sku, rawScan: string, payload: ScanPayload): Promise<void> {
     if (!payload.locationId) {
       throw new Error('locationId is required for CycleCount scan dispatch.');
     }

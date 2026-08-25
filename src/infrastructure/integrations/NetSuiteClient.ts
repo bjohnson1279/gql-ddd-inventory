@@ -49,7 +49,8 @@ export class NetSuiteClient implements INetSuiteClient {
         "Authorization": `Bearer ${token}`,
         "Accept": "application/json"
       },
-      body: JSON.stringify(nsPayload)
+      body: JSON.stringify(nsPayload),
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!response.ok) {

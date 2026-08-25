@@ -19,6 +19,7 @@ describe('GetStockLevels Use Cases', () => {
       findBySkuAndLocation: jest.fn(),
       findBySkuAndLocationBatch: jest.fn(),
       findByLocation: jest.fn(),
+      findByLocationsBatch: jest.fn(),
       save: jest.fn(),
       saveBatch: jest.fn(),
       findAll: jest.fn(),
