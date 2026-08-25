@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { IStockTransferRepository } from '../../domain/repositories/IStockTransferRepository';
 import { StockTransfer } from '../../domain/entities/StockTransfer';
 import { StockTransferId } from '../../domain/valueObjects/StockTransferId';
@@ -83,45 +83,51 @@ export class PostgresStockTransferRepository implements IStockTransferRepository
     }
     const uniqueTransfers = Array.from(uniqueTransfersMap.values());
 
+    const values = uniqueTransfers.map((t) => Prisma.sql`(${Prisma.join([
+      toUuid(t.id.value),
+      t.tenantId.value,
+      t.sourceLocationId.value,
+      t.destinationLocationId.value,
+      t.status,
+      t.referenceId,
+      t.dispatchedAt,
+      t.receivedAt,
+      t.createdAt
+    ])})`);
+
     await this.prisma.$transaction(async (tx) => {
-      await Promise.all(
-        uniqueTransfers.map(async (transfer) => {
-          const dbId = toUuid(transfer.id.value);
-          await tx.stockTransfer.upsert({
-            where: { id: dbId },
-            create: {
-              id: dbId,
-              tenantId: transfer.tenantId.value,
-              sourceLocationId: transfer.sourceLocationId.value,
-              destinationLocationId: transfer.destinationLocationId.value,
-              status: transfer.status,
-              referenceId: transfer.referenceId,
-              dispatchedAt: transfer.dispatchedAt,
-              receivedAt: transfer.receivedAt,
-              createdAt: transfer.createdAt,
-            },
-            update: {
-              status: transfer.status,
-              dispatchedAt: transfer.dispatchedAt,
-              receivedAt: transfer.receivedAt,
-            },
-          });
+      if (values.length > 0) {
+        await tx.$executeRaw`
+          INSERT INTO "StockTransfer" ("id", "tenant_id", "source_location_id", "destination_location_id", "status", "reference_id", "dispatched_at", "received_at", "created_at")
+          VALUES ${Prisma.join(values)}
+          ON CONFLICT ("id") DO UPDATE SET
+            "status" = EXCLUDED."status",
+            "dispatched_at" = EXCLUDED."dispatched_at",
+            "received_at" = EXCLUDED."received_at"
+        `;
+      }
 
-          await tx.stockTransferItem.deleteMany({
-            where: { transferId: dbId },
-          });
+      const dbIds = uniqueTransfers.map(t => toUuid(t.id.value));
+      await tx.stockTransferItem.deleteMany({
+        where: { transferId: { in: dbIds } },
+      });
 
-          if (transfer.items.length > 0) {
-            await tx.stockTransferItem.createMany({
-              data: transfer.items.map((item) => ({
-                transferId: dbId,
-                variantId: toUuid(item.variantId.value),
-                quantity: item.quantity,
-              })),
-            });
-          }
-        })
-      );
+      const allItems: any[] = [];
+      for (const t of uniqueTransfers) {
+        for (const item of t.items) {
+          allItems.push({
+            transferId: toUuid(t.id.value),
+            variantId: toUuid(item.variantId.value),
+            quantity: item.quantity,
+          });
+        }
+      }
+
+      if (allItems.length > 0) {
+        await tx.stockTransferItem.createMany({
+          data: allItems,
+        });
+      }
     });
   }
 

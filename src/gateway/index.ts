@@ -88,7 +88,7 @@ async function startGateway() {
     cors<cors.CorsRequest>({
       origin: allowedOrigins,
     }),
-    bodyParser.json(),
+    bodyParser.json({ limit: '2mb' }),
     expressMiddleware(server, {
       context: async ({ req }) => {
         return {

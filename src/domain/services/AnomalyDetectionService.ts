@@ -73,7 +73,8 @@ export class AnomalyDetectionService {
           ledger_entries: sidecarLedger,
           cycle_counts: cycleCounts,
           scan_events: []
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
       });
 
       if (response.ok) {

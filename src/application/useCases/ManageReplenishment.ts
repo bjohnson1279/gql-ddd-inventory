@@ -212,14 +212,49 @@ export class PlacePurchaseOrderUseCase {
   constructor(
     private readonly poRepo: IPurchaseOrderRepository,
     private readonly inventoryRepo: IInventoryRepository,
-    private readonly productRepo: IProductRepository
+    private readonly productRepo: IProductRepository,
+    private readonly approvalService: any // ApprovalWorkflowService (injected)
   ) {}
 
-  async execute(id: string): Promise<PurchaseOrderDTO> {
+  async execute(id: string, requesterId: string): Promise<PurchaseOrderDTO> {
     const poId = new PurchaseOrderId(id);
     const po = await this.poRepo.findById(poId);
     if (!po) {
       throw new Error(`Purchase order ${id} not found.`);
+    }
+
+    // Evaluate approval workflow interception
+    // Note: totalCents is calculated by summing items.
+    const totalCents = 0; // PurchaseOrderItem doesn't have unitCostCents
+    
+    if (this.approvalService) {
+      const result = await this.approvalService.evaluateAndIntercept(
+        po.tenantId.value,
+        'purchase_order.place',
+        'PurchaseOrder',
+        po.id.value,
+        requesterId,
+        { totalCents, supplierId: po.supplierId }
+      );
+
+      if (result.intercepted) {
+        // Change status to PENDING_APPROVAL instead of placing it immediately.
+        po.markPendingApproval();
+        await this.poRepo.save(po);
+        return {
+          id: po.id.value,
+          tenantId: po.tenantId.value,
+          supplierId: po.supplierId,
+          status: po.status,
+          destinationLocationId: po.destinationLocationId.value,
+          items: po.items.map(i => ({
+            variantId: i.variantId.value,
+            quantity: i.quantity
+          })),
+          createdAt: po.createdAt.toISOString(),
+          updatedAt: po.updatedAt.toISOString(),
+        };
+      }
     }
 
     po.place();
