@@ -160,12 +160,15 @@ export class DemandForecaster {
     const policyMap = new Map(policies.map((p) => [p.sku.value, p]));
 
     // Pre-fetch products
-    const uniqueSkus = Array.from(new Set(inventoryItems.map(item => item.sku.value)));
-    const products = await this.productRepo.findBySkus(uniqueSkus.map(s => new Sku(s)));
+    const uniqueSkusSet = new Set(inventoryItems.map(item => item.sku.value));
+    const uniqueSkusArray = Array.from(uniqueSkusSet);
+    const products = await this.productRepo.findBySkus(uniqueSkusArray.map(s => new Sku(s)));
     const variantMap = new Map<string, any>();
     for (const product of products) {
       for (const variant of product.variants) {
-        variantMap.set(variant.sku.value, variant);
+        if (uniqueSkusSet.has(variant.sku.value)) {
+          variantMap.set(variant.sku.value, variant);
+        }
       }
     }
 

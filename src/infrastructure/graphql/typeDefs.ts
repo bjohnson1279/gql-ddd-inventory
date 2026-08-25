@@ -682,6 +682,15 @@ export const typeDefs = `#graphql
     getSupplierOTIFScorecard(supplierId: String!): SupplierScorecard!
     queryCopilot(query: String!): CopilotQueryResult!
     getEsgEmissionsReport(tenantId: String!): EsgEmissionsReport!
+    calculateShippingRates(input: JSON): [CarrierRate!]!
+
+    # AI Anomaly & Rebalance Queries
+    analyzeInventoryAnomalies(tenantId: String!, startDate: String, endDate: String): AnomalySummary!
+    rebalanceMatrix(tenantId: String!): RebalanceMatrix!
+
+    # Lot Batches & Traceability Queries
+    getLotBatches(variantId: String): [LotBatch!]!
+    getLotTraceability(lotNumber: String!, variantId: String!): LotTraceabilityReport!
   }
 
   type InventoryCountResult {
@@ -1235,6 +1244,19 @@ export const typeDefs = `#graphql
     submitSupplierASN(asnNumber: String!, supplierId: String!, expectedDelivery: String!, lineItemsJson: String!): JSON!
     printZplThermalLabel(printerName: String!, labelType: String!, barcodeValue: String!, subtitle: String): ZplPrintResult!
     runDigitalTwinSimulation(warehouseId: String!, orderWaveCount: Int!, activePickersCount: Int!): DigitalTwinSimulationResult!
+
+    # Lot Quarantine & Recall Mutations
+    quarantineLotBatch(lotNumber: String!, variantId: String!, reason: String!): LotBatch!
+    recallLotBatch(lotNumber: String!, variantId: String!, reason: String!): LotBatch!
+    releaseLotBatch(lotNumber: String!, variantId: String!): LotBatch!
+
+    # Cross-Docking & Drop Ship Mutations
+    evaluateCrossDocking(purchaseOrderId: String!, inboundItemsJson: String!, backordersJson: String!): CrossDockOpportunity!
+    createDropShipOrder(orderId: String!, variantId: String!, quantity: Int!, supplierId: String!): JSON!
+
+    # Shipping & ERP Sync Mutations
+    generateShippingLabel(input: JSON): JSON!
+    syncERPJournal(input: JSON): JSON!
   }
 `;
 
