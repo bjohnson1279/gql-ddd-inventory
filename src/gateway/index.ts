@@ -18,9 +18,13 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
 }
 
 async function startGateway() {
-  const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-    : [];
+  if (process.env.NODE_ENV === 'production' && (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS === '*')) {
+    throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
+  }
+  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
+  const allowedOrigins = allowedOriginsRaw === '*'
+    ? '*'
+    : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean);
 
   const subgraphs = [
     { name: 'inventory', url: process.env.INVENTORY_SUBGRAPH_URL || 'http://localhost:4001/graphql' },
