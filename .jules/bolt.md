@@ -34,6 +34,6 @@
 ## 2024-08-21 - Filter Unrequested Variants
 **Learning:** Iterating over all product variants without filtering processes unrequested SKUs, causing O(N*M) bottlenecks.
 **Action:** Filter variant iterations against a pre-computed Set of requested SKUs.
-## 2026-08-24 - Optimize PutawaySuggester
-**Learning:** In PutawaySuggester, multiple Array.find() calls on attributes and building intermediate arrays for location items caused unnecessary overhead. Aggregating data directly into an O(1) Map instead of intermediate arrays prevents nested loops and memory bloat.
-**Action:** Iterate once over collections and aggregate data directly into a Map to avoid O(N*M) nested loops and intermediate array allocations.
+## 2025-02-14 - Optimize Capacity Aggregation in Putaway Suggester
+**Learning:** Using `Array.find()` multiple times on the same array and grouping items into intermediate arrays only to iterate over them again causes redundant memory allocations and unnecessary CPU overhead.
+**Action:** Refactor attribute extraction to use a single `for...of` loop and location capacity aggregation to use a single-pass O(N) iteration instead of multiple array traversals and nested loops.
