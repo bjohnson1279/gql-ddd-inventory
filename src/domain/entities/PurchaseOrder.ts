@@ -43,13 +43,6 @@ export class PurchaseOrder {
     this._status = PurchaseOrderStatus.Received;
   }
 
-  markPendingApproval(): void {
-    if (this._status !== PurchaseOrderStatus.Draft) {
-      throw new Error(`Cannot submit a non-draft purchase order for approval.`);
-    }
-    this._status = PurchaseOrderStatus.PendingApproval;
-  }
-
   cancel(): void {
     if (this._status === PurchaseOrderStatus.Received || this._status === PurchaseOrderStatus.Cancelled) {
       throw new Error(`Cannot cancel a purchase order in status: ${this._status}`);

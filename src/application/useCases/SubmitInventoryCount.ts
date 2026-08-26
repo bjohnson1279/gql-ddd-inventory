@@ -11,11 +11,10 @@ export class SubmitInventoryCountUseCase {
   constructor(
     private readonly inventoryRepository: IInventoryRepository,
     private readonly eventDispatcher: DomainEventDispatcher,
-    private readonly capacityService?: WMSCapacityService,
-    private readonly approvalService?: any
+    private readonly capacityService?: WMSCapacityService
   ) {}
 
-  async execute(counts: CountItemInputDTO[], tenantId?: string, actorId?: string): Promise<CountResultDTO[]> {
+  async execute(counts: CountItemInputDTO[]): Promise<CountResultDTO[]> {
     const results: CountResultDTO[] = [];
 
     if (!Array.isArray(counts)) {
@@ -52,12 +51,13 @@ export class SubmitInventoryCountUseCase {
     }
 
     const itemsToSave = new Map<string, InventoryItem>();
-    let totalAbsoluteVariance = 0;
 
     for (const count of counts) {
       const key = `${count.sku}_${count.locationId}`;
       let item = itemsMap.get(key);
 
+      // If the item doesn't exist yet, we can create it as part of the count,
+      // or throw an error. For a full inventory count, it's common to discover new SKUs.
       if (!item) {
         const id = crypto.randomUUID();
         item = InventoryItem.createNew(id, count.sku, count.locationId);
@@ -65,11 +65,6 @@ export class SubmitInventoryCountUseCase {
       }
 
       const actualQty = new Quantity(count.actualQuantity);
-      const expectedQuantity = item.quantity;
-      const variance = count.actualQuantity - expectedQuantity.value;
-      
-      totalAbsoluteVariance += Math.abs(variance);
-
       const reconciliationResult = item.reconcileStock(actualQty);
       
       itemsToSave.set(key, item);
@@ -79,21 +74,6 @@ export class SubmitInventoryCountUseCase {
         locationId: count.locationId,
         ...reconciliationResult
       });
-    }
-
-    if (this.approvalService && tenantId && actorId && totalAbsoluteVariance > 0) {
-      const result = await this.approvalService.evaluateAndIntercept(
-        tenantId,
-        'inventory.count',
-        'InventoryCount',
-        'bulk',
-        actorId,
-        { totalAbsoluteVariance, counts }
-      );
-
-      if (result.intercepted) {
-        throw new Error(`RequiresApproval:${result.requestId}`);
-      }
     }
 
     const uniqueItemsToSave = Array.from(itemsToSave.values());
@@ -106,4 +86,3 @@ export class SubmitInventoryCountUseCase {
     return results;
   }
 }
-

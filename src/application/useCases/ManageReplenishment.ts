@@ -212,49 +212,14 @@ export class PlacePurchaseOrderUseCase {
   constructor(
     private readonly poRepo: IPurchaseOrderRepository,
     private readonly inventoryRepo: IInventoryRepository,
-    private readonly productRepo: IProductRepository,
-    private readonly approvalService: any // ApprovalWorkflowService (injected)
+    private readonly productRepo: IProductRepository
   ) {}
 
-  async execute(id: string, requesterId: string): Promise<PurchaseOrderDTO> {
+  async execute(id: string): Promise<PurchaseOrderDTO> {
     const poId = new PurchaseOrderId(id);
     const po = await this.poRepo.findById(poId);
     if (!po) {
       throw new Error(`Purchase order ${id} not found.`);
-    }
-
-    // Evaluate approval workflow interception
-    // Note: totalCents is calculated by summing items.
-    const totalCents = 0; // PurchaseOrderItem doesn't have unitCostCents
-    
-    if (this.approvalService) {
-      const result = await this.approvalService.evaluateAndIntercept(
-        po.tenantId.value,
-        'purchase_order.place',
-        'PurchaseOrder',
-        po.id.value,
-        requesterId,
-        { totalCents, supplierId: po.supplierId }
-      );
-
-      if (result.intercepted) {
-        // Change status to PENDING_APPROVAL instead of placing it immediately.
-        po.markPendingApproval();
-        await this.poRepo.save(po);
-        return {
-          id: po.id.value,
-          tenantId: po.tenantId.value,
-          supplierId: po.supplierId,
-          status: po.status,
-          destinationLocationId: po.destinationLocationId.value,
-          items: po.items.map(i => ({
-            variantId: i.variantId.value,
-            quantity: i.quantity
-          })),
-          createdAt: po.createdAt.toISOString(),
-          updatedAt: po.updatedAt.toISOString(),
-        };
-      }
     }
 
     po.place();
@@ -270,14 +235,14 @@ export class PlacePurchaseOrderUseCase {
     });
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
+    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
     const itemsToSave = new Set<InventoryItem>();
 
     // Increment in-transit stock for items
     for (const item of po.items) {
       const sku = variantSkus.get(item.variantId.value)!;
-      const key = `${sku}\0${po.destinationLocationId.value}`;
+      const key = `${sku}_${po.destinationLocationId.value}`;
 
       let invItem = destItemsMap.get(key);
       if (!invItem) {
@@ -323,7 +288,7 @@ export class ReceivePurchaseOrderUseCase {
     });
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
+    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
     const itemsToSave = new Set<InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
@@ -331,7 +296,7 @@ export class ReceivePurchaseOrderUseCase {
     // Deduct in-transit, increment physical stock, write ledger entry
     for (const item of po.items) {
       const sku = variantSkus.get(item.variantId.value)!;
-      const key = `${sku}\0${po.destinationLocationId.value}`;
+      const key = `${sku}_${po.destinationLocationId.value}`;
 
       const invItem = destItemsMap.get(key);
       if (!invItem) {
@@ -390,13 +355,13 @@ export class CancelPurchaseOrderUseCase {
       });
 
       const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-      const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
+      const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
 
       const itemsToSave = new Set<InventoryItem>();
 
       for (const item of po.items) {
         const sku = variantSkus.get(item.variantId.value)!;
-        const key = `${sku}\0${po.destinationLocationId.value}`;
+        const key = `${sku}_${po.destinationLocationId.value}`;
         const invItem = destItemsMap.get(key);
         if (invItem) {
           invItem.cancelInTransit(new Quantity(item.quantity));

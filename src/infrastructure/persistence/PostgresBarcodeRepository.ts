@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { IBarcodeRepository } from '../../domain/repositories/IBarcodeRepository';
 import { VariantBarcodeSet } from '../../domain/entities/VariantBarcodeSet';
 import { BarcodeAssignment } from '../../domain/entities/BarcodeAssignment';
@@ -78,24 +78,29 @@ export class PostgresBarcodeRepository implements IBarcodeRepository {
         },
       });
 
-      // 2. Upsert remaining barcodes using batched raw query to fix N+1
-      const values = set.all.map((a) => {
+      // 2. Upsert remaining barcodes
+      await Promise.all(set.all.map(async (a) => {
         const dbId = toUuid(a.id.value);
-        return Prisma.sql`(${dbId}::uuid, ${dbVariantId}::uuid, ${a.barcode.value}, ${a.barcode.symbology}, ${a.source}, ${a.isPrimary}, ${a.assignedAt}::timestamptz)`;
-      });
-
-      if (values.length > 0) {
-        await tx.$executeRaw`
-          INSERT INTO "barcodes" ("id", "variant_id", "value", "symbology", "source", "is_primary", "assigned_at")
-          VALUES ${Prisma.join(values)}
-          ON CONFLICT ("id") DO UPDATE SET
-            "value" = EXCLUDED."value",
-            "symbology" = EXCLUDED."symbology",
-            "source" = EXCLUDED."source",
-            "is_primary" = EXCLUDED."is_primary",
-            "assigned_at" = EXCLUDED."assigned_at";
-        `;
-      }
+        await tx.barcode.upsert({
+          where: { id: dbId },
+          create: {
+            id: dbId,
+            variantId: dbVariantId,
+            value: a.barcode.value,
+            symbology: a.barcode.symbology,
+            source: a.source,
+            isPrimary: a.isPrimary,
+            assignedAt: a.assignedAt,
+          },
+          update: {
+            value: a.barcode.value,
+            symbology: a.barcode.symbology,
+            source: a.source,
+            isPrimary: a.isPrimary,
+            assignedAt: a.assignedAt,
+          },
+        });
+      }));
     });
   }
 

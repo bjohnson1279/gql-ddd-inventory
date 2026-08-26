@@ -60,14 +60,6 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     return items.map(i => this.toDomain(i));
   }
 
-  async findByLocationsBatch(locationIds: string[]): Promise<InventoryItem[]> {
-    if (locationIds.length === 0) return [];
-    const items = await this.prisma.inventoryItem.findMany({
-      where: { locationId: { in: locationIds } }
-    });
-    return items.map(i => this.toDomain(i));
-  }
-
   async findAll(): Promise<InventoryItem[]> {
     const items = await this.prisma.inventoryItem.findMany();
     return items.map(i => this.toDomain(i));

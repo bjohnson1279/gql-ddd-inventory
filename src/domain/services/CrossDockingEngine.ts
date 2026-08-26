@@ -19,22 +19,12 @@ export class CrossDockingEngine {
   ): CrossDockOpportunity[] {
     const opportunities: CrossDockOpportunity[] = [];
 
-    // Pre-compute map of variantId to backorders for O(1) lookups
-    const backordersByVariant = new Map<string, typeof backorders>();
-    for (const b of backorders) {
-      let list = backordersByVariant.get(b.variantId);
-      if (!list) {
-        list = [];
-        backordersByVariant.set(b.variantId, list);
-      }
-      list.push(b);
-    }
-
     for (const item of inboundItems) {
-      const matching = backordersByVariant.get(item.variantId);
+      const matching = backorders
+        .filter(b => b.variantId === item.variantId)
+        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
-      if (matching && matching.length > 0) {
-        matching.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+      if (matching.length > 0) {
         let remainingInbound = item.quantity;
         const assignedBackorders = [];
 

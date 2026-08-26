@@ -1,5 +1,4 @@
 FROM node:20-alpine
-RUN apk add --no-cache curl
 
 # Create app directory
 WORKDIR /usr/src/app

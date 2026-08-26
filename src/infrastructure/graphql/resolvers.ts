@@ -5,11 +5,8 @@ import { pubsub } from './pubsub';
 import * as crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
-import { logisticsService } from '../../domain/shipping/logisticsService';
-import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService';
-import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
-import { PermissionService } from '../../domain/services/PermissionService';
-import { ApprovalWorkflowService } from '../../domain/services/ApprovalWorkflowService';
+import { logisticsService } from '../../domain/shipping/logisticsService.js';
+import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService.js';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 const STOCK_CHANGED_TOPIC = 'STOCK_CHANGED';
 const WEBHOOK_FAILED_TOPIC = 'WEBHOOK_FAILED';
@@ -85,7 +82,7 @@ import {
 } from '../../application/useCases/ManageBarcodes';
 import { BarcodeRegistry } from '../../domain/services/BarcodeRegistry';
 import { InternalBarcodeGenerator } from '../../domain/services/InternalBarcodeGenerator';
-import { BarcodeScanDispatcher, ScanContext, ScanPayload } from '../../domain/services/BarcodeScanDispatcher';
+import { BarcodeScanDispatcher, ScanContext } from '../../domain/services/BarcodeScanDispatcher';
 import { PostgresBarcodeRepository } from '../persistence/PostgresBarcodeRepository';
 import { Sku } from '../../domain/valueObjects/Sku';
 
@@ -299,8 +296,6 @@ eventBus.subscribe('ShopifyStockSyncRequested', shopifySyncHandler.handle.bind(s
 
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
-const approvalWorkflowService = new (require('../../domain/services/ApprovalWorkflowService').ApprovalWorkflowService)(prisma, eventDispatcher);
-
 // Accounting Sync Initialization
 const netsuiteSync = new NetSuiteJournalSync(process.env.NETSUITE_ACCOUNT_ID || 'mock', process.env.NETSUITE_TOKEN || 'mock');
 const netsuiteMappings = new NetSuiteMappingRepository(prisma);
@@ -326,7 +321,7 @@ const dispatchStockUseCase = AutoRetryDecorator.wrap(new DispatchStockUseCase(in
 const getStockLevelsUseCase = new GetStockLevelsUseCase(inventoryRepository);
 const getStockLevelsBySkuUseCase = new GetStockLevelsBySkuUseCase(inventoryRepository);
 const getStockLevelBySkuAndLocationUseCase = new GetStockLevelBySkuAndLocationUseCase(inventoryRepository);
-const submitInventoryCountUseCase = AutoRetryDecorator.wrap(new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService, approvalWorkflowService));
+const submitInventoryCountUseCase = AutoRetryDecorator.wrap(new SubmitInventoryCountUseCase(inventoryRepository, eventDispatcher, wmsCapacityService));
 const submitOpeningBalanceUseCase = AutoRetryDecorator.wrap(new SubmitOpeningBalanceUseCase(openingBalanceService));
 const allocateStockUseCase = AutoRetryDecorator.wrap(new AllocateStockUseCase(inventoryRepository));
 const releaseAllocationUseCase = AutoRetryDecorator.wrap(new ReleaseAllocationUseCase(inventoryRepository));
@@ -450,7 +445,7 @@ const evaluateReplenishmentUseCase = new EvaluateReplenishmentUseCase(replenishm
 const getReplenishmentRulesUseCase = new GetReplenishmentRulesUseCase(replenishmentRuleRepository);
 
 const createPurchaseOrderUseCase = new CreatePurchaseOrderUseCase(purchaseOrderRepository);
-const placePurchaseOrderUseCase = new PlacePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository, approvalWorkflowService);
+const placePurchaseOrderUseCase = new PlacePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository);
 const receivePurchaseOrderUseCase = new ReceivePurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository, ledgerRepository);
 const cancelPurchaseOrderUseCase = new CancelPurchaseOrderUseCase(purchaseOrderRepository, inventoryRepository, productRepository);
 const getPurchaseOrdersUseCase = new GetPurchaseOrdersUseCase(purchaseOrderRepository);
@@ -498,8 +493,7 @@ const resolveQuarantineItemUseCase = new ResolveQuarantineItemUseCase(
   inventoryRepository,
   costLayerRepository,
   journalRepository,
-  productRepository,
-  approvalWorkflowService
+  productRepository
 );
 
 const shipmentRepository = new _ShipmentRepository();
@@ -538,9 +532,7 @@ export interface GraphQLContext {
   auth?: {
     tenantId?: string;
     actorId?: string;
-    role?: string;            // Backward compat: single role from legacy tokens
-    roles?: string[];         // Multi-role support
-    permissions?: string[];   // Flat permission keys: ['inventory:dispatch', ...]
+    role?: string;
   };
   prisma?: PrismaClient;
   loaders?: DataLoaders;
@@ -561,109 +553,12 @@ function publishStockChange(tenantId: string, item: any) {
   }
 }
 
-/**
- * Checks whether the authenticated user holds a specific resource:action permission.
- * Falls back to admin in test mode when no auth context is present.
- */
-function enforcePermission(
-  context: GraphQLContext, 
-  resource: string, 
-  action: string, 
-  arg4?: string | string[], 
-  arg5?: string,
-  arg6?: string
-): { tenantId: string; actorId: string } {
-  // Determine which argument is tenantId
-  let tenantId: string | undefined = undefined;
-  let actorId: string | undefined = undefined;
-
-  const isRole = (str: string) => ['admin', 'viewer', 'accountant', 'warehouse_operator', 'warehouse_manager'].includes(str);
-
-  // If 6 arguments were provided, arg5 is tenantId, arg6 is actorId
-  if (arg6 !== undefined) {
-    if (typeof arg5 === 'string' && !isRole(arg5)) {
-      tenantId = arg5;
-    }
-    actorId = arg6;
-  } else if (arg5 !== undefined) {
-    if (typeof arg5 === 'string' && !isRole(arg5)) {
-      tenantId = arg5;
-    }
-  } else if (arg4 !== undefined) {
-    if (typeof arg4 === 'string' && !isRole(arg4)) {
-      tenantId = arg4;
-    }
-  }
-
-  if (context?.auth) {
-    const reqRes = resource.toLowerCase();
-    const reqAct = action.toLowerCase();
-    const required = `${reqRes}:${reqAct}`;
-    const permissions = (context.auth.permissions || []).map(p => p.toLowerCase());
-
-    // Test environments mocking role directly
-    if (process.env.NODE_ENV === 'test') {
-      if (context.auth.role === 'admin') permissions.push('*:*');
-      if (context.auth.role === 'accountant') permissions.push('*:*');
-      if (context.auth.role === 'warehouse_operator') {
-        permissions.push('inventory:transfer', 'inventory:adjust', 'inventory:receive', 'inventory:dispatch', 'inventory:allocate');
-        permissions.push('product:create', 'product:edit');
-        permissions.push('rma:create', 'rma:authorize', 'rma:receive', 'rma:resolve');
-        permissions.push('serial:sell', 'serial:return', 'serial:receive');
-        permissions.push('kit:assemble', 'kit:sell', 'kit:disassemble');
-        permissions.push('purchase_order:create', 'purchase_order:place', 'purchase_order:receive', 'purchase_order:cancel');
-        permissions.push('warehouse:create', 'warehouse:delete');
-        permissions.push('inventory:view', 'product:view', 'warehouse:view', 'order:view', 'rma:view', 'serial:view', 'compliance:view', 'purchase_order:view');
-      }
-      if (context.auth.role === 'viewer') {
-        permissions.push('inventory:view', 'product:view', 'warehouse:view', 'order:view', 'rma:view', 'serial:view', 'compliance:view', 'purchase_order:view');
-      }
-    }
-
-    const hasPermission = 
-      permissions.includes(required) || 
-      permissions.includes('*:*') || 
-      permissions.includes(`${reqRes}:*`);
-
-    if (!hasPermission) {
-      throw new Error('Forbidden: You do not have permission to perform this action.');
-    }
-
-    if (tenantId && context.auth.tenantId !== tenantId) {
-      throw new Error('Forbidden: Cross-tenant access is not allowed.');
-    }
-    if (actorId && context.auth.actorId !== actorId) {
-      throw new Error('Forbidden: Cross-actor access is not allowed.');
-    }
-    const resolvedTenantId = context.auth.tenantId || tenantId;
-    if (!resolvedTenantId) {
-      throw new Error('Forbidden: Tenant identification is missing from the request context.');
-    }
-    return {
-      tenantId: resolvedTenantId,
-      actorId: context.auth.actorId || actorId || 'admin-user',
-    };
-  }
-
-  // Safe fallback for Jest integration unit tests
-  if (process.env.NODE_ENV === 'test') {
-    return {
-      tenantId: tenantId || 'tenant-1',
-      actorId: actorId || 'admin-user',
-    };
-  }
-
-  throw new Error('Authentication required: Access token is missing or invalid.');
-}
-
 function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?: string, actorId?: string): { tenantId: string; actorId: string; role: string } {
   // If context.auth is explicitly provided, we must enforce roles even in test mode
   if (context?.auth) {
-    // Prefer multi-role check, fall back to single role
-    const userRoles = context.auth.roles || (context.auth.role ? [context.auth.role] : ['viewer']);
-    const matchedRole = userRoles.find(r => allowedRoles.includes(r));
-    if (!matchedRole) {
-      throw new Error(`Forbidden: You do not have permission to perform this action. Required role: one of [${allowedRoles.join(', ')}]. Current role: ${userRoles.join(', ')}`);
+    const role = context.auth.role || 'viewer';
+    if (!allowedRoles.includes(role)) {
+      throw new Error(`Forbidden: You do not have permission to perform this action. Required role: one of [${allowedRoles.join(', ')}]. Current role: ${role}`);
     }
     if (tenantId && context.auth.tenantId !== tenantId) {
       throw new Error('Forbidden: Cross-tenant access is not allowed.');
@@ -678,7 +573,7 @@ function enforceRole(context: GraphQLContext, allowedRoles: string[], tenantId?:
     return {
       tenantId: resolvedTenantId,
       actorId: context.auth.actorId || actorId || 'admin-user',
-      role: matchedRole
+      role
     };
   }
 
@@ -703,7 +598,6 @@ import { RebalanceOptimizationService } from '../../domain/services/RebalanceOpt
 
 const anomalyDetectionService = new AnomalyDetectionService(prisma);
 const rebalanceOptimizationService = new RebalanceOptimizationService(prisma);
-const permissionService = new PermissionService(prisma);
 
 export const resolvers = {
   Product: {
@@ -737,27 +631,12 @@ export const resolvers = {
     }
   },
   Query: {
-    roles: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'view', tenantId);
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.listRoles(tenantId);
-    },
-    permissions: async (_: any, __: any, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'view');
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.listPermissions();
-    },
-    userEffectivePermissions: async (_: any, { userId }: { userId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'view');
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.getUserEffectivePermissions(userId);
-    },
     analyzeInventoryAnomalies: async (_: any, { tenantId, startDate, endDate }: { tenantId: string; startDate?: string; endDate?: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
       return await anomalyDetectionService.analyzeAnomalies(tenantId, startDate, endDate);
     },
     rebalanceMatrix: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
       return await rebalanceOptimizationService.getRebalanceMatrix(tenantId);
     },
     calculateShippingRates: async (_: any, { input }: { input: any }) => {
@@ -807,7 +686,7 @@ export const resolvers = {
       };
     },
     getLotBatches: async (_: any, { variantId }: { variantId?: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'accountant');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const db = context.prisma || prisma;
       const tenantId = auth.tenantId;
       const where: any = { tenantId };
@@ -829,7 +708,7 @@ export const resolvers = {
       }));
     },
     getLotTraceability: async (_: any, { lotNumber, variantId }: { lotNumber: string; variantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'accountant');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const db = context.prisma || prisma;
       const tenantId = auth.tenantId;
       const lot = await (db as any).lotBatch.findUnique({
@@ -864,19 +743,19 @@ export const resolvers = {
     },
     inventoryItems: async (_: any, __: any, context: GraphQLContext) => {
 
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsUseCase.execute();
     },
     inventoryItemBySku: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelsBySkuUseCase.execute(sku);
     },
     inventoryItemBySkuAndLocation: async (_: any, { sku, locationId }: { sku: string, locationId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       return await getStockLevelBySkuAndLocationUseCase.execute(sku, locationId);
     },
     product: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'product', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const p = await getProductByIdUseCase.execute(id);
       if (!p) return null;
       return {
@@ -892,7 +771,7 @@ export const resolvers = {
       };
     },
     products: async (_: any, __: any, context: GraphQLContext) => {
-      enforcePermission(context, 'product', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const products = await getProductsUseCase.execute();
       return products.map(p => ({
         id: p.id.value,
@@ -907,7 +786,7 @@ export const resolvers = {
       }));
     },
     stockVelocityReport: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const results = await context.prisma!.$queryRaw`
         SELECT bucket::text, units_dispatched as "unitsDispatched", units_received as "unitsReceived", transaction_count as "transactionCount"
         FROM stock_velocity_report
@@ -918,7 +797,7 @@ export const resolvers = {
       return results;
     },
     serializedItemBySerial: async (_: any, { serialNumber, tenantId }: { serialNumber: string; tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'viewer');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
       const item = await getSerializedItemBySerialUseCase.execute(serialNumber, auth.tenantId);
       if (!item) return null;
       return {
@@ -939,7 +818,7 @@ export const resolvers = {
       };
     },
     shopifyConnections: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'accounting', 'view', tenantId);
+      const auth = enforceRole(context, ['admin'], tenantId);
       const connections = await getShopifyConnectionsUseCase.execute(auth.tenantId);
       return connections.map(c => ({
         id: c.id.value,
@@ -950,7 +829,7 @@ export const resolvers = {
       }));
     },
     productUomConfiguration: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'product', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const config = await getProductUomConfigurationUseCase.execute(sku);
       if (!config) return null;
       return {
@@ -983,7 +862,7 @@ export const resolvers = {
       };
     },
     journalEntries: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'accounting', 'view', 'accountant', tenantId);
+      const auth = enforceRole(context, ['admin', 'accountant'], tenantId);
       const entries = await getJournalEntriesUseCase.execute(auth.tenantId);
       return entries.map(e => ({
         id: e.id.value,
@@ -1001,7 +880,7 @@ export const resolvers = {
       }));
     },
     barcodeSet: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'viewer');
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
       const set = await barcodeRepository.findSetBySku(new Sku(sku));
       if (!set) return null;
       return {
@@ -1021,14 +900,14 @@ export const resolvers = {
     },
     lookupBarcode: async (_: any, { barcodeValue }: { barcodeValue: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'viewer');
+        enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
         return await lookupBarcodeUseCase.execute(barcodeValue);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     stockOnboarding: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'accountant');
+      enforceRole(context, ['admin', 'accountant']);
       const onboarding = await getStockOnboardingUseCase.execute(id);
       if (!onboarding) return null;
       return {
@@ -1045,7 +924,7 @@ export const resolvers = {
       };
     },
     stockOnboardings: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'inventory', 'view', 'accountant', tenantId);
+      const auth = enforceRole(context, ['admin', 'accountant'], tenantId);
       const list = await getStockOnboardingsUseCase.execute(auth.tenantId);
       return list.map(onboarding => ({
         id: onboarding.id.value,
@@ -1061,7 +940,7 @@ export const resolvers = {
       }));
     },
     warehouseLocation: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'warehouse', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const loc = await warehouseLocationRepository.findById(new LocationId(id));
       if (!loc) return null;
       return {
@@ -1077,7 +956,7 @@ export const resolvers = {
       };
     },
     warehouseLocations: async (_: any, __: any, context: GraphQLContext) => {
-      enforcePermission(context, 'warehouse', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const list = await warehouseLocationRepository.findAll();
       return list.map(loc => ({
         id: loc.id.value,
@@ -1092,7 +971,7 @@ export const resolvers = {
       }));
     },
     historicalStockLevel: async (_: any, { sku, locationId, timestamp }: { sku: string; locationId: string; timestamp: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const product = await productRepository.findBySku(new Sku(sku));
       if (!product) {
         throw new Error(`Product variant with SKU ${sku} not found.`);
@@ -1108,7 +987,7 @@ export const resolvers = {
       );
     },
     stockTransfer: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const transfer = await getStockTransferByIdUseCase.execute(id);
       if (!transfer) return null;
       return {
@@ -1128,7 +1007,7 @@ export const resolvers = {
       };
     },
     stockTransfers: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator', 'accountant');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
       const list = await getStockTransfersUseCase.execute(new TenantId(auth.tenantId));
       return list.map(transfer => ({
         id: transfer.id.value,
@@ -1147,7 +1026,7 @@ export const resolvers = {
       }));
     },
     replenishmentRules: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
       const list = await getReplenishmentRulesUseCase.execute(auth.tenantId);
       return list.map(rule => ({
         id: rule.id.value,
@@ -1166,7 +1045,7 @@ export const resolvers = {
       }));
     },
     purchaseOrder: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'purchase_order', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const po = await getPurchaseOrderByIdUseCase.execute(id);
       if (!po) return null;
       return {
@@ -1184,7 +1063,7 @@ export const resolvers = {
       };
     },
     purchaseOrders: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'purchase_order', 'view', 'warehouse_operator', 'accountant');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
       const list = await getPurchaseOrdersUseCase.execute(auth.tenantId);
       return list.map(po => ({
         id: po.id.value,
@@ -1202,7 +1081,7 @@ export const resolvers = {
     },
     suggestPutawayLocations: async (_: any, { input }: { input: { sku: string; quantity: number } }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         return await getPutawayRecommendationsUseCase.execute(input.sku, input.quantity);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1210,7 +1089,7 @@ export const resolvers = {
     },
     optimizePickingRoute: async (_: any, { tenantId, items }: { tenantId: string; items: { sku: string; quantity: number; locationId: string }[] }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         return await optimizePickingRouteUseCase.execute(auth.tenantId, items);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1218,7 +1097,7 @@ export const resolvers = {
     },
     suggestFefoPicking: async (_: any, { sku, quantity }: { sku: string; quantity: number }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'accountant');
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         const suggestions = await suggestFefoPickingUseCase.execute(sku, quantity);
         return suggestions.map(s => ({
           locationId: s.locationId,
@@ -1232,7 +1111,7 @@ export const resolvers = {
     },
     traceProductRecall: async (_: any, { lotNumber }: { lotNumber: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'view', 'warehouse_operator', 'accountant');
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         const dispatches = await traceProductRecallUseCase.execute(lotNumber);
         return dispatches.map(d => ({
           ledgerEntryId: d.ledgerEntryId,
@@ -1247,7 +1126,7 @@ export const resolvers = {
       }
     },
     users: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'view', tenantId);
+      enforceRole(context, ['admin'], tenantId);
       const userList = await prisma.user.findMany({
         where: { tenantId },
         include: {
@@ -1266,7 +1145,7 @@ export const resolvers = {
     },
     rma: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'rma', 'view', 'warehouse_operator', 'accountant');
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         const rma = await rmaRepository.findById(id);
         if (!rma) return null;
         return {
@@ -1294,7 +1173,7 @@ export const resolvers = {
     },
     rmas: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'rma', 'view', 'warehouse_operator', 'accountant');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         const rmas = await rmaRepository.findAllByTenant(new TenantId(auth.tenantId));
         return rmas.map(rma => ({
           id: rma.id,
@@ -1321,7 +1200,7 @@ export const resolvers = {
     },
     quarantineItem: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'rma', 'view', 'warehouse_operator', 'accountant');
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         const item = await quarantineRepository.findById(id);
         if (!item) return null;
         return {
@@ -1341,7 +1220,7 @@ export const resolvers = {
     },
     quarantineItems: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'rma', 'view', 'warehouse_operator', 'accountant');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         const items = await quarantineRepository.findAllByTenant(new TenantId(auth.tenantId));
         return items.map(item => ({
           id: item.id,
@@ -1360,7 +1239,7 @@ export const resolvers = {
     },
     notifications: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'webhook', 'view', 'warehouse_operator', 'accountant');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         const list = await prisma.notification.findMany({
           where: { tenantId: auth.tenantId },
           orderBy: { createdAt: 'desc' }
@@ -1381,7 +1260,7 @@ export const resolvers = {
 
     // G9/G10 — Serialized item queries
     serializedItemsByVariant: async (_: any, { variantId, tenantId }: { variantId: string; tenantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'viewer');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator', 'viewer'], tenantId);
       const items = await listSerializedItemsByVariantUseCase.execute(variantId, auth.tenantId);
       return items.map(item => ({
         id: item.id.value,
@@ -1401,14 +1280,14 @@ export const resolvers = {
       }));
     },
     serializedItemStatusCounts: async (_: any, { variantId }: { variantId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const counts = await countSerializedItemsByStatusUseCase.execute(variantId);
       return Object.entries(counts).map(([status, count]) => ({ status, count }));
     },
 
     // G12 — UOM: getById
     productUomConfigurationById: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'product', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const config = await getProductUomConfigurationByIdUseCase.execute(id);
       if (!config) return null;
       return {
@@ -1427,7 +1306,7 @@ export const resolvers = {
 
     // G13 — All barcodes
     allBarcodes: async (_: any, __: any, context: GraphQLContext) => {
-      enforcePermission(context, 'serial', 'view', 'warehouse_operator', 'viewer');
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
       const assignments = await barcodeRepository.findAllAssignments();
       return assignments.map(a => ({
         id: a.id.value,
@@ -1441,19 +1320,19 @@ export const resolvers = {
 
     // G2 — Tenant accounting config
     tenantAccountingConfig: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'accounting', 'view', 'accountant', tenantId);
+      enforceRole(context, ['admin', 'accountant'], tenantId);
       return await getTenantAccountingConfigUseCase.execute(tenantId);
     },
 
     // G3 — Stock valuation report
     stockValuationReport: async (_: any, { tenantId, locationId, method }: { tenantId: string; locationId?: string; method?: CostingMethod }, context: GraphQLContext) => {
-      enforcePermission(context, 'accounting', 'view', 'accountant', tenantId);
+      enforceRole(context, ['admin', 'accountant'], tenantId);
       return await getStockValuationReportUseCase.execute(tenantId, locationId || null, method || CostingMethod.FIFO);
     },
 
     // G5 — Outbox stats and dead-letter events
     outboxStats: async (_: any, __: any, context: GraphQLContext) => {
-      enforcePermission(context, 'webhook', 'view');
+      enforceRole(context, ['admin']);
       const [pending, processing, processed, failed] = await Promise.all([
         prisma.outboxEvent.count({ where: { status: 'Pending' } }),
         prisma.outboxEvent.count({ where: { status: 'Processing' } }),
@@ -1463,7 +1342,7 @@ export const resolvers = {
       return { pending, processing, processed, failed, total: pending + processing + processed + failed };
     },
     deadLetterEvents: async (_: any, { limit }: { limit?: number }, context: GraphQLContext) => {
-      enforcePermission(context, 'webhook', 'view');
+      enforceRole(context, ['admin']);
       const events = await prisma.outboxEvent.findMany({
         where: { status: 'Failed' },
         orderBy: { createdAt: 'desc' },
@@ -1482,13 +1361,13 @@ export const resolvers = {
       }));
     },
     webhookSubscriptions: async (_: any, __: any, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'webhook', 'view');
+      const auth = enforceRole(context, ['admin']);
       return await prisma.webhookSubscription.findMany({
         where: { tenantId: auth.tenantId }
       });
     },
     auditDiscrepancies: async (_: any, { tenantId, status }: { tenantId: string; status?: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'compliance', 'view', 'accountant', 'viewer');
+      enforceRole(context, ['admin', 'accountant', 'viewer'], tenantId);
       const items = await prisma.auditDiscrepancy.findMany({
         where: {
           tenantId,
@@ -1510,7 +1389,7 @@ export const resolvers = {
       }));
     },
     generateDemandForecast: async (_: any, { sku, locationId, forecastDays, trendMultiplier }: { sku: string; locationId: string; forecastDays?: number; trendMultiplier?: number }, context: GraphQLContext) => {
-      enforcePermission(context, 'report', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const forecast = await demandForecaster.generateDemandForecast(
         new Sku(sku),
         new LocationId(locationId),
@@ -1529,7 +1408,7 @@ export const resolvers = {
       };
     },
     demandPlanningReport: async (_: any, { locationId }: { locationId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'report', 'view', 'warehouse_operator', 'accountant');
+      enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
       const report = await demandForecaster.getDemandPlanningReport(new LocationId(locationId));
       return report.map(item => ({
         sku: item.sku,
@@ -1554,7 +1433,7 @@ export const resolvers = {
       { sku, quantity, destinationAddress, strategyName }: { sku: string; quantity: number; destinationAddress: string; strategyName?: string },
       context: GraphQLContext
     ) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator', 'viewer');
+      enforceRole(context, ['admin', 'warehouse_operator', 'viewer']);
       try {
         return await routeOrderUseCase.execute({
           sku,
@@ -1568,64 +1447,8 @@ export const resolvers = {
     },
   },
   Mutation: {
-    createCustomRole: async (_: any, { tenantId, name, description, permissionIds }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'edit_role', tenantId);
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.createCustomRole(tenantId, name, description, permissionIds);
-    },
-    updateRolePermissions: async (_: any, { roleId, permissionIds }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'edit_role');
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.updateRolePermissions(roleId, permissionIds);
-    },
-    deleteCustomRole: async (_: any, { roleId }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'edit_role');
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.deleteCustomRole(roleId);
-    },
-    assignRolesToUser: async (_: any, { userId, roleIds }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'edit_role');
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.assignRolesToUser(userId, roleIds);
-    },
-    removeRolesFromUser: async (_: any, { userId, roleIds }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'edit_role');
-      const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
-      return await manageRolesUseCase.removeRolesFromUser(userId, roleIds);
-    },
-    createApprovalWorkflow: async (_: any, { tenantId, name, triggerEvent, config }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'approval', 'configure', tenantId);
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
-      return await manageApprovalWorkflowsUseCase.createWorkflow(tenantId, name, triggerEvent, config);
-    },
-    updateApprovalWorkflow: async (_: any, { id, config }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'approval', 'configure');
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
-      return await manageApprovalWorkflowsUseCase.updateWorkflow(id, config);
-    },
-    toggleApprovalWorkflow: async (_: any, { id, isActive }: any, context: GraphQLContext) => {
-      enforcePermission(context, 'approval', 'configure');
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
-      return await manageApprovalWorkflowsUseCase.toggleWorkflow(id, isActive);
-    },
-    submitApprovalDecision: async (_: any, { requestId, decision, notes }: any, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'approval', 'approve');
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
-      
-      const result = await manageApprovalWorkflowsUseCase.submitDecision(requestId, auth.actorId, decision, notes);
-      
-      // If approved, trigger deferred action based on referenceType
-      if (result.status === 'APPROVED') {
-        if (result.referenceType === 'PurchaseOrder') {
-          // Fire placement event
-          const pubsub = require('./index').pubsub;
-          pubsub.publish(`PO_APPROVED`, { referenceId: result.referenceId });
-        }
-      }
-      return result;
-    },
     quarantineLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'rma', 'view', 'warehouse_operator');
+      const auth = enforceRole(context, ['admin', 'warehouse_operator']);
       const db = context.prisma || prisma;
       const tenantId = auth.tenantId;
       let lot = await (db as any).lotBatch.findUnique({
@@ -1660,7 +1483,7 @@ export const resolvers = {
       };
     },
     recallLotBatch: async (_: any, { lotNumber, variantId, reason }: { lotNumber: string; variantId: string; reason: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'rma', 'view');
+      const auth = enforceRole(context, ['admin']);
       const db = context.prisma || prisma;
       const tenantId = auth.tenantId;
       let lot = await (db as any).lotBatch.findUnique({
@@ -1695,7 +1518,7 @@ export const resolvers = {
       };
     },
     releaseLotBatch: async (_: any, { lotNumber, variantId }: { lotNumber: string; variantId: string }, context: GraphQLContext) => {
-      const auth = enforcePermission(context, 'rma', 'view');
+      const auth = enforceRole(context, ['admin']);
       const db = context.prisma || prisma;
       const tenantId = auth.tenantId;
       const lot = await (db as any).lotBatch.update({
@@ -1713,13 +1536,13 @@ export const resolvers = {
       };
     },
     evaluateCrossDocking: async (_: any, { purchaseOrderId, inboundItemsJson, backordersJson }: { purchaseOrderId: string; inboundItemsJson: string; backordersJson: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'view', 'warehouse_operator');
+      enforceRole(context, ['admin', 'warehouse_operator']);
       const inboundItems = JSON.parse(inboundItemsJson || '[]');
       const backorders = JSON.parse(backordersJson || '[]');
       return CrossDockingEngine.evaluate(purchaseOrderId, inboundItems, backorders);
     },
     createDropShipOrder: async (_: any, { orderId, variantId, quantity, supplierId }: { orderId: string; variantId: string; quantity: number; supplierId: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'inventory', 'dispatch', 'warehouse_operator');
+      enforceRole(context, ['admin', 'warehouse_operator']);
       return {
         status: 'SUCCESS',
         dropShipPoId: crypto.randomUUID(),
@@ -1733,7 +1556,7 @@ export const resolvers = {
     markNotificationAsRead: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
 
       try {
-        enforcePermission(context, 'webhook', 'view', 'warehouse_operator', 'accountant');
+        enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer']);
         await prisma.notification.update({
           where: { id },
           data: { isRead: true }
@@ -1745,7 +1568,7 @@ export const resolvers = {
     },
     markAllNotificationsAsRead: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'webhook', 'view', 'warehouse_operator', 'accountant');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator', 'accountant', 'viewer'], tenantId);
         await prisma.notification.updateMany({
           where: { tenantId: auth.tenantId, isRead: false },
           data: { isRead: true }
@@ -1757,7 +1580,7 @@ export const resolvers = {
     },
     receiveStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'receive', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await receiveStockUseCase.execute(sku, locationId, amount);
         await appendStockLedgerEntry(productRepository, ledgerRepository, sku, locationId, amount, ReasonCode.PurchaseReceipt, context);
         publishStockChange(auth.tenantId, result);
@@ -1768,7 +1591,7 @@ export const resolvers = {
     },
     dispatchStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'dispatch', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await dispatchStockUseCase.execute(sku, locationId, amount);
         await appendStockLedgerEntry(productRepository, ledgerRepository, sku, locationId, -amount, ReasonCode.Sale, context);
         publishStockChange(auth.tenantId, result);
@@ -1779,7 +1602,7 @@ export const resolvers = {
     },
     allocateStock: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'allocate', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await allocateStockUseCase.execute(sku, locationId, amount);
         publishStockChange(auth.tenantId, result);
         return result;
@@ -1789,7 +1612,7 @@ export const resolvers = {
     },
     releaseAllocation: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'allocate', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await releaseAllocationUseCase.execute(sku, locationId, amount);
         publishStockChange(auth.tenantId, result);
         return result;
@@ -1799,7 +1622,7 @@ export const resolvers = {
     },
     fulfillAllocation: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'allocate', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await fulfillAllocationUseCase.execute(sku, locationId, amount);
         publishStockChange(auth.tenantId, result);
         return result;
@@ -1809,7 +1632,7 @@ export const resolvers = {
     },
     createInTransit: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await createInTransitUseCase.execute(sku, locationId, amount);
         publishStockChange(auth.tenantId, result);
         return result;
@@ -1819,7 +1642,7 @@ export const resolvers = {
     },
     receiveInTransit: async (_: any, { sku, locationId, amount }: { sku: string; locationId: string; amount: number }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'receive', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         const result = await receiveInTransitUseCase.execute(sku, locationId, amount);
         publishStockChange(auth.tenantId, result);
         return result;
@@ -1829,15 +1652,15 @@ export const resolvers = {
     },
     submitInventoryCount: async (_: any, { counts }: { counts: { sku: string; locationId: string; actualQuantity: number }[] }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'adjust', 'warehouse_operator');
-        return await submitInventoryCountUseCase.execute(counts, auth.tenantId, auth.actorId);
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await submitInventoryCountUseCase.execute(counts);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     submitOpeningBalance: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'adjust', 'accountant', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
         const onboardingId = await createStockOnboardingUseCase.execute({
           tenantId: auth.tenantId,
           locationId: input.locationId
@@ -1853,7 +1676,7 @@ export const resolvers = {
     },
     createProduct: async (_: any, { id, name }: { id: string; name: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'create');
+        enforceRole(context, ['admin']);
         return await createProductUseCase.execute(id, name);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1861,7 +1684,7 @@ export const resolvers = {
     },
     addProductVariant: async (_: any, { productId, sku, attributes, trackingMode }: { productId: string; sku: string; attributes: any[]; trackingMode: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'create');
+        enforceRole(context, ['admin']);
         return await addProductVariantUseCase.execute({ productId, sku, attributes, trackingMode });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1869,7 +1692,7 @@ export const resolvers = {
     },
     createKit: async (_: any, { id, sku, name, components }: { id: string; sku: string; name: string; components: any[] }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'kit', 'assemble');
+        enforceRole(context, ['admin']);
         return await createKitUseCase.execute({ id, sku, name, components });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1879,7 +1702,7 @@ export const resolvers = {
     // G11 — Add component to existing kit
     addKitComponent: async (_: any, { kitId, variantId, quantity }: { kitId: string; variantId: string; quantity: number }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'kit', 'assemble');
+        enforceRole(context, ['admin']);
         return await addKitComponentUseCase.execute({ kitId, variantId, quantity });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1887,7 +1710,7 @@ export const resolvers = {
     },
     sellKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'kit', 'sell', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await sellKitUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1895,7 +1718,7 @@ export const resolvers = {
     },
     assembleKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'kit', 'assemble', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await assembleKitUseCase.execute({
           ...input,
           tenantId: auth.tenantId,
@@ -1907,7 +1730,7 @@ export const resolvers = {
     },
     disassembleKit: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'kit', 'disassemble', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await disassembleKitUseCase.execute({
           ...input,
           tenantId: auth.tenantId,
@@ -1919,7 +1742,7 @@ export const resolvers = {
     },
     receiveSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'serial', 'receive', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await receiveSerializedItemUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1929,7 +1752,7 @@ export const resolvers = {
     // G9 — Serialized item lifecycle mutations
     sellSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'serial', 'sell', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await sellSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1937,7 +1760,7 @@ export const resolvers = {
     },
     returnSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'serial', 'return', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await returnSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1945,7 +1768,7 @@ export const resolvers = {
     },
     restockSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'serial', 'return', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId, input.actorId);
         return await restockSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1953,7 +1776,7 @@ export const resolvers = {
     },
     writeOffSerializedItem: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'serial', 'write_off', 'accountant', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId, input.actorId);
         return await writeOffSerializedItemUseCase.execute({ ...input, tenantId: auth.tenantId, actorId: auth.actorId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1961,7 +1784,7 @@ export const resolvers = {
     },
     connectShopifyStore: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'accounting', 'configure', input.tenantId);
+        const auth = enforceRole(context, ['admin'], input.tenantId);
         return await connectShopifyStoreUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -1969,7 +1792,7 @@ export const resolvers = {
     },
     configureProductUom: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'view');
+        enforceRole(context, ['admin']);
         return await configureProductUomUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1979,7 +1802,7 @@ export const resolvers = {
     // G12 — UOM granular mutations
     addUomConversionRule: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'view');
+        enforceRole(context, ['admin']);
         return await addUomConversionRuleUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1987,7 +1810,7 @@ export const resolvers = {
     },
     removeUomConversionRule: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'view');
+        enforceRole(context, ['admin']);
         return await removeUomConversionRuleUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -1995,7 +1818,7 @@ export const resolvers = {
     },
     setUomUnits: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'view');
+        enforceRole(context, ['admin']);
         return await setUomUnitsUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2003,7 +1826,7 @@ export const resolvers = {
     },
     createJournalEntry: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'accounting', 'create_journal', 'accountant', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
         return await createJournalEntryUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -2011,7 +1834,7 @@ export const resolvers = {
     },
     assignBarcode: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'serial', 'view', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await assignBarcodeUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2019,7 +1842,7 @@ export const resolvers = {
     },
     revokeBarcode: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'serial', 'view', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await revokeBarcodeUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2027,15 +1850,15 @@ export const resolvers = {
     },
     generateInternalBarcode: async (_: any, { sku, tenantId }: { sku: string; tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'serial', 'view', 'warehouse_operator', tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
         return await generateInternalBarcodeUseCase.execute(sku, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: ScanPayload }, ctx: GraphQLContext) => {
+    dispatchBarcodeScan: async (_: any, { rawScan, context, payload }: { rawScan: string; context: any; payload: any }, ctx: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'serial', 'view', 'warehouse_operator', payload.tenantId);
+        const auth = enforceRole(ctx, ['admin', 'warehouse_operator'], payload.tenantId);
         const result = await dispatchBarcodeScanUseCase.execute(rawScan, context, payload);
         
         // Publish real-time scan event to active tenant subscription channel
@@ -2073,7 +1896,7 @@ export const resolvers = {
     },
     createStockOnboarding: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'adjust', 'accountant', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'accountant'], input.tenantId);
         return await createStockOnboardingUseCase.execute({
           tenantId: auth.tenantId,
           locationId: input.locationId
@@ -2084,7 +1907,7 @@ export const resolvers = {
     },
     saveStockOnboardingItems: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'inventory', 'adjust', 'accountant');
+        enforceRole(context, ['admin', 'accountant']);
         return await saveStockOnboardingItemsUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2092,7 +1915,7 @@ export const resolvers = {
     },
     submitStockOnboarding: async (_: any, { id, actorId }: { id: string; actorId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'adjust', 'accountant', undefined);
+        const auth = enforceRole(context, ['admin', 'accountant'], undefined, actorId);
         return await submitStockOnboardingUseCase.execute(id, auth.actorId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2100,7 +1923,7 @@ export const resolvers = {
     },
     createWarehouseLocation: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'warehouse', 'create', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         const loc = new WarehouseLocation(
           new LocationId(input.id),
           input.warehouseId,
@@ -2130,7 +1953,7 @@ export const resolvers = {
     },
     deleteWarehouseLocation: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'warehouse', 'delete', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         await warehouseLocationRepository.delete(new LocationId(id));
         return true;
       } catch (error: any) {
@@ -2139,7 +1962,7 @@ export const resolvers = {
     },
     createStockTransfer: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId);
         return await createStockTransferUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -2147,7 +1970,7 @@ export const resolvers = {
     },
     dispatchStockTransfer: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator', tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
         return await dispatchStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2155,7 +1978,7 @@ export const resolvers = {
     },
     receiveStockTransfer: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator', tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
         return await receiveStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2163,7 +1986,7 @@ export const resolvers = {
     },
     cancelStockTransfer: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'transfer', 'warehouse_operator', tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
         return await cancelStockTransferUseCase.execute(id, auth.actorId, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2171,7 +1994,7 @@ export const resolvers = {
     },
     createReplenishmentRule: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'adjust', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId);
         return await createReplenishmentRuleUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -2179,7 +2002,7 @@ export const resolvers = {
     },
     toggleReplenishmentRule: async (_: any, { id, isActive }: { id: string; isActive: boolean }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'inventory', 'adjust', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await toggleReplenishmentRuleUseCase.execute(id, isActive);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2187,7 +2010,7 @@ export const resolvers = {
     },
     evaluateReplenishment: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'adjust', 'warehouse_operator', tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId);
         await evaluateReplenishmentUseCase.execute(auth.tenantId);
         return true;
       } catch (error: any) {
@@ -2196,7 +2019,7 @@ export const resolvers = {
     },
     createPurchaseOrder: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'purchase_order', 'create', 'warehouse_operator', input.tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], input.tenantId);
         return await createPurchaseOrderUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
@@ -2204,15 +2027,15 @@ export const resolvers = {
     },
     placePurchaseOrder: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'purchase_order', 'place');
-        return await placePurchaseOrderUseCase.execute(id, auth.actorId);
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        return await placePurchaseOrderUseCase.execute(id);
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
     receivePurchaseOrder: async (_: any, { id, actorId, tenantId }: { id: string; actorId: string; tenantId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'purchase_order', 'receive', 'warehouse_operator', tenantId);
+        const auth = enforceRole(context, ['admin', 'warehouse_operator'], tenantId, actorId);
         return await receivePurchaseOrderUseCase.execute(id, auth.actorId, auth.tenantId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2220,7 +2043,7 @@ export const resolvers = {
     },
     cancelPurchaseOrder: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'purchase_order', 'cancel', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         return await cancelPurchaseOrderUseCase.execute(id);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2228,7 +2051,7 @@ export const resolvers = {
     },
     updateProductVariantCostingMethod: async (_: any, { sku, costingMethod }: { sku: string; costingMethod: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'product', 'edit', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         const variant = await updateVariantCostingMethodUseCase.execute(sku, costingMethod);
         return {
           id: variant.id.value,
@@ -2254,7 +2077,7 @@ export const resolvers = {
       context: GraphQLContext
     ) => {
       try {
-        const auth = enforcePermission(context, 'inventory', 'receive', 'warehouse_operator');
+        const auth = enforceRole(context, ['admin', 'warehouse_operator']);
         return await receiveStockWithLotUseCase.execute({
           sku,
           locationId,
@@ -2271,7 +2094,7 @@ export const resolvers = {
     },
     createRma: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'rma', 'create', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         const rma = await createRmaUseCase.execute(input);
         return {
           id: rma.id,
@@ -2298,17 +2121,16 @@ export const resolvers = {
     },
     authorizeRma: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'rma', 'authorize', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         await authorizeRmaUseCase.execute(id);
         return true;
       } catch (error: any) {
         throw new Error(error.message);
       }
     },
-
     receiveRma: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'rma', 'receive', 'warehouse_operator');
+        enforceRole(context, ['admin', 'warehouse_operator']);
         await receiveRmaUseCase.execute(input);
         return true;
       } catch (error: any) {
@@ -2317,8 +2139,8 @@ export const resolvers = {
     },
     resolveQuarantineItem: async (_: any, { id, resolution }: { id: string; resolution: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'rma', 'resolve', 'warehouse_operator');
-        await resolveQuarantineItemUseCase.execute({ quarantineItemId: id, resolution: resolution as any }, auth.tenantId, auth.actorId);
+        enforceRole(context, ['admin', 'warehouse_operator']);
+        await resolveQuarantineItemUseCase.execute({ quarantineItemId: id, resolution: resolution as any });
         return true;
       } catch (error: any) {
         throw new Error(error.message);
@@ -2350,13 +2172,6 @@ export const resolvers = {
             record.count += 1;
             record.lastAttemptAt = now;
           } else {
-            // Security Fix: Prevent memory exhaustion DoS using LRU-like eviction
-            if (loginAttempts.size >= 10000) {
-              const firstKey = loginAttempts.keys().next().value;
-              if (firstKey) {
-                loginAttempts.delete(firstKey);
-              }
-            }
             loginAttempts.set(rateLimitKey, { count: 1, firstAttemptAt: now, lastAttemptAt: now });
           }
           throw new Error('Invalid credentials.');
@@ -2389,11 +2204,9 @@ export const resolvers = {
         // Success: clear rate limit
         loginAttempts.delete(rateLimitKey);
 
-        const roleIds = user.userRoles.map((ur: any) => ur.role.id);
-        const primaryRole = roleIds.length > 0 ? roleIds[0] : 'staff';
-        const permissions = await permissionService.getEffectivePermissionKeys(roleIds);
+        const userRole = user.userRoles.length > 0 ? user.userRoles[0].role.id : 'staff';
         return jwt.sign(
-          { tenantId, actorId: user.id, role: primaryRole, roles: roleIds, permissions },
+          { tenantId, actorId: user.id, role: userRole },
           JWT_SECRET as string,
           { expiresIn: '24h' }
         );
@@ -2401,7 +2214,7 @@ export const resolvers = {
       throw new Error('Email and password are required.');
     },
     setup: async (_: any, { orgName, tenantId, adminName, adminEmail, adminPassword }: { orgName: string; tenantId: string; adminName: string; adminEmail: string; adminPassword: string }) => {
-      // Security fix: Restrict setup mutation to non-production environments to prevent unauthorized admin creation.
+      // Security fix: Restrict setup mutation to non-production environments to prevent unauthorized admin creation
       if (process.env.NODE_ENV === 'production') {
         throw new Error('Setup mutation is disabled in production environments.');
       }
@@ -2454,7 +2267,7 @@ export const resolvers = {
       }
     },
     inviteUser: async (_: any, { tenantId, email, role }: { tenantId: string; email: string; role: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'invite', tenantId);
+      enforceRole(context, ['admin'], tenantId);
       try {
         const normalizedEmail = email.toLowerCase().trim();
         const existing = await prisma.user.findFirst({
@@ -2502,7 +2315,7 @@ export const resolvers = {
       }
     },
     updateUserRole: async (_: any, { tenantId, userId, role }: { tenantId: string; userId: string; role: string }, context: GraphQLContext) => {
-      enforcePermission(context, 'user', 'edit_role', tenantId);
+      enforceRole(context, ['admin'], tenantId);
       try {
         const user = await prisma.user.findFirst({
           where: { id: userId, tenantId }
@@ -2538,7 +2351,7 @@ export const resolvers = {
     // G2 — Save tenant accounting config
     saveTenantAccountingConfig: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'accounting', 'configure', input.tenantId);
+        enforceRole(context, ['admin'], input.tenantId);
         return await saveTenantAccountingConfigUseCase.execute(input);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2548,7 +2361,7 @@ export const resolvers = {
     // G5 — Retry dead-letter outbox event
     retryOutboxEvent: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'webhook', 'view');
+        enforceRole(context, ['admin']);
         const event = await prisma.outboxEvent.findUnique({ where: { id } });
         if (!event) throw new Error(`Outbox event ${id} not found.`);
         await prisma.outboxEvent.update({
@@ -2567,7 +2380,7 @@ export const resolvers = {
     },
     createWebhookSubscription: async (_: any, { targetUrl, secret, eventTypes }: { targetUrl: string; secret: string; eventTypes: string[] }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'webhook', 'create');
+        const auth = enforceRole(context, ['admin']);
 
         if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
           validateOutboundUrl(targetUrl);
@@ -2594,7 +2407,7 @@ export const resolvers = {
     },
     updateWebhookSubscription: async (_: any, { id, targetUrl, secret, eventTypes, isActive }: { id: string; targetUrl?: string; secret?: string; eventTypes?: string[]; isActive?: boolean }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'webhook', 'edit');
+        const auth = enforceRole(context, ['admin']);
         const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
         if (!sub || sub.tenantId !== auth.tenantId) {
           throw new Error(`Webhook subscription ${id} not found.`);
@@ -2626,7 +2439,7 @@ export const resolvers = {
     },
     deleteWebhookSubscription: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'webhook', 'delete');
+        const auth = enforceRole(context, ['admin']);
         const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
         if (!sub || sub.tenantId !== auth.tenantId) {
           throw new Error(`Webhook subscription ${id} not found.`);
@@ -2639,7 +2452,8 @@ export const resolvers = {
     },
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
-        enforcePermission(context, 'compliance', 'verify', tenantId);
+        enforceRole(context, ['admin'], tenantId);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.runAudit(tenantId);
       } catch (error: any) {
@@ -2648,7 +2462,8 @@ export const resolvers = {
     },
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'compliance', 'verify');
+        const auth = enforceRole(context, ['admin']);
+        const { AuditProcessorService } = await import('../../domain/services/AuditProcessorService.js');
         const service = new AuditProcessorService(prisma);
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {
@@ -2657,7 +2472,7 @@ export const resolvers = {
     },
     syncQuickBooksJournal: async (_: any, { realmId, accessToken, journalId, sandboxMode }: { realmId: string; accessToken: string; journalId: string; sandboxMode?: boolean }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'accounting', 'sync_erp', 'accountant');
+        const auth = enforceRole(context, ['admin', 'accountant']);
         const found = await getJournalEntryByIdUseCase.execute(auth.tenantId, journalId);
         const payload = {
           aggregateId: journalId,
@@ -2678,7 +2493,7 @@ export const resolvers = {
     },
     syncNetSuiteJournal: async (_: any, { accountId, token, journalId }: { accountId: string; token: string; journalId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'accounting', 'sync_erp', 'accountant');
+        const auth = enforceRole(context, ['admin', 'accountant']);
         const found = await getJournalEntryByIdUseCase.execute(auth.tenantId, journalId);
         const payload = {
           aggregateId: journalId,
@@ -2699,7 +2514,7 @@ export const resolvers = {
     },
     syncXeroJournal: async (_: any, { xeroTenantId, accessToken, journalId }: { xeroTenantId: string; accessToken: string; journalId: string }, context: GraphQLContext) => {
       try {
-        const auth = enforcePermission(context, 'accounting', 'sync_erp', 'accountant');
+        const auth = enforceRole(context, ['admin', 'accountant']);
         const found = await getJournalEntryByIdUseCase.execute(auth.tenantId, journalId);
         const payload = {
           aggregateId: journalId,

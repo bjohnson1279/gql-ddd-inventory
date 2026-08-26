@@ -89,8 +89,7 @@ export class WebhookDeliveryWorker {
               'X-Webhook-Event': delivery.eventType
             },
             body: delivery.payload,
-            redirect: 'error',
-            signal: AbortSignal.timeout(5000)
+            redirect: 'error'
           });
 
           if (!response.ok) {

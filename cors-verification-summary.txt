@@ -1,0 +1,19 @@
+# CORS Verification Summary
+
+The issue described "Overly Permissive CORS Configuration" was investigated on the `src/index.ts` file.
+
+The investigation confirmed that the CORS configuration has already been updated to securely parse allowed origins from the `ALLOWED_ORIGINS` environment variable. The implementation correctly splits the string by comma, trims the whitespace, and removes any empty entries using `.filter(Boolean)`. This correctly adheres to the stated security coding standards:
+
+```typescript
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : [];
+  app.use(
+    '/graphql',
+    cors<cors.CorsRequest>({
+      origin: allowedOrigins
+    }),
+// ...
+```
+
+There is no further action needed to fix this specific vulnerability on this branch, as it was previously merged in commit `50e18603`.

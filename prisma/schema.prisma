@@ -414,12 +414,10 @@ model PurchaseOrderItem {
 }
 
 model Tenant {
-  id                String              @id
-  name              String
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz
-  users             User[]
-  customRoles       Role[]              @relation("TenantRoles")
-  approvalWorkflows ApprovalWorkflow[]
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  users     User[]
 
   @@map("tenants")
 }
@@ -443,25 +441,10 @@ model User {
 model Role {
   id              String           @id
   name            String
-  description     String           @default("")
-  isCustom        Boolean          @default(false) @map("is_custom")
-  tenantId        String?          @map("tenant_id")
   userRoles       UserRole[]
   rolePermissions RolePermission[]
-  tenant          Tenant?          @relation("TenantRoles", fields: [tenantId], references: [id])
 
   @@map("roles")
-}
-
-model Permission {
-  id              String           @id
-  resource        String
-  action          String
-  description     String           @default("")
-  rolePermissions RolePermission[]
-
-  @@unique([resource, action])
-  @@map("permissions")
 }
 
 model UserRole {
@@ -475,12 +458,11 @@ model UserRole {
 }
 
 model RolePermission {
-  roleId       String     @map("role_id")
-  permissionId String     @map("permission_id")
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  roleId     String @map("role_id")
+  permission String
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@id([roleId, permissionId])
+  @@id([roleId, permission])
   @@map("role_permissions")
 }
 
@@ -713,51 +695,3 @@ model EsgEmissionsRecord {
   @@map("esg_emissions_records")
 }
 
-model ApprovalWorkflow {
-  id           String            @id @default(uuid()) @db.Uuid
-  tenantId     String            @map("tenant_id")
-  name         String
-  triggerEvent String            @map("trigger_event")
-  isActive     Boolean           @default(true) @map("is_active")
-  config       Json
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz
-  tenant       Tenant            @relation(fields: [tenantId], references: [id])
-  requests     ApprovalRequest[]
-
-  @@unique([tenantId, triggerEvent])
-  @@map("approval_workflows")
-}
-
-model ApprovalRequest {
-  id            String             @id @default(uuid()) @db.Uuid
-  tenantId      String             @map("tenant_id")
-  workflowId    String             @map("workflow_id") @db.Uuid
-  referenceType String             @map("reference_type")
-  referenceId   String             @map("reference_id")
-  requesterId   String             @map("requester_id")
-  status        String             @default("PENDING")
-  currentStep   Int                @default(0) @map("current_step")
-  payload       Json
-  expiresAt     DateTime?          @map("expires_at") @db.Timestamptz
-  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz
-  workflow      ApprovalWorkflow   @relation(fields: [workflowId], references: [id])
-  decisions     ApprovalDecision[]
-
-  @@index([tenantId, status])
-  @@map("approval_requests")
-}
-
-model ApprovalDecision {
-  id        String          @id @default(uuid()) @db.Uuid
-  requestId String          @map("request_id") @db.Uuid
-  stepIndex Int             @map("step_index")
-  deciderId String          @map("decider_id")
-  decision  String
-  notes     String?
-  decidedAt DateTime        @default(now()) @map("decided_at") @db.Timestamptz
-  request   ApprovalRequest @relation(fields: [requestId], references: [id])
-
-  @@map("approval_decisions")
-}

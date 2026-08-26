@@ -139,28 +139,7 @@ export class AssembleKitUseCase {
       }
     }
 
-    const totalCostCents = await this.processCostLayers(
-      kit,
-      kitVariant.id,
-      input,
-      tenantId,
-      locationId,
-      actorId
-    );
-
-    await this.generateJournalEntry(totalCostCents, input, tenantId);
-
-    return true;
-  }
-
-  private async processCostLayers(
-    kit: Kit,
-    kitVariantId: ProductVariantId,
-    input: AssembleKitInput,
-    tenantId: TenantId,
-    locationId: LocationId,
-    actorId: ActorId
-  ): Promise<number> {
+    // 4. Second pass: Consume FIFO costing layers for components and calculate total components cost
     const costService = new CostLayerService(this.costLayers);
     const ledgerEntriesBatch: LedgerEntry[] = [];
 
@@ -173,6 +152,7 @@ export class AssembleKitUseCase {
     const totalCostCents = batchResult.totalCostCents;
 
     for (const item of consumptionItems) {
+      // Add deduction ledger entry for this component
       const entryId = crypto.randomUUID();
       const ledgerEntry = new LedgerEntry(
         new LedgerEntryId(entryId),
@@ -188,24 +168,27 @@ export class AssembleKitUseCase {
       ledgerEntriesBatch.push(ledgerEntry);
     }
 
+    // 5. Calculate assembled unit cost
     const unitCostCents = Math.round(totalCostCents / input.quantity);
 
+    // 6. Create new costing layer for the assembled Kit variant
     const kitLayerId = crypto.randomUUID();
     const newKitLayer = new InventoryCostLayer(
       new InventoryCostLayerId(kitLayerId),
-      kitVariantId,
+      kitVariant.id,
       input.quantity,
       unitCostCents,
       new Date()
     );
     await this.costLayers.save(newKitLayer);
 
+    // 7. Add increment ledger entry for the Kit variant
     const kitEntryId = crypto.randomUUID();
     const kitLedgerEntry = new LedgerEntry(
       new LedgerEntryId(kitEntryId),
       tenantId,
       locationId,
-      kitVariantId,
+      kitVariant.id,
       input.quantity,
       ReasonCode.KitAssembly,
       actorId,
@@ -216,14 +199,7 @@ export class AssembleKitUseCase {
 
     await this.ledgerRepo.appendBatch(ledgerEntriesBatch);
 
-    return totalCostCents;
-  }
-
-  private async generateJournalEntry(
-    totalCostCents: number,
-    input: AssembleKitInput,
-    tenantId: TenantId
-  ): Promise<void> {
+    // 8. Write balanced double-entry Journal Entry to record inventory value shift
     const journalId = crypto.randomUUID();
     const journalEntry = new JournalEntry(
       new JournalEntryId(journalId),
@@ -234,6 +210,7 @@ export class AssembleKitUseCase {
       input.referenceId
     );
 
+    // Debit finished goods (kits)
     journalEntry.addLine(
       AccountCode.fromCode('1200'),
       totalCostCents,
@@ -241,6 +218,7 @@ export class AssembleKitUseCase {
       `Debit Kit Inventory for ${input.kitSku} assembly`
     );
 
+    // Credit raw components
     journalEntry.addLine(
       AccountCode.fromCode('1210'),
       totalCostCents,
@@ -249,6 +227,8 @@ export class AssembleKitUseCase {
     );
 
     await this.journalRepo.save(journalEntry);
+
+    return true;
   }
 }
 

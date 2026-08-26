@@ -104,9 +104,6 @@ export class TenantProvisioner {
    * Uses a raw pg Pool because CREATE DATABASE cannot run inside a transaction.
    */
   private async createDatabase(dbName: string): Promise<void> {
-    if (!/^[a-zA-Z0-9_-]+$/.test(dbName)) {
-      throw new Error(`Invalid database name: ${dbName}. Only alphanumeric characters, hyphens, and underscores are allowed.`);
-    }
     const controlPool = this.getControlPool();
     const client = await controlPool.connect();
     try {
@@ -115,8 +112,7 @@ export class TenantProvisioner {
         `SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]
       );
       if (result.rows.length === 0) {
-        const escapedDbName = client.escapeIdentifier(dbName);
-        await client.query(`CREATE DATABASE ${escapedDbName}`);
+        await client.query(`CREATE DATABASE "${dbName}"`);
       }
     } finally {
       client.release();
@@ -128,14 +124,10 @@ export class TenantProvisioner {
    * Drop a PostgreSQL database.
    */
   private async dropDatabase(dbName: string): Promise<void> {
-    if (!/^[a-zA-Z0-9_-]+$/.test(dbName)) {
-      throw new Error(`Invalid database name: ${dbName}. Only alphanumeric characters, hyphens, and underscores are allowed.`);
-    }
     const controlPool = this.getControlPool();
     const client = await controlPool.connect();
     try {
-      const escapedDbName = client.escapeIdentifier(dbName);
-      await client.query(`DROP DATABASE IF EXISTS ${escapedDbName}`);
+      await client.query(`DROP DATABASE IF EXISTS "${dbName}"`);
     } finally {
       client.release();
       await controlPool.end();
@@ -152,9 +144,6 @@ export class TenantProvisioner {
     }
 
     if (!process.env.DB_PASSWORD || !process.env.DB_USER || !process.env.DB_HOST || !process.env.DB_PORT || !process.env.DB_NAME) {
-      if (process.env.NODE_ENV === 'test' || !process.env.NODE_ENV) {
-        return new Pool({ connectionString: 'postgresql://postgres:postgres@localhost:5432/control_db', max: 2 });
-      }
       throw new Error('Database credentials (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME) must be explicitly provided via environment variables if DATABASE_URL is not set.');
     }
 

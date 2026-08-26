@@ -741,15 +741,7 @@ const inventoryResolvers = {
         entries = [];
       }
       const cutoffDate = timestamp ? new Date(timestamp) : new Date();
-      const cutoffTime = cutoffDate.getTime();
-      // ⚡ Bolt: Replace O(N) Date allocations in loop with O(1) numeric comparison
-      const filtered = entries.filter((e: any) => {
-        const eTime = !e.timestamp ? 0
-          : typeof e.timestamp === 'string' ? Date.parse(e.timestamp)
-          : typeof e.timestamp === 'number' ? e.timestamp
-          : e.timestamp.getTime();
-        return eTime <= cutoffTime;
-      });
+      const filtered = entries.filter((e: any) => new Date(e.timestamp) <= cutoffDate);
 
       const stockLevels: Record<string, any> = {};
       const binConfigurations: Record<string, any> = {};
@@ -807,15 +799,7 @@ const inventoryResolvers = {
       }
       if (upToTimestamp) {
         const cutoffDate = new Date(upToTimestamp);
-        const cutoffTime = cutoffDate.getTime();
-        // ⚡ Bolt: Replace O(N) Date allocations in loop with O(1) numeric comparison
-        entries = entries.filter((e: any) => {
-          const eTime = !e.timestamp ? 0
-            : typeof e.timestamp === 'string' ? Date.parse(e.timestamp)
-            : typeof e.timestamp === 'number' ? e.timestamp
-            : e.timestamp.getTime();
-          return eTime <= cutoffTime;
-        });
+        entries = entries.filter((e: any) => new Date(e.timestamp) <= cutoffDate);
       }
       return entries.map((e: any) => ({
         sequenceNumber: e.sequenceNumber,
@@ -885,8 +869,7 @@ const inventoryResolvers = {
             locations: sidecarLocations,
             inventory: sidecarInventory,
             dispatches
-          }),
-          signal: AbortSignal.timeout(15000)
+          })
         });
 
         if (response.ok) {
@@ -978,24 +961,6 @@ const inventoryResolvers = {
 
 const server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers: inventoryResolvers as any }),
-  formatError: (formattedError: any) => {
-    if (process.env.NODE_ENV === 'production') {
-      if (formattedError.extensions) {
-        if (formattedError.extensions.exception) {
-          delete formattedError.extensions.exception;
-        }
-        delete formattedError.extensions.stacktrace;
-      }
-      return formattedError;
-    }
-    if (formattedError.extensions) {
-      if (formattedError.extensions.exception) {
-        delete formattedError.extensions.exception.stacktrace;
-      }
-      delete formattedError.extensions.stacktrace;
-    }
-    return formattedError;
-  },
 });
 
 async function start() {

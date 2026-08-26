@@ -43,8 +43,7 @@ export class GetStockValuationReportUseCase {
       : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
-    const uniqueSkusSet = new Set(filteredItems.map(item => item.sku.value));
-    const uniqueSkus = Array.from(uniqueSkusSet);
+    const uniqueSkus = Array.from(new Set(filteredItems.map(item => item.sku.value)));
 
     // Batch-lookup products to get variant IDs for each SKU
     const products = await this.productRepo.findBySkus(uniqueSkus.map(s => new Sku(s)));
@@ -53,61 +52,53 @@ export class GetStockValuationReportUseCase {
     const skuToVariantId = new Map<string, string>();
     for (const product of products) {
       for (const variant of product.variants) {
-        if (uniqueSkusSet.has(variant.sku.value)) {
-          skuToVariantId.set(variant.sku.value, variant.id.value);
-        }
+        skuToVariantId.set(variant.sku.value, variant.id.value);
       }
     }
 
     const lineItems: StockValuationLineItem[] = [];
     let totalValueCents = 0;
 
-    const variantQuantities = new Map<string, number>();
+    const itemsToCalculate: { invItem: typeof filteredItems[0]; variantIdStr: string; qtyOnHand: number; variantId: ProductVariantId }[] = [];
+
     for (const invItem of filteredItems) {
       const qtyOnHand = invItem.quantity.value;
       if (qtyOnHand <= 0) continue;
+
       const variantIdStr = skuToVariantId.get(invItem.sku.value);
       if (!variantIdStr) continue;
 
-      variantQuantities.set(variantIdStr, (variantQuantities.get(variantIdStr) || 0) + qtyOnHand);
+      itemsToCalculate.push({
+        invItem,
+        variantIdStr,
+        qtyOnHand,
+        variantId: new ProductVariantId(variantIdStr),
+      });
     }
 
-    const batchRequest = Array.from(variantQuantities.entries()).map(([variantIdStr, quantity]) => ({
-      variantId: new ProductVariantId(variantIdStr),
-      quantity,
+    const batchRequest = itemsToCalculate.map((item) => ({
+      variantId: item.variantId,
+      quantity: item.qtyOnHand,
     }));
 
     const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
 
-    const costMap = new Map<string, import('../../domain/valueObjects/CostBreakdown').CostBreakdown | null>();
-    for (let i = 0; i < batchRequest.length; i++) {
-        costMap.set(batchRequest[i].variantId.value, batchResults[i]);
-    }
+    for (let i = 0; i < itemsToCalculate.length; i++) {
+      const { invItem, variantIdStr, qtyOnHand } = itemsToCalculate[i];
+      const costBreakdown = batchResults[i];
 
-    for (const invItem of filteredItems) {
-      const qtyOnHand = invItem.quantity.value;
-      if (qtyOnHand <= 0) continue;
-
-      const variantIdStr = skuToVariantId.get(invItem.sku.value);
-      if (!variantIdStr) continue;
-
-      const totalVariantQty = variantQuantities.get(variantIdStr) || 1;
-      const costBreakdown = costMap.get(variantIdStr);
-
-      if (costBreakdown && costBreakdown.totalCostCents > 0) {
-        const unitCostCents = Math.round(costBreakdown.totalCostCents / totalVariantQty);
-        const itemTotalCents = Math.round(unitCostCents * qtyOnHand);
-
+      if (costBreakdown) {
+        const unitCostCents = qtyOnHand > 0 ? Math.round(costBreakdown.totalCostCents / qtyOnHand) : 0;
         lineItems.push({
           sku: invItem.sku.value,
           variantId: variantIdStr,
           locationId: invItem.locationId.value,
           quantityOnHand: qtyOnHand,
           unitCostCents,
-          totalValueCents: itemTotalCents,
+          totalValueCents: costBreakdown.totalCostCents,
           costingMethod: method,
         });
-        totalValueCents += itemTotalCents;
+        totalValueCents += costBreakdown.totalCostCents;
       } else {
         lineItems.push({
           sku: invItem.sku.value,

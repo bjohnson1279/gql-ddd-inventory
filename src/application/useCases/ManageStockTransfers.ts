@@ -90,7 +90,7 @@ export class DispatchStockTransferUseCase {
     transfer.dispatch();
 
     // Batch operations to fix N+1 query
-    const variantIds = transfer.items.map(item => item.variantId.value);
+    const variantIds = transfer.items.map(i => i.variantId.value);
     const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
     const sourcePairs = transfer.items.map(item => {
@@ -176,7 +176,7 @@ export class ReceiveStockTransferUseCase {
     transfer.receive();
 
     // Batch operations to fix N+1 query
-    const variantIds = transfer.items.map(item => item.variantId.value);
+    const variantIds = transfer.items.map(i => i.variantId.value);
     const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
     const destPairs = transfer.items.map(item => {
@@ -244,7 +244,7 @@ export class CancelStockTransferUseCase {
     // If it was already dispatched, we must reverse the stock adjustments
     if (previousStatus === StockTransferStatus.Dispatched) {
       // Batch operations to fix N+1 query
-      const variantIds = transfer.items.map(item => item.variantId.value);
+      const variantIds = transfer.items.map(i => i.variantId.value);
       const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
       const sourcePairs = transfer.items.map(item => {

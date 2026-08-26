@@ -9,15 +9,8 @@ export enum ScanContext {
   TransferIn = 'transfer_in',
 }
 
-export interface ScanPayload {
-  locationId?: string;
-  amount?: number;
-  actualQuantity?: number;
-  tenantId?: string;
-}
-
 export interface IScanHandler {
-  handle(sku: Sku, rawScan: string, payload: ScanPayload): Promise<void>;
+  handle(sku: Sku, rawScan: string, payload: any): Promise<void>;
 }
 
 export class BarcodeScanDispatcher {
@@ -29,7 +22,7 @@ export class BarcodeScanDispatcher {
     this.handlers.set(context, handler);
   }
 
-  async dispatch(rawScan: string, context: ScanContext, payload: ScanPayload = {}): Promise<void> {
+  async dispatch(rawScan: string, context: ScanContext, payload: any = {}): Promise<void> {
     const sku = await this.registry.resolve(rawScan);
     const handler = this.handlers.get(context);
 

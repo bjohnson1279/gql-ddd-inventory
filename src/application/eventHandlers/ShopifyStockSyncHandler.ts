@@ -34,55 +34,52 @@ export class ShopifyStockSyncHandler {
     });
     const localQty = ledgerSum._sum.quantity || 0;
 
-    await Promise.all(
-      connections.map(async (conn: any) => {
-        if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock')) {
-          const response = await fetch(
-            validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Shopify-Access-Token': conn.accessToken
-              },
-              redirect: 'error',
-              signal: AbortSignal.timeout(10000),
-              body: JSON.stringify({
-                query: `
-                  mutation setQty($input: InventorySetOnHandQuantitiesInput!) {
-                    inventorySetOnHandQuantities(input: $input) {
-                      userErrors { message }
-                    }
-                  }
-                `,
-                variables: {
-                  input: {
-                    setQuantities: [
-                      {
-                        inventoryItemId: event.externalRefId,
-                        locationId: locMapping.externalId,
-                        quantity: localQty
-                      }
-                    ]
+    for (const conn of connections) {
+      if (conn.accessToken && conn.accessToken !== 'mock-token' && !conn.storeDomain.includes('mock')) {
+        const response = await fetch(
+          validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Shopify-Access-Token': conn.accessToken
+            },
+            redirect: 'error',
+            body: JSON.stringify({
+              query: `
+                mutation setQty($input: InventorySetOnHandQuantitiesInput!) {
+                  inventorySetOnHandQuantities(input: $input) {
+                    userErrors { message }
                   }
                 }
-              })
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`Shopify API responded with status ${response.status}`);
+              `,
+              variables: {
+                input: {
+                  setQuantities: [
+                    {
+                      inventoryItemId: event.externalRefId,
+                      locationId: locMapping.externalId,
+                      quantity: localQty
+                    }
+                  ]
+                }
+              }
+            })
           }
+        );
 
-          const resData = (await response.json()) as any;
-          const errors = resData?.data?.inventorySetOnHandQuantities?.userErrors || [];
-          if (errors.length > 0) {
-            throw new Error(`Shopify API error: ${errors.map((e: any) => e.message).join(', ')}`);
-          }
-        } else {
-          console.log(`[ShopifyStockSyncHandler] [MOCK] Synced SKU ${event.sku} to Shopify. Qty: ${localQty}`);
+        if (!response.ok) {
+          throw new Error(`Shopify API responded with status ${response.status}`);
         }
-      })
-    );
+
+        const resData = (await response.json()) as any;
+        const errors = resData?.data?.inventorySetOnHandQuantities?.userErrors || [];
+        if (errors.length > 0) {
+          throw new Error(`Shopify API error: ${errors.map((e: any) => e.message).join(', ')}`);
+        }
+      } else {
+        console.log(`[ShopifyStockSyncHandler] [MOCK] Synced SKU ${event.sku} to Shopify. Qty: ${localQty}`);
+      }
+    }
   }
 }

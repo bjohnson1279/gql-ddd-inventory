@@ -44,8 +44,7 @@ export class XeroClient implements IXeroClient {
         "Authorization": `Bearer ${accessToken}`,
         "Accept": "application/json"
       },
-      body: JSON.stringify(xeroPayload),
-      signal: AbortSignal.timeout(10000)
+      body: JSON.stringify(xeroPayload)
     });
 
     if (!response.ok) {

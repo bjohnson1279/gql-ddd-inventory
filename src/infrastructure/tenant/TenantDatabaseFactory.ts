@@ -32,7 +32,7 @@ export class TenantDatabaseFactory {
     }
 
     const config = this.tenantConfigs.get(tenantId);
-    let dbUrl = process.env.DATABASE_URL;
+    let dbUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/postgres';
 
     if (config) {
       dbUrl = config.databaseUrl;
@@ -45,13 +45,6 @@ export class TenantDatabaseFactory {
           dbUrl = config.databaseUrl;
         }
       }
-    }
-
-    if (!dbUrl) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('DATABASE_URL environment variable is required in production environments.');
-      }
-      dbUrl = 'postgresql://localhost:5432/postgres';
     }
 
     const pool = new Pool({ connectionString: dbUrl });

@@ -41,70 +41,63 @@ export class AuditProcessorService {
 
         if (!isMock && externalItemIds.length > 0) {
           const chunkSize = 50;
-          const fetchPromises = [];
           for (let i = 0; i < externalItemIds.length; i += chunkSize) {
             const batchIds = externalItemIds.slice(i, i + chunkSize);
-            fetchPromises.push(
-              (async () => {
-                try {
-                  const response = await fetch(
-                    validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
-                    {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'X-Shopify-Access-Token': conn.accessToken!
-                      },
-                      redirect: 'error',
-                      signal: AbortSignal.timeout(10000),
-                      body: JSON.stringify({
-                        query: `
-                          query getBatchInventoryLevels($ids: [ID!]!) {
-                            nodes(ids: $ids) {
-                              ... on InventoryItem {
-                                id
-                                inventoryLevels(first: 50) {
-                                  edges {
-                                    node {
-                                      location { id }
-                                      quantities(names: ["available"]) { quantity }
-                                    }
-                                  }
+            try {
+              const response = await fetch(
+                validateOutboundUrl(`https://${conn.storeDomain}/admin/api/2024-04/graphql.json`),
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Access-Token': conn.accessToken!
+                  },
+                  redirect: 'error',
+                  body: JSON.stringify({
+                    query: `
+                      query getBatchInventoryLevels($ids: [ID!]!) {
+                        nodes(ids: $ids) {
+                          ... on InventoryItem {
+                            id
+                            inventoryLevels(first: 50) {
+                              edges {
+                                node {
+                                  location { id }
+                                  quantities(names: ["available"]) { quantity }
                                 }
                               }
                             }
                           }
-                        `,
-                        variables: { ids: batchIds }
-                      })
-                    }
-                  );
-
-                  if (response.ok) {
-                    const resData = (await response.json()) as any;
-                    const nodes = resData?.data?.nodes || [];
-                    for (const node of nodes) {
-                      if (node && node.id) {
-                        const levels = node.inventoryLevels?.edges || [];
-                        const locQtyMap: Record<string, number> = {};
-                        for (const edge of levels) {
-                          const extLocId = edge.node.location.id;
-                          const qty = edge.node.quantities[0]?.quantity || 0;
-                          locQtyMap[extLocId] = qty;
                         }
-                        shopifyStockMap[node.id] = locQtyMap;
                       }
-                    }
-                  } else {
-                    console.error(`Shopify API responded with status ${response.status}`);
-                  }
-                } catch (err) {
-                  console.error('Failed to query Shopify stock level batch:', err);
+                    `,
+                    variables: { ids: batchIds }
+                  })
                 }
-              })()
-            );
+              );
+
+              if (response.ok) {
+                const resData = (await response.json()) as any;
+                const nodes = resData?.data?.nodes || [];
+                for (const node of nodes) {
+                  if (node && node.id) {
+                    const levels = node.inventoryLevels?.edges || [];
+                    const locQtyMap: Record<string, number> = {};
+                    for (const edge of levels) {
+                      const extLocId = edge.node.location.id;
+                      const qty = edge.node.quantities[0]?.quantity || 0;
+                      locQtyMap[extLocId] = qty;
+                    }
+                    shopifyStockMap[node.id] = locQtyMap;
+                  }
+                }
+              } else {
+                console.error(`Shopify API responded with status ${response.status}`);
+              }
+            } catch (err) {
+              console.error('Failed to query Shopify stock level batch:', err);
+            }
           }
-          await Promise.all(fetchPromises);
         }
 
         const variantIds = connVariantMappings.map((m) => m.internalId);

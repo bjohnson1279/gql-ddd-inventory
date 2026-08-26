@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { JournalEntry } from '../../domain/entities/JournalEntry';
 import { IRmaRepository } from '../../domain/repositories/IRmaRepository';
 import { IInventoryRepository } from '../../domain/repositories/IInventoryRepository';
 import { IInventoryCostLayerRepository } from '../../domain/repositories/IInventoryCostLayerRepository';
@@ -142,7 +141,7 @@ export class ReceiveRmaUseCase {
     const costLayersToSave: InventoryCostLayer[] = [];
     const quarantineItemsToSave: QuarantineItem[] = [];
     const serializedItemsToSave: SerializedItem[] = [];
-    const journalEntriesToSave: JournalEntry[] = [];
+    const journalEntriesToSave: any[] = [];
 
     // Batch Serialized Item Lookups
     const serialPairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[] = [];
@@ -166,15 +165,8 @@ export class ReceiveRmaUseCase {
       existingSerialItems.set(`${item.variantId.value}_${item.serialNumber.value}`, item);
     }
 
-    const rmaItemsMap = new Map<string, any>();
-    for (const item of rma.items) {
-      if (!rmaItemsMap.has(item.variantId.value)) {
-        rmaItemsMap.set(item.variantId.value, item);
-      }
-    }
-
     for (const item of dto.items) {
-      const rmaItem = rmaItemsMap.get(item.variantId);
+      const rmaItem = rma.items.find((i) => i.variantId.value === item.variantId);
       if (!rmaItem) {
         throw new Error(`Item with variant ID ${item.variantId} not found in RMA.`);
       }
@@ -255,8 +247,15 @@ export class ReceiveRmaUseCase {
 
       // 8. Handle Serialized items transitions
       if (item.serialNumbers && item.serialNumbers.length > 0 && this.serializedItemRepository) {
+        const serialObjs = item.serialNumbers.map(sn => new SerialNumber(sn));
+        const variantIdObj = new ProductVariantId(item.variantId);
+
+        // Batch fetch all serialized items for this RMA item
+        const serialItems = await this.serializedItemRepository.findManyBySerialsAndVariant(serialObjs, variantIdObj);
+        const serialItemsMap = new Map(serialItems.map(si => [si.serialNumber.value, si]));
+
         for (const sn of item.serialNumbers) {
-          const serialItem = existingSerialItems.get(`${item.variantId}_${sn}`);
+          const serialItem = serialItemsMap.get(sn);
           if (serialItem) {
             const actor = new ActorId('system');
             const refId = `RMA-${rma.id}`;
@@ -325,14 +324,13 @@ export class ResolveQuarantineItemUseCase {
     private readonly inventoryRepository: IInventoryRepository,
     private readonly costLayerRepository: IInventoryCostLayerRepository,
     private readonly journalRepository: IJournalRepository,
-    private readonly productRepository: IProductRepository,
-    private readonly approvalService?: any
+    private readonly productRepository: IProductRepository
   ) {
     this.costLayerService = new CostLayerService(costLayerRepository);
     this.journalService = new AccountingJournalService(journalRepository);
   }
 
-  async execute(dto: ResolveQuarantineItemDTO, tenantId?: string, actorId?: string): Promise<void> {
+  async execute(dto: ResolveQuarantineItemDTO): Promise<void> {
     const qItem = await this.quarantineRepository.findById(dto.quarantineItemId);
     if (!qItem) {
       throw new Error(`Quarantine item with ID ${dto.quarantineItemId} not found.`);
@@ -341,35 +339,6 @@ export class ResolveQuarantineItemUseCase {
     const skuStr = await this.productRepository.findSkuByVariantId(qItem.variantId.value);
     if (!skuStr) {
       throw new Error(`SKU not found for variant ID ${qItem.variantId.value}`);
-    }
-
-    // Intercept if Scrap and approval workflow triggers
-    if (dto.resolution === 'SCRAP' && this.approvalService && tenantId && actorId) {
-      // Approximate the write-off cost by looking at cost layers (without consuming them yet)
-      const layers = await this.costLayerRepository.getActiveLayers(qItem.variantId);
-      let estTotalCostCents = 0;
-      let qtyRemaining = qItem.quantity;
-      for (const layer of layers) {
-        if (qtyRemaining <= 0) break;
-        if (layer.remainingQuantity() > 0) {
-          const qtyToConsume = Math.min(layer.remainingQuantity(), qtyRemaining);
-          estTotalCostCents += qtyToConsume * layer.unitCostCents;
-          qtyRemaining -= qtyToConsume;
-        }
-      }
-
-      const result = await this.approvalService.evaluateAndIntercept(
-        tenantId,
-        'inventory.write_off',
-        'QuarantineItem',
-        qItem.id,
-        actorId,
-        { totalCostCents: estTotalCostCents, resolution: dto.resolution, quantity: qItem.quantity }
-      );
-
-      if (result.intercepted) {
-        throw new Error(`RequiresApproval:${result.requestId}`);
-      }
     }
 
     const quarantineLocId = `${qItem.locationId.value}-quarantine`;

@@ -1,7 +1,7 @@
 import { ConcurrencyError } from '../../domain/exceptions/DomainErrors';
 
 export class AutoRetryDecorator {
-  static wrap<Args extends any[], R, T extends { execute: (...args: Args) => Promise<R> }>(
+  static wrap<T extends { execute: (...args: any[]) => Promise<any> }>(
     useCase: T,
     maxRetries: number = 3,
     baseDelayMs: number = 100
@@ -9,7 +9,7 @@ export class AutoRetryDecorator {
     return new Proxy(useCase, {
       get(target, prop, receiver) {
         if (prop === 'execute') {
-          return async (...args: Args): Promise<R> => {
+          return async (...args: any[]) => {
             let attempts = 0;
             while (true) {
               try {

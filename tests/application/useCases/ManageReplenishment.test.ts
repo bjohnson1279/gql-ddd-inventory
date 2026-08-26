@@ -84,18 +84,8 @@ describe('ManageReplenishment Use Cases', () => {
     toggleRuleUseCase = new ToggleReplenishmentRuleUseCase(ruleRepo);
     evaluateUseCase = new EvaluateReplenishmentUseCase(evaluator);
 
-    const mockApprovalService = {
-      evaluateAndIntercept: jest.fn().mockResolvedValue({ intercepted: false, requestId: null }),
-      processApprovalDecision: jest.fn(),
-      getWorkflowConfig: jest.fn(),
-      updateWorkflowConfig: jest.fn(),
-      toggleWorkflowActive: jest.fn(),
-      getPendingApprovals: jest.fn(),
-      getApprovalDetails: jest.fn()
-    } as any;
-
     createPoUseCase = new CreatePurchaseOrderUseCase(poRepo);
-    placePoUseCase = new PlacePurchaseOrderUseCase(poRepo, inventoryRepo, productRepo, mockApprovalService);
+    placePoUseCase = new PlacePurchaseOrderUseCase(poRepo, inventoryRepo, productRepo);
     receivePoUseCase = new ReceivePurchaseOrderUseCase(poRepo, inventoryRepo, productRepo, ledgerRepo);
     cancelPoUseCase = new CancelPurchaseOrderUseCase(poRepo, inventoryRepo, productRepo);
 
@@ -330,7 +320,7 @@ describe('ManageReplenishment Use Cases', () => {
       expect(po.status).toBe(PurchaseOrderStatus.Draft);
 
       // 2. Place PO -> sets inTransit stock
-      const placed = await placePoUseCase.execute(po.id, 'requester-1');
+      const placed = await placePoUseCase.execute(po.id);
       expect(placed.status).toBe(PurchaseOrderStatus.Ordered);
 
       const destInvAfterPlace = await inventoryRepo.findBySkuAndLocation(skuStr, destLoc);
@@ -359,7 +349,7 @@ describe('ManageReplenishment Use Cases', () => {
         items: [{ variantId: variantIdStr, quantity: 40 }],
       });
 
-      await placePoUseCase.execute(po.id, 'requester-1');
+      await placePoUseCase.execute(po.id);
       const cancelled = await cancelPoUseCase.execute(po.id);
       expect(cancelled.status).toBe(PurchaseOrderStatus.Cancelled);
 

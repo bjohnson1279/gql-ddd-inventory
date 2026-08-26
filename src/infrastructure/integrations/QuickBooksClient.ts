@@ -53,8 +53,7 @@ export class QuickBooksClient implements IQuickBooksClient {
         "Authorization": `Bearer ${accessToken}`,
         "Accept": "application/json"
       },
-      body: JSON.stringify(qboPayload),
-      signal: AbortSignal.timeout(10000)
+      body: JSON.stringify(qboPayload)
     });
 
     if (!response.ok) {

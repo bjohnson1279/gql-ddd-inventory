@@ -79,8 +79,7 @@ describe('WebhookDeliveryWorker (GraphQL)', () => {
         'X-Webhook-Event': 'InventoryDecremented'
       },
       body: mockDelivery.payload,
-      redirect: 'error',
-      signal: expect.any(AbortSignal)
+      redirect: 'error'
     });
 
     expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
