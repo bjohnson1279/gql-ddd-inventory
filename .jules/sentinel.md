@@ -18,3 +18,7 @@
 **Vulnerability:** Missing request body size limit on the `express.raw` middleware used in the Shopify webhook endpoint.
 **Learning:** Express middleware like `body-parser.json()` or `express.raw()` must explicitly define size limits. Without constraints, attackers can send excessively large payloads, leading to memory exhaustion and Denial of Service (DoS).
 **Prevention:** Always set an explicit `limit` option (e.g., `{ limit: '2mb' }`) on all input parsing middleware.
+## 2026-08-26 - Fix Exception Leakage in Gateway
+**Vulnerability:** Apollo Server in the API gateway leaked sensitive `exception` object details from `extensions` in production, although it stripped the `stacktrace` property.
+**Learning:** Only deleting `stacktrace` is insufficient because the `exception` object itself can contain sensitive internal errors, database details, or file paths.
+**Prevention:** Ensure `formatError` explicitly deletes the entire `extensions.exception` object in production environments.
