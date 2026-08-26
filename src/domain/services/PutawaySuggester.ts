@@ -93,9 +93,16 @@ export class PutawaySuggester {
     // Now, filter and score candidates based on matching attributes
     // Extract attributes of target variant: temperatureZone, hazardClass, velocity
     const attrs = variant.attributes.all();
-    const tempZoneAttr = attrs.find(a => a.name === 'temperatureZone')?.value;
-    const hazardAttr = attrs.find(a => a.name === 'hazardClass')?.value;
-    const velocityAttr = attrs.find(a => a.name === 'velocity')?.value;
+
+    // ⚡ Bolt: Use a Map for O(1) attribute lookups instead of multiple O(N) array scans
+    const attrMap = new Map<string, string>();
+    for (const a of attrs) {
+      attrMap.set(a.name, a.value);
+    }
+
+    const tempZoneAttr = attrMap.get('temperatureZone');
+    const hazardAttr = attrMap.get('hazardClass');
+    const velocityAttr = attrMap.get('velocity');
 
     const scoredCandidates = locationCapacities.map(c => {
       let score = 0;
