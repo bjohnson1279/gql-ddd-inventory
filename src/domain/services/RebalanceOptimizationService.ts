@@ -78,8 +78,6 @@ export class RebalanceOptimizationService {
 
     // 5. Fetch replenishment rules for lead times
     const rules = await this.prisma.replenishmentRule.findMany({ where: { tenantId } });
-    const lead_times: { source_warehouse_id: string; dest_warehouse_id: string; transit_days: number }[] = [];
-    const shipping_costs: { source_warehouse_id: string; dest_warehouse_id: string; cost_per_unit: number }[] = [];
 
     // ⚡ Bolt: Pre-calculate unique rates concurrently to avoid O(N*M) lookups inside the loop below
     // Expected impact: reduces time complexity for lead time calculations and prevents N^2 nested lookups.
@@ -93,14 +91,25 @@ export class RebalanceOptimizationService {
       }
     }
 
+    const numWarehouses = warehouses.length;
+    const pairCount = numWarehouses * (numWarehouses - 1);
+    const lead_times: { source_warehouse_id: string; dest_warehouse_id: string; transit_days: number }[] = new Array(pairCount);
+    const shipping_costs: { source_warehouse_id: string; dest_warehouse_id: string; cost_per_unit: number }[] = new Array(pairCount);
+
     // Build default lead times between all warehouse pairs
-    for (const w1 of warehouses) {
-      const rule = ruleBySourceWarehouse.get(w1.id);
-      for (const w2 of warehouses) {
-        if (w1.id !== w2.id) {
-          lead_times.push({ source_warehouse_id: w1.id, dest_warehouse_id: w2.id, transit_days: rule?.leadTimeDays || 3 });
-          shipping_costs.push({ source_warehouse_id: w1.id, dest_warehouse_id: w2.id, cost_per_unit: 1.5 });
-        }
+    let idx = 0;
+    for (let i = 0; i < numWarehouses; i++) {
+      const w1 = warehouses[i];
+      const w1_id = w1.id;
+      const rule = ruleBySourceWarehouse.get(w1_id);
+      const transit_days = rule?.leadTimeDays || 3;
+
+      for (let j = 0; j < numWarehouses; j++) {
+        if (i === j) continue;
+        const w2_id = warehouses[j].id;
+        lead_times[idx] = { source_warehouse_id: w1_id, dest_warehouse_id: w2_id, transit_days };
+        shipping_costs[idx] = { source_warehouse_id: w1_id, dest_warehouse_id: w2_id, cost_per_unit: 1.5 };
+        idx++;
       }
     }
 
@@ -110,7 +119,8 @@ export class RebalanceOptimizationService {
       const response = await fetch(`${sidecarBaseUrl}/rebalance-optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ warehouses, stock_levels, demand_forecasts, lead_times, shipping_costs, constraints: { max_transfers_per_run: 20, min_transfer_quantity: 5, min_days_of_cover_target: 14.0 } })
+        body: JSON.stringify({ warehouses, stock_levels, demand_forecasts, lead_times, shipping_costs, constraints: { max_transfers_per_run: 20, min_transfer_quantity: 5, min_days_of_cover_target: 14.0 } }),
+        signal: AbortSignal.timeout(15000)
       });
 
       if (response.ok) {
