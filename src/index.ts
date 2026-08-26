@@ -162,9 +162,13 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
-  const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-    : [];
+  if (process.env.NODE_ENV === 'production' && (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS === '*')) {
+    throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
+  }
+  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
+  const allowedOrigins = allowedOriginsRaw === '*'
+    ? '*'
+    : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean);
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
