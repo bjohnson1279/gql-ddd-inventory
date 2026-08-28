@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import helmet from 'helmet';
+import { depthLimitRule, complexityLimitRule } from '../infrastructure/graphql/guardrails';
 
 // Gateway routes requests to subgraphs and propagates Authorization header
 class AuthenticatedDataSource extends RemoteGraphQLDataSource {
@@ -67,6 +68,7 @@ async function startGateway() {
 
   const server = new ApolloServer({
     gateway: gateway!,
+    validationRules: [depthLimitRule(5), complexityLimitRule(100)],
     formatError: (formattedError: any) => {
       if (process.env.NODE_ENV === 'production') {
         if (formattedError.extensions) {
