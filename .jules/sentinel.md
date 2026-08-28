@@ -22,3 +22,7 @@
 **Vulnerability:** Apollo Server in the API gateway leaked sensitive `exception` object details from `extensions` in production, although it stripped the `stacktrace` property.
 **Learning:** Only deleting `stacktrace` is insufficient because the `exception` object itself can contain sensitive internal errors, database details, or file paths.
 **Prevention:** Ensure `formatError` explicitly deletes the entire `extensions.exception` object in production environments.
+## 2025-03-01 - [Missing DoS Guardrails on Gateway]
+**Vulnerability:** The federated GraphQL gateway (`src/gateway/index.ts`) was missing depth and complexity limits (`depthLimitRule`, `complexityLimitRule`), unlike the main monolith ApolloServer.
+**Learning:** In a federated GraphQL architecture, it's crucial to enforce query depth and complexity limits at the outermost edge (the gateway) to prevent Denial of Service (DoS) attacks via heavily nested queries before they reach internal subgraphs.
+**Prevention:** Always attach AST validation rules (`depthLimitRule` and `complexityLimitRule`) to the `ApolloServer` instance configuring the `ApolloGateway`.
