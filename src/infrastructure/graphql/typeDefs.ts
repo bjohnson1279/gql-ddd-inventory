@@ -619,6 +619,9 @@ export const typeDefs = `#graphql
   }
 
   type Query {
+    roles(tenantId: ID!): [Role!]!
+    permissions: [Permission!]!
+    userEffectivePermissions(userId: ID!): [Permission!]!
     inventoryItems: [InventoryItem!]!
     inventoryItemBySku(sku: String!): [InventoryItem!]!
     inventoryItemBySkuAndLocation(sku: String!, locationId: String!): InventoryItem
@@ -867,6 +870,13 @@ export const typeDefs = `#graphql
   }
 
   type Mutation {
+    createCustomRole(tenantId: ID!, name: String!, description: String!, permissionIds: [String!]!): Role!
+    updateRolePermissions(roleId: ID!, permissionIds: [String!]!): Role!
+    deleteCustomRole(roleId: ID!): Boolean!
+    assignRolesToUser(userId: ID!, roleIds: [String!]!): Boolean!
+    removeRolesFromUser(userId: ID!, roleIds: [String!]!): Boolean!
+    createApprovalWorkflow(tenantId: ID!, name: String!, triggerEvent: String!, config: String!): Boolean!
+
     createRma(input: CreateRmaInput!): Rma!
     authorizeRma(id: ID!): Boolean!
     receiveRma(input: ReceiveRmaInput!): Boolean!
@@ -988,6 +998,21 @@ export const typeDefs = `#graphql
     payload: String!
     errorMessage: String!
     attemptCount: Int!
+  }
+
+  type Permission {
+    id: ID!
+    resource: String!
+    action: String!
+    description: String
+  }
+
+  type Role {
+    id: ID!
+    name: String!
+    description: String
+    isCustom: Boolean!
+    permissions: [Permission!]!
   }
 
   type UserDTO {
