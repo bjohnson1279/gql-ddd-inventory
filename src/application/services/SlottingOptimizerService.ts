@@ -84,22 +84,61 @@ export class SlottingOptimizerService {
       distance: locMap.get(inv.location_id) || 99,
     })).sort((a, b) => b.velocity - a.velocity);
 
-    for (let i = 0; i < items.length; i++) {
-      for (let j = items.length - 1; j > i; j--) {
-        if (items[i].distance > items[j].distance && items[i].velocity > items[j].velocity) {
-          const savings = items[i].velocity * (items[i].distance - items[j].distance) * 2;
-          suggestions.push({
-            sku: items[i].sku,
-            currentLocationId: items[i].locationId,
-            currentDistance: items[i].distance,
-            currentVelocity: items[i].velocity,
-            recommendedLocationId: items[j].locationId,
-            recommendedDistance: items[j].distance,
-            potentialSwapSku: items[j].sku,
-            estimatedSavings: savings,
-          });
-          break;
+    const n = items.length;
+    if (n === 0) return suggestions;
+
+    // Pre-calculate minimum distance suffix array to find candidates in O(log N) instead of O(N^2)
+    const minDist = new Array(n);
+    minDist[n - 1] = items[n - 1].distance;
+    for (let j = n - 2; j >= 0; j--) {
+      minDist[j] = Math.min(items[j].distance, minDist[j + 1]);
+    }
+
+    for (let i = 0; i < n; i++) {
+      // Find the first index where vel[j] < vel[i]
+      let left = i + 1;
+      let right = n - 1;
+      let firstJ = -1;
+      while (left <= right) {
+        let mid = (left + right) >> 1;
+        if (items[mid].velocity < items[i].velocity) {
+          firstJ = mid;
+          right = mid - 1;
+        } else {
+          left = mid + 1;
         }
+      }
+
+      if (firstJ === -1) continue;
+      if (minDist[firstJ] >= items[i].distance) continue;
+
+      // Binary search the largest j in [firstJ, n - 1] such that minDist[j] < items[i].distance
+      let l = firstJ;
+      let r = n - 1;
+      let bestJ = -1;
+      while (l <= r) {
+        let mid = (l + r) >> 1;
+        if (minDist[mid] < items[i].distance) {
+          bestJ = mid;
+          l = mid + 1;
+        } else {
+          r = mid - 1;
+        }
+      }
+
+      if (bestJ !== -1) {
+        const j = bestJ;
+        const savings = items[i].velocity * (items[i].distance - items[j].distance) * 2;
+        suggestions.push({
+          sku: items[i].sku,
+          currentLocationId: items[i].locationId,
+          currentDistance: items[i].distance,
+          currentVelocity: items[i].velocity,
+          recommendedLocationId: items[j].locationId,
+          recommendedDistance: items[j].distance,
+          potentialSwapSku: items[j].sku,
+          estimatedSavings: savings,
+        });
       }
     }
 
