@@ -53,6 +53,8 @@ import {
   CountSerializedItemsByStatusUseCase
 } from '../../application/useCases/ManageSerializedItems';
 import { ConnectShopifyStoreUseCase, GetShopifyConnectionsUseCase } from '../../application/useCases/ManageShopifyConnections';
+import { ConnectAmazonStoreUseCase, GetAmazonConnectionsUseCase } from '../../application/useCases/ManageAmazonConnections';
+import { ConnectWooCommerceStoreUseCase, GetWooCommerceConnectionsUseCase } from '../../application/useCases/ManageWooCommerceConnections';
 import {
   ConfigureProductUomUseCase,
   GetProductUomConfigurationUseCase,
@@ -365,6 +367,10 @@ const listSerializedItemsByVariantUseCase = new ListSerializedItemsByVariantUseC
 const countSerializedItemsByStatusUseCase = new CountSerializedItemsByStatusUseCase(serializedItemRepository);
 const connectShopifyStoreUseCase = new ConnectShopifyStoreUseCase(integrationRepository);
 const getShopifyConnectionsUseCase = new GetShopifyConnectionsUseCase(integrationRepository);
+const connectAmazonStoreUseCase = new ConnectAmazonStoreUseCase(integrationRepository);
+const getAmazonConnectionsUseCase = new GetAmazonConnectionsUseCase(integrationRepository);
+const connectWooCommerceStoreUseCase = new ConnectWooCommerceStoreUseCase(integrationRepository);
+const getWooCommerceConnectionsUseCase = new GetWooCommerceConnectionsUseCase(integrationRepository);
 
 const configureProductUomUseCase = new ConfigureProductUomUseCase(uomRepository);
 const getProductUomConfigurationUseCase = new GetProductUomConfigurationUseCase(uomRepository);
@@ -948,6 +954,14 @@ export const resolvers = {
         storeDomain: c.storeDomain,
         isActive: c.isActive
       }));
+    },
+    amazonConnections: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      const auth = enforcePermission(context, 'accounting', 'view', tenantId);
+      return await getAmazonConnectionsUseCase.execute(auth.tenantId);
+    },
+    wooCommerceConnections: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
+      const auth = enforcePermission(context, 'accounting', 'view', tenantId);
+      return await getWooCommerceConnectionsUseCase.execute(auth.tenantId);
     },
     productUomConfiguration: async (_: any, { sku }: { sku: string }, context: GraphQLContext) => {
       enforcePermission(context, 'product', 'view', 'warehouse_operator', 'accountant');
@@ -1963,6 +1977,22 @@ export const resolvers = {
       try {
         const auth = enforcePermission(context, 'accounting', 'configure', input.tenantId);
         return await connectShopifyStoreUseCase.execute({ ...input, tenantId: auth.tenantId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    connectAmazonStore: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforcePermission(context, 'accounting', 'configure', input.tenantId);
+        return await connectAmazonStoreUseCase.execute({ ...input, tenantId: auth.tenantId });
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    },
+    connectWooCommerceStore: async (_: any, { input }: { input: any }, context: GraphQLContext) => {
+      try {
+        const auth = enforcePermission(context, 'accounting', 'configure', input.tenantId);
+        return await connectWooCommerceStoreUseCase.execute({ ...input, tenantId: auth.tenantId });
       } catch (error: any) {
         throw new Error(error.message);
       }

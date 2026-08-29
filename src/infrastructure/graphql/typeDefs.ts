@@ -308,6 +308,23 @@ export const typeDefs = `#graphql
     isActive: Boolean!
   }
 
+  type AmazonConnection {
+    id: ID!
+    tenantId: ID!
+    platform: String!
+    sellerId: String!
+    marketplaceId: String!
+    isActive: Boolean!
+  }
+
+  type WooCommerceConnection {
+    id: ID!
+    tenantId: ID!
+    platform: String!
+    storeUrl: String!
+    isActive: Boolean!
+  }
+
   type InventoryItem {
     id: ID!
     sku: String!
@@ -329,6 +346,23 @@ export const typeDefs = `#graphql
     name: String!
     abbreviation: String!
     category: UomCategory!
+  }
+
+  input ConnectShopifyInput {
+    shopName: String!
+    accessToken: String!
+  }
+
+  input ConnectAmazonInput {
+    sellerId: String!
+    mwsAuthToken: String!
+    marketplaceId: String!
+  }
+
+  input ConnectWooCommerceInput {
+    storeUrl: String!
+    consumerKey: String!
+    consumerSecret: String!
   }
 
   type ConversionRule {
@@ -631,6 +665,8 @@ export const typeDefs = `#graphql
     serializedItemsByVariant(variantId: ID!, tenantId: ID!): [SerializedItem!]!
     serializedItemStatusCounts(variantId: ID!): [SerialStatusCount!]!
     shopifyConnections(tenantId: ID!): [ShopifyConnection!]!
+    amazonConnections(tenantId: ID!): [AmazonConnection!]!
+    wooCommerceConnections(tenantId: ID!): [WooCommerceConnection!]!
 
     productUomConfiguration(sku: String!): ProductUomConfiguration
     productUomConfigurationById(id: ID!): ProductUomConfiguration
@@ -906,6 +942,8 @@ export const typeDefs = `#graphql
     restockSerializedItem(input: RestockSerializedInput!): Boolean!
     writeOffSerializedItem(input: WriteOffSerializedInput!): Boolean!
     connectShopifyStore(input: ConnectShopifyInput!): Boolean!
+    connectAmazonStore(input: ConnectAmazonInput!): Boolean!
+    connectWooCommerceStore(input: ConnectWooCommerceInput!): Boolean!
 
     configureProductUom(input: ConfigureUomInput!): Boolean!
     addUomConversionRule(input: AddUomConversionRuleInput!): Boolean!

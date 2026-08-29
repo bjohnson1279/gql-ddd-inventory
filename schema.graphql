@@ -116,6 +116,31 @@ enum StockOnboardingStatus {
   submitted
 }
 
+type ShopifyConnection {
+  id: ID!
+  tenantId: ID!
+  platform: String!
+  storeDomain: String!
+  isActive: Boolean!
+}
+
+type AmazonConnection {
+  id: ID!
+  tenantId: ID!
+  platform: String!
+  sellerId: String!
+  marketplaceId: String!
+  isActive: Boolean!
+}
+
+type WooCommerceConnection {
+  id: ID!
+  tenantId: ID!
+  platform: String!
+  storeUrl: String!
+  isActive: Boolean!
+}
+
 type InventoryItem {
   id: ID!
   sku: String!
@@ -524,6 +549,18 @@ input ConnectShopifyInput {
   accessToken: String!
 }
 
+input ConnectAmazonInput {
+  sellerId: String!
+  mwsAuthToken: String!
+  marketplaceId: String!
+}
+
+input ConnectWooCommerceInput {
+  storeUrl: String!
+  consumerKey: String!
+  consumerSecret: String!
+}
+
 input CreateStockOnboardingInput {
   description: String!
   actorId: ID!
@@ -600,6 +637,9 @@ type Query {
   outboxEvents: [OutboxEvent!]!
   outboxStats: OutboxStats!
   purchaseOrders: [PurchaseOrder!]!
+  shopifyConnections(tenantId: ID!): [ShopifyConnection!]!
+  amazonConnections(tenantId: ID!): [AmazonConnection!]!
+  wooCommerceConnections(tenantId: ID!): [WooCommerceConnection!]!
   purchaseOrder(id: ID!): PurchaseOrder
   auditDiscrepancies: [AuditDiscrepancy!]!
   complianceLedger(sequenceNumber: Int): [ComplianceLedgerEntry!]!
@@ -645,6 +685,8 @@ type Mutation {
   restockSerializedItem(input: RestockSerializedInput!): Boolean!
   writeOffSerializedItem(input: WriteOffSerializedInput!): Boolean!
   connectShopifyStore(input: ConnectShopifyInput!): Boolean!
+  connectAmazonStore(input: ConnectAmazonInput!): Boolean!
+  connectWooCommerceStore(input: ConnectWooCommerceInput!): Boolean!
   login(tenantId: ID!, actorId: ID, role: String, email: String, password: String): String!
   setup(orgName: String!, tenantId: ID!, adminName: String!, adminEmail: String!, adminPassword: String!): Boolean!
   inviteUser(tenantId: ID!, email: String!, role: String!): UserInvitationResult!

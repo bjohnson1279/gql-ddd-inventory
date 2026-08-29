@@ -1,5 +1,7 @@
 export enum IntegrationPlatform {
   Shopify = 'shopify',
+  Amazon = 'amazon',
+  WooCommerce = 'woocommerce',
 }
 
 export enum ExternalEntityType {

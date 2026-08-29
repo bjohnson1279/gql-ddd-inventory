@@ -11,8 +11,11 @@ export class IntegrationConnection {
     public readonly accessToken: string,
     private _isActive: boolean = true
   ) {
-    if (!storeDomain.endsWith('.myshopify.com')) {
-        throw new Error('Invalid store domain. Must end with .myshopify.com.');
+    if (platform === IntegrationPlatform.Shopify && !storeDomain.endsWith('.myshopify.com')) {
+        throw new Error('Invalid store domain for Shopify. Must end with .myshopify.com.');
+    }
+    if (platform === IntegrationPlatform.WooCommerce && !storeDomain.startsWith('http')) {
+        throw new Error('Invalid store domain for WooCommerce. Must be a valid URL.');
     }
     if (!accessToken || accessToken.trim() === '') {
         throw new Error('Access token cannot be empty.');
