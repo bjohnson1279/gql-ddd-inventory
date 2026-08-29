@@ -2,6 +2,8 @@ import { WebhookWorker } from './infrastructure/workers/WebhookWorker';
 import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
 import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
+import { ReportGenerationWorker } from './infrastructure/workers/ReportGenerationWorker';
+import { ReportSchedulerWorker } from './infrastructure/workers/ReportSchedulerWorker';
 
 console.log('[Worker] Starting gql-ddd-inventory background workers...');
 
@@ -9,6 +11,8 @@ WebhookWorker.start();
 OutboxWorker.start();
 AuditWorker.start();
 WebhookDeliveryWorker.start();
+ReportGenerationWorker.start();
+ReportSchedulerWorker.start();
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
@@ -17,6 +21,8 @@ process.on('SIGTERM', () => {
   OutboxWorker.stop();
   AuditWorker.stop();
   WebhookDeliveryWorker.stop();
+  ReportGenerationWorker.stop();
+  ReportSchedulerWorker.stop();
   process.exit(0);
 });
 
@@ -26,5 +32,7 @@ process.on('SIGINT', () => {
   OutboxWorker.stop();
   AuditWorker.stop();
   WebhookDeliveryWorker.stop();
+  ReportGenerationWorker.stop();
+  ReportSchedulerWorker.stop();
   process.exit(0);
 });

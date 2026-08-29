@@ -1,5 +1,5 @@
 import { prisma } from "../persistence/prismaClient";
-import { Logger } from "../logging/logger";
+
 const parser = require("cron-parser");
 
 export class ReportSchedulerWorker {
@@ -10,7 +10,7 @@ export class ReportSchedulerWorker {
       try {
         await this.poll();
       } catch (err) {
-        Logger.error({ context: "ReportSchedulerWorker", message: "Polling error", error: err });
+        console.error({ context: "ReportSchedulerWorker", message: "Polling error", error: err });
       }
     }, intervalMs);
   }
@@ -65,7 +65,7 @@ export class ReportSchedulerWorker {
           }
         });
       });
-      Logger.info({ context: "ReportSchedulerWorker", message: `Scheduled report ${schedule.reportDefinitionId} queued for execution.` });
+      console.log({ context: "ReportSchedulerWorker", message: `Scheduled report ${schedule.reportDefinitionId} queued for execution.` });
     }
   }
 }

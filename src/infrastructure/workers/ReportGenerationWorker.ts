@@ -1,5 +1,5 @@
 import { prisma } from "../persistence/prismaClient";
-import { Logger } from "../logging/logger";
+
 import { ReportGeneratorService } from "../services/ReportGeneratorService";
 
 export class ReportGenerationWorker {
@@ -24,7 +24,7 @@ export class ReportGenerationWorker {
           where: { id: executionId },
           data: { status: "COMPLETED", completedAt: new Date(), fileUrl }
         });
-        Logger.info({ context: "ReportGenerationWorker", message: `Report ${executionId} generated at ${fileUrl}` });
+        console.log({ context: "ReportGenerationWorker", message: `Report ${executionId} generated at ${fileUrl}` });
       } catch (err: any) {
         await prisma.reportExecutionModel.update({
           where: { id: executionId },
@@ -34,7 +34,7 @@ export class ReportGenerationWorker {
       }
 
     } catch (err) {
-      Logger.error({ context: "ReportGenerationWorker", message: "Error processing report execution", error: err });
+      console.error({ context: "ReportGenerationWorker", message: "Error processing report execution", error: err });
     }
   }
 }
