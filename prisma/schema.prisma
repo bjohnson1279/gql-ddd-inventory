@@ -761,3 +761,63 @@ model ApprovalDecision {
 
   @@map("approval_decisions")
 }
+
+
+model ReportDefinitionModel {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  type        String
+  filters     String
+  grouping    String
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  schedules  ReportScheduleModel[]
+  executions ReportExecutionModel[]
+
+  @@map("report_definitions")
+}
+
+model ReportScheduleModel {
+  id                 String   @id @default(uuid())
+  reportDefinitionId String   @map("report_definition_id")
+  cronExpression     String   @map("cron_expression")
+  deliveryMethod     String   @map("delivery_method")
+  nextRunAt          DateTime @map("next_run_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  reportDefinition   ReportDefinitionModel @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+
+  @@map("report_schedules")
+}
+
+model ReportExecutionModel {
+  id                 String   @id @default(uuid())
+  reportDefinitionId String   @map("report_definition_id")
+  status             String
+  format             String
+  fileUrl            String?  @map("file_url")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  reportDefinition   ReportDefinitionModel @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+  sharedLinks        SharedReportLinkModel[]
+
+  @@map("report_executions")
+}
+
+model SharedReportLinkModel {
+  id                String   @id @default(uuid())
+  reportExecutionId String   @map("report_execution_id")
+  token             String   @unique
+  expiresAt         DateTime @map("expires_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  reportExecution   ReportExecutionModel @relation(fields: [reportExecutionId], references: [id], onDelete: Cascade)
+
+  @@map("shared_report_links")
+}

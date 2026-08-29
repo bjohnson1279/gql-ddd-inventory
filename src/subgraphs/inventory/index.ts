@@ -3,6 +3,8 @@ import { startStandaloneServer } from '@apollo/server/standalone';
 import { buildSubgraphSchema } from '@apollo/subgraph';
 import { parse } from 'graphql';
 import { resolvers } from '../../infrastructure/graphql/resolvers';
+import { reportTypeDefs } from '../../infrastructure/graphql/reportTypeDefs';
+import { reportResolvers } from '../../infrastructure/graphql/reportResolvers';
 import { globalPrisma, getTenantPrisma } from '../../infrastructure/persistence/prismaClient';
 import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
@@ -977,7 +979,7 @@ const inventoryResolvers = {
 };
 
 const server = new ApolloServer({
-  schema: buildSubgraphSchema({ typeDefs, resolvers: inventoryResolvers as any }),
+  schema: buildSubgraphSchema([{ typeDefs, resolvers: inventoryResolvers as any }, { typeDefs: reportTypeDefs, resolvers: reportResolvers as any }]),
   formatError: (formattedError: any) => {
     if (process.env.NODE_ENV === 'production') {
       if (formattedError.extensions) {
