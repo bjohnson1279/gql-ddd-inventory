@@ -815,9 +815,23 @@ model SharedReportLinkModel {
   reportExecutionId String   @map("report_execution_id")
   token             String   @unique
   expiresAt         DateTime @map("expires_at")
+  viewerPermissions String?  @map("viewer_permissions")
   createdAt         DateTime @default(now()) @map("created_at")
 
   reportExecution   ReportExecutionModel @relation(fields: [reportExecutionId], references: [id], onDelete: Cascade)
 
   @@map("shared_report_links")
+}
+
+model DashboardWidgetModel {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  type        String
+  config      String   @db.Text
+  layoutX     Int      @default(0) @map("layout_x")
+  layoutY     Int      @default(0) @map("layout_y")
+  width       Int      @default(1)
+  height      Int      @default(1)
+
+  @@map("dashboard_widgets")
 }
