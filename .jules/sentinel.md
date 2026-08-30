@@ -26,3 +26,7 @@
 **Vulnerability:** The federated GraphQL gateway (`src/gateway/index.ts`) was missing depth and complexity limits (`depthLimitRule`, `complexityLimitRule`), unlike the main monolith ApolloServer.
 **Learning:** In a federated GraphQL architecture, it's crucial to enforce query depth and complexity limits at the outermost edge (the gateway) to prevent Denial of Service (DoS) attacks via heavily nested queries before they reach internal subgraphs.
 **Prevention:** Always attach AST validation rules (`depthLimitRule` and `complexityLimitRule`) to the `ApolloServer` instance configuring the `ApolloGateway`.
+## 2025-03-01 - [Missing DoS Guardrails on Subgraphs]
+**Vulnerability:** The federated GraphQL subgraphs (`src/subgraphs/*/*.ts`) were missing depth and complexity limits (`depthLimitRule`, `complexityLimitRule`), unlike the main monolith ApolloServer.
+**Learning:** In a federated GraphQL architecture, it is crucial to enforce query depth and complexity limits on both the gateway and all subgraph servers to prevent Denial of Service (DoS) attacks.
+**Prevention:** Always attach AST validation rules (`depthLimitRule` and `complexityLimitRule`) to the `ApolloServer` instance configuring the subgraphs.

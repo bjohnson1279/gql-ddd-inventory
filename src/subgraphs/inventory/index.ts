@@ -8,6 +8,7 @@ import { reportResolvers } from '../../infrastructure/graphql/reportResolvers';
 import { globalPrisma, getTenantPrisma } from '../../infrastructure/persistence/prismaClient';
 import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
+import { depthLimitRule, complexityLimitRule } from '../../infrastructure/graphql/guardrails';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -980,6 +981,7 @@ const inventoryResolvers = {
 
 const server = new ApolloServer({
   schema: buildSubgraphSchema([{ typeDefs, resolvers: inventoryResolvers as any }, { typeDefs: reportTypeDefs, resolvers: reportResolvers as any }]),
+  validationRules: [depthLimitRule(5), complexityLimitRule(100)],
   formatError: (formattedError: any) => {
     if (process.env.NODE_ENV === 'production') {
       if (formattedError.extensions) {
