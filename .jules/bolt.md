@@ -40,3 +40,11 @@
 ## 2024-05-31 - Fallback Heuristic Complexity Optimization
 **Learning:** In `SlottingOptimizerService.fallbackLocalHeuristic`, there was a nested loop with O(N^2) complexity to find the latest valid swap item based on distance and velocity. Since the array is sorted by velocity, we can precompute the minimum distance suffix array (O(N) time and space) and use two binary searches (one for velocity, one for distance) to reduce the search complexity to O(N log N).
 **Action:** When searching for the rightmost element in a monotonic array that satisfies certain criteria, check if combining sorting with suffix minimum/maximum arrays and binary searches can lower complexity to O(N log N).
+
+## 2024-05-24 - Prevent N+1 queries in Replenishment Evaluation Loops
+**Learning:** `ReplenishmentEvaluator.evaluateRulesForTenant` iterates over all active replenishment rules. If dynamic ROP is enabled, it calls `forecaster.forecastReorderPoint()`. Previously, this forecaster fetched all purchase orders for the tenant from the database inside every loop iteration, leading to an N+1 query problem and severe performance degradation when rules scaled up.
+**Action:** When a service layer iterates over business rules or items, explicitly pass the batch pre-fetched related entities (e.g. `allPos`) down to the downstream services (e.g. `forecastReorderPoint`) to reuse the single initial database query. Note that variables named `openPos` might misleadingly refer to all POs.
+
+## 2024-05-24 - Avoid O(N*M) with Array Filter/Some
+**Learning:** Chaining `Array.filter()` with a nested `Array.some()` lookup inside loops creates expensive O(N*M) scanning bottlenecks, especially across large sets like all Purchase Orders and their Line Items.
+**Action:** Refactor these complex chains into a single `for...of` loop with early `continue/break` conditions to significantly reduce execution time and avoid intermediate array allocations.
