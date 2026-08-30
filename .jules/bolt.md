@@ -40,3 +40,6 @@
 ## 2024-05-31 - Fallback Heuristic Complexity Optimization
 **Learning:** In `SlottingOptimizerService.fallbackLocalHeuristic`, there was a nested loop with O(N^2) complexity to find the latest valid swap item based on distance and velocity. Since the array is sorted by velocity, we can precompute the minimum distance suffix array (O(N) time and space) and use two binary searches (one for velocity, one for distance) to reduce the search complexity to O(N log N).
 **Action:** When searching for the rightmost element in a monotonic array that satisfies certain criteria, check if combining sorting with suffix minimum/maximum arrays and binary searches can lower complexity to O(N log N).
+## 2026-08-30 - Batch Insert Audit Discrepancies
+**Learning:** Inserting records one by one inside a loop in `AuditProcessorService.runAudit` causes N+1 query bottlenecks and slows down auditing.
+**Action:** Always collect records in an array during loop execution and perform a single `createMany` database operation outside the loop to drastically improve performance.
