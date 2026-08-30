@@ -57,7 +57,7 @@ export class ReplenishmentEvaluator {
     const posToSave: PurchaseOrder[] = [];
 
     // Pre-fetch related entities to avoid N+1 queries in the loop
-    const openPos = await this.poRepo.findAllByTenant(tenantId);
+    const allPos = await this.poRepo.findAllByTenant(tenantId); // ⚡ Bolt: Renamed to allPos since it contains all POs (including Received)
     const openTransfers = await this.transferRepo.findAllByTenant(tenantId);
 
     // Batch lookup inventory items
@@ -108,7 +108,8 @@ export class ReplenishmentEvaluator {
             rule.leadTimeDays,
             rule.safetyStock,
             windowDays,
-            tenantId
+            tenantId,
+            allPos // ⚡ Bolt: Pass pre-fetched allPos to prevent N+1 query in forecaster
           );
           rule.updateReorderPoint(forecastedRop);
           rulesToSave.push(rule);
@@ -131,7 +132,7 @@ export class ReplenishmentEvaluator {
         const variantIdStr = variant.id.value;
 
         // 3. Check for existing open/draft Purchase Orders
-        const hasOpenPo = openPos.some((po) => {
+        const hasOpenPo = allPos.some((po) => {
           return (
             po.destinationLocationId.equals(locId) &&
             (po.status === PurchaseOrderStatus.Draft || po.status === PurchaseOrderStatus.Ordered) &&
