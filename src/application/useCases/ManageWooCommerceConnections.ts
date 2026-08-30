@@ -3,7 +3,7 @@ import { IntegrationConnection } from '../../domain/integrations/aggregates/Inte
 import { IntegrationId } from '../../domain/integrations/valueObjects/IntegrationId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { IntegrationPlatform } from '../../domain/integrations/enums/IntegrationEnums';
-import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 
 export class GetWooCommerceConnectionsUseCase {
   constructor(private readonly integrationRepo: IIntegrationRepository) {}
@@ -28,7 +28,7 @@ export class ConnectWooCommerceStoreUseCase {
 
   async execute(params: { tenantId: string; storeUrl: string; consumerKey: string; consumerSecret: string }): Promise<boolean> {
     const connection = new IntegrationConnection(
-      new IntegrationId(uuidv4()),
+      new IntegrationId(crypto.randomUUID()),
       new TenantId(params.tenantId),
       IntegrationPlatform.WooCommerce,
       params.storeUrl,
