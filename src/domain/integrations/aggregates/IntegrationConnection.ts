@@ -12,7 +12,7 @@ export class IntegrationConnection {
     private _isActive: boolean = true
   ) {
     if (platform === IntegrationPlatform.Shopify && !storeDomain.endsWith('.myshopify.com')) {
-        throw new Error('Invalid store domain for Shopify. Must end with .myshopify.com.');
+        throw new Error('Invalid store domain. Must end with .myshopify.com.');
     }
     if (platform === IntegrationPlatform.WooCommerce && !storeDomain.startsWith('http')) {
         throw new Error('Invalid store domain for WooCommerce. Must be a valid URL.');

@@ -1320,6 +1320,73 @@ export const typeDefs = `#graphql
     # Shipping & ERP Sync Mutations
     generateShippingLabel(input: JSON): JSON!
     syncERPJournal(input: JSON): JSON!
+
+    # --- Item 15: Operational Depth ---
+    startCycleCount(tenantId: ID!, name: String!, abcClass: String, zone: String, isBlindCount: Boolean): CycleCount!
+    submitCycleCount(id: ID!, countedLines: JSON!): Boolean!
+    submitASN(tenantId: ID!, poId: ID!, supplierId: ID!, expectedArrivalDate: String!, lines: [ASNLineInput!]!): ASN!
+    markNotificationRead(id: ID!): Boolean!
+  }
+
+  type CycleCount {
+    id: ID!
+    tenantId: ID!
+    name: String!
+    status: String!
+    abcClass: String
+    zone: String
+    isBlindCount: Boolean!
+    assignedTo: ID
+    createdAt: String!
+  }
+
+  type ASN {
+    id: ID!
+    tenantId: ID!
+    poId: ID!
+    supplierId: ID!
+    expectedArrivalDate: String!
+    status: String!
+    lines: [ASNLine!]!
+  }
+
+  type ASNLine {
+    sku: String!
+    quantity: Int!
+  }
+
+  input ASNLineInput {
+    sku: String!
+    quantity: Int!
+  }
+
+  type Notification {
+    id: ID!
+    tenantId: ID!
+    userId: ID!
+    type: String!
+    message: String!
+    isRead: Boolean!
+    createdAt: String!
+  }
+
+  type AgingBucket {
+    bucket: String!
+    sku: String!
+    quantity: Int!
+    value: Float!
+  }
+
+  type AgingReport {
+    generatedAt: String!
+    buckets: [AgingBucket!]!
+  }
+
+  extend type Query {
+    getCycleCounts(tenantId: ID!): [CycleCount!]!
+    getSupplierASNs(tenantId: ID!, supplierId: ID!): [ASN!]!
+    getNotifications(tenantId: ID!, userId: ID!): [Notification!]!
+    generateAgingReport(tenantId: ID!): AgingReport!
   }
 `;
 

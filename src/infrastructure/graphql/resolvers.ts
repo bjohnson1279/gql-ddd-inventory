@@ -1576,11 +1576,24 @@ export const resolvers = {
           destinationAddress,
           strategyName: strategyName as any
         });
-      } catch (error: any) {
-        throw new Error(error.message);
-      }
+        } catch (error: any) {
+          throw new Error(error.message);
+        }
+      },
+    // --- Item 15 Queries ---
+    getCycleCounts: async (_: any, { tenantId }: { tenantId: string }) => {
+      return [];
     },
-  },
+    getSupplierASNs: async (_: any, { tenantId, supplierId }: { tenantId: string; supplierId: string }) => {
+      return [];
+    },
+    getNotifications: async (_: any, { tenantId, userId }: { tenantId: string; userId: string }) => {
+      return [];
+    },
+    generateAgingReport: async (_: any, { tenantId }: { tenantId: string }) => {
+      return { generatedAt: new Date().toISOString(), buckets: [] };
+    }
+    },
   Mutation: {
     createCustomRole: async (_: any, { tenantId, name, description, permissionIds }: any, context: GraphQLContext) => {
       enforcePermission(context, 'user', 'edit_role', tenantId);
@@ -2821,6 +2834,20 @@ export const resolvers = {
         pickerUtilizationRate: 0.88,
         congestionHotspots: ['Aisle 2 - High Velocity Rack', 'Dispatch Dock B']
       };
+    },
+
+    // --- Item 15 Mutations ---
+    startCycleCount: async (_: any, args: any) => {
+      return { id: 'cc-123', tenantId: args.tenantId, name: args.name, status: 'PENDING', isBlindCount: args.isBlindCount || false, createdAt: new Date().toISOString() };
+    },
+    submitCycleCount: async (_: any, { id, countedLines }: any) => {
+      return true;
+    },
+    submitASN: async (_: any, args: any) => {
+      return { id: 'asn-123', tenantId: args.tenantId, poId: args.poId, supplierId: args.supplierId, expectedArrivalDate: args.expectedArrivalDate, status: 'SUBMITTED', lines: args.lines };
+    },
+    markNotificationRead: async (_: any, { id }: any) => {
+      return true;
     }
   },
   Subscription: {
