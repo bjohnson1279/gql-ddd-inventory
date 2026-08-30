@@ -1,6 +1,7 @@
 import { ApolloServer } from '@apollo/server';
 import { buildSubgraphSchema } from '@apollo/subgraph';
 import { parse } from 'graphql';
+import { depthLimitRule, complexityLimitRule } from '../../infrastructure/graphql/guardrails';
 
 export const catalogTypeDefs = parse(`#graphql
   type Product @key(fields: "id") {
@@ -41,6 +42,7 @@ export const catalogResolvers = {
 export function createCatalogSubgraphServer() {
   return new ApolloServer({
     schema: buildSubgraphSchema({ typeDefs: catalogTypeDefs, resolvers: catalogResolvers }),
+    validationRules: [depthLimitRule(5), complexityLimitRule(100)],
     formatError: (formattedError: any) => {
       if (process.env.NODE_ENV === 'production') {
         if (formattedError.extensions) {
