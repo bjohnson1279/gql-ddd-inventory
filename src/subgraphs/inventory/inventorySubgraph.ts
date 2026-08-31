@@ -1,6 +1,7 @@
 import { ApolloServer } from '@apollo/server';
 import { buildSubgraphSchema } from '@apollo/subgraph';
 import { parse } from 'graphql';
+import { depthLimitRule, complexityLimitRule } from '../../infrastructure/graphql/guardrails';
 
 export const inventoryTypeDefs = parse(`#graphql
   type StockLevel @key(fields: "id") {
@@ -41,6 +42,7 @@ export const inventoryResolvers = {
 export function createInventorySubgraphServer() {
   return new ApolloServer({
     schema: buildSubgraphSchema({ typeDefs: inventoryTypeDefs, resolvers: inventoryResolvers }),
+    validationRules: [depthLimitRule(5), complexityLimitRule(100)],
     formatError: (formattedError: any) => {
       if (process.env.NODE_ENV === 'production') {
         if (formattedError.extensions) {
