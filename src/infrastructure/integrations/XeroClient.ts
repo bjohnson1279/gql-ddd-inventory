@@ -34,8 +34,6 @@ export class XeroClient implements IXeroClient {
 
     const url = `${baseUrl}/ManualJournals`;
 
-    console.log("[XeroClient] publishJournalEntry", { url, payload: xeroPayload });
-
     const response = await fetch(url, {
       method: "POST",
       headers: {
