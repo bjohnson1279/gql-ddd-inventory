@@ -25,7 +25,13 @@ async function startGateway() {
   const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
   const allowedOrigins = allowedOriginsRaw === '*'
     ? '*'
-    : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean);
+    : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean).map(o => {
+        try {
+          return new URL(o).origin;
+        } catch {
+          throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${o}`);
+        }
+      });
 
   const subgraphs = [
     { name: 'inventory', url: process.env.INVENTORY_SUBGRAPH_URL || 'http://localhost:4001/graphql' },
