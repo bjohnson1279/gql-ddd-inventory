@@ -89,7 +89,6 @@ export class TenantProvisioner {
     }
 
     await this.dropDatabase(entry.dbName);
-    console.log(`[TenantProvisioner] Dropped database "${entry.dbName}".`);
 
     await this.registry.deprovisionTenant(tenantId);
     console.log(`[TenantProvisioner] Tenant "${tenantId}" deprovisioned.`);
