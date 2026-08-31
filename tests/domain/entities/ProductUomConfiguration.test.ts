@@ -114,6 +114,24 @@ describe('ProductUomConfiguration', () => {
     });
   });
 
+  describe('assertUnitIsKnown (private)', () => {
+    it('does not throw for the base unit', () => {
+      const config = new ProductUomConfiguration(testSku, baseDiscrete);
+      expect(() => (config as any).assertUnitIsKnown(baseDiscrete)).not.toThrow();
+    });
+
+    it('does not throw for a unit with a defined conversion rule', () => {
+      const config = new ProductUomConfiguration(testSku, baseDiscrete);
+      config.addConversionRule(dozen, 12);
+      expect(() => (config as any).assertUnitIsKnown(dozen)).not.toThrow();
+    });
+
+    it('throws an error for an unregistered unit', () => {
+      const config = new ProductUomConfiguration(testSku, baseDiscrete);
+      expect(() => (config as any).assertUnitIsKnown(otherDiscrete)).toThrow('Unit Box has no conversion rule defined.');
+    });
+  });
+
   describe('factorToBase', () => {
     it('returns 1.0 for the base unit', () => {
       const config = new ProductUomConfiguration(testSku, baseDiscrete);
