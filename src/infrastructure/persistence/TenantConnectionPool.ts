@@ -160,8 +160,6 @@ export class TenantConnectionPool {
     const adapter = new PrismaPg(pool);
     const prisma = new PrismaClient({ adapter } as any);
 
-    console.log(`[TenantConnectionPool] Created connection for tenant "${entry.tenantId}" (database: "${entry.dbName}").`);
-
     return {
       prisma,
       pool,
