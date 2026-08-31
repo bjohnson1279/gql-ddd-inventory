@@ -213,10 +213,6 @@ export class TenantConnectionPool {
       for (const key of toEvict) {
         await this.evict(key);
       }
-
-      if (toEvict.length > 0) {
-        console.log(`[TenantConnectionPool] Evicted ${toEvict.length} idle connections (${this.cache.size} remaining).`);
-      }
     }, this.evictionIntervalMs);
   }
 }
