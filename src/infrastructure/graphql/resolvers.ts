@@ -2463,12 +2463,12 @@ export const resolvers = {
           skipDuplicates: true
         });
 
-        const email = adminEmail.toLowerCase().trim();
-        const existing = await prisma.user.findFirst({
-          where: { tenantId, email }
+        const normalizedEmail = adminEmail.toLowerCase().trim();
+        const existingAdmin = await prisma.user.findFirst({
+          where: { tenantId, email: normalizedEmail }
         });
-        if (existing) {
-          throw new Error(`Admin user with email ${email} already exists for tenant.`);
+        if (existingAdmin) {
+          throw new Error(`Admin user with email ${normalizedEmail} already exists for tenant.`);
         }
 
         const adminId = crypto.randomUUID();
@@ -2477,7 +2477,7 @@ export const resolvers = {
           data: {
             id: adminId,
             tenantId,
-            email,
+            email: normalizedEmail,
             passwordHash,
             name: adminName,
             active: true
