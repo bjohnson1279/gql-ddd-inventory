@@ -85,7 +85,6 @@ export class TenantProvisioner {
       `);
     } catch (err: any) {
       // Non-fatal — tenant DB may already be disconnected
-      console.log(`[TenantProvisioner] Could not terminate connections to "${entry.dbName}":`, err.message);
     }
 
     await this.dropDatabase(entry.dbName);
