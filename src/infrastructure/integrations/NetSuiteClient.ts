@@ -40,8 +40,6 @@ export class NetSuiteClient implements INetSuiteClient {
 
     const url = `${baseUrl}/journalEntry`;
 
-    console.log("[NetSuiteClient] publishJournalEntry", { url, payload: nsPayload });
-
     const response = await fetch(url, {
       method: "POST",
       headers: {
