@@ -145,7 +145,6 @@ export class TenantConnectionPool {
       await this.disconnectEntry(entry);
     }
     this.cache.clear();
-    console.log('[TenantConnectionPool] All connections closed.');
   }
 
   // ──────────────────────────────────────────────
