@@ -175,7 +175,6 @@ export class TenantConnectionPool {
     try {
       await entry.prisma.$disconnect();
       await entry.pool.end();
-      console.log(`[TenantConnectionPool] Disconnected tenant "${entry.tenantId}".`);
     } catch (err: any) {
       console.error(`[TenantConnectionPool] Error disconnecting tenant "${entry.tenantId}":`, err.message);
     }
