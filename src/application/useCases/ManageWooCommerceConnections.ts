@@ -3,7 +3,8 @@ import { IntegrationConnection } from '../../domain/integrations/aggregates/Inte
 import { IntegrationId } from '../../domain/integrations/valueObjects/IntegrationId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { IntegrationPlatform } from '../../domain/integrations/enums/IntegrationEnums';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
+const uuidv4 = () => crypto.randomUUID();
 
 export class GetWooCommerceConnectionsUseCase {
   constructor(private readonly integrationRepo: IIntegrationRepository) {}
