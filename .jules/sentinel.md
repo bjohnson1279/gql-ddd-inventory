@@ -30,3 +30,7 @@
 **Vulnerability:** The federated GraphQL subgraphs (`src/subgraphs/*/*.ts`) were missing depth and complexity limits (`depthLimitRule`, `complexityLimitRule`), unlike the main monolith ApolloServer.
 **Learning:** In a federated GraphQL architecture, it is crucial to enforce query depth and complexity limits on both the gateway and all subgraph servers to prevent Denial of Service (DoS) attacks.
 **Prevention:** Always attach AST validation rules (`depthLimitRule` and `complexityLimitRule`) to the `ApolloServer` instance configuring the subgraphs.
+## 2024-05-23 - [Refactored Fetch Timeout to Native AbortSignal]
+**Vulnerability:** Legacy HTTP timeout handling using `AbortController` and `setTimeout` without clearing timers properly can lead to memory leaks and resource exhaustion (tarpit attacks) when fetch operations hang in high-throughput node applications.
+**Learning:** Native `AbortSignal.timeout(ms)` resolves this entirely by relying on Node's internal unrefed timers. Manual timer clearing is error-prone.
+**Prevention:** Always use `AbortSignal.timeout(ms)` for native fetch requests rather than instantiating manual `AbortController` and `setTimeout` timers.
