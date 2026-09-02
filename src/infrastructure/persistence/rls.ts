@@ -40,7 +40,6 @@ export async function enableRowLevelSecurity(prisma: PrismaClient): Promise<void
         CREATE POLICY tenant_isolation ON ${Prisma.raw(`"${table}"`)}
         USING ("tenant_id" = current_setting('app.current_tenant_id', true));
       `;
-      console.log(`Successfully enabled RLS on table "${table}".`);
     } catch (err: any) {
       console.log(`[RLS Setup Warning] Could not enable RLS on table "${table}":`, err.message);
     }
