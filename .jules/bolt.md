@@ -55,3 +55,7 @@
 **Learning:** In TypeScript/Node.js, chaining `.map()` and `.filter()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
 **Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N) when performance is critical.
 origin/main
+
+## 2026-09-02 - Optimize array iteration
+**Learning:** Chaining .filter(), .reduce(), and a for-loop over large ledger entry arrays creates O(N) redundant iterations and unnecessary array allocations.
+**Action:** Consolidate data filtering, reduction, and indexing into a single for-loop to avoid intermediate array allocations and reduce iteration overhead to O(N).
