@@ -46,6 +46,7 @@ export class TenantProvisioner {
       // 5. Mark tenant as ACTIVE
       await this.registry.updateStatus(tenantId, 'ACTIVE');
       await this.registry.updateMigratedVersion(tenantId, '1');
+
       return dbName;
 
     } catch (err: any) {
