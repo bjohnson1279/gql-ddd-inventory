@@ -30,3 +30,7 @@
 **Vulnerability:** The federated GraphQL subgraphs (`src/subgraphs/*/*.ts`) were missing depth and complexity limits (`depthLimitRule`, `complexityLimitRule`), unlike the main monolith ApolloServer.
 **Learning:** In a federated GraphQL architecture, it is crucial to enforce query depth and complexity limits on both the gateway and all subgraph servers to prevent Denial of Service (DoS) attacks.
 **Prevention:** Always attach AST validation rules (`depthLimitRule` and `complexityLimitRule`) to the `ApolloServer` instance configuring the subgraphs.
+## 2024-03-05 - [Strict CORS Origin Validation]
+**Vulnerability:** Allowed CORS origins parsed from environment variables used simple string manipulation (`split` and `trim`), which could allow malformed or unexpected URLs to bypass validation.
+**Learning:** When parsing allowed CORS origins from environment variables, relying on string manipulation is insufficient and can lead to overly permissive CORS configurations if an attacker provides a malformed URL that happens to contain the expected substring or bypasses simple matching logic.
+**Prevention:** Strictly validate and normalize each origin using the `new URL(origin).origin` constructor. Explicitly throw an error if the URL is malformed or invalid to enforce a fail-closed posture and prevent bypasses.
