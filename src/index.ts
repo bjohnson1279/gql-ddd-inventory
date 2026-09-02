@@ -168,6 +168,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
   const allowedOrigins = allowedOriginsRaw === '*'
     ? '*'
+<<<<<<< HEAD
     : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean).map(o => {
         try {
           return new URL(o).origin;
@@ -175,6 +176,17 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
           throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${o}`);
         }
       });
+=======
+    : allowedOriginsRaw.split(',').map(o => {
+        const trimmed = o.trim();
+        if (!trimmed) return null;
+        try {
+          return new URL(trimmed).origin;
+        } catch (e) {
+          throw new Error(`FATAL ERROR: Invalid CORS origin in ALLOWED_ORIGINS: ${trimmed}`);
+        }
+      }).filter(Boolean) as string[];
+>>>>>>> origin/main
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
