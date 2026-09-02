@@ -41,21 +41,35 @@ describe('LifoCostingStrategy', () => {
         createLayer('layer2', 10, 150, new Date('2023-01-02')),
         createLayer('layer3', 10, 200, new Date('2023-01-03'))
       ];
+<<<<<<< HEAD
       // Expect 10 from layer3 and 2 from layer2
       const breakdown = strategy.calculateCost(layers, 12, variantId);
       expect(breakdown.quantity).toBe(12);
       expect(breakdown.totalCostCents).toBe(2300); // 10*200 + 2*150 = 2000 + 300 = 2300
+=======
+      const breakdown = strategy.calculateCost(layers, 12, variantId);
+      expect(breakdown.quantity).toBe(12);
+      expect(breakdown.totalCostCents).toBe(2300); // 10*200 (layer3) + 2*150 (layer2)
+>>>>>>> origin/main
     });
 
     it('should calculate cost accounting for already consumed quantities', () => {
       const layers = [
         createLayer('layer1', 10, 100, new Date('2023-01-01')),
+<<<<<<< HEAD
         createLayer('layer2', 10, 150, new Date('2023-01-02'), 4) // 6 remaining
       ];
       // Will take 6 from layer2 (newest) and 2 from layer1
       const breakdown = strategy.calculateCost(layers, 8, variantId);
       expect(breakdown.quantity).toBe(8);
       expect(breakdown.totalCostCents).toBe(1100); // 6*150 + 2*100 = 900 + 200 = 1100
+=======
+        createLayer('layer2', 10, 150, new Date('2023-01-02'), 4)
+      ];
+      const breakdown = strategy.calculateCost(layers, 8, variantId);
+      expect(breakdown.quantity).toBe(8);
+      expect(breakdown.totalCostCents).toBe(1100); // 6*150 (layer2) + 2*100 (layer1)
+>>>>>>> origin/main
     });
 
     it('should throw an error if there are insufficient cost layers', () => {
@@ -78,11 +92,16 @@ describe('LifoCostingStrategy', () => {
   });
 
   describe('consumeLayers', () => {
+<<<<<<< HEAD
     it('should consume layers and return breakdown and sorted layers in LIFO order', () => {
+=======
+    it('should consume layers in LIFO order and return breakdown and sorted layers', () => {
+>>>>>>> origin/main
       const layers = [
         createLayer('layer1', 5, 100, new Date('2023-01-01')),
         createLayer('layer2', 10, 150, new Date('2023-01-02'))
       ];
+<<<<<<< HEAD
       // Takes 7 from layer2 (newest), leaving 3 in layer2 and 5 in layer1
       const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 7, variantId);
       expect(breakdown.quantity).toBe(7);
@@ -93,6 +112,18 @@ describe('LifoCostingStrategy', () => {
 
       expect(sortedLayers[1].id.value).toBe('layer1');
       expect(sortedLayers[1].remainingQuantity()).toBe(5);
+=======
+      const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 12, variantId);
+      expect(breakdown.quantity).toBe(12);
+      expect(breakdown.totalCostCents).toBe(1700); // 10*150 (layer2) + 2*100 (layer1)
+      expect(breakdown.averageUnitCostCents).toBe(142);
+
+      expect(sortedLayers[0].id.value).toBe('layer2');
+      expect(sortedLayers[0].remainingQuantity()).toBe(0);
+
+      expect(sortedLayers[1].id.value).toBe('layer1');
+      expect(sortedLayers[1].remainingQuantity()).toBe(3);
+>>>>>>> origin/main
     });
 
     it('should throw an error if there are insufficient cost layers to consume', () => {
@@ -110,10 +141,17 @@ describe('LifoCostingStrategy', () => {
         createLayer('layer2', 10, 150, new Date('2023-01-02')),
         createLayer('layer3', 10, 200, new Date('2023-01-03'))
       ];
+<<<<<<< HEAD
       // Will consume 7 from layer3 (newest). Layer2 and Layer1 remain untouched.
       const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 7, variantId);
       expect(breakdown.quantity).toBe(7);
       expect(breakdown.totalCostCents).toBe(1400); // 7*200 = 1400
+=======
+      // Need 7. Should consume 7 of layer3 and stop.
+      const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 7, variantId);
+      expect(breakdown.quantity).toBe(7);
+      expect(breakdown.totalCostCents).toBe(1400); // 7*200
+>>>>>>> origin/main
 
       expect(sortedLayers[0].id.value).toBe('layer3');
       expect(sortedLayers[0].remainingQuantity()).toBe(3);
@@ -135,4 +173,8 @@ describe('LifoCostingStrategy', () => {
       expect(sortedLayers[0].remainingQuantity()).toBe(10);
     });
   });
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> origin/main
