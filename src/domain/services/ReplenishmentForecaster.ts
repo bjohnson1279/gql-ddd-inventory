@@ -33,16 +33,20 @@ export class DemandVelocityCalculator {
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - windowDays);
+    const startDateCleanTime = startDate.getTime();
 
-    const salesEntries = entries.filter((e) => {
-      return (
-        e.occurredAt >= startDate &&
+    let totalQuantity = 0;
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      if (
         e.quantity < 0 &&
-        (e.reason === ReasonCode.Sale || e.reason === ReasonCode.KitSale)
-      );
-    });
+        (e.reason === ReasonCode.Sale || e.reason === ReasonCode.KitSale) &&
+        e.occurredAt.getTime() >= startDateCleanTime
+      ) {
+        totalQuantity -= e.quantity;
+      }
+    }
 
-    const totalQuantity = salesEntries.reduce((sum, e) => sum + Math.abs(e.quantity), 0);
     return totalQuantity / windowDays;
   }
 
@@ -67,31 +71,38 @@ export class DemandVelocityCalculator {
     startDate.setDate(startDate.getDate() - windowDays);
     const startDateClean = new Date(startDate);
     startDateClean.setHours(0, 0, 0, 0);
-
-    const salesEntries = entries.filter((e) => {
-      return (
-        e.occurredAt >= startDateClean &&
-        e.quantity < 0 &&
-        (e.reason === ReasonCode.Sale || e.reason === ReasonCode.KitSale)
-      );
-    });
-
-    const totalQuantity = salesEntries.reduce((sum, e) => sum + Math.abs(e.quantity), 0);
-    const average = totalQuantity / windowDays;
+    const startDateCleanTime = startDateClean.getTime();
 
     const dailyQuantities = new Array(windowDays).fill(0);
     const msInDay = 24 * 60 * 60 * 1000;
     const todayClean = new Date();
     todayClean.setHours(23, 59, 59, 999);
+    const todayCleanTime = todayClean.getTime();
 
-    for (const entry of salesEntries) {
-      const diffMs = todayClean.getTime() - entry.occurredAt.getTime();
-      const dayOffset = Math.floor(diffMs / msInDay);
-      const dayIndex = windowDays - 1 - dayOffset;
-      if (dayIndex >= 0 && dayIndex < windowDays) {
-        dailyQuantities[dayIndex] += Math.abs(entry.quantity);
+    let totalQuantity = 0;
+
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      if (
+        e.quantity < 0 &&
+        (e.reason === ReasonCode.Sale || e.reason === ReasonCode.KitSale)
+      ) {
+        const occurredAtTime = e.occurredAt.getTime();
+        if (occurredAtTime >= startDateCleanTime) {
+          const absQty = -e.quantity;
+          totalQuantity += absQty;
+
+          const diffMs = todayCleanTime - occurredAtTime;
+          const dayOffset = Math.floor(diffMs / msInDay);
+          const dayIndex = windowDays - 1 - dayOffset;
+          if (dayIndex >= 0 && dayIndex < windowDays) {
+            dailyQuantities[dayIndex] += absQty;
+          }
+        }
       }
     }
+
+    const average = totalQuantity / windowDays;
 
     const varianceSum = dailyQuantities.reduce((sum, qty) => sum + Math.pow(qty - average, 2), 0);
     const stdDev = Math.sqrt(varianceSum / windowDays);
