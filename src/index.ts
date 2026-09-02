@@ -175,14 +175,6 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
           throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${o}`);
         }
       });
-    : allowedOriginsRaw.split(',').map(o => {
-        const trimmed = o.trim();
-        if (!trimmed) return null;
-          return new URL(trimmed).origin;
-        } catch (e) {
-          throw new Error(`FATAL ERROR: Invalid CORS origin in ALLOWED_ORIGINS: ${trimmed}`);
-        }
-      }).filter(Boolean) as string[];
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
@@ -237,7 +229,6 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       },
     })
   );
-}
 
 async function startApolloServer() {
   // Initialize tenant isolation based on configured mode
@@ -322,3 +313,4 @@ process.on('SIGINT', async () => {
   }
   process.exit(0);
 });
+}

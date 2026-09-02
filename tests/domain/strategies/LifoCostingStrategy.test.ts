@@ -45,7 +45,6 @@ describe('LifoCostingStrategy', () => {
       const breakdown = strategy.calculateCost(layers, 12, variantId);
       expect(breakdown.quantity).toBe(12);
       expect(breakdown.totalCostCents).toBe(2300); // 10*200 + 2*150 = 2000 + 300 = 2300
-      expect(breakdown.totalCostCents).toBe(2300); // 10*200 (layer3) + 2*150 (layer2)
     });
 
     it('should calculate cost accounting for already consumed quantities', () => {
@@ -57,8 +56,6 @@ describe('LifoCostingStrategy', () => {
       const breakdown = strategy.calculateCost(layers, 8, variantId);
       expect(breakdown.quantity).toBe(8);
       expect(breakdown.totalCostCents).toBe(1100); // 6*150 + 2*100 = 900 + 200 = 1100
-        createLayer('layer2', 10, 150, new Date('2023-01-02'), 4)
-      expect(breakdown.totalCostCents).toBe(1100); // 6*150 (layer2) + 2*100 (layer1)
     });
 
     it('should throw an error if there are insufficient cost layers', () => {
@@ -81,7 +78,6 @@ describe('LifoCostingStrategy', () => {
   });
 
   describe('consumeLayers', () => {
-    it('should consume layers and return breakdown and sorted layers in LIFO order', () => {
     it('should consume layers in LIFO order and return breakdown and sorted layers', () => {
       const layers = [
         createLayer('layer1', 5, 100, new Date('2023-01-01')),
@@ -97,6 +93,13 @@ describe('LifoCostingStrategy', () => {
 
       expect(sortedLayers[1].id.value).toBe('layer1');
       expect(sortedLayers[1].remainingQuantity()).toBe(5);
+    });
+
+    it('should calculate breakdown and sorted layers correctly for multi-layer consumption', () => {
+      const layers = [
+        createLayer('layer1', 5, 100, new Date('2023-01-01')),
+        createLayer('layer2', 10, 150, new Date('2023-01-02'))
+      ];
       const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 12, variantId);
       expect(breakdown.quantity).toBe(12);
       expect(breakdown.totalCostCents).toBe(1700); // 10*150 (layer2) + 2*100 (layer1)
@@ -126,8 +129,6 @@ describe('LifoCostingStrategy', () => {
       const { breakdown, sortedLayers } = strategy.consumeLayers(layers, 7, variantId);
       expect(breakdown.quantity).toBe(7);
       expect(breakdown.totalCostCents).toBe(1400); // 7*200 = 1400
-      // Need 7. Should consume 7 of layer3 and stop.
-      expect(breakdown.totalCostCents).toBe(1400); // 7*200
 
       expect(sortedLayers[0].id.value).toBe('layer3');
       expect(sortedLayers[0].remainingQuantity()).toBe(3);
