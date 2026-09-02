@@ -40,7 +40,6 @@ export class TenantProvisioner {
 
       // 3. Connect to the new database and run DDL migrations
       await this.runMigrationsOnTenantDb(entry);
-      console.log(`[TenantProvisioner] Migrations complete for database "${dbName}".`);
 
       // 4. Seed default data
       await this.seedDefaultsOnTenantDb(entry, tenantId);
@@ -49,7 +48,6 @@ export class TenantProvisioner {
       await this.registry.updateStatus(tenantId, 'ACTIVE');
       await this.registry.updateMigratedVersion(tenantId, '1');
 
-      console.log(`[TenantProvisioner] Tenant "${tenantId}" is now ACTIVE.`);
       return dbName;
 
     } catch (err: any) {
