@@ -117,7 +117,6 @@ export class TenantConnectionPool {
       })
     );
 
-    console.log(`[TenantConnectionPool] Warmed ${warmed} tenant connections (${this.cache.size} total cached).`);
     return warmed;
   }
 
@@ -145,7 +144,6 @@ export class TenantConnectionPool {
       await this.disconnectEntry(entry);
     }
     this.cache.clear();
-    console.log('[TenantConnectionPool] All connections closed.');
   }
 
   // ──────────────────────────────────────────────
@@ -159,8 +157,6 @@ export class TenantConnectionPool {
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
     const prisma = new PrismaClient({ adapter } as any);
-
-    console.log(`[TenantConnectionPool] Created connection for tenant "${entry.tenantId}" (database: "${entry.dbName}").`);
 
     return {
       prisma,
@@ -194,7 +190,6 @@ export class TenantConnectionPool {
     if (oldestKey && oldest) {
       await this.disconnectEntry(oldest);
       this.cache.delete(oldestKey);
-      console.log(`[TenantConnectionPool] Evicted LRU tenant "${oldestKey}".`);
     }
   }
 
@@ -211,10 +206,6 @@ export class TenantConnectionPool {
 
       for (const key of toEvict) {
         await this.evict(key);
-      }
-
-      if (toEvict.length > 0) {
-        console.log(`[TenantConnectionPool] Evicted ${toEvict.length} idle connections (${this.cache.size} remaining).`);
       }
     }, this.evictionIntervalMs);
   }
