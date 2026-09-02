@@ -44,7 +44,6 @@ export class TenantProvisioner {
 
       // 4. Seed default data
       await this.seedDefaultsOnTenantDb(entry, tenantId);
-      console.log(`[TenantProvisioner] Default data seeded in database "${dbName}".`);
 
       // 5. Mark tenant as ACTIVE
       await this.registry.updateStatus(tenantId, 'ACTIVE');
