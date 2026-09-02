@@ -40,16 +40,12 @@ export class SlottingOptimizerService {
     inventory: InventoryItemLocation[],
     dispatches: DispatchRecord[]
   ): Promise<SlottingRecommendation[]> {
-    const controller = new AbortController();
-    const timeoutMs = 2000;
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
     try {
       const response = await fetch(`${this.sidecarUrl}/optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ locations, inventory, dispatches }),
-        signal: controller.signal,
+        signal: AbortSignal.timeout(2000),
       });
 
       if (!response.ok) {
@@ -60,8 +56,6 @@ export class SlottingOptimizerService {
     } catch (error) {
       console.warn('Python sidecar unavailable, fallback to local heuristic:', error);
       return this.fallbackLocalHeuristic(locations, inventory, dispatches);
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 
