@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-import { generateTraceId, runWithTrace, getTraceId } from "../../../src/infrastructure/telemetry/traceContext";
+import { runWithTrace, getTraceId, generateTraceId } from "../../../src/infrastructure/telemetry/traceContext";
 
 describe("traceContext", () => {
   describe("generateTraceId", () => {
@@ -14,33 +13,6 @@ describe("traceContext", () => {
       const id1 = generateTraceId();
       const id2 = generateTraceId();
       expect(id1).not.toEqual(id2);
-    });
-  });
-
-  describe("runWithTrace and getTraceId", () => {
-    it("should allow getting the trace ID within the run context", () => {
-      const testTraceId = generateTraceId();
-      let retrievedId: string | undefined;
-
-      runWithTrace(testTraceId, () => {
-        retrievedId = getTraceId();
-      });
-
-      expect(retrievedId).toBe(testTraceId);
-    });
-
-    it("should return an empty string when called outside of a trace context", () => {
-      const retrievedId = getTraceId();
-      expect(retrievedId).toBe("");
-=======
-import { runWithTrace, getTraceId, generateTraceId } from "../../../src/infrastructure/telemetry/traceContext";
-
-describe("traceContext", () => {
-  describe("generateTraceId", () => {
-    it("should return a string", () => {
-      const traceId = generateTraceId();
-      expect(typeof traceId).toBe("string");
-      expect(traceId.length).toBeGreaterThan(0);
     });
   });
 
@@ -79,7 +51,6 @@ describe("traceContext", () => {
 
         expect(getTraceId()).toBe(outerTraceId);
       });
->>>>>>> origin/main
     });
   });
 });
