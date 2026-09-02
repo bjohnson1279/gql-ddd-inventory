@@ -25,7 +25,6 @@ async function startGateway() {
   const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
   const allowedOrigins = allowedOriginsRaw === '*'
     ? '*'
-<<<<<<< HEAD
     : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean).map(o => {
         try {
           return new URL(o).origin;
@@ -33,17 +32,6 @@ async function startGateway() {
           throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${o}`);
         }
       });
-=======
-    : allowedOriginsRaw.split(',').map(o => {
-        const trimmed = o.trim();
-        if (!trimmed) return null;
-        try {
-          return new URL(trimmed).origin;
-        } catch (e) {
-          throw new Error(`FATAL ERROR: Invalid CORS origin in ALLOWED_ORIGINS: ${trimmed}`);
-        }
-      }).filter(Boolean) as string[];
->>>>>>> origin/main
 
   const subgraphs = [
     { name: 'inventory', url: process.env.INVENTORY_SUBGRAPH_URL || 'http://localhost:4001/graphql' },
