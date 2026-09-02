@@ -1,3 +1,4 @@
+import { PurchaseOrder } from '../entities/PurchaseOrder';
 import { ILedgerRepository } from '../repositories/ILedgerRepository';
 import { IProductRepository } from '../repositories/IProductRepository';
 import { IPurchaseOrderRepository } from '../repositories/IPurchaseOrderRepository';
@@ -112,7 +113,8 @@ export class ReorderPointForecaster {
     leadTimeDays: number,
     safetyStock: number,
     windowDays: number = 30,
-    tenantId?: TenantId
+    tenantId?: TenantId,
+    preFetchedPos?: PurchaseOrder[]
   ): Promise<number> {
     // 1. Calculate daily sales average and standard deviation
     const salesStats = await this.velocityCalculator.calculateDailySalesStats(sku, locationId, windowDays);
@@ -130,26 +132,35 @@ export class ReorderPointForecaster {
           const ruleLocIdStr = getLocIdStr(locationId);
           const ruleVarId = typeof variant.id === 'string' ? variant.id : (variant.id && 'value' in variant.id ? variant.id.value : '');
 
-          const allPos = await this.poRepo.findAllByTenant(tenantId);
-          // Filter received POs containing this variant at this location
-          let receivedPos = allPos.filter((po) =>
-            po.status === PurchaseOrderStatus.Received &&
-            getLocIdStr(po.destinationLocationId) === ruleLocIdStr &&
-            po.items.some((item) => {
-              const itemVarId = typeof item.variantId === 'string' ? item.variantId : (item.variantId && 'value' in item.variantId ? item.variantId.value : '');
-              return itemVarId === ruleVarId;
-            })
-          );
+          // ⚡ Bolt: Use preFetchedPos to prevent N+1 query when evaluated in a loop
+          const allPos = preFetchedPos || await this.poRepo.findAllByTenant(tenantId);
 
-          // Fallback: search across all locations for this tenant if none at destination location
+          let receivedPos = [];
+          let fallbackReceivedPos = [];
+
+          // ⚡ Bolt: Single pass iteration instead of multiple filters and some() to avoid O(N*M) lookups
+          for (const po of allPos) {
+            if (po.status !== PurchaseOrderStatus.Received) continue;
+
+            let hasVariant = false;
+            for (const item of po.items) {
+              const itemVarId = typeof item.variantId === 'string' ? item.variantId : (item.variantId && 'value' in item.variantId ? item.variantId.value : '');
+              if (itemVarId === ruleVarId) {
+                hasVariant = true;
+                break;
+              }
+            }
+
+            if (hasVariant) {
+              fallbackReceivedPos.push(po);
+              if (getLocIdStr(po.destinationLocationId) === ruleLocIdStr) {
+                receivedPos.push(po);
+              }
+            }
+          }
+
           if (receivedPos.length === 0) {
-            receivedPos = allPos.filter((po) =>
-              po.status === PurchaseOrderStatus.Received &&
-              po.items.some((item) => {
-                const itemVarId = typeof item.variantId === 'string' ? item.variantId : (item.variantId && 'value' in item.variantId ? item.variantId.value : '');
-                return itemVarId === ruleVarId;
-              })
-            );
+            receivedPos = fallbackReceivedPos;
           }
 
           if (receivedPos.length > 0) {

@@ -6,6 +6,7 @@ import { resolvers } from '../../infrastructure/graphql/resolvers';
 import { globalPrisma, getTenantPrisma } from '../../infrastructure/persistence/prismaClient';
 import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
+import { depthLimitRule, complexityLimitRule } from '../../infrastructure/graphql/guardrails';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -148,6 +149,7 @@ const typeDefs = parse(`
 
 const server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers: resolvers as any }),
+  validationRules: [depthLimitRule(5), complexityLimitRule(100)],
   formatError: (formattedError: any) => {
     if (process.env.NODE_ENV === 'production') {
       if (formattedError.extensions) {

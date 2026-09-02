@@ -43,3 +43,15 @@
 ## 2026-08-30 - Batch Insert Audit Discrepancies
 **Learning:** Inserting records one by one inside a loop in `AuditProcessorService.runAudit` causes N+1 query bottlenecks and slows down auditing.
 **Action:** Always collect records in an array during loop execution and perform a single `createMany` database operation outside the loop to drastically improve performance.
+
+## 2024-05-24 - Prevent N+1 queries in Replenishment Evaluation Loops
+**Learning:** `ReplenishmentEvaluator.evaluateRulesForTenant` iterates over all active replenishment rules. If dynamic ROP is enabled, it calls `forecaster.forecastReorderPoint()`. Previously, this forecaster fetched all purchase orders for the tenant from the database inside every loop iteration, leading to an N+1 query problem and severe performance degradation when rules scaled up.
+**Action:** When a service layer iterates over business rules or items, explicitly pass the batch pre-fetched related entities (e.g. `allPos`) down to the downstream services (e.g. `forecastReorderPoint`) to reuse the single initial database query. Note that variables named `openPos` might misleadingly refer to all POs.
+
+## 2024-05-24 - Avoid O(N*M) with Array Filter/Some
+**Learning:** Chaining `Array.filter()` with a nested `Array.some()` lookup inside loops creates expensive O(N*M) scanning bottlenecks, especially across large sets like all Purchase Orders and their Line Items.
+**Action:** Refactor these complex chains into a single `for...of` loop with early `continue/break` conditions to significantly reduce execution time and avoid intermediate array allocations.
+## $(date +%Y-%m-%d) - [Optimize PutawaySuggester multi-pass iteration]
+**Learning:** In TypeScript/Node.js, chaining `.map()` and `.filter()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N) when performance is critical.
+origin/main
