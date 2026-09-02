@@ -25,7 +25,15 @@ async function startGateway() {
   const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
   const allowedOrigins = allowedOriginsRaw === '*'
     ? '*'
-    : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean);
+    : allowedOriginsRaw.split(',').map(o => {
+        const trimmed = o.trim();
+        if (!trimmed) return null;
+        try {
+          return new URL(trimmed).origin;
+        } catch (e) {
+          throw new Error(`FATAL ERROR: Invalid CORS origin in ALLOWED_ORIGINS: ${trimmed}`);
+        }
+      }).filter(Boolean) as string[];
 
   const subgraphs = [
     { name: 'inventory', url: process.env.INVENTORY_SUBGRAPH_URL || 'http://localhost:4001/graphql' },
