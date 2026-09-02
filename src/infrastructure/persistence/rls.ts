@@ -19,8 +19,6 @@ export const rlsTables = [
 ];
 
 export async function enableRowLevelSecurity(prisma: PrismaClient): Promise<void> {
-  console.log("Setting up PostgreSQL Row-Level Security (RLS) policies for GraphQL backend...");
-
   const ALLOWED_TABLES = new Set(rlsTables);
 
   for (const table of rlsTables) {
@@ -41,7 +39,7 @@ export async function enableRowLevelSecurity(prisma: PrismaClient): Promise<void
         USING ("tenant_id" = current_setting('app.current_tenant_id', true));
       `;
     } catch (err: any) {
-      console.log(`[RLS Setup Warning] Could not enable RLS on table "${table}":`, err.message);
+      console.warn(`[RLS Setup Warning] Could not enable RLS on table "${table}":`, err.message);
     }
   }
 }
