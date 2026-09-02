@@ -48,3 +48,6 @@
 ## 2024-05-24 - Avoid O(N*M) with Array Filter/Some
 **Learning:** Chaining `Array.filter()` with a nested `Array.some()` lookup inside loops creates expensive O(N*M) scanning bottlenecks, especially across large sets like all Purchase Orders and their Line Items.
 **Action:** Refactor these complex chains into a single `for...of` loop with early `continue/break` conditions to significantly reduce execution time and avoid intermediate array allocations.
+## $(date +%Y-%m-%d) - [Optimize PutawaySuggester multi-pass iteration]
+**Learning:** In TypeScript/Node.js, chaining `.map()` and `.filter()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N) when performance is critical.
