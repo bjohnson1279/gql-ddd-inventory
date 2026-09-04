@@ -124,10 +124,11 @@ export class TenantConnectionPool {
    * Get current pool statistics.
    */
   getStats(): { size: number; maxSize: number; tenantIds: string[] } {
+    const tenantIds = Array.from(this.cache.keys());
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
-      tenantIds: Array.from(this.cache.keys()),
+      tenantIds,
     };
   }
 

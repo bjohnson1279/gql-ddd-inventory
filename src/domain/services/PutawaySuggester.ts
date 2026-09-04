@@ -103,46 +103,57 @@ export class PutawaySuggester {
       }
     }
 
-    // For each location, calculate remaining capacity and score eligible candidates in a single pass
-    const eligible = [];
+    // For each location, calculate remaining capacity
+    const locationCapacities = [];
     for (const loc of locations) {
       const occ = locationOccupancy.get(loc.id.value) || { weight: 0, volume: 0 };
 
       const remainingWeight = loc.maxWeightGrams - occ.weight;
       const remainingVolume = loc.maxVolumeCubicMeters - occ.volume;
 
-      if (remainingWeight <= 0 || remainingVolume <= 0) {
-        continue;
-      }
+      locationCapacities.push({
+        location: loc,
+        remainingWeight,
+        remainingVolume
+      });
+    }
 
+    // Now, score candidates (they are already pre-filtered for matching zone types)
+    const scoredCandidates = locationCapacities.map(c => {
       let score = 0;
+      const matchesZoneType = true; // Pre-filtered above
 
-      if (tempZoneAttr && loc.zone.toLowerCase() === tempZoneAttr.toLowerCase()) {
+      if (tempZoneAttr && c.location.zone.toLowerCase() === tempZoneAttr.toLowerCase()) {
         score += 100;
       }
 
-      if (hazardAttr && loc.zone.toLowerCase() === 'hazmat') {
+      if (hazardAttr && c.location.zone.toLowerCase() === 'hazmat') {
         score += 200;
       }
 
       // 3. Velocity: fast-moving items go to FAST zone or front aisles (e.g., A01, A02)
       if (velocityAttr && velocityAttr.toLowerCase() === 'fast-moving') {
-        if (loc.zone.toLowerCase() === 'fast') {
+        if (c.location.zone.toLowerCase() === 'fast') {
           score += 50;
         }
-        if (loc.aisle === 'A01' || loc.aisle === 'A02' || loc.aisle === 'A03') {
+        if (c.location.aisle === 'A01' || c.location.aisle === 'A02' || c.location.aisle === 'A03') {
           score += 30;
         }
       }
 
-      eligible.push({
-        location: loc,
-        remainingWeight,
-        remainingVolume,
+      return {
+        ...c,
         score,
-        matchesZoneType: true
-      });
-    }
+        matchesZoneType
+      };
+    });
+
+    // Filter to candidates that have positive remaining capacity and match zone type requirements
+    const eligible = scoredCandidates.filter(c =>
+      c.matchesZoneType &&
+      c.remainingWeight > 0 &&
+      c.remainingVolume > 0
+    );
 
     // Sort by score descending, then by remaining weight descending
     eligible.sort((a, b) => {

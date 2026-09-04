@@ -66,6 +66,7 @@ export class OutboxWorker {
   public static start(intervalMs = 200) {
     if (this.timer) return;
     this.timer = setInterval(() => this.processPendingEvents(), intervalMs);
+    console.log(`[OutboxWorker] Started background worker (polling every ${intervalMs}ms)`);
   }
 
   public static stop() {
