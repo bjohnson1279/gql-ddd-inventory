@@ -44,8 +44,6 @@ export class QuickBooksClient implements IQuickBooksClient {
 
     const url = `${baseUrl}/${realmId}/journalentry`;
 
-    console.log("[QuickBooksClient] publishJournalEntry", { url, payload: qboPayload });
-
     const response = await fetch(url, {
       method: "POST",
       headers: {
