@@ -1,6 +1,7 @@
 export function validateOutboundUrl(urlString: string): string {
   const url = new URL(urlString);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+  const protocol = url.protocol;
+  if (protocol !== 'http:' && protocol !== 'https:') {
     throw new Error('Invalid protocol');
   }
   let hostname = url.hostname;
