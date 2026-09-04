@@ -2,10 +2,17 @@ import { runWithTrace, getTraceId, generateTraceId } from "../../../src/infrastr
 
 describe("traceContext", () => {
   describe("generateTraceId", () => {
-    it("should return a string", () => {
+    it("should return a valid UUID string", () => {
       const traceId = generateTraceId();
       expect(typeof traceId).toBe("string");
-      expect(traceId.length).toBeGreaterThan(0);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      expect(traceId).toMatch(uuidRegex);
+    });
+
+    it("should generate distinct IDs on subsequent calls", () => {
+      const id1 = generateTraceId();
+      const id2 = generateTraceId();
+      expect(id1).not.toEqual(id2);
     });
   });
 
