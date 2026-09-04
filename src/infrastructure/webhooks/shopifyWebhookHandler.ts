@@ -107,11 +107,12 @@ export async function shopifyWebhookHandler(req: express.Request, res: express.R
   const topic = (req.headers['x-shopify-topic'] as string) || '';
   const rawBody = req.body instanceof Buffer ? req.body.toString('utf8') : '';
 
-  const { isValid, payload, error, status } = validateAndParsePayload(rawBody, hmacHeader);
-  if (!isValid) {
-    res.status(status || 500).send(error);
+  const validationResult = validateAndParsePayload(rawBody, hmacHeader);
+  if (!validationResult.isValid) {
+    res.status(validationResult.status || 500).send(validationResult.error);
     return;
   }
+  const payload = validationResult.payload;
 
   try {
     const connection = await integrationRepository.findByStoreDomain(shopDomain);

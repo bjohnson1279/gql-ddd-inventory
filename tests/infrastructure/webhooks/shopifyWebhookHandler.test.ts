@@ -35,6 +35,66 @@ jest.mock('../../../src/infrastructure/graphql/resolvers', () => {
   };
 });
 
+describe('verifyShopifyHmac', () => {
+  const secret = 'test-secret-key-123';
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeAll(() => {
+    originalEnv = process.env;
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...originalEnv, SHOPIFY_WEBHOOK_SECRET: secret };
+  });
+
+  const signBody = (bodyStr: string, secretToUse: string = secret) => {
+    return crypto
+      .createHmac('sha256', secretToUse)
+      .update(bodyStr)
+      .digest('base64');
+  };
+
+  it('should return true for a valid HMAC signature', () => {
+    const body = JSON.stringify({ test: true });
+    const hmac = signBody(body);
+    expect(verifyShopifyHmac(body, hmac)).toBe(true);
+  });
+
+  it('should return false for an invalid HMAC signature', () => {
+    const body = JSON.stringify({ test: true });
+    expect(verifyShopifyHmac(body, 'invalid-hmac')).toBe(false);
+  });
+
+  it('should return false when HMAC header is empty', () => {
+    const body = JSON.stringify({ test: true });
+    expect(verifyShopifyHmac(body, '')).toBe(false);
+  });
+
+  it('should return false and log error when SHOPIFY_WEBHOOK_SECRET is not configured', () => {
+    delete process.env.SHOPIFY_WEBHOOK_SECRET;
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const body = JSON.stringify({ test: true });
+    const hmac = signBody(body, 'some-other-secret');
+
+    expect(verifyShopifyHmac(body, hmac)).toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should return false if HMAC lengths differ (handled by length check)', () => {
+    const body = JSON.stringify({ test: true });
+    const hmac = 'a'.repeat(50); // different length than standard sha256 base64
+    expect(verifyShopifyHmac(body, hmac)).toBe(false);
+  });
+});
+
 describe('ShopifyWebhookHandler', () => {
   const secret = 'test-secret-key-123';
   let mockReq: any;
