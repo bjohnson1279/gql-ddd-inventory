@@ -411,6 +411,26 @@ describe('GraphQL Resolvers', () => {
     expect(entries[0].lines[0].accountCode).toBe('1000');
   });
 
+  it('should throw an error if createJournalEntry encounters a failure', async () => {
+    const { CreateJournalEntryUseCase } = require('../../../src/application/useCases/ManageJournals');
+    const spy = jest.spyOn(CreateJournalEntryUseCase.prototype, 'execute').mockRejectedValueOnce(new Error('Simulated failure'));
+
+    await expect(
+      (resolvers.Mutation as any).createJournalEntry(null, {
+        input: {
+          id: 'j-entry-fail',
+          tenantId: 't-journal',
+          date: '2026-05-30T00:00:00Z',
+          description: 'Fail entry',
+          method: 'accrual',
+          lines: []
+        }
+      }, { auth: { role: 'admin', tenantId: 't-journal', actorId: 'admin-user' } })
+    ).rejects.toThrow('Simulated failure');
+
+    spy.mockRestore();
+  });
+
   it('should assign, query, revoke, generate, and dispatch scans for barcodes', async () => {
     // 1. Assign barcode
     const assignResult = await (resolvers.Mutation as any).assignBarcode(null, {
