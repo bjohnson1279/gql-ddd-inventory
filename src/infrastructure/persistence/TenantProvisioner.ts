@@ -36,7 +36,6 @@ export class TenantProvisioner {
       //    CREATE DATABASE cannot run inside a transaction, so we use
       //    a raw pg client on the control database.
       await this.createDatabase(dbName);
-      console.log(`[TenantProvisioner] Created database "${dbName}" for tenant "${tenantId}".`);
 
       // 3. Connect to the new database and run DDL migrations
       await this.runMigrationsOnTenantDb(entry);
@@ -87,7 +86,6 @@ export class TenantProvisioner {
     await this.dropDatabase(entry.dbName);
 
     await this.registry.deprovisionTenant(tenantId);
-    console.log(`[TenantProvisioner] Tenant "${tenantId}" deprovisioned.`);
   }
 
   // ──────────────────────────────────────────────
