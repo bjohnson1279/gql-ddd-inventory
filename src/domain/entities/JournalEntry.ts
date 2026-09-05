@@ -30,12 +30,13 @@ export class JournalEntry {
   }
 
   isBalanced(): boolean {
-    const debits = this._lines
-      .filter(l => l.type === DebitCredit.Debit)
-      .reduce((sum, l) => sum + l.amountCents, 0);
-    const credits = this._lines
-      .filter(l => l.type === DebitCredit.Credit)
-      .reduce((sum, l) => sum + l.amountCents, 0);
+    let debits = 0;
+    let credits = 0;
+    // ⚡ Bolt: Single pass for loop avoids intermediate array allocations from filter/reduce
+    for (const l of this._lines) {
+      if (l.type === DebitCredit.Debit) debits += l.amountCents;
+      else if (l.type === DebitCredit.Credit) credits += l.amountCents;
+    }
     return debits === credits;
   }
 }
