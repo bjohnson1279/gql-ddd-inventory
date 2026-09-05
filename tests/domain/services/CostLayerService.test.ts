@@ -345,6 +345,18 @@ describe('CostLayerService', () => {
       await expect(service.calculateWeightedAverageCost(v1, 5))
         .rejects.toThrow('Insufficient inventory for variant V1');
     });
+
+    it('should catch error from sync method and throw insufficient inventory error', async () => {
+      const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date());
+      repo.layers = [l1];
+
+      jest.spyOn(service, 'calculateWeightedAverageCostSync').mockImplementationOnce(() => {
+        throw new Error('Sync error');
+      });
+
+      await expect(service.calculateWeightedAverageCost(v1, 5))
+        .rejects.toThrow('Insufficient inventory for variant V1');
+    });
   });
 
   describe('costForSerial', () => {
