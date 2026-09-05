@@ -15,15 +15,25 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
   }
 
   async currentQuantity(variantId: ProductVariantId, locationId: LocationId): Promise<number> {
-    return this.entries
-      .filter(e => e.variantId.equals(variantId) && e.locationId.equals(locationId))
-      .reduce((sum, e) => sum + e.quantity, 0);
+    let sum = 0;
+    // ⚡ Bolt: Single pass for loop avoids intermediate array allocations from filter/reduce
+    for (const e of this.entries) {
+      if (e.variantId.equals(variantId) && e.locationId.equals(locationId)) {
+        sum += e.quantity;
+      }
+    }
+    return sum;
   }
 
   async currentQuantityAt(variantId: ProductVariantId, locationId: LocationId, timestamp: Date): Promise<number> {
-    return this.entries
-      .filter(e => e.variantId.equals(variantId) && e.locationId.equals(locationId) && e.occurredAt <= timestamp)
-      .reduce((sum, e) => sum + e.quantity, 0);
+    let sum = 0;
+    // ⚡ Bolt: Single pass for loop avoids intermediate array allocations from filter/reduce
+    for (const e of this.entries) {
+      if (e.variantId.equals(variantId) && e.locationId.equals(locationId) && e.occurredAt <= timestamp) {
+        sum += e.quantity;
+      }
+    }
+    return sum;
   }
 
   async currentQuantities(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, number>> {
