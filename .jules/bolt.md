@@ -59,3 +59,6 @@ origin/main
 ## 2026-09-02 - Optimize array iteration
 **Learning:** Chaining .filter(), .reduce(), and a for-loop over large ledger entry arrays creates O(N) redundant iterations and unnecessary array allocations.
 **Action:** Consolidate data filtering, reduction, and indexing into a single for-loop to avoid intermediate array allocations and reduce iteration overhead to O(N).
+## 2026-09-04 - Optimize array iteration
+**Learning:** Chaining .filter() and .reduce() over arrays creates O(N) redundant iterations and unnecessary array allocations.
+**Action:** Consolidate data filtering and reduction into a single for-loop to avoid intermediate array allocations and reduce iteration overhead to O(N).
