@@ -6,6 +6,8 @@ describe('validateOutboundUrl', () => {
     expect(validateOutboundUrl('https://example.com')).toBe('https://example.com');
     expect(validateOutboundUrl('https://1.1.1.1')).toBe('https://1.1.1.1');
     expect(validateOutboundUrl('https://[2001:4860:4860::8888]')).toBe('https://[2001:4860:4860::8888]');
+    expect(validateOutboundUrl('https://example.com.')).toBe('https://example.com.');
+    expect(validateOutboundUrl('https://example.com:8443/path/to/resource?query=123')).toBe('https://example.com:8443/path/to/resource?query=123');
   });
 
   it('should throw Error for invalid protocols', () => {
