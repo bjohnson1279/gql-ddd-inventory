@@ -93,6 +93,15 @@ describe('verifyShopifyHmac', () => {
     const hmac = 'a'.repeat(50); // different length than standard sha256 base64
     expect(verifyShopifyHmac(body, hmac)).toBe(false);
   });
+
+  it('should catch exceptions and return false if Buffer operations fail', () => {
+    const rawBody = JSON.stringify({ id: 123 });
+    // Passing a non-string/non-buffer (like an object) to Buffer.from will throw a TypeError in Node.js
+    const invalidHmacObject = { invalid: true } as any;
+
+    const result = verifyShopifyHmac(rawBody, invalidHmacObject);
+    expect(result).toBe(false);
+  });
 });
 
 describe('ShopifyWebhookHandler', () => {
