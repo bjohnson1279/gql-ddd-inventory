@@ -298,6 +298,40 @@ describe('ManageKits Use Cases', () => {
       const result = await useCase.execute(input);
       expect(result).toBe(true);
       expect(mockInventoryService.decrementForKitSale).toHaveBeenCalled();
+
+      const args = mockInventoryService.decrementForKitSale.mock.calls[0];
+      expect(args[0].value).toBe('T1');
+      expect(args[1].value).toBe('LOC1');
+      expect(args[2].id.value).toBe('K1');
+      expect(args[2].sku.value).toBe('KIT-1');
+      expect(args[2].components[0].variantId.value).toBe('V1');
+      expect(args[2].components[0].quantity).toBe(3);
+      expect(args[3]).toBe(2);
+      expect(args[4]).toBe('REF-1');
+      expect(args[5].value).toBe('A1');
+    });
+
+    it('propagates errors if inventoryService.decrementForKitSale fails', async () => {
+      const mockInventoryService = {
+        decrementForKitSale: jest.fn().mockRejectedValue(new Error('Insufficient stock'))
+      } as any;
+      const useCase = new SellKitUseCase(mockInventoryService);
+
+      const input = {
+        tenantId: 'T1',
+        locationId: 'LOC1',
+        kitId: 'K1',
+        sku: 'KIT-1',
+        name: 'Super Kit',
+        quantity: 2,
+        referenceId: 'REF-1',
+        actorId: 'A1',
+        components: [
+          { variantId: 'V1', quantity: 3 }
+        ]
+      };
+
+      await expect(useCase.execute(input)).rejects.toThrow('Insufficient stock');
     });
   });
 
