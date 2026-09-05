@@ -14,8 +14,16 @@ export class OrderRoutingEngine {
     rateCalculator: (locationId: string, sku: string, qty: number) => Promise<number>
   ): Promise<FulfillmentPlan> {
 
-    const activeCandidates = candidates.filter(c => c.availableQuantity > 0);
-    const totalAvailable = activeCandidates.reduce((sum, c) => sum + c.availableQuantity, 0);
+    // ⚡ Bolt: Single pass iteration instead of filter/reduce to avoid O(N) redundant iterations and unnecessary array allocations
+    const activeCandidates = [];
+    let totalAvailable = 0;
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i];
+      if (c.availableQuantity > 0) {
+        activeCandidates.push(c);
+        totalAvailable += c.availableQuantity;
+      }
+    }
 
     if (totalAvailable < quantity) {
       throw new Error(`Insufficient total stock for SKU ${sku}. Requested: ${quantity}, Available: ${totalAvailable}`);
