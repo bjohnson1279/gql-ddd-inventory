@@ -65,3 +65,6 @@ origin/main
 ## 2026-09-05 - Optimize array iteration in OrderRoutingEngine
 **Learning:** Chaining .filter() and .reduce() over arrays creates O(N) redundant iterations and unnecessary array allocations.
 **Action:** Consolidate data filtering and reduction into a single for-loop to avoid intermediate array allocations and reduce iteration overhead to O(N).
+## 2024-09-06 - Performance Optimization: Replacing .filter().map() chains with a single loop
+**Learning:** Chaining `.map()` and `.filter()` over arrays allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).

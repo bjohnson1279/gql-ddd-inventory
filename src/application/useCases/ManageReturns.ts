@@ -278,10 +278,15 @@ export class ReceiveRmaUseCase {
       }
     }
 
-    const scrapItems = dto.items.filter(item => item.disposition === RMADisposition.Scrap).map(item => ({
-      variantId: new ProductVariantId(item.variantId),
-      quantity: item.quantityReceived
-    }));
+    const scrapItems: { variantId: ProductVariantId; quantity: number }[] = [];
+    for (const item of dto.items) {
+      if (item.disposition === RMADisposition.Scrap) {
+        scrapItems.push({
+          variantId: new ProductVariantId(item.variantId),
+          quantity: item.quantityReceived
+        });
+      }
+    }
 
     if (scrapItems.length > 0) {
       await this.costLayerService.consumeFifoLayersBatch(scrapItems);
