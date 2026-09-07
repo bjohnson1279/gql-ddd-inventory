@@ -83,17 +83,25 @@ describe('Barcode', () => {
     });
   });
 
-  describe('equals & toString', () => {
-    it('should return true for equal barcodes', () => {
+  describe('equals', () => {
+    it('should return true for equal barcodes with the same symbology', () => {
       const b1 = new Barcode(BarcodeSymbology.UPC_A, '123456789012');
       const b2 = new Barcode(BarcodeSymbology.UPC_A, '123456789012');
       expect(b1.equals(b2)).toBe(true);
     });
-    it('should return false for different barcodes', () => {
+    it('should return false for different barcodes with the same symbology', () => {
       const b1 = new Barcode(BarcodeSymbology.UPC_A, '123456789012');
       const b2 = new Barcode(BarcodeSymbology.UPC_A, '098765432109');
       expect(b1.equals(b2)).toBe(false);
     });
+    it('should return true for equal barcodes even with different symbology (based on value)', () => {
+      const b1 = new Barcode(BarcodeSymbology.UPC_E, '12345678');
+      const b2 = new Barcode(BarcodeSymbology.EAN_8, '12345678');
+      expect(b1.equals(b2)).toBe(true);
+    });
+  });
+
+  describe('toString', () => {
     it('should return the string value for toString', () => {
       const barcode = new Barcode(BarcodeSymbology.CODE_128, 'some-code');
       expect(barcode.toString()).toBe('SOME-CODE');
@@ -101,6 +109,18 @@ describe('Barcode', () => {
     it('should correctly format and return toString for a numeric barcode', () => {
       const barcode = new Barcode(BarcodeSymbology.UPC_A, ' 123456789012 ');
       expect(barcode.toString()).toBe('123456789012');
+    });
+    it('should return the expected string value for a QR barcode', () => {
+      const barcode = new Barcode(BarcodeSymbology.QR, 'https://example.com');
+      expect(barcode.toString()).toBe('HTTPS://EXAMPLE.COM');
+    });
+  });
+
+  describe('Properties', () => {
+    it('should expose the symbology and value properties', () => {
+      const barcode = new Barcode(BarcodeSymbology.EAN_13, '1234567890123');
+      expect(barcode.symbology).toBe(BarcodeSymbology.EAN_13);
+      expect(barcode.value).toBe('1234567890123');
     });
   });
 });
