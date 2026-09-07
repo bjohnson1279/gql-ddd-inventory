@@ -83,5 +83,42 @@ describe('ReplenishmentEvaluator', () => {
         inventoryPosition: 0,
       });
     });
+
+    it('should catch errors thrown by rule.updateReorderPoint during rule evaluation', async () => {
+      const tenantId = { value: 'tenant-1' } as unknown as TenantId;
+      const rule = {
+        id: { value: 'rule-2' },
+        sku: { value: 'SKU-2' } as unknown as Sku,
+        locationId: { value: 'loc-2' } as unknown as LocationId,
+        reorderPoint: 10,
+        isActive: true,
+        dynamicRopEnabled: true,
+        updateReorderPoint: jest.fn().mockImplementation(() => {
+          throw new Error('Negative reorder point');
+        }),
+      } as unknown as ReplenishmentRule;
+
+      mockRuleRepo.findAllByTenant.mockResolvedValue([rule]);
+      mockPoRepo.findAllByTenant.mockResolvedValue([]);
+      mockTransferRepo.findAllByTenant.mockResolvedValue([]);
+      mockInventoryRepo.findBySkuAndLocationBatch.mockResolvedValue([]);
+      mockProductRepo.findBySkus.mockResolvedValue([]);
+
+      mockForecaster.forecastReorderPoint.mockResolvedValue(-5);
+
+      const results = await evaluator.evaluateRulesForTenant(tenantId);
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        ruleId: 'rule-2',
+        sku: 'SKU-2',
+        locationId: 'loc-2',
+        triggered: false,
+        reason: 'Failed to evaluate rule: Negative reorder point',
+        reorderPoint: 10,
+        inventoryPosition: 0,
+      });
+      expect(rule.updateReorderPoint).toHaveBeenCalledWith(-5);
+    });
   });
 });
