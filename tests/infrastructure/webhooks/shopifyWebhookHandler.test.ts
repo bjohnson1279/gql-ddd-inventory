@@ -102,6 +102,21 @@ describe('verifyShopifyHmac', () => {
     const result = verifyShopifyHmac(rawBody, invalidHmacObject);
     expect(result).toBe(false);
   });
+
+  it('should catch exceptions and return false if timingSafeEqual throws an error', () => {
+    const rawBody = JSON.stringify({ id: 123 });
+    const hmac = signBody(rawBody);
+
+    // Mock timingSafeEqual to throw
+    const timingSafeEqualSpy = jest.spyOn(crypto, 'timingSafeEqual').mockImplementationOnce(() => {
+      throw new Error('Mocked error');
+    });
+
+    const result = verifyShopifyHmac(rawBody, hmac);
+    expect(result).toBe(false);
+
+    timingSafeEqualSpy.mockRestore();
+  });
 });
 
 describe('ShopifyWebhookHandler', () => {
@@ -278,5 +293,22 @@ describe('ShopifyWebhookHandler', () => {
     );
     expect(mockRes.status).toHaveBeenCalledWith(200);
     expect(mockRes.send).toHaveBeenCalledWith('OK');
+  });
+
+  it('should return 500 if an internal error occurs during processing', async () => {
+    const rawBody = JSON.stringify({ id: 123 });
+    mockReq.body = Buffer.from(rawBody);
+    mockReq.headers['x-shopify-hmac-sha256'] = signBody(rawBody);
+
+    mockFindByStoreDomain.mockRejectedValue(new Error('Database error'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await shopifyWebhookHandler(mockReq, mockRes);
+
+    expect(mockRes.status).toHaveBeenCalledWith(500);
+    expect(mockRes.send).toHaveBeenCalledWith('Internal Server Error');
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
   });
 });
