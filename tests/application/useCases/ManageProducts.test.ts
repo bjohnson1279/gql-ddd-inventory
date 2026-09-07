@@ -51,6 +51,17 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('AddProductVariantUseCase', () => {
+    it('should throw an error if the product id is empty', async () => {
+      const useCase = new AddProductVariantUseCase(productRepo);
+      await expect(useCase.execute({
+        productId: '',
+        sku: 'TEST-SKU',
+        attributes: [{ name: 'Color', value: 'Red' }],
+        trackingMode: VariantTrackingMode.Quantity
+      })).rejects.toThrow('ProductId cannot be empty.');
+      expect(productRepo.findById).not.toHaveBeenCalled();
+    });
+
     it('should throw an error when the product repo returns null (product not found)', async () => {
       productRepo.findById.mockResolvedValue(null);
       const useCase = new AddProductVariantUseCase(productRepo);
@@ -176,8 +187,10 @@ describe('ManageProducts Use Cases', () => {
 
   describe('GetProductsUseCase', () => {
     it('should return all products from the repository', async () => {
-      const product1 = new Product(new ProductId('prod-1'), 'Product 1');
-      const product2 = new Product(new ProductId('prod-2'), 'Product 2');
+      const id1 = new ProductId('prod-1');
+      const id2 = new ProductId('prod-2');
+      const product1 = new Product(id1, 'Product 1');
+      const product2 = new Product(id2, 'Product 2');
       productRepo.findAll.mockResolvedValue([product1, product2]);
 
       const useCase = new GetProductsUseCase(productRepo);
@@ -189,6 +202,12 @@ describe('ManageProducts Use Cases', () => {
   });
 
   describe('GetProductByIdUseCase', () => {
+    it('should throw an error if the product id is empty', async () => {
+      const useCase = new GetProductByIdUseCase(productRepo);
+      await expect(useCase.execute('')).rejects.toThrow('ProductId cannot be empty.');
+      expect(productRepo.findById).not.toHaveBeenCalled();
+    });
+
     it('should return the product when found', async () => {
       const product = new Product(new ProductId('prod-1'), 'Test Product');
       productRepo.findById.mockResolvedValue(product);
