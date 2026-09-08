@@ -17,15 +17,16 @@ describe('PurchaseOrder', () => {
 
   describe('constructor', () => {
     it('should create a PurchaseOrder with valid inputs', () => {
-      const po = new PurchaseOrder(id, tenantId, supplierId, locationId, items);
+      const now = new Date();
+      const po = new PurchaseOrder(id, tenantId, supplierId, locationId, items, now, now);
       expect(po.id).toBe(id);
       expect(po.tenantId).toBe(tenantId);
       expect(po.supplierId).toBe(supplierId);
       expect(po.destinationLocationId).toBe(locationId);
       expect(po.items).toBe(items);
       expect(po.status).toBe(PurchaseOrderStatus.Draft);
-      expect(po.createdAt).toBeInstanceOf(Date);
-      expect(po.updatedAt).toBeInstanceOf(Date);
+      expect(po.createdAt).toBe(now);
+      expect(po.updatedAt).toBe(now);
     });
 
     it('should throw an error if supplierId is empty', () => {
@@ -76,6 +77,12 @@ describe('PurchaseOrder', () => {
     });
 
     it('should cancel a draft order', () => {
+      po.cancel();
+      expect(po.status).toBe(PurchaseOrderStatus.Cancelled);
+    });
+
+    it('should cancel an ordered order', () => {
+      po.place();
       po.cancel();
       expect(po.status).toBe(PurchaseOrderStatus.Cancelled);
     });

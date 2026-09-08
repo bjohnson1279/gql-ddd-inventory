@@ -411,6 +411,32 @@ describe('GraphQL Resolvers', () => {
     expect(entries[0].lines[0].accountCode).toBe('1000');
   });
 
+  it('should throw an error if removeUomConversionRule encounters a failure', async () => {
+    const { RemoveUomConversionRuleUseCase } = require('../../../src/application/useCases/ManageUoms');
+    const spy = jest.spyOn(RemoveUomConversionRuleUseCase.prototype, 'execute').mockRejectedValueOnce(new Error('Simulated failure'));
+
+    await expect(
+      (resolvers.Mutation as any).removeUomConversionRule(null, {
+        input: { sku: 'SKU-UOM', unitName: 'Dozen' }
+      }, { auth: { role: 'admin', tenantId: 't1', actorId: 'a1' } })
+    ).rejects.toThrow('Simulated failure');
+
+    spy.mockRestore();
+  });
+
+  it('should throw an error if setUomUnits encounters a failure', async () => {
+    const { SetUomUnitsUseCase } = require('../../../src/application/useCases/ManageUoms');
+    const spy = jest.spyOn(SetUomUnitsUseCase.prototype, 'execute').mockRejectedValueOnce(new Error('Simulated failure'));
+
+    await expect(
+      (resolvers.Mutation as any).setUomUnits(null, {
+        input: { sku: 'SKU-UOM', purchaseUnit: { name: 'Dozen', abbreviation: 'dz', category: 'discrete' } }
+      }, { auth: { role: 'admin', tenantId: 't1', actorId: 'a1' } })
+    ).rejects.toThrow('Simulated failure');
+
+    spy.mockRestore();
+  });
+
   it('should throw an error if createJournalEntry encounters a failure', async () => {
     const { CreateJournalEntryUseCase } = require('../../../src/application/useCases/ManageJournals');
     const spy = jest.spyOn(CreateJournalEntryUseCase.prototype, 'execute').mockRejectedValueOnce(new Error('Simulated failure'));
