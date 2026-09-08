@@ -48,6 +48,18 @@ describe('Product', () => {
       expect(product.findVariantBySku(sku)).toBeDefined();
     });
 
+    it('should allow adding multiple variants with different attributes', () => {
+      const product = new Product(new ProductId('prod-1'), 'Test Product');
+      const sku1 = new Sku('SKU-1');
+      const sku2 = new Sku('SKU-2');
+
+      product.addVariant(sku1, [new VariantAttribute('Color', 'Red')]);
+      const variant2 = product.addVariant(sku2, [new VariantAttribute('Color', 'Blue')]);
+
+      expect(product.variants).toHaveLength(2);
+      expect(variant2.sku.value).toBe('SKU-2');
+    });
+
     it('should throw an error when adding a variant with duplicate attributes', () => {
       const product = new Product(new ProductId('prod-1'), 'Test Product');
       const sku1 = new Sku('SKU-1');
