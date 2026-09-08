@@ -156,6 +156,35 @@ describe('ManageKits Use Cases', () => {
       expect(journalEntry.isBalanced()).toBe(true);
     });
 
+    it('should throw error if kit is not found', async () => {
+      kitRepo.findBySku.mockResolvedValue(null);
+      const useCase = new AssembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      await expect(useCase.execute({
+        tenantId, locationId, kitSku: 'NONEXISTENT', quantity: 1, actorId, referenceId
+      })).rejects.toThrow('Kit with SKU NONEXISTENT not found.');
+    });
+
+    it('should throw error if kit product is not found', async () => {
+      const kit = new Kit(new KitId('K1'), new Sku('KIT-COMBO'), 'Combo Bundle');
+      kitRepo.findBySku.mockResolvedValue(kit);
+      productRepo.findBySku.mockResolvedValue(null);
+      const useCase = new AssembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      await expect(useCase.execute({
+        tenantId, locationId, kitSku: 'KIT-COMBO', quantity: 1, actorId, referenceId
+      })).rejects.toThrow('Product variant for Kit SKU KIT-COMBO not found.');
+    });
+
+    it('should throw error if kit product variant is not found', async () => {
+      const kit = new Kit(new KitId('K1'), new Sku('KIT-COMBO'), 'Combo Bundle');
+      kitRepo.findBySku.mockResolvedValue(kit);
+      const kitProduct = new Product(new ProductId('P-KIT'), 'Combo Bundle Product');
+      productRepo.findBySku.mockResolvedValue(kitProduct);
+      const useCase = new AssembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      await expect(useCase.execute({
+        tenantId, locationId, kitSku: 'KIT-COMBO', quantity: 1, actorId, referenceId
+      })).rejects.toThrow('Variant for Kit SKU KIT-COMBO not found.');
+    });
+
     it('should throw error if any component stock is insufficient', async () => {
       const kitSkuStr = 'KIT-COMBO';
       const comp1VariantId = new ProductVariantId('V-COMP1');
@@ -247,6 +276,94 @@ describe('ManageKits Use Cases', () => {
 
       const journalEntry = journalRepo.save.mock.calls[0][0];
       expect(journalEntry.isBalanced()).toBe(true);
+    });
+
+    it('should throw error if kit is not found', async () => {
+      kitRepo.findBySku.mockResolvedValue(null);
+      const useCase = new DisassembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      await expect(useCase.execute({
+        tenantId, locationId, kitSku: 'NONEXISTENT', quantity: 1, actorId, referenceId
+      })).rejects.toThrow('Kit with SKU NONEXISTENT not found.');
+    });
+
+    it('should throw error if kit product is not found', async () => {
+      const kit = new Kit(new KitId('K1'), new Sku('KIT-COMBO'), 'Combo Bundle');
+      kitRepo.findBySku.mockResolvedValue(kit);
+      productRepo.findBySku.mockResolvedValue(null);
+      const useCase = new DisassembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      await expect(useCase.execute({
+        tenantId, locationId, kitSku: 'KIT-COMBO', quantity: 1, actorId, referenceId
+      })).rejects.toThrow('Product variant for Kit SKU KIT-COMBO not found.');
+    });
+
+    it('should throw error if kit product variant is not found', async () => {
+      const kit = new Kit(new KitId('K1'), new Sku('KIT-COMBO'), 'Combo Bundle');
+      kitRepo.findBySku.mockResolvedValue(kit);
+      const kitProduct = new Product(new ProductId('P-KIT'), 'Combo Bundle Product');
+      productRepo.findBySku.mockResolvedValue(kitProduct);
+      const useCase = new DisassembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      await expect(useCase.execute({
+        tenantId, locationId, kitSku: 'KIT-COMBO', quantity: 1, actorId, referenceId
+      })).rejects.toThrow('Variant for Kit SKU KIT-COMBO not found.');
+    });
+
+    it('should fallback correctly if getActiveLayersBatch is missing', async () => {
+      const kitSkuStr = 'KIT-COMBO';
+      const comp1VariantId = new ProductVariantId('V-COMP1');
+      const kitVariantId = new ProductVariantId('V-KIT');
+
+      const kit = new Kit(new KitId('K1'), new Sku(kitSkuStr), 'Combo Bundle');
+      kit.addComponent(comp1VariantId, 2);
+      kitRepo.findBySku.mockResolvedValue(kit);
+
+      const kitProduct = new Product(new ProductId('P-KIT'), 'Combo Bundle Product');
+      const kitVariant = kitProduct.addVariant(new Sku(kitSkuStr), [new VariantAttribute('type', 'bundle')]);
+      productRepo.findBySku.mockResolvedValue(kitProduct);
+
+      ledgerRepo.currentQuantity.mockResolvedValue(5);
+
+      costLayers.getActiveLayersBatch = undefined as any; // Force fallback
+      costLayers.getActiveLayers.mockImplementation(async (varId) => {
+        if (varId.equals(kitVariant.id)) return [new InventoryCostLayer(new InventoryCostLayerId('L-KIT'), kitVariant.id, 5, 400, new Date())];
+        if (varId.equals(comp1VariantId)) return [new InventoryCostLayer(new InventoryCostLayerId('L-COMP'), comp1VariantId, 10, 100, new Date())];
+        return [];
+      });
+
+      const useCase = new DisassembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      const result = await useCase.execute({
+        tenantId, locationId, kitSku: kitSkuStr, quantity: 1, actorId, referenceId
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('should fallback correctly if getActiveLayersBatch returns no layers (catch block execution)', async () => {
+      const kitSkuStr = 'KIT-COMBO';
+      const comp1VariantId = new ProductVariantId('V-COMP1');
+      const kitVariantId = new ProductVariantId('V-KIT');
+
+      const kit = new Kit(new KitId('K1'), new Sku(kitSkuStr), 'Combo Bundle');
+      kit.addComponent(comp1VariantId, 2);
+      kitRepo.findBySku.mockResolvedValue(kit);
+
+      const kitProduct = new Product(new ProductId('P-KIT'), 'Combo Bundle Product');
+      const kitVariant = kitProduct.addVariant(new Sku(kitSkuStr), [new VariantAttribute('type', 'bundle')]);
+      productRepo.findBySku.mockResolvedValue(kitProduct);
+
+      ledgerRepo.currentQuantity.mockResolvedValue(5);
+
+      costLayers.getActiveLayersBatch = jest.fn().mockResolvedValue(new Map()); // Will map to empty
+      costLayers.getActiveLayers.mockImplementation(async (varId) => {
+        if (varId.equals(kitVariant.id)) return [new InventoryCostLayer(new InventoryCostLayerId('L-KIT'), kitVariant.id, 5, 400, new Date())];
+        return [];
+      });
+
+      const useCase = new DisassembleKitUseCase(kitRepo, productRepo, ledgerRepo, costLayers, journalRepo);
+      const result = await useCase.execute({
+        tenantId, locationId, kitSku: kitSkuStr, quantity: 1, actorId, referenceId
+      });
+
+      expect(result).toBe(true);
     });
 
     it('should throw error if kit stock is insufficient', async () => {
