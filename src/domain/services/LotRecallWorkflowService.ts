@@ -16,12 +16,19 @@ export class LotRecallWorkflowService {
     costLayers: Array<{ id: string; consumedQuantity: number; initialQuantity: number }>,
     fulfilledShipments: Array<{ id: string; orderId: string; customerId: string; quantity: number }>
   ): LotTraceabilityReport {
-    const affectedOrders = fulfilledShipments.map(s => ({
-      orderId: s.orderId,
-      quantity: s.quantity,
-    }));
+    const affectedOrders: Array<{ orderId: string; quantity: number }> = [];
+    const customerSet = new Set<string>();
 
-    const customerSet = new Set(fulfilledShipments.map(s => s.customerId).filter(Boolean));
+    // ⚡ Bolt: Consolidated mapping and filtering into a single loop to avoid intermediate array allocations
+    for (const s of fulfilledShipments) {
+      affectedOrders.push({
+        orderId: s.orderId,
+        quantity: s.quantity,
+      });
+      if (s.customerId) {
+        customerSet.add(s.customerId);
+      }
+    }
 
     return {
       lotNumber: lot.lotNumber,
