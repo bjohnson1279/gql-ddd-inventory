@@ -95,6 +95,11 @@ describe('CostLayerService', () => {
       expect(cost.totalCostCents).toBe(0);
       expect(cost.quantity).toBe(0);
     });
+
+    it('should throw error when method is SpecificIdentification', async () => {
+      await expect(service.calculateCost(v1, 5, CostingMethod.SpecificIdentification))
+        .rejects.toThrow('SpecificIdentification requires serial numbers. Use a dedicated path.');
+    });
   });
 
   describe('consumeLayers', () => {
@@ -119,6 +124,11 @@ describe('CostLayerService', () => {
       expect(repo.saveBatch).toHaveBeenCalledWith([repo.layers[1], repo.layers[0]]);
       expect(repo.layers[1].remainingQuantity()).toBe(0); // L2 consumed first
       expect(repo.layers[0].remainingQuantity()).toBe(5);
+    });
+
+    it('should throw error when method is SpecificIdentification', async () => {
+      await expect(service.consumeLayers(v1, 5, CostingMethod.SpecificIdentification))
+        .rejects.toThrow('SpecificIdentification requires serial numbers. Use a dedicated path.');
     });
   });
 
@@ -212,10 +222,31 @@ describe('CostLayerService', () => {
   });
 
   describe('calculateCostBatch', () => {
+    it('should calculate cost batch successfully', async () => {
+      const items = [{ variantId: v1, quantity: 5 }];
+      repo.layers = [new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'))];
+      const results = await service.calculateCostBatch(items);
+      expect(results[0]?.totalCostCents).toBe(500);
+    });
+
     it('should catch error when insufficient cost layers to cover quantity and set result to null', async () => {
       const items = [{ variantId: v1, quantity: 15 }];
       repo.layers = [new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date('2024-01-01'))];
       const results = await service.calculateCostBatch(items);
+      expect(results[0]).toBeNull();
+    });
+
+    it('should catch error when calculating weighted average cost fails and set result to null', async () => {
+      const items = [{ variantId: v1, quantity: 15 }];
+      const methodsMap = new Map<string, CostingMethod>();
+      methodsMap.set(v1.value, CostingMethod.WeightedAverageCost);
+      repo.layers = [new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date())];
+
+      jest.spyOn(service, 'calculateWeightedAverageCostSync').mockImplementationOnce(() => {
+        throw new Error('Sync error');
+      });
+
+      const results = await service.calculateCostBatch(items, CostingMethod.FIFO, methodsMap);
       expect(results[0]).toBeNull();
     });
   });
@@ -350,12 +381,14 @@ describe('CostLayerService', () => {
       const l1 = new InventoryCostLayer(new InventoryCostLayerId('L1'), v1, 10, 100, new Date());
       repo.layers = [l1];
 
-      jest.spyOn(service, 'calculateWeightedAverageCostSync').mockImplementationOnce(() => {
+      const syncSpy = jest.spyOn(service, 'calculateWeightedAverageCostSync').mockImplementationOnce(() => {
         throw new Error('Sync error');
       });
 
       await expect(service.calculateWeightedAverageCost(v1, 5))
         .rejects.toThrow('Insufficient inventory for variant V1');
+
+      expect(syncSpy).toHaveBeenCalled();
     });
   });
 

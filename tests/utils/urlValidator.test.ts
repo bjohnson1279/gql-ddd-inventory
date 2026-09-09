@@ -55,6 +55,12 @@ describe('validateOutboundUrl', () => {
       'http://localhost.',
       'http://127.0.0.1.',
       'http://169.254.169.254.',
+      // Advanced bypass techniques
+      'http://0177.0.0.1', // Octal format
+      'http://0x7f.0.0.1', // Hex format
+      'http://2130706433', // Integer format
+      'http://user:pass@127.0.0.1', // Credentials format
+      'http://user:pass@127.0.0.1.', // Credentials + trailing dot
     ];
 
     blockedUrls.forEach((url) => {
