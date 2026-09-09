@@ -80,3 +80,6 @@ origin/main
 - **Zero-Diff Task Termination**: If the requested optimization, refactor, or fix is ALREADY natively present in the target branch, DO NOT create an empty pull request or commit an acknowledgment PR. Exit the task cleanly without opening a PR.
 - **Stale Suggestion Guard**: Always verify the current code on `main`/`master` before planning changes. If no actionable diff is required, cancel task execution immediately.
 
+## 2024-09-06 - Performance Optimization: Replacing .split().map().filter().map() chains with a single loop
+**Learning:** Chaining `.map()` and `.filter()` over arrays (like CORS origins parsing) allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).
