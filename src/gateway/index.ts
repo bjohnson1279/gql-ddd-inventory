@@ -23,15 +23,23 @@ async function startGateway() {
     throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
   }
   const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
-  const allowedOrigins = allowedOriginsRaw === '*'
-    ? '*'
-    : allowedOriginsRaw.split(',').map(o => o.trim()).filter(Boolean).map(o => {
+  let allowedOrigins: string | string[] = '*';
+  if (allowedOriginsRaw !== '*') {
+    const parts = allowedOriginsRaw.split(',');
+    const origins: string[] = [];
+    // ⚡ Bolt: Consolidated mapping and filtering into a single loop to avoid intermediate array allocations (O(N) overhead reduction)
+    for (let i = 0; i < parts.length; i++) {
+      const trimmed = parts[i].trim();
+      if (trimmed) {
         try {
-          return new URL(o).origin;
+          origins.push(new URL(trimmed).origin);
         } catch {
-          throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${o}`);
+          throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${trimmed}`);
         }
-      });
+      }
+    }
+    allowedOrigins = origins;
+  }
 
   const subgraphs = [
     { name: 'inventory', url: process.env.INVENTORY_SUBGRAPH_URL || 'http://localhost:4001/graphql' },

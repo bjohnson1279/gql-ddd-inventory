@@ -40,6 +40,13 @@ describe('InventoryService', () => {
     inventoryService = new InventoryService(ledgerRepository, eventDispatcher);
   });
 
+  describe('constructor', () => {
+    it('should instantiate successfully with default eventDispatcher', () => {
+      const service = new InventoryService(ledgerRepository);
+      expect(service).toBeDefined();
+    });
+  });
+
   describe('decrementForSale', () => {
     it('should successfully decrement inventory for a sale', async () => {
       ledgerRepository.currentQuantity.mockResolvedValue(10);
@@ -125,6 +132,25 @@ describe('InventoryService', () => {
           referenceId: saleId
         })
       );
+    });
+
+    it('should throw an error if any item has insufficient stock (including completely missing in repository)', async () => {
+      const map = new Map<string, number>();
+      map.set(variantId1.value, 10);
+      // variantId2 is missing from the map, so availableQuantities.get will return undefined and fallback to 0
+      ledgerRepository.currentQuantities.mockResolvedValue(map);
+
+      const items = [
+        { variantId: variantId1, quantity: 2 },
+        { variantId: variantId2, quantity: 3 }
+      ];
+
+      await expect(
+        inventoryService.decrementForSaleBatch(tenantId, locationId, items, saleId, actor)
+      ).rejects.toThrow('Insufficient stock for variant var-2. Requested: 3, Available: 0');
+
+      expect(ledgerRepository.appendBatch).not.toHaveBeenCalled();
+      expect(eventDispatcher).not.toHaveBeenCalled();
     });
 
     it('should throw an error if any item has insufficient stock', async () => {
@@ -215,6 +241,23 @@ describe('InventoryService', () => {
           referenceId: saleId
         })
       );
+    });
+
+    it('should throw an error if any component has insufficient stock for kit sale (including completely missing in repository)', async () => {
+      kit.addComponent(variantId1, 2);
+      kit.addComponent(variantId2, 1);
+
+      const map = new Map<string, number>();
+      map.set(variantId1.value, 20);
+      // variantId2 is missing from the map, so availableQuantities.get will return undefined and fallback to 0
+      ledgerRepository.currentQuantities.mockResolvedValue(map);
+
+      await expect(
+        inventoryService.decrementForKitSale(tenantId, locationId, kit, 3, saleId, actor)
+      ).rejects.toThrow('Insufficient stock for variant var-2. Requested: 3, Available: 0');
+
+      expect(ledgerRepository.appendBatch).not.toHaveBeenCalled();
+      expect(eventDispatcher).not.toHaveBeenCalled();
     });
 
     it('should throw an error if any component has insufficient stock for kit sale', async () => {
