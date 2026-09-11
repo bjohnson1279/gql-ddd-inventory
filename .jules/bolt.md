@@ -83,3 +83,6 @@ origin/main
 ## 2024-09-06 - Performance Optimization: Replacing .split().map().filter().map() chains with a single loop
 **Learning:** Chaining `.map()` and `.filter()` over arrays (like CORS origins parsing) allocates intermediate arrays and adds unnecessary CPU overhead.
 **Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).
+## 2024-05-31 - Optimize PutawaySuggester multi-pass iteration
+**Learning:** In TypeScript/Node.js, chaining `.filter()` and `.map()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data filtering and transformation into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).

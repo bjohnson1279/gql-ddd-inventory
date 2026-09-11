@@ -51,27 +51,29 @@ export class PutawaySuggester {
     }
 
     // Pre-filter locations based on required zone constraints to avoid fetching inventory for incompatible locations
-    const locations = allLocations.filter(loc => {
+    const locations = [];
+    const locationIds = [];
+    for (const loc of allLocations) {
       // 1. Temperature Zone: must match if variant specifies it
       if (tempZoneAttr && loc.zone.toLowerCase() !== tempZoneAttr.toLowerCase()) {
-        return false;
+        continue;
       }
       // 2. Hazard Class: standard items cannot go in hazmat, hazmat items must go in hazmat
       if (hazardAttr && loc.zone.toLowerCase() !== 'hazmat') {
-        return false;
+        continue;
       }
       if (!hazardAttr && loc.zone.toLowerCase() === 'hazmat') {
-        return false;
+        continue;
       }
-      return true;
-    });
+      locations.push(loc);
+      locationIds.push(loc.id.value);
+    }
 
     if (locations.length === 0) {
       return [];
     }
 
     // Batch lookup: fetch inventory items only for eligible locations (prevents loading the entire database)
-    const locationIds = locations.map(loc => loc.id.value);
     const allItems = await this.inventoryRepo.findByLocationsBatch(locationIds);
     const itemSkusMap = new Map<string, Sku>();
     for (const item of allItems) {
