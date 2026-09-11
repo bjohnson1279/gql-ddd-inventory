@@ -1645,7 +1645,7 @@ export const resolvers = {
       if (result.status === 'APPROVED') {
         if (result.referenceType === 'PurchaseOrder') {
           // Fire placement event
-          const pubsub = require('./index').pubsub;
+          const pubsub = require('./pubsub').pubsub;
           pubsub.publish(`PO_APPROVED`, { referenceId: result.referenceId });
         }
       }
