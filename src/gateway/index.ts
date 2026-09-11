@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { depthLimitRule, complexityLimitRule } from '../infrastructure/graphql/guardrails';
 
 // Gateway routes requests to subgraphs and propagates Authorization header
@@ -105,6 +106,10 @@ async function startGateway() {
 
   await server.start();
 
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
@@ -112,11 +117,20 @@ async function startGateway() {
     })
   );
 
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 1000, // Limit each IP to 1000 requests per window
+    standardHeaders: 'draft-7', // draft-6: RateLimit-* headers; draft-7: combined RateLimit header
+    legacyHeaders: false, // Disable the X-RateLimit-* headers.
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+  });
+
   app.use(
     '/graphql',
     cors<cors.CorsRequest>({
       origin: allowedOrigins,
     }),
+    apiLimiter,
     bodyParser.json({ limit: '2mb' }),
     expressMiddleware(server, {
       context: async ({ req }) => {
