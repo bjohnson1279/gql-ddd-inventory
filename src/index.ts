@@ -195,11 +195,11 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
   );
   app.use(
     '/graphql',
-    apiLimiter,
     // Apply parsed allowed origins to securely restrict CORS
     cors<cors.CorsRequest>({
       origin: allowedOrigins
     }),
+    apiLimiter,
     bodyParser.json({ limit: '2mb' }),
     (req: express.Request, res: express.Response, next: express.NextFunction) => {
       const authHeader = req.headers.authorization || req.headers.Authorization || '';

@@ -68,3 +68,7 @@ origin/main
 ## Hallucinatory Task & Empty PR Directives
 - **Zero-Diff Task Termination**: If the requested optimization, refactor, or fix is ALREADY natively present in the target branch, DO NOT create an empty pull request or commit an acknowledgment PR. Exit the task cleanly without opening a PR.
 - **Stale Suggestion Guard**: Always verify the current code on `main`/`master` before planning changes. If no actionable diff is required, cancel task execution immediately.
+## 2024-05-24 - [Fix CORS missing on rate limited responses]
+**Vulnerability:** Rate limiter middleware (`apiLimiter`) was applied before `cors` middleware in `src/index.ts` for Express.
+**Learning:** If rate limiting is placed before CORS, 429 Too Many Requests responses will lack CORS headers, causing opaque errors on web clients.
+**Prevention:** Ensure `cors` middleware is applied *before* rate limiting middleware when configuring Express.
