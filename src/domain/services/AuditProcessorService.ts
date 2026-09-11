@@ -33,9 +33,16 @@ export class AuditProcessorService {
         const connLocationMappings = locationMappings.filter((m) => m.integrationId === conn.id);
 
         const shopifyStockMap: Record<string, Record<string, number>> = {}; // inventoryItemId -> externalLocId -> quantity
-        const externalItemIds = Array.from(new Set(
-          connVariantMappings.map((m) => m.externalSecondaryId).filter(Boolean) as string[]
-        ));
+
+        // ⚡ Bolt: Consolidated .map() and .filter() chains into a single pass
+        // to avoid O(N) intermediate array allocations and reduce CPU overhead.
+        const externalItemIdsSet = new Set<string>();
+        for (const m of connVariantMappings) {
+          if (m.externalSecondaryId) {
+            externalItemIdsSet.add(m.externalSecondaryId);
+          }
+        }
+        const externalItemIds = Array.from(externalItemIdsSet);
 
         const isMock = !conn.accessToken || conn.accessToken === 'mock-token' || conn.storeDomain.includes('mock');
 
