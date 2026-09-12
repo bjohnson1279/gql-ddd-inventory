@@ -425,16 +425,17 @@ model Tenant {
 }
 
 model User {
-  id           String     @id
-  tenantId     String     @map("tenant_id")
-  email        String
-  passwordHash String     @map("password_hash")
-  name         String
-  active       Boolean    @default(true)
-  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userRoles    UserRole[]
-  apiTokens    ApiToken[]
+  id                String             @id
+  tenantId          String             @map("tenant_id")
+  email             String
+  passwordHash      String             @map("password_hash")
+  name              String
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles         UserRole[]
+  apiTokens         ApiToken[]
+  warehouseOperator WarehouseOperator?
 
   @@unique([tenantId, email])
   @@map("users")
@@ -834,4 +835,89 @@ model DashboardWidgetModel {
   height      Int      @default(1)
 
   @@map("dashboard_widgets")
+}
+
+// ==========================================
+// Workforce & Labor Management
+// ==========================================
+
+model WarehouseOperator {
+  id                    String             @id @default(uuid()) @db.Uuid
+  userId                String             @unique @map("user_id")
+  tenantId              String             @map("tenant_id")
+  averagePicksPerHour   Float              @default(0.0) @map("average_picks_per_hour")
+  totalDistanceWalkedM  Float              @default(0.0) @map("total_distance_walked_m")
+  accuracyScore         Float              @default(100.0) @map("accuracy_score")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shifts                LaborShift[]
+  taskPerformances      TaskPerformance[]
+
+  @@map("warehouse_operators")
+}
+
+model LaborShift {
+  id                String             @id @default(uuid()) @db.Uuid
+  operatorId        String             @map("operator_id") @db.Uuid
+  tenantId          String             @map("tenant_id")
+  startTime         DateTime           @map("start_time") @db.Timestamptz
+  endTime           DateTime           @map("end_time") @db.Timestamptz
+  status            String             @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  predictedDemand   Int                @map("predicted_demand")
+  actualCompleted   Int                @default(0) @map("actual_completed")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  operator          WarehouseOperator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@map("labor_shifts")
+}
+
+model TaskPerformance {
+  id                      String             @id @default(uuid()) @db.Uuid
+  operatorId              String             @map("operator_id") @db.Uuid
+  tenantId                String             @map("tenant_id")
+  taskType                String             @map("task_type") // PICK, COUNT, PUTAWAY
+  locationId              String             @map("location_id")
+  traversalDistanceMeters Float              @default(0.0) @map("traversal_distance_meters")
+  durationSeconds         Int                @map("duration_seconds")
+  accuracyScore           Float              @default(100.0) @map("accuracy_score")
+  occurredAt              DateTime           @default(now()) @map("occurred_at") @db.Timestamptz
+
+  operator                WarehouseOperator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@map("task_performances")
+}
+
+// ==========================================
+// Yield Management & Dynamic Pricing
+// ==========================================
+
+model LiquidationRule {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id")
+  department         String?
+  sku                String?
+  daysToExpiration   Int      @map("days_to_expiration")
+  markdownPercentage Float    @map("markdown_percentage")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("liquidation_rules")
+}
+
+model MarkdownEvent {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id")
+  variantId          String   @map("variant_id") @db.Uuid
+  ruleId             String?  @map("rule_id") @db.Uuid
+  originalPriceCents Int      @map("original_price_cents")
+  newPriceCents      Int      @map("new_price_cents")
+  reason             String
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("markdown_events")
 }

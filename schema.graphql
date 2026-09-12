@@ -1240,3 +1240,44 @@ extend type Mutation {
   submitASN(tenantId: ID!, poId: ID!, supplierId: ID!, expectedArrivalDate: String!, lines: [ASNLineInput!]!): ASN!
   markNotificationRead(id: ID!): Boolean!
 }
+
+# ==========================================
+# Workforce & Labor Management
+# ==========================================
+
+type WarehouseOperator {
+  id: ID!
+  userId: ID!
+  averagePicksPerHour: Float!
+  totalDistanceWalkedM: Float!
+  accuracyScore: Float!
+  shifts: [LaborShift!]!
+}
+
+type LaborShift {
+  id: ID!
+  operatorId: ID!
+  startTime: String!
+  endTime: String!
+  status: String!
+  predictedDemand: Int!
+  actualCompleted: Int!
+}
+
+type ShiftSuggestion {
+  operatorId: ID!
+  shiftStart: String!
+  shiftEnd: String!
+  assignedZone: String!
+  predictedDemand: Int!
+}
+
+extend type Query {
+  operatorLeaderboard(limit: Int): [WarehouseOperator!]!
+  operatorProfile(userId: ID!): WarehouseOperator
+}
+
+extend type Mutation {
+  clockInOperator(userId: ID!): LaborShift!
+  generatePredictiveSchedule(periodStart: String!, periodEnd: String!): [ShiftSuggestion!]!
+}
