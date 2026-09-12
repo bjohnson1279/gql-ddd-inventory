@@ -1281,3 +1281,31 @@ extend type Mutation {
   clockInOperator(userId: ID!): LaborShift!
   generatePredictiveSchedule(periodStart: String!, periodEnd: String!): [ShiftSuggestion!]!
 }
+
+# ==========================================
+# Yield Management & Dynamic Pricing
+# ==========================================
+
+type LiquidationRule {
+  id: ID!
+  daysToExpiration: Int!
+  markdownPercentage: Float!
+  isActive: Boolean!
+  department: String
+  sku: String
+}
+
+type MarkdownEvent {
+  id: ID!
+  variantId: ID!
+  originalPriceCents: Int!
+  newPriceCents: Int!
+  reason: String!
+  createdAt: String!
+  ruleId: ID
+}
+
+extend type Mutation {
+  createLiquidationRule(daysToExpiration: Int!, markdownPercentage: Float!, department: String, sku: String): LiquidationRule!
+  runYieldOptimization: [MarkdownEvent!]!
+}

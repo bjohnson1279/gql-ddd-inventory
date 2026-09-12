@@ -17,7 +17,7 @@ export class ReportGeneratorService {
     let data: any[] = [];
     if (def.type === "INVENTORY_VALUATION") {
       const inventory = await prisma.inventoryItem.findMany({ take: 100 });
-      data = inventory.map(i => ({ sku: i.sku, quantity: i.quantity, location: i.locationId }));
+      data = inventory.map((i: any) => ({ sku: i.sku, quantity: i.quantity, location: i.locationId }));
     } else {
       data = [{ note: "No data available for this report type" }];
     }
@@ -69,8 +69,8 @@ export class ReportGeneratorService {
       doc.moveDown();
       doc.fontSize(10);
       
-      data.forEach((row, index) => {
-        doc.text(`${index + 1}. ${JSON.stringify(row)}`);
+      data.forEach((row, i: number) => {
+        doc.text(`${i + 1}. ${JSON.stringify(row)}`);
         doc.moveDown(0.5);
       });
       

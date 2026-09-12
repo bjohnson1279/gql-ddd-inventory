@@ -11,8 +11,12 @@ WebhookWorker.start();
 OutboxWorker.start();
 AuditWorker.start();
 WebhookDeliveryWorker.start();
-ReportGenerationWorker.start();
-ReportSchedulerWorker.start();
+
+const reportScheduler = new ReportSchedulerWorker();
+reportScheduler.start(60000);
+
+const reportWorker = new ReportGenerationWorker();
+// TODO: Hook up event dispatcher for ReportExecutionRequested
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
@@ -21,8 +25,7 @@ process.on('SIGTERM', () => {
   OutboxWorker.stop();
   AuditWorker.stop();
   WebhookDeliveryWorker.stop();
-  ReportGenerationWorker.stop();
-  ReportSchedulerWorker.stop();
+  reportScheduler.stop();
   process.exit(0);
 });
 
@@ -32,7 +35,6 @@ process.on('SIGINT', () => {
   OutboxWorker.stop();
   AuditWorker.stop();
   WebhookDeliveryWorker.stop();
-  ReportGenerationWorker.stop();
-  ReportSchedulerWorker.stop();
+  reportScheduler.stop();
   process.exit(0);
 });

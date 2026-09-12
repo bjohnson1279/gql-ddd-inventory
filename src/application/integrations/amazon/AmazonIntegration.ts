@@ -1,4 +1,4 @@
-import { AmazonConnection, BaseChannelAdapter, ExternalMapping } from '../../../../../shared/src/api/integrations/types';
+import { AmazonConnection, BaseChannelAdapter, ExternalMapping } from '../types';
 
 export class AmazonIntegration implements BaseChannelAdapter<AmazonConnection> {
   constructor(

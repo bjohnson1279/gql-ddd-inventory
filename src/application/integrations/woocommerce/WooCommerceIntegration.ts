@@ -1,4 +1,4 @@
-import { WooCommerceConnection, BaseChannelAdapter, ExternalMapping } from '../../../../../shared/src/api/integrations/types';
+import { WooCommerceConnection, BaseChannelAdapter, ExternalMapping } from '../types';
 
 export class WooCommerceIntegration implements BaseChannelAdapter<WooCommerceConnection> {
   constructor(
