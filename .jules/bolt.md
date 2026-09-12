@@ -112,3 +112,6 @@ origin/main
 - **Database Indexing for Queries**: When addressing query bottlenecks or adding query lookup filters, always implement native database index migrations rather than loading collections into memory and performing array filtering (`.filter()`, `.select`).
 - **Co-Occurring Dependency Auditing**: When bumping any dependency version, verify that other transitive dependencies do not carry high/critical security advisories (e.g. run `bundler-audit`, `npm audit`). Never introduce a version bump that breaks underlying framework APIs.
 - **Self-Verification Before Commit**: Always run syntax checks (`bash -n` for shell scripts, `tsc --noEmit` for TypeScript, linter checks) and targeted test runners locally before opening or updating a PR.
+## 2024-05-31 - Optimize AnomalyDetectionService iteration overhead
+**Learning:** In TypeScript/Node.js, chaining `.filter()` and `.map()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data filtering and transformation into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).

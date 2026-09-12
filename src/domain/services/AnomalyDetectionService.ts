@@ -40,28 +40,37 @@ export class AnomalyDetectionService {
       take: 500
     });
 
-    // 2. Derive cycle counts from count_adjustment ledger entries
-    const cycleCounts = ledgerEntries
-      .filter(e => e.reason === 'count_adjustment')
-      .map(e => ({
-        sku: e.variantId || '',
-        location_id: e.locationId || '',
-        expected_quantity: 0,
-        counted_quantity: e.quantity,
-        counted_at: (e.occurredAt || new Date()).toISOString(),
-        actor_id: e.actorId || 'system'
-      }));
+    // 2 & 3. ⚡ Bolt: Consolidated .filter() and .map() chains into a single pass
+    const cycleCounts: any[] = [];
+    const sidecarLedger: any[] = [];
 
-    // 3. Format ledger entries for sidecar (snake_case keys)
-    const sidecarLedger = ledgerEntries.map(e => ({
-      sku: e.variantId || '',
-      location_id: e.locationId || '',
-      quantity: e.quantity,
-      reason: e.reason || 'unknown',
-      actor_id: e.actorId || 'system',
-      occurred_at: (e.occurredAt || new Date()).toISOString(),
-      reference_id: e.referenceId || null
-    }));
+    for (const e of ledgerEntries) {
+      const sku = e.variantId || '';
+      const location_id = e.locationId || '';
+      const occurred_at = (e.occurredAt || new Date()).toISOString();
+      const actor_id = e.actorId || 'system';
+
+      if (e.reason === 'count_adjustment') {
+        cycleCounts.push({
+          sku,
+          location_id,
+          expected_quantity: 0,
+          counted_quantity: e.quantity,
+          counted_at: occurred_at,
+          actor_id
+        });
+      }
+
+      sidecarLedger.push({
+        sku,
+        location_id,
+        quantity: e.quantity,
+        reason: e.reason || 'unknown',
+        actor_id,
+        occurred_at,
+        reference_id: e.referenceId || null
+      });
+    }
 
     // 4. Call Python sidecar
     const sidecarBaseUrl = process.env.PYTHON_SIDECAR_URL || 'http://localhost:5005';
@@ -113,14 +122,14 @@ export class AnomalyDetectionService {
 
   private basicFallback(entries: any[]): AnomalySummary {
     const alerts: AnomalyAlert[] = [];
-    const shrinkageEntries = entries.filter(
-      (e: any) => e.reason === 'shrinkage' || e.reason === 'write_off' || e.reason === 'damage'
-    );
-
     const actorCounts = new Map<string, number>();
-    for (const e of shrinkageEntries) {
-      const actor = e.actorId || 'unknown';
-      actorCounts.set(actor, (actorCounts.get(actor) || 0) + 1);
+
+    // ⚡ Bolt: Consolidated .filter() and reduction into a single loop to avoid intermediate O(N) allocation
+    for (const e of entries) {
+      if (e.reason === 'shrinkage' || e.reason === 'write_off' || e.reason === 'damage') {
+        const actor = e.actorId || 'unknown';
+        actorCounts.set(actor, (actorCounts.get(actor) || 0) + 1);
+      }
     }
 
     const values = Array.from(actorCounts.values());
