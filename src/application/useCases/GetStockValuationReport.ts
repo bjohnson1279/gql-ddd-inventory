@@ -43,7 +43,10 @@ export class GetStockValuationReportUseCase {
       : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
-    const uniqueSkusSet = new Set(filteredItems.map(item => item.sku.value));
+    const uniqueSkusSet = new Set<string>();
+    for (const item of filteredItems) {
+      uniqueSkusSet.add(item.sku.value);
+    }
     const uniqueSkus = Array.from(uniqueSkusSet);
 
     // Batch-lookup products to get variant IDs for each SKU

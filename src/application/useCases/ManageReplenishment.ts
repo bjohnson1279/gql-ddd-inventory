@@ -260,14 +260,18 @@ export class PlacePurchaseOrderUseCase {
     po.place();
 
     // Batch operations to fix N+1 query
-    const variantIds = po.items.map(i => i.variantId.value);
+    const variantIds: string[] = [];
+    for (const item of po.items) {
+      variantIds.push(item.variantId.value);
+    }
     const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
-    const destPairs = po.items.map(item => {
+    const destPairs = [];
+    for (const item of po.items) {
       const sku = variantSkus.get(item.variantId.value);
       if (!sku) throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
-      return { sku, locationId: po.destinationLocationId.value };
-    });
+      destPairs.push({ sku, locationId: po.destinationLocationId.value });
+    }
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
@@ -313,14 +317,18 @@ export class ReceivePurchaseOrderUseCase {
     po.receive();
 
     // Batch operations to fix N+1 query
-    const variantIds = po.items.map(i => i.variantId.value);
+    const variantIds: string[] = [];
+    for (const item of po.items) {
+      variantIds.push(item.variantId.value);
+    }
     const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
-    const destPairs = po.items.map(item => {
+    const destPairs = [];
+    for (const item of po.items) {
       const sku = variantSkus.get(item.variantId.value);
       if (!sku) throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
-      return { sku, locationId: po.destinationLocationId.value };
-    });
+      destPairs.push({ sku, locationId: po.destinationLocationId.value });
+    }
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
@@ -380,14 +388,18 @@ export class CancelPurchaseOrderUseCase {
     // Revert in-transit if it was already ordered
     if (previousStatus === PurchaseOrderStatus.Ordered) {
       // Batch operations to fix N+1 query
-      const variantIds = po.items.map(i => i.variantId.value);
+      const variantIds: string[] = [];
+      for (const item of po.items) {
+        variantIds.push(item.variantId.value);
+      }
       const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
-      const destPairs = po.items.map(item => {
+      const destPairs = [];
+      for (const item of po.items) {
         const sku = variantSkus.get(item.variantId.value);
         if (!sku) throw new Error(`Variant ${item.variantId.value} not found in product catalog.`);
-        return { sku, locationId: po.destinationLocationId.value };
-      });
+        destPairs.push({ sku, locationId: po.destinationLocationId.value });
+      }
 
       const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
       const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
