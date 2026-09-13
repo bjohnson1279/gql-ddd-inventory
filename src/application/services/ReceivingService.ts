@@ -18,7 +18,8 @@ export class ReceivingService {
       body: JSON.stringify({
         image_base64: base64Image,
         po_id: purchaseOrderId || null
-      })
+      }),
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!response.ok) {
