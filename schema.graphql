@@ -1309,3 +1309,28 @@ extend type Mutation {
   createLiquidationRule(daysToExpiration: Int!, markdownPercentage: Float!, department: String, sku: String): LiquidationRule!
   runYieldOptimization: [MarkdownEvent!]!
 }
+
+type Dimensions {
+  length: Float!
+  width: Float!
+  height: Float!
+}
+
+type InboundScan {
+  id: ID!
+  tenantId: String!
+  purchaseOrderId: String
+  imageUrl: String!
+  dimensions: Dimensions
+  ocrText: String
+  anomalyScore: Float!
+  hasDamage: Boolean!
+  status: String!
+  createdAt: String!
+}
+
+extend type Mutation {
+  analyzeInboundImage(base64Image: String!, poId: String): InboundScan!
+  approveInboundScan(id: ID!): InboundScan!
+}
+

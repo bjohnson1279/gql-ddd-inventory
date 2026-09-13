@@ -281,14 +281,14 @@ model WebhookEvent {
 }
 
 model OutboxEvent {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType   String    @map("event_type")
-  payload     String    @db.Text
-  status      String    @default("Pending")
-  attempts    Int       @default(0)
-  lastError   String?   @map("last_error") @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  processedAt DateTime? @map("processed_at") @db.Timestamptz
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType     String    @map("event_type")
+  payload       String    @db.Text
+  status        String    @default("Pending")
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz
   nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz
 
   @@map("outbox_events")
@@ -358,32 +358,32 @@ model StockTransfer {
 }
 
 model StockTransferItem {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  transferId  String        @map("transfer_id") @db.Uuid
-  variantId   String        @map("variant_id") @db.Uuid
-  quantity    Int
-  transfer    StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId String        @map("transfer_id") @db.Uuid
+  variantId  String        @map("variant_id") @db.Uuid
+  quantity   Int
+  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
 
   @@unique([transferId, variantId])
   @@map("stock_transfer_items")
 }
 
 model ReplenishmentRule {
-  id                    String   @id @db.Uuid
-  tenantId              String   @map("tenant_id")
-  sku                   String
-  locationId            String   @map("location_id")
-  reorderPoint          Int      @map("reorder_point")
-  reorderQuantity       Int      @map("reorder_quantity")
-  safetyStock           Int      @map("safety_stock")
-  leadTimeDays          Int      @map("lead_time_days")
-  replenishmentType     String   @map("replenishment_type") // "SUPPLIER" | "TRANSFER"
-  sourceLocationId      String?  @map("source_location_id")
-  supplierId            String?  @map("supplier_id")
-  isActive              Boolean  @default(true) @map("is_active")
-  dynamicRopEnabled     Boolean  @default(false) @map("dynamic_rop_enabled")
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                String   @id @db.Uuid
+  tenantId          String   @map("tenant_id")
+  sku               String
+  locationId        String   @map("location_id")
+  reorderPoint      Int      @map("reorder_point")
+  reorderQuantity   Int      @map("reorder_quantity")
+  safetyStock       Int      @map("safety_stock")
+  leadTimeDays      Int      @map("lead_time_days")
+  replenishmentType String   @map("replenishment_type") // "SUPPLIER" | "TRANSFER"
+  sourceLocationId  String?  @map("source_location_id")
+  supplierId        String?  @map("supplier_id")
+  isActive          Boolean  @default(true) @map("is_active")
+  dynamicRopEnabled Boolean  @default(false) @map("dynamic_rop_enabled")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   @@unique([tenantId, sku, locationId])
   @@map("replenishment_rules")
@@ -414,11 +414,11 @@ model PurchaseOrderItem {
 }
 
 model Tenant {
-  id                String              @id
+  id                String             @id
   name              String
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
   users             User[]
-  customRoles       Role[]              @relation("TenantRoles")
+  customRoles       Role[]             @relation("TenantRoles")
   approvalWorkflows ApprovalWorkflow[]
 
   @@map("tenants")
@@ -486,13 +486,13 @@ model RolePermission {
 }
 
 model ApiToken {
-  id         String   @id
-  userId     String   @map("user_id")
-  tenantId   String   @map("tenant_id")
-  tokenHash  String   @unique @map("token_hash")
-  expiresAt  DateTime @map("expires_at") @db.Timestamptz
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id
+  userId    String   @map("user_id")
+  tenantId  String   @map("tenant_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("api_tokens")
 }
@@ -583,32 +583,31 @@ model Shipment {
 }
 
 model NetsuiteJournalMapping {
-  id                 String   @id @db.Uuid
-  journalEntryId     String   @unique @map("journal_entry_id") @db.Uuid
-  netsuiteJournalId  String   @unique @map("netsuite_journal_id")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                String   @id @db.Uuid
+  journalEntryId    String   @unique @map("journal_entry_id") @db.Uuid
+  netsuiteJournalId String   @unique @map("netsuite_journal_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("netsuite_journal_mappings")
 }
 
 model XeroJournalMapping {
-  id                 String   @id @db.Uuid
-  journalEntryId     String   @unique @map("journal_entry_id") @db.Uuid
-  xeroJournalId      String   @unique @map("xero_journal_id")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id             String   @id @db.Uuid
+  journalEntryId String   @unique @map("journal_entry_id") @db.Uuid
+  xeroJournalId  String   @unique @map("xero_journal_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("xero_journal_mappings")
 }
 
 model QuickbooksJournalMapping {
-  id                 String   @id @db.Uuid
-  journalEntryId     String   @unique @map("journal_entry_id") @db.Uuid
-  quickbooksJournalId String  @unique @map("quickbooks_journal_id")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                  String   @id @db.Uuid
+  journalEntryId      String   @unique @map("journal_entry_id") @db.Uuid
+  quickbooksJournalId String   @unique @map("quickbooks_journal_id")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("quickbooks_journal_mappings")
 }
-
 
 model TenantAccountingConfig {
   tenantId         String @id @map("tenant_id")
@@ -621,11 +620,11 @@ model TenantAccountingConfig {
 model AuditDiscrepancy {
   id              String    @id @default(uuid())
   tenantId        String    @map("tenant_id")
-  type            String    
-  referenceId     String    @map("reference_id") 
+  type            String
+  referenceId     String    @map("reference_id")
   externalRefId   String?   @map("external_ref_id")
   description     String
-  status          String    @default("OPEN") 
+  status          String    @default("OPEN")
   occurredAt      DateTime  @default(now()) @map("occurred_at")
   resolvedAt      DateTime? @map("resolved_at")
   resolutionNotes String?   @map("resolution_notes")
@@ -763,7 +762,6 @@ model ApprovalDecision {
   @@map("approval_decisions")
 }
 
-
 model ReportDefinitionModel {
   id          String   @id @default(uuid())
   tenantId    String   @map("tenant_id")
@@ -791,7 +789,7 @@ model ReportScheduleModel {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  reportDefinition   ReportDefinitionModel @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+  reportDefinition ReportDefinitionModel @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
 
   @@map("report_schedules")
 }
@@ -805,8 +803,8 @@ model ReportExecutionModel {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  reportDefinition   ReportDefinitionModel @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
-  sharedLinks        SharedReportLinkModel[]
+  reportDefinition ReportDefinitionModel   @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+  sharedLinks      SharedReportLinkModel[]
 
   @@map("report_executions")
 }
@@ -819,20 +817,20 @@ model SharedReportLinkModel {
   viewerPermissions String?  @map("viewer_permissions")
   createdAt         DateTime @default(now()) @map("created_at")
 
-  reportExecution   ReportExecutionModel @relation(fields: [reportExecutionId], references: [id], onDelete: Cascade)
+  reportExecution ReportExecutionModel @relation(fields: [reportExecutionId], references: [id], onDelete: Cascade)
 
   @@map("shared_report_links")
 }
 
 model DashboardWidgetModel {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  type        String
-  config      String   @db.Text
-  layoutX     Int      @default(0) @map("layout_x")
-  layoutY     Int      @default(0) @map("layout_y")
-  width       Int      @default(1)
-  height      Int      @default(1)
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  type     String
+  config   String @db.Text
+  layoutX  Int    @default(0) @map("layout_x")
+  layoutY  Int    @default(0) @map("layout_y")
+  width    Int    @default(1)
+  height   Int    @default(1)
 
   @@map("dashboard_widgets")
 }
@@ -842,51 +840,51 @@ model DashboardWidgetModel {
 // ==========================================
 
 model WarehouseOperator {
-  id                    String             @id @default(uuid()) @db.Uuid
-  userId                String             @unique @map("user_id")
-  tenantId              String             @map("tenant_id")
-  averagePicksPerHour   Float              @default(0.0) @map("average_picks_per_hour")
-  totalDistanceWalkedM  Float              @default(0.0) @map("total_distance_walked_m")
-  accuracyScore         Float              @default(100.0) @map("accuracy_score")
-  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @unique @map("user_id")
+  tenantId             String   @map("tenant_id")
+  averagePicksPerHour  Float    @default(0.0) @map("average_picks_per_hour")
+  totalDistanceWalkedM Float    @default(0.0) @map("total_distance_walked_m")
+  accuracyScore        Float    @default(100.0) @map("accuracy_score")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shifts                LaborShift[]
-  taskPerformances      TaskPerformance[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shifts           LaborShift[]
+  taskPerformances TaskPerformance[]
 
   @@map("warehouse_operators")
 }
 
 model LaborShift {
-  id                String             @id @default(uuid()) @db.Uuid
-  operatorId        String             @map("operator_id") @db.Uuid
-  tenantId          String             @map("tenant_id")
-  startTime         DateTime           @map("start_time") @db.Timestamptz
-  endTime           DateTime           @map("end_time") @db.Timestamptz
-  status            String             @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
-  predictedDemand   Int                @map("predicted_demand")
-  actualCompleted   Int                @default(0) @map("actual_completed")
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  id              String   @id @default(uuid()) @db.Uuid
+  operatorId      String   @map("operator_id") @db.Uuid
+  tenantId        String   @map("tenant_id")
+  startTime       DateTime @map("start_time") @db.Timestamptz
+  endTime         DateTime @map("end_time") @db.Timestamptz
+  status          String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  predictedDemand Int      @map("predicted_demand")
+  actualCompleted Int      @default(0) @map("actual_completed")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  operator          WarehouseOperator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  operator WarehouseOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
 
   @@map("labor_shifts")
 }
 
 model TaskPerformance {
-  id                      String             @id @default(uuid()) @db.Uuid
-  operatorId              String             @map("operator_id") @db.Uuid
-  tenantId                String             @map("tenant_id")
-  taskType                String             @map("task_type") // PICK, COUNT, PUTAWAY
-  locationId              String             @map("location_id")
-  traversalDistanceMeters Float              @default(0.0) @map("traversal_distance_meters")
-  durationSeconds         Int                @map("duration_seconds")
-  accuracyScore           Float              @default(100.0) @map("accuracy_score")
-  occurredAt              DateTime           @default(now()) @map("occurred_at") @db.Timestamptz
+  id                      String   @id @default(uuid()) @db.Uuid
+  operatorId              String   @map("operator_id") @db.Uuid
+  tenantId                String   @map("tenant_id")
+  taskType                String   @map("task_type") // PICK, COUNT, PUTAWAY
+  locationId              String   @map("location_id")
+  traversalDistanceMeters Float    @default(0.0) @map("traversal_distance_meters")
+  durationSeconds         Int      @map("duration_seconds")
+  accuracyScore           Float    @default(100.0) @map("accuracy_score")
+  occurredAt              DateTime @default(now()) @map("occurred_at") @db.Timestamptz
 
-  operator                WarehouseOperator  @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  operator WarehouseOperator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
 
   @@map("task_performances")
 }
@@ -920,4 +918,24 @@ model MarkdownEvent {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("markdown_events")
+}
+
+// ==========================================
+// Computer Vision Receiving & QA
+// ==========================================
+
+model InboundScan {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id")
+  purchaseOrderId String?  @map("purchase_order_id") @db.Uuid
+  imageUrl        String   @map("image_url")
+  dimensions      Json
+  ocrText         String?  @map("ocr_text")
+  anomalyScore    Float    @map("anomaly_score")
+  hasDamage       Boolean  @map("has_damage")
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("inbound_scans")
 }

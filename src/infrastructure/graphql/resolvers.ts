@@ -32,6 +32,9 @@ import { DispatchStockUseCase } from '../../application/useCases/DispatchStock';
 import { GetStockLevelsUseCase, GetStockLevelsBySkuUseCase, GetStockLevelBySkuAndLocationUseCase } from '../../application/useCases/GetStockLevels';
 import { SubmitInventoryCountUseCase } from '../../application/useCases/SubmitInventoryCount';
 import { SubmitOpeningBalanceUseCase } from '../../application/useCases/SubmitOpeningBalance';
+import { ReceivingService } from '../../application/services/ReceivingService';
+
+const receivingService = new ReceivingService();
 import {
   AllocateStockUseCase,
   ReleaseAllocationUseCase,
@@ -1595,6 +1598,14 @@ export const resolvers = {
     }
     },
   Mutation: {
+    analyzeInboundImage: async (_: any, { base64Image, poId }: { base64Image: string, poId?: string }, context: GraphQLContext) => {
+      const auth = enforcePermission(context, 'inventory', 'receive', 'warehouse_operator');
+      return await receivingService.analyzeInboundImage(auth.tenantId, base64Image, poId);
+    },
+    approveInboundScan: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      enforcePermission(context, 'inventory', 'receive', 'warehouse_operator');
+      return await receivingService.approveInboundScan(id);
+    },
     createCustomRole: async (_: any, { tenantId, name, description, permissionIds }: any, context: GraphQLContext) => {
       enforcePermission(context, 'user', 'edit_role', tenantId);
       const manageRolesUseCase = new (require('../../application/useCases/ManageRoles').ManageRolesUseCase)(context.prisma || prisma);
