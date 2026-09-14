@@ -90,14 +90,11 @@ export class DispatchStockTransferUseCase {
     transfer.dispatch();
 
     // Batch operations to fix N+1 query
-    const variantIds: string[] = [];
-    for (const item of transfer.items) {
-      variantIds.push(item.variantId.value);
-    }
+    const variantIds = transfer.items.map(item => item.variantId.value);
     const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
-    const sourcePairs = [];
-    const destPairs = [];
+    const sourcePairs: { sku: string; locationId: string }[] = [];
+    const destPairs: { sku: string; locationId: string }[] = [];
     for (const item of transfer.items) {
       const sku = variantSkus.get(item.variantId.value);
       if (!sku) throw new Error(`Sku not found for variant ID: ${item.variantId.value}`);
@@ -176,18 +173,14 @@ export class ReceiveStockTransferUseCase {
     transfer.receive();
 
     // Batch operations to fix N+1 query
-    const variantIds: string[] = [];
-    for (const item of transfer.items) {
-      variantIds.push(item.variantId.value);
-    }
+    const variantIds = transfer.items.map(item => item.variantId.value);
     const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
-    const destPairs = [];
-    for (const item of transfer.items) {
+    const destPairs = transfer.items.map(item => {
       const sku = variantSkus.get(item.variantId.value);
       if (!sku) throw new Error(`Sku not found for variant ID: ${item.variantId.value}`);
-      destPairs.push({ sku, locationId: transfer.destinationLocationId.value });
-    }
+      return { sku, locationId: transfer.destinationLocationId.value };
+    });
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
     const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
@@ -248,14 +241,11 @@ export class CancelStockTransferUseCase {
     // If it was already dispatched, we must reverse the stock adjustments
     if (previousStatus === StockTransferStatus.Dispatched) {
       // Batch operations to fix N+1 query
-      const variantIds: string[] = [];
-      for (const item of transfer.items) {
-        variantIds.push(item.variantId.value);
-      }
+      const variantIds = transfer.items.map(item => item.variantId.value);
       const variantSkus = await this.productRepo.findSkusByVariantIds(variantIds);
 
-      const sourcePairs = [];
-      const destPairs = [];
+      const sourcePairs: { sku: string; locationId: string }[] = [];
+      const destPairs: { sku: string; locationId: string }[] = [];
       for (const item of transfer.items) {
         const sku = variantSkus.get(item.variantId.value);
         if (!sku) throw new Error(`Sku not found for variant ID: ${item.variantId.value}`);
