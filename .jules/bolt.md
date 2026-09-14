@@ -119,3 +119,7 @@ origin/main
 ## 2024-09-06 - Performance Optimization: Replacing .map() passes with single loops
 **Learning:** In TypeScript/Node.js, executing multiple `.map()` passes sequentially over the same large arrays (e.g. mapping `items` to `variantIds`, then mapping again to `sourcePairs`) allocates intermediate arrays and causes O(N) redundant iteration overhead.
 **Action:** Consolidate data transformation into a single `for...of` loop to avoid intermediate array allocations and reduce the iteration passes when iterating over large item collections.
+
+## 2024-05-31 - Optimize lead time variance calculation
+**Learning:** Chaining `.map()` and multiple `.reduce()` operations creates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data transformations and reduction into a single `for` loop. When calculating variance in a single pass using the sum of squares formula ($Var(X) = E[X^2] - (E[X])^2$), use `Math.max(0, variance)` before passing the value to `Math.sqrt()` to prevent `NaN` errors caused by floating-point inaccuracies.

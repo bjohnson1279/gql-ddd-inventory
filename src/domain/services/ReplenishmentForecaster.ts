@@ -175,16 +175,22 @@ export class ReorderPointForecaster {
           }
 
           if (receivedPos.length > 0) {
-            const leadTimes = receivedPos.map((po) => {
-              const diffMs = po.updatedAt.getTime() - po.createdAt.getTime();
-              return Math.max(0, diffMs / (1000 * 60 * 60 * 24));
-            });
+            // ⚡ Bolt: Consolidated .map() and .reduce() into a single loop using sum of squares
+            // to avoid intermediate array allocations and reduce CPU overhead.
+            let totalLT = 0;
+            let totalLTSq = 0;
+            const n = receivedPos.length;
 
-            const totalLT = leadTimes.reduce((sum, lt) => sum + lt, 0);
-            leadTimeDaysAvg = totalLT / leadTimes.length;
+            for (let i = 0; i < n; i++) {
+              const diffMs = receivedPos[i].updatedAt.getTime() - receivedPos[i].createdAt.getTime();
+              const lt = Math.max(0, diffMs / (1000 * 60 * 60 * 24));
+              totalLT += lt;
+              totalLTSq += lt * lt;
+            }
 
-            const ltVarianceSum = leadTimes.reduce((sum, lt) => sum + Math.pow(lt - leadTimeDaysAvg, 2), 0);
-            leadTimeStdDev = Math.sqrt(ltVarianceSum / leadTimes.length);
+            leadTimeDaysAvg = totalLT / n;
+            const variance = Math.max(0, (totalLTSq / n) - (leadTimeDaysAvg * leadTimeDaysAvg));
+            leadTimeStdDev = Math.sqrt(variance);
           }
         }
       }
