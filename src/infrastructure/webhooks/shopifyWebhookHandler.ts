@@ -13,6 +13,10 @@ import {
 // Note: The hardcoded Shopify Webhook Secret vulnerability has already been fixed.
 // The fallback 'shopify-fallback-secret-key-123' was removed and it now fails securely.
 export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean {
+  if (typeof rawBody !== 'string' || typeof hmacHeader !== 'string') {
+    return false;
+  }
+
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
   if (!secret) {
     console.error('[Shopify Webhook] Critical Error: SHOPIFY_WEBHOOK_SECRET is not configured.');
