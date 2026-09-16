@@ -50,16 +50,23 @@ export class WMSCapacityService {
     let totalWeight = 0;
     let totalVolume = 0;
 
-    const activeSkus = Array.from(quantityMap.entries())
-      .filter(([_, qty]) => qty > 0)
-      .map(([skuStr]) => new Sku(skuStr));
+    // ⚡ Bolt: Consolidated .filter() and .map() chains into a single pass
+    // to avoid O(N) intermediate array allocations and reduce CPU overhead.
+    const activeSkus: Sku[] = [];
+    const activeSkusSet = new Set<string>();
+
+    for (const [skuStr, qty] of quantityMap.entries()) {
+      if (qty > 0) {
+        activeSkus.push(new Sku(skuStr));
+        activeSkusSet.add(skuStr);
+      }
+    }
 
     if (activeSkus.length === 0) {
       return;
     }
 
     const products = await this.productRepository.findBySkus(activeSkus);
-    const activeSkusSet = new Set(activeSkus.map(s => s.value));
 
     const variantMap = new Map<string, typeof products[number]['variants'][number]>();
     for (const product of products) {
