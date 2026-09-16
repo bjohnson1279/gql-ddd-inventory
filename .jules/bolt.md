@@ -123,3 +123,6 @@ origin/main
 ## 2024-05-31 - Optimize lead time variance calculation
 **Learning:** Chaining `.map()` and multiple `.reduce()` operations creates intermediate arrays and adds unnecessary CPU overhead.
 **Action:** Consolidate data transformations and reduction into a single `for` loop. When calculating variance in a single pass using the sum of squares formula ($Var(X) = E[X^2] - (E[X])^2$), use `Math.max(0, variance)` before passing the value to `Math.sqrt()` to prevent `NaN` errors caused by floating-point inaccuracies.
+## 2026-09-16 - Optimize AnomalyDetectionService iteration overhead
+**Learning:** In TypeScript/Node.js, chaining `.filter()` and `.reduce()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
+**Action:** Consolidate data filtering and transformation into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).

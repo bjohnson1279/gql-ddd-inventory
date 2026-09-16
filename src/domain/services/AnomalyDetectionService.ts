@@ -132,10 +132,21 @@ export class AnomalyDetectionService {
       }
     }
 
+    // ⚡ Bolt: Consolidated reduce() operations into a single loop using sum of squares
+    // to calculate mean and standard deviation without intermediate array allocations
     const values = Array.from(actorCounts.values());
-    if (values.length > 0) {
-      const mean = values.reduce((a, b) => a + b, 0) / values.length;
-      const std = Math.sqrt(values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length) || 1;
+    const n = values.length;
+    if (n > 0) {
+      let sum = 0;
+      let sumSq = 0;
+      for (let i = 0; i < n; i++) {
+        const v = values[i];
+        sum += v;
+        sumSq += v * v;
+      }
+      const mean = sum / n;
+      const variance = Math.max(0, (sumSq / n) - (mean * mean));
+      const std = Math.sqrt(variance) || 1;
       for (const [actor, count] of actorCounts) {
         const zScore = (count - mean) / std;
         if (zScore > 1.5) {
@@ -154,13 +165,30 @@ export class AnomalyDetectionService {
       }
     }
 
+    // ⚡ Bolt: Replaced chained .filter() calls and .reduce() operations
+    // with a single loop to reduce iteration passes to O(N) and avoid intermediate array allocations
+    let totalCritical = 0;
+    let totalHigh = 0;
+    let totalMedium = 0;
+    let totalLow = 0;
+    let sumConfidence = 0;
+
+    for (let i = 0; i < alerts.length; i++) {
+      const a = alerts[i];
+      sumConfidence += a.confidence;
+      if (a.severity === 'CRITICAL') totalCritical++;
+      else if (a.severity === 'HIGH') totalHigh++;
+      else if (a.severity === 'MEDIUM') totalMedium++;
+      else if (a.severity === 'LOW') totalLow++;
+    }
+
     return {
       alerts,
-      totalCritical: alerts.filter(a => a.severity === 'CRITICAL').length,
-      totalHigh: alerts.filter(a => a.severity === 'HIGH').length,
-      totalMedium: alerts.filter(a => a.severity === 'MEDIUM').length,
-      totalLow: alerts.filter(a => a.severity === 'LOW').length,
-      overallRiskScore: alerts.length > 0 ? alerts.reduce((sum, a) => sum + a.confidence, 0) / alerts.length : 0
+      totalCritical,
+      totalHigh,
+      totalMedium,
+      totalLow,
+      overallRiskScore: alerts.length > 0 ? sumConfidence / alerts.length : 0
     };
   }
 }
