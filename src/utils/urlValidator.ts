@@ -12,6 +12,19 @@ export function validateOutboundUrl(urlString: string): string {
     hostname = hostname.slice(0, -1);
   }
 
+  // Block advanced SSRF bypasses: hex, octal, integer IPs
+  if (/^\d+$/.test(hostname)) {
+    throw new Error('Internal or reserved IP address blocked to prevent SSRF');
+  }
+  const segments = hostname.split('.');
+  if (segments.length > 0 && segments.length <= 4) {
+    const isAllNumeric = segments.every(s => /^(0x[0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*)$/i.test(s));
+    const hasSpecialEncoding = segments.some(s => /^0x[0-9a-fA-F]+$/i.test(s) || (s.startsWith('0') && s.length > 1));
+    if (isAllNumeric && hasSpecialEncoding) {
+      throw new Error('Internal or reserved IP address blocked to prevent SSRF');
+    }
+  }
+
   if (
     hostname === 'localhost' ||
     hostname === '0.0.0.0' ||

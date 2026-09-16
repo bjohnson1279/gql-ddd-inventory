@@ -72,3 +72,8 @@ origin/main
 **Vulnerability:** Rate limiter middleware (`apiLimiter`) was applied before `cors` middleware in `src/index.ts` for Express.
 **Learning:** If rate limiting is placed before CORS, 429 Too Many Requests responses will lack CORS headers, causing opaque errors on web clients.
 **Prevention:** Ensure `cors` middleware is applied *before* rate limiting middleware when configuring Express.
+
+## 2025-01-20 - SSRF Defenses vs Valid Hostnames
+**Vulnerability:** Broad regular expressions used to block advanced SSRF bypasses (like octal or hex IPs) on an outbound URL validator incorrectly matched valid public domain names (like `007.com` or `0x.org`).
+**Learning:** Using simplistic regexes like `/^0x/` or `/^0\d+/` on full hostnames causes functional regressions by breaking standard domains. An SSRF IP format bypass in Node.js requires all segments of the hostname to evaluate as purely numeric.
+**Prevention:** When validating hostnames strictly without external dependencies, split the hostname into segments. Ensure all segments are purely numeric, and only block if at least one uses the special encoding (hex `0x` or octal `0`). Also explicitly block purely integer representations.
