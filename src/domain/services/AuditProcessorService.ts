@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ProductVariant } from '@prisma/client';
 import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
 import crypto from 'crypto';
 import { validateOutboundUrl } from '../../utils/urlValidator';
@@ -120,7 +120,10 @@ export class AuditProcessorService {
         const variants = await this.prisma.productVariant.findMany({
           where: { id: { in: variantIds } }
         });
-        const variantMap = new Map(variants.map(v => [v.id, v]));
+
+        // ⚡ Bolt: Consolidated .map() and new Map() into a single loop
+        const variantMap = new Map<string, ProductVariant>();
+        for (const v of variants) variantMap.set(v.id, v);
 
         const ledgerSums = await this.prisma.ledgerEntry.groupBy({
           by: ['variantId', 'locationId'],
@@ -139,7 +142,10 @@ export class AuditProcessorService {
         const openShopifyDiscrepancies = await this.prisma.auditDiscrepancy.findMany({
           where: { tenantId, type: 'SHOPIFY_STOCK_MISMATCH', status: 'OPEN' }
         });
-        const openShopifySet = new Set(openShopifyDiscrepancies.map((d) => d.referenceId));
+
+        // ⚡ Bolt: Consolidated .map() and new Set() into a single loop
+        const openShopifySet = new Set<string>();
+        for (const d of openShopifyDiscrepancies) openShopifySet.add(d.referenceId);
 
         const discrepanciesToCreate = [];
 

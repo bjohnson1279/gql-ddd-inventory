@@ -130,3 +130,7 @@ origin/main
 ## 2024-05-18 - Avoiding Large Intermediate Array Allocations
 **Learning:** Using chained array methods like `.map()` within constructors like `new Set()` or after `Array.from()` creates huge temporary arrays on large datasets like full inventory tables, causing unnecessary memory allocation and garbage collection pressure.
 **Action:** Replace these patterns with single-pass `for...of` loops to push or add directly to the destination data structure.
+
+## 2026-09-18 - Optimize Map and Set initializations
+**Learning:** Initializing Maps and Sets by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.
+**Action:** Consolidate `.map()` and Map/Set instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.
