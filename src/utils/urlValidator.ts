@@ -12,6 +12,11 @@ export function validateOutboundUrl(urlString: string): string {
     hostname = hostname.slice(0, -1);
   }
 
+  const segments = hostname.split('.');
+  const isPureInteger = /^\d+$/.test(hostname);
+  const allNumeric = segments.every(s => /^(0x)?[0-9a-f]+$/i.test(s) || /^\d+$/.test(s));
+  const hasBypassEncoding = segments.some(s => /^0\d+/.test(s) || /^0x/i.test(s));
+
   if (
     hostname === 'localhost' ||
     hostname === '0.0.0.0' ||
@@ -25,7 +30,9 @@ export function validateOutboundUrl(urlString: string): string {
     hostname.toLowerCase().startsWith('::ffff:') ||
     hostname.toLowerCase().startsWith('fe80:') ||
     hostname.toLowerCase().startsWith('fd') ||
-    hostname.toLowerCase().startsWith('fc')
+    hostname.toLowerCase().startsWith('fc') ||
+    isPureInteger ||
+    (allNumeric && hasBypassEncoding)
   ) {
     throw new Error('Internal or reserved IP address blocked to prevent SSRF');
   }
