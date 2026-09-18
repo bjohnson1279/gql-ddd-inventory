@@ -43,7 +43,11 @@ export class GetStockValuationReportUseCase {
       : await this.inventoryRepo.findAll();
 
     // Get unique SKUs
-    const uniqueSkusSet = new Set(filteredItems.map(item => item.sku.value));
+    // ⚡ Bolt: Single pass loop avoids intermediate O(N) array allocation from .map() on potentially large inventory datasets
+    const uniqueSkusSet = new Set<string>();
+    for (const item of filteredItems) {
+      uniqueSkusSet.add(item.sku.value);
+    }
     const uniqueSkus = Array.from(uniqueSkusSet);
 
     // Batch-lookup products to get variant IDs for each SKU
@@ -72,10 +76,14 @@ export class GetStockValuationReportUseCase {
       variantQuantities.set(variantIdStr, (variantQuantities.get(variantIdStr) || 0) + qtyOnHand);
     }
 
-    const batchRequest = Array.from(variantQuantities.entries()).map(([variantIdStr, quantity]) => ({
-      variantId: new ProductVariantId(variantIdStr),
-      quantity,
-    }));
+    // ⚡ Bolt: Prevent intermediate array allocation from Array.from().map()
+    const batchRequest: { variantId: ProductVariantId; quantity: number }[] = [];
+    for (const [variantIdStr, quantity] of variantQuantities.entries()) {
+      batchRequest.push({
+        variantId: new ProductVariantId(variantIdStr),
+        quantity,
+      });
+    }
 
     const batchResults = await this.costLayerService.calculateCostBatch(batchRequest, method);
 

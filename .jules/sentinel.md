@@ -72,3 +72,7 @@ origin/main
 **Vulnerability:** Rate limiter middleware (`apiLimiter`) was applied before `cors` middleware in `src/index.ts` for Express.
 **Learning:** If rate limiting is placed before CORS, 429 Too Many Requests responses will lack CORS headers, causing opaque errors on web clients.
 **Prevention:** Ensure `cors` middleware is applied *before* rate limiting middleware when configuring Express.
+## 2024-09-17 - SSRF Bypass via IP Encoding
+**Vulnerability:** Found an SSRF vulnerability where attackers could evade IP blocking by using octal, hex, or integer encodings (e.g., `0177.0.0.1`).
+**Learning:** Relying purely on string matching (like `.startsWith('127.')`) for SSRF prevention fails because URL parsers resolve octal/hex/integer formats to standard IPs.
+**Prevention:** Ensure validation logic also explicitly checks for pure integers and numeric segments containing octal or hex prefixes before proceeding.
