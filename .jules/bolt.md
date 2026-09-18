@@ -126,3 +126,7 @@ origin/main
 ## 2026-09-16 - Optimize AnomalyDetectionService iteration overhead
 **Learning:** In TypeScript/Node.js, chaining `.filter()` and `.reduce()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
 **Action:** Consolidate data filtering and transformation into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).
+
+## 2026-09-18 - Optimize Map and Set initializations
+**Learning:** Initializing Maps and Sets by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.
+**Action:** Consolidate `.map()` and Map/Set instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.
