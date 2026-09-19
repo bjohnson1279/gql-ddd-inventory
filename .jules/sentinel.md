@@ -76,3 +76,8 @@ origin/main
 **Vulnerability:** Found an SSRF vulnerability where attackers could evade IP blocking by using octal, hex, or integer encodings (e.g., `0177.0.0.1`).
 **Learning:** Relying purely on string matching (like `.startsWith('127.')`) for SSRF prevention fails because URL parsers resolve octal/hex/integer formats to standard IPs.
 **Prevention:** Ensure validation logic also explicitly checks for pure integers and numeric segments containing octal or hex prefixes before proceeding.
+
+## 2024-05-25 - Prevent DoS via Buffer.from() TypeError
+**Vulnerability:** Unvalidated input passed to Buffer.from() could trigger an ERR_INVALID_ARG_TYPE crash, causing Denial of Service.
+**Learning:** Even within a try-catch block, Node.js type errors for Buffer.from() with invalid objects can bypass basic expectations.
+**Prevention:** Explicitly validate that untrusted inputs are strings (or Buffers) using `typeof` checks before calling Buffer.from().

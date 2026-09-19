@@ -23,7 +23,8 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean 
     return false;
   }
 
-  if (!hmacHeader) return false;
+  if (!hmacHeader || typeof hmacHeader !== 'string') return false;
+  if (typeof rawBody !== 'string') return false;
 
   const hash = crypto
     .createHmac('sha256', secret)
