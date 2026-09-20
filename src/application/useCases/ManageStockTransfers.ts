@@ -183,7 +183,8 @@ export class ReceiveStockTransferUseCase {
     });
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
+    const destItemsMap = new Map<string, InventoryItem>();
+    for (const i of destItemsList) destItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
 
     const itemsToSave = new Set<InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
@@ -258,8 +259,10 @@ export class CancelStockTransferUseCase {
         this.inventoryRepo.findBySkuAndLocationBatch(destPairs),
       ]);
 
-      const sourceItemsMap = new Map(sourceItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
-      const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
+      const sourceItemsMap = new Map<string, InventoryItem>();
+      for (const i of sourceItemsList) sourceItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
+      const destItemsMap = new Map<string, InventoryItem>();
+      for (const i of destItemsList) destItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
 
       const itemsToSave = new Set<InventoryItem>();
       const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
