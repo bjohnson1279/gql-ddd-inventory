@@ -270,7 +270,8 @@ export class PlacePurchaseOrderUseCase {
     });
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
+    const destItemsMap = new Map<string, InventoryItem>();
+    for (const i of destItemsList) destItemsMap.set(`${i.sku.value}\0${i.locationId.value}`, i);
 
     const itemsToSave = new Set<InventoryItem>();
 
@@ -323,7 +324,8 @@ export class ReceivePurchaseOrderUseCase {
     });
 
     const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
+    const destItemsMap = new Map<string, InventoryItem>();
+    for (const i of destItemsList) destItemsMap.set(`${i.sku.value}\0${i.locationId.value}`, i);
 
     const itemsToSave = new Set<InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
@@ -390,7 +392,8 @@ export class CancelPurchaseOrderUseCase {
       });
 
       const destItemsList = await this.inventoryRepo.findBySkuAndLocationBatch(destPairs);
-      const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}\0${i.locationId.value}`, i]));
+      const destItemsMap = new Map<string, InventoryItem>();
+      for (const i of destItemsList) destItemsMap.set(`${i.sku.value}\0${i.locationId.value}`, i);
 
       const itemsToSave = new Set<InventoryItem>();
 
