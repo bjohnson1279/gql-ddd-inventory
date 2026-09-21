@@ -221,17 +221,21 @@ export class AuditProcessorService {
       const qboMappings = hasQbo && journalIds.length > 0
         ? await this.prisma.quickbooksJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
         : [];
-      const qboMappingSet = new Set(qboMappings.map((m) => m.journalEntryId));
+      // ⚡ Bolt: Consolidated .map() and new Set() into a single loop
+      const qboMappingSet = new Set<string>();
+      for (let i = 0; i < qboMappings.length; i++) qboMappingSet.add(qboMappings[i].journalEntryId);
 
       const xeroMappings = hasXero && journalIds.length > 0
         ? await this.prisma.xeroJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
         : [];
-      const xeroMappingSet = new Set(xeroMappings.map((m) => m.journalEntryId));
+      const xeroMappingSet = new Set<string>();
+      for (let i = 0; i < xeroMappings.length; i++) xeroMappingSet.add(xeroMappings[i].journalEntryId);
 
       const nsMappings = hasNetsuite && journalIds.length > 0
         ? await this.prisma.netsuiteJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
         : [];
-      const nsMappingSet = new Set(nsMappings.map((m) => m.journalEntryId));
+      const nsMappingSet = new Set<string>();
+      for (let i = 0; i < nsMappings.length; i++) nsMappingSet.add(nsMappings[i].journalEntryId);
 
       const existingOpenDiscrepancies = journalIds.length > 0
         ? await this.prisma.auditDiscrepancy.findMany({
@@ -243,7 +247,8 @@ export class AuditProcessorService {
             }
           })
         : [];
-      const existingOpenSet = new Set(existingOpenDiscrepancies.map((d) => d.referenceId));
+      const existingOpenSet = new Set<string>();
+      for (let i = 0; i < existingOpenDiscrepancies.length; i++) existingOpenSet.add(existingOpenDiscrepancies[i].referenceId);
 
       const accountingDiscrepanciesToCreate = [];
 

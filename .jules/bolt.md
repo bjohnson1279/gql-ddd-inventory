@@ -134,6 +134,3 @@ origin/main
 ## 2026-09-18 - Optimize Map and Set initializations
 **Learning:** Initializing Maps and Sets by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.
 **Action:** Consolidate `.map()` and Map/Set instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.
-## 2025-01-01 - Avoid array methods overhead in performance critical paths
-**Learning:** In highly iterated code paths and background workers, chaining `.map()` or `.filter()` arrays results in multiple O(N) array traversals and intermediate GC allocations which slows down processing large collections.
-**Action:** Replace functional array iteration chains with a single traditional `for` loop that performs filtering and mapping simultaneously when performance is a priority. Also avoid dynamically resizing arrays when the final size is known in advance.

@@ -50,7 +50,8 @@ export class WebhookWorker {
 
       if (events.length === 0) return;
 
-      const eventIds = events.map((e: any) => e.id);
+      const eventIds = new Array(events.length);
+      for (let i = 0; i < events.length; i++) eventIds[i] = events[i].id;
 
       // Mark all as Processing in batch
       await prisma.webhookEvent.updateMany({

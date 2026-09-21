@@ -157,12 +157,18 @@ export class DemandForecaster {
     const inventoryItems = await this.inventoryRepo.findByLocation(locationId.value);
     const forecasts = await this.demandForecastRepo.findAllForLocation(locationId);
     const policies = await this.replenishmentRuleRepo.findAllByLocation(locationId);
-    const policyMap = new Map(policies.map((p) => [p.sku.value, p]));
+    // ⚡ Bolt: Single pass iteration instead of array mapping
+    const policyMap = new Map<string, any>();
+    for (let i = 0; i < policies.length; i++) policyMap.set(policies[i].sku.value, policies[i]);
 
     // Pre-fetch products
-    const uniqueSkusSet = new Set(inventoryItems.map(item => item.sku.value));
+    const uniqueSkusSet = new Set<string>();
+    for (let i = 0; i < inventoryItems.length; i++) uniqueSkusSet.add(inventoryItems[i].sku.value);
     const uniqueSkusArray = Array.from(uniqueSkusSet);
-    const products = await this.productRepo.findBySkus(uniqueSkusArray.map(s => new Sku(s)));
+
+    const skusForFetch = new Array(uniqueSkusArray.length);
+    for (let i = 0; i < uniqueSkusArray.length; i++) skusForFetch[i] = new Sku(uniqueSkusArray[i]);
+    const products = await this.productRepo.findBySkus(skusForFetch);
     const variantMap = new Map<string, any>();
     for (const product of products) {
       for (const variant of product.variants) {

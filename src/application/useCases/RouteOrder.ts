@@ -43,18 +43,21 @@ export class RouteOrder {
     const stockItems = await this.inventoryRepository.findBySku(sku);
 
     // Map stock items to candidate locations with geocodes
-    const candidates = stockItems.map(item => {
+    // ⚡ Bolt: Use a pre-allocated array instead of .map() to avoid dynamic array resizing and improve GC performance
+    const candidates = new Array(stockItems.length);
+    for (let i = 0; i < stockItems.length; i++) {
+      const item = stockItems[i];
       const locationId = item.locationId.value;
       const geoLocation = this.getWarehouseGeoLocation(locationId);
 
       const availableQuantity = item.quantity.value - item.allocated.value;
 
-      return {
+      candidates[i] = {
         locationId,
         availableQuantity: Math.max(0, availableQuantity),
         geoLocation
       };
-    });
+    }
 
     candidates.sort((a, b) => a.geoLocation.distanceTo(destinationGeo) - b.geoLocation.distanceTo(destinationGeo));
 
