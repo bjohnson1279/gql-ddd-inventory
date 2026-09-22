@@ -1,4 +1,7 @@
 export function validateOutboundUrl(urlString: string): string {
+  if (typeof urlString !== 'string') {
+    throw new Error('URL must be a string');
+  }
   const url = new URL(urlString);
   const protocol = url.protocol;
   if (protocol !== 'http:' && protocol !== 'https:') {
