@@ -81,3 +81,8 @@ origin/main
 **Vulnerability:** Unvalidated input passed to Buffer.from() could trigger an ERR_INVALID_ARG_TYPE crash, causing Denial of Service.
 **Learning:** Even within a try-catch block, Node.js type errors for Buffer.from() with invalid objects can bypass basic expectations.
 **Prevention:** Explicitly validate that untrusted inputs are strings (or Buffers) using `typeof` checks before calling Buffer.from().
+
+## 2026-09-22 - Prevent DoS via Unhandled Type Errors in URL Parsing
+**Vulnerability:** The `validateOutboundUrl` function accepted a string type in TypeScript but didn't validate it at runtime. Passing non-strings (e.g. objects from parsed JSON) to `new URL()` throws an unhandled `TypeError`, potentially leading to Denial of Service.
+**Learning:** TypeScript types don't exist at runtime. Functions validating untrusted input must perform explicit runtime type checks before passing input to built-in functions like `new URL()` or `Buffer.from()`, which can crash on unexpected types.
+**Prevention:** Always add `if (typeof input !== 'string')` guards before parsing URLs or buffers from external sources.
