@@ -135,3 +135,7 @@ origin/main
 **Learning:** Initializing Maps and Sets by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.
 **Action:** Consolidate `.map()` and Map/Set instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.
 ## 2026-09-20 - Optimize Map and Set initializations\n**Learning:** Initializing Maps and Sets by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.\n**Action:** Consolidate `.map()` and Map/Set instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.
+
+## 2024-05-31 - Optimize RebalanceOptimizationService iteration overhead
+**Learning:** Chaining \`.map()\` and iterating over entries with \`Array.from()\` creates intermediate arrays and slows down large data aggregations.
+**Action:** Consolidate data transformation into single \`for...of\` loops.

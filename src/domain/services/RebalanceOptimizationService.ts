@@ -61,20 +61,24 @@ export class RebalanceOptimizationService {
       stockAgg.set(key, existing);
     }
 
-    const stock_levels = Array.from(stockAgg.entries()).map(([key, val]) => {
+    const stock_levels: { sku: string; warehouse_id: string; on_hand: number; allocated: number; in_transit: number; safety_stock: number }[] = [];
+    for (const [key, val] of stockAgg.entries()) {
       const [sku, warehouse_id] = key.split('__');
-      return { sku, warehouse_id, on_hand: val.onHand, allocated: val.allocated, in_transit: val.inTransit, safety_stock: 0 };
-    });
+      stock_levels.push({ sku, warehouse_id, on_hand: val.onHand, allocated: val.allocated, in_transit: val.inTransit, safety_stock: 0 });
+    }
 
     // 4. Fetch demand forecasts
     const forecasts = await this.prisma.demandForecast.findMany();
-    const demand_forecasts = forecasts.map(f => ({
-      sku: f.sku,
-      warehouse_id: locToWarehouse.get(f.locationId) || 'unknown',
-      daily_velocity_7d: f.forecastedQuantity / 7,
-      daily_velocity_30d: f.forecastedQuantity / 30,
-      daily_velocity_90d: f.forecastedQuantity / 90
-    }));
+    const demand_forecasts: { sku: string; warehouse_id: string; daily_velocity_7d: number; daily_velocity_30d: number; daily_velocity_90d: number }[] = [];
+    for (const f of forecasts) {
+      demand_forecasts.push({
+        sku: f.sku,
+        warehouse_id: locToWarehouse.get(f.locationId) || 'unknown',
+        daily_velocity_7d: f.forecastedQuantity / 7,
+        daily_velocity_30d: f.forecastedQuantity / 30,
+        daily_velocity_90d: f.forecastedQuantity / 90
+      });
+    }
 
     // 5. Fetch replenishment rules for lead times
     const rules = await this.prisma.replenishmentRule.findMany({ where: { tenantId } });
