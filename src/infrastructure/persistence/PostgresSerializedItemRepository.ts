@@ -291,7 +291,10 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
     if (items.length === 0) return;
 
     // Deduplicate items by ID, keeping the last occurrence, to prevent deadlocks and reduce I/O during batch upserts
-    const deduplicatedItems = Array.from(new Map(items.map((item) => [item.id.value, item])).values());
+    // ⚡ Bolt: Consolidated .map() and new Map() into a single loop
+    const deduplicatedMap = new Map<string, SerializedItem>();
+    for (const item of items) deduplicatedMap.set(item.id.value, item);
+    const deduplicatedItems = Array.from(deduplicatedMap.values());
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Create new serialized items

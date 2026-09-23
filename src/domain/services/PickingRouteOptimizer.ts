@@ -36,7 +36,9 @@ export class PickingRouteOptimizer {
     const uniqueLocationIds = Array.from(new Set(items.map((item) => item.locationId)));
     const locationIdsToFetch = uniqueLocationIds.map((id) => new LocationId(id));
     const locations = await this.locationRepo.findByIds(locationIdsToFetch);
-    const locationMap = new Map(locations.map((loc) => [loc.id.value, loc]));
+    // ⚡ Bolt: Consolidated .map() and new Map() into a single loop
+    const locationMap = new Map<string, any>();
+    for (const loc of locations) locationMap.set(loc.id.value, loc);
 
     const routeItems: PickRouteItem[] = [];
     for (const item of items) {

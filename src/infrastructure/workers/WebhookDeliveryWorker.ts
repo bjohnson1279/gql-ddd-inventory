@@ -51,7 +51,9 @@ export class WebhookDeliveryWorker {
         })
       ]);
 
-      const subscriptionMap = new Map(subscriptions.map((s: any) => [s.id, s]));
+      // ⚡ Bolt: Consolidated .map() and new Map() into a single loop
+      const subscriptionMap = new Map<string, any>();
+      for (const s of subscriptions) subscriptionMap.set(s.id, s);
 
       await Promise.all(deliveries.map(async (delivery: any) => {
         try {

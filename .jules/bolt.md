@@ -139,3 +139,6 @@ origin/main
 ## 2024-05-31 - Optimize RebalanceOptimizationService iteration overhead
 **Learning:** Chaining \`.map()\` and iterating over entries with \`Array.from()\` creates intermediate arrays and slows down large data aggregations.
 **Action:** Consolidate data transformation into single \`for...of\` loops.
+## 2026-09-21 - Optimize Map initializations
+**Learning:** Initializing Maps by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.
+**Action:** Consolidate `.map()` and Map instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.
