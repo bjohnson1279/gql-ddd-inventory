@@ -157,7 +157,9 @@ export class DemandForecaster {
     const inventoryItems = await this.inventoryRepo.findByLocation(locationId.value);
     const forecasts = await this.demandForecastRepo.findAllForLocation(locationId);
     const policies = await this.replenishmentRuleRepo.findAllByLocation(locationId);
-    const policyMap = new Map(policies.map((p) => [p.sku.value, p]));
+    // ⚡ Bolt: Consolidated .map() and new Map() into a single loop
+    const policyMap = new Map<string, any>();
+    for (const p of policies) policyMap.set(p.sku.value, p);
 
     // Pre-fetch products
     const uniqueSkusSet = new Set(inventoryItems.map(item => item.sku.value));
