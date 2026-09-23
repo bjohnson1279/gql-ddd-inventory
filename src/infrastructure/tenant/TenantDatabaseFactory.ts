@@ -38,6 +38,7 @@ export class TenantDatabaseFactory {
       dbUrl = config.databaseUrl;
       if (config.schema) {
         try {
+          if (typeof config.databaseUrl !== 'string') throw new Error('databaseUrl must be a string');
           const urlObj = new URL(config.databaseUrl);
           urlObj.searchParams.set('schema', config.schema);
           dbUrl = urlObj.toString();

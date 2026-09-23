@@ -67,6 +67,7 @@ export class WebhookDeliveryWorker {
               validateOutboundUrl(subscription.targetUrl);
             } else {
               // In test/dev we still need basic protocol checking
+              if (typeof subscription.targetUrl !== 'string') throw new Error('URL must be a string');
               const parsedUrl = new URL(subscription.targetUrl);
               if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
                 throw new Error(`Invalid URL protocol. Only http and https are allowed.`);

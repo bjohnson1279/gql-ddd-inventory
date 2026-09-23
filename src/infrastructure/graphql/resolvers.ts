@@ -2626,6 +2626,7 @@ export const resolvers = {
         if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
           validateOutboundUrl(targetUrl);
         } else {
+          if (typeof targetUrl !== 'string') throw new Error('URL must be a string');
           const parsedUrl = new URL(targetUrl);
           if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
             throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
@@ -2658,6 +2659,7 @@ export const resolvers = {
           if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') {
             validateOutboundUrl(targetUrl);
           } else {
+            if (typeof targetUrl !== 'string') throw new Error('URL must be a string');
             const parsedUrl = new URL(targetUrl);
             if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
               throw new Error(`Invalid URL protocol. Only http and https are allowed.`);
