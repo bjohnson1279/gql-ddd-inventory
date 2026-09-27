@@ -107,10 +107,12 @@ export class DispatchStockTransferUseCase {
       this.inventoryRepo.findBySkuAndLocationBatch(destPairs),
     ]);
 
-    const sourceItemsMap = new Map(sourceItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
-    const destItemsMap = new Map(destItemsList.map(i => [`${i.sku.value}_${i.locationId.value}`, i]));
+    const sourceItemsMap = new Map<string, InventoryItem>();
+    for (const i of sourceItemsList) sourceItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
+    const destItemsMap = new Map<string, InventoryItem>();
+    for (const i of destItemsList) destItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
 
-    const itemsToSave = new Set<InventoryItem>();
+    const itemsToSave = new Map<string, InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
     // Perform stock decrements at source and set inTransit at destination
@@ -124,7 +126,7 @@ export class DispatchStockTransferUseCase {
         throw new Error(`Inventory item for SKU ${sku} at source location ${transfer.sourceLocationId.value} not found.`);
       }
       sourceItem.dispatchStock(new Quantity(item.quantity));
-      itemsToSave.add(sourceItem);
+      itemsToSave.set(sourceItem.id, sourceItem);
 
       // Append to ledger at source (negative decrement)
       ledgerEntriesData.push({ sku, locationId: transfer.sourceLocationId.value, quantity: -item.quantity });
@@ -137,10 +139,12 @@ export class DispatchStockTransferUseCase {
         destItemsMap.set(destKey, destItem);
       }
       destItem.createInTransit(new Quantity(item.quantity));
-      itemsToSave.add(destItem);
+      itemsToSave.set(destItem.id, destItem);
     }
 
-    await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
+    const itemsArray: InventoryItem[] = [];
+    for (const item of itemsToSave.values()) itemsArray.push(item);
+    await this.inventoryRepo.saveBatch(itemsArray);
 
     await appendStockLedgerEntries(
       this.productRepo,
@@ -186,7 +190,7 @@ export class ReceiveStockTransferUseCase {
     const destItemsMap = new Map<string, InventoryItem>();
     for (const i of destItemsList) destItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
 
-    const itemsToSave = new Set<InventoryItem>();
+    const itemsToSave = new Map<string, InventoryItem>();
     const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
     // Receive stock at destination location
@@ -200,13 +204,15 @@ export class ReceiveStockTransferUseCase {
       }
 
       destItem.receiveInTransit(new Quantity(item.quantity));
-      itemsToSave.add(destItem);
+      itemsToSave.set(destItem.id, destItem);
 
       // Append ledger entry at destination (positive receipt)
       ledgerEntriesData.push({ sku, locationId: transfer.destinationLocationId.value, quantity: item.quantity });
     }
 
-    await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
+    const itemsArray: InventoryItem[] = [];
+    for (const item of itemsToSave.values()) itemsArray.push(item);
+    await this.inventoryRepo.saveBatch(itemsArray);
 
     await appendStockLedgerEntries(
       this.productRepo,
@@ -264,7 +270,7 @@ export class CancelStockTransferUseCase {
       const destItemsMap = new Map<string, InventoryItem>();
       for (const i of destItemsList) destItemsMap.set(`${i.sku.value}_${i.locationId.value}`, i);
 
-      const itemsToSave = new Set<InventoryItem>();
+      const itemsToSave = new Map<string, InventoryItem>();
       const ledgerEntriesData: { sku: string; locationId: string; quantity: number }[] = [];
 
       for (const item of transfer.items) {
@@ -278,7 +284,7 @@ export class CancelStockTransferUseCase {
           sourceItemsMap.set(sourceKey, sourceItem);
         }
         sourceItem.receiveStock(new Quantity(item.quantity));
-        itemsToSave.add(sourceItem);
+        itemsToSave.set(sourceItem.id, sourceItem);
 
         // Append ledger adjustment back at source (positive transfer return)
         ledgerEntriesData.push({ sku, locationId: transfer.sourceLocationId.value, quantity: item.quantity });
@@ -288,11 +294,13 @@ export class CancelStockTransferUseCase {
         const destItem = destItemsMap.get(destKey);
         if (destItem) {
           destItem.cancelInTransit(new Quantity(item.quantity));
-          itemsToSave.add(destItem);
+          itemsToSave.set(destItem.id, destItem);
         }
       }
 
-      await this.inventoryRepo.saveBatch(Array.from(itemsToSave));
+      const itemsArray: InventoryItem[] = [];
+      for (const item of itemsToSave.values()) itemsArray.push(item);
+      await this.inventoryRepo.saveBatch(itemsArray);
 
       await appendStockLedgerEntries(
         this.productRepo,
