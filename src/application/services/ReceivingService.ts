@@ -1,4 +1,5 @@
 import { InboundScan, Dimensions } from '../../domain/receiving/InboundScan';
+import crypto from 'crypto';
 
 export class ReceivingService {
   /**
@@ -30,7 +31,7 @@ export class ReceivingService {
     
     // In a real application, we would persist this via an InboundScanRepository using Prisma.
     // For now, we simulate creation and return the domain entity.
-    const id = `scan-${Math.random().toString(36).substring(2, 9)}`;
+    const id = `scan-${crypto.randomBytes(4).toString('hex')}`;
     
     const scan = new InboundScan(
       id,
