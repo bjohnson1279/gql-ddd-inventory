@@ -139,3 +139,7 @@ origin/main
 ## 2024-05-31 - Optimize RebalanceOptimizationService iteration overhead
 **Learning:** Chaining \`.map()\` and iterating over entries with \`Array.from()\` creates intermediate arrays and slows down large data aggregations.
 **Action:** Consolidate data transformation into single \`for...of\` loops.
+
+## 2024-10-17 - Avoid intermediate arrays when instantiating Maps
+**Learning:** Using `new Map(items.map(...))` or `items.flatMap(i => i.history.map(...))` creates hidden intermediate arrays (e.g. tuples) before constructing the target data structure. In batch processes like `saveBatch`, this causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection.
+**Action:** Consolidate array extraction into a single `for...of` loop when building maps, sets, or flattened arrays.

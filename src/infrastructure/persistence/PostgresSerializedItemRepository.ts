@@ -291,7 +291,12 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
     if (items.length === 0) return;
 
     // Deduplicate items by ID, keeping the last occurrence, to prevent deadlocks and reduce I/O during batch upserts
-    const deduplicatedItems = Array.from(new Map(items.map((item) => [item.id.value, item])).values());
+    // ⚡ Bolt: Consolidated .map() and new Map() into a single loop to avoid intermediate O(N) tuple array allocation
+    const uniqueItemsMap = new Map<string, SerializedItem>();
+    for (const item of items) {
+      uniqueItemsMap.set(item.id.value, item);
+    }
+    const deduplicatedItems = Array.from(uniqueItemsMap.values());
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Create new serialized items
@@ -325,22 +330,28 @@ export class PostgresSerializedItemRepository implements ISerializedItemReposito
       }
 
       // 3. Batch delete and recreate history
-      const itemIds = deduplicatedItems.map((item) => item.id.value);
+      // ⚡ Bolt: Consolidated mapping loops to prevent multiple intermediate array allocations
+      const itemIds: string[] = [];
+      const historyData: any[] = [];
+      for (const item of deduplicatedItems) {
+        const itemId = item.id.value;
+        itemIds.push(itemId);
+        for (const h of item.history) {
+          historyData.push({
+            itemId,
+            fromStatus: h.from,
+            toStatus: h.to,
+            reason: h.reason,
+            actorId: h.actor.value,
+            occurredAt: h.occurredAt,
+            referenceId: h.referenceId || null,
+          });
+        }
+      }
+
       await tx.serializedItemHistory.deleteMany({
         where: { itemId: { in: itemIds } },
       });
-
-      const historyData = deduplicatedItems.flatMap((item) =>
-        item.history.map((h) => ({
-          itemId: item.id.value,
-          fromStatus: h.from,
-          toStatus: h.to,
-          reason: h.reason,
-          actorId: h.actor.value,
-          occurredAt: h.occurredAt,
-          referenceId: h.referenceId || null,
-        }))
-      );
 
       if (historyData.length > 0) {
         await tx.serializedItemHistory.createMany({
