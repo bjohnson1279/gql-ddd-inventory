@@ -9,6 +9,7 @@ import { DemandForecast } from '../entities/DemandForecast';
 import { DemandForecastId } from '../valueObjects/DemandForecastId';
 import { ReasonCode } from '../enums/ReasonCode';
 import { IProductRepository } from '../repositories/IProductRepository';
+import { ReplenishmentRule } from '../entities/ReplenishmentRule';
 
 export interface SalesVelocityResult {
   sku: string;
@@ -157,10 +158,12 @@ export class DemandForecaster {
     const inventoryItems = await this.inventoryRepo.findByLocation(locationId.value);
     const forecasts = await this.demandForecastRepo.findAllForLocation(locationId);
     const policies = await this.replenishmentRuleRepo.findAllByLocation(locationId);
-    const policyMap = new Map(policies.map((p) => [p.sku.value, p]));
+    const policyMap = new Map<string, ReplenishmentRule>();
+    for (const p of policies) policyMap.set(p.sku.value, p);
 
     // Pre-fetch products
-    const uniqueSkusSet = new Set(inventoryItems.map(item => item.sku.value));
+    const uniqueSkusSet = new Set<string>();
+    for (const item of inventoryItems) uniqueSkusSet.add(item.sku.value);
     const uniqueSkusArray = Array.from(uniqueSkusSet);
     const products = await this.productRepo.findBySkus(uniqueSkusArray.map(s => new Sku(s)));
     const variantMap = new Map<string, any>();

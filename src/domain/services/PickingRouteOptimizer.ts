@@ -1,5 +1,6 @@
 import { IWarehouseLocationRepository } from '../repositories/IWarehouseLocationRepository';
 import { LocationId } from '../valueObjects/LocationId';
+import { WarehouseLocation } from '../entities/WarehouseLocation';
 
 export interface PickItemInput {
   sku: string;
@@ -33,10 +34,13 @@ export class PickingRouteOptimizer {
     }
 
     // Fixes N+1 query bottleneck by loading warehouse locations for all unique locationIds in a single batched query
-    const uniqueLocationIds = Array.from(new Set(items.map((item) => item.locationId)));
+    const uniqueLocationIdsSet = new Set<string>();
+    for (const item of items) uniqueLocationIdsSet.add(item.locationId);
+    const uniqueLocationIds = Array.from(uniqueLocationIdsSet);
     const locationIdsToFetch = uniqueLocationIds.map((id) => new LocationId(id));
     const locations = await this.locationRepo.findByIds(locationIdsToFetch);
-    const locationMap = new Map(locations.map((loc) => [loc.id.value, loc]));
+    const locationMap = new Map<string, WarehouseLocation>();
+    for (const loc of locations) locationMap.set(loc.id.value, loc);
 
     const routeItems: PickRouteItem[] = [];
     for (const item of items) {
