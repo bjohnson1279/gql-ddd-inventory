@@ -76,6 +76,10 @@ describe('validateOutboundUrl', () => {
       'http://172.32.0.1', // Outside the 172.16-31 range
       'http://8.8.8.8',
       'http://[2606:4700:4700::1111]',
+      'http://127.0.0.1.some-domain.com',
+      'http://10.0.0.1.com',
+      'http://169.254.com',
+      'http://192.168.1.1.org',
     ];
 
     allowedUrls.forEach((url) => {
