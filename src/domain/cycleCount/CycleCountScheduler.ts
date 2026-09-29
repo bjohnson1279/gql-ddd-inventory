@@ -19,7 +19,7 @@ export class CycleCountScheduler {
         generated.push({
           id: uuidv4(),
           tenantId: plan.tenantId,
-          name: \Audit based on \\,
+          name: `Audit based on ${plan.name}`,
           status: 'PENDING',
           abcClass: plan.abcClassification,
           zone: plan.zone || undefined,

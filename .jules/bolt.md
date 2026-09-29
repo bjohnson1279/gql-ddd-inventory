@@ -143,3 +143,7 @@ origin/main
 ## 2024-10-17 - Avoid intermediate arrays when instantiating Maps
 **Learning:** Using `new Map(items.map(...))` or `items.flatMap(i => i.history.map(...))` creates hidden intermediate arrays (e.g. tuples) before constructing the target data structure. In batch processes like `saveBatch`, this causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection.
 **Action:** Consolidate array extraction into a single `for...of` loop when building maps, sets, or flattened arrays.
+
+## 2026-09-29 - Optimize Map and Set initializations
+**Learning:** Initializing Maps and Sets by mapping over an array first (e.g., `new Map(arr.map(x => [x.id, x]))`) creates unnecessary intermediate array allocations, reducing performance during large iterations.
+**Action:** Consolidate `.map()` and Map/Set instantiation into a single `for` loop to avoid intermediate allocations and improve iteration performance.

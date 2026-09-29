@@ -221,17 +221,26 @@ export class AuditProcessorService {
       const qboMappings = hasQbo && journalIds.length > 0
         ? await this.prisma.quickbooksJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
         : [];
-      const qboMappingSet = new Set(qboMappings.map((m) => m.journalEntryId));
+      const qboMappingSet = new Set<string>();
+      for (const m of qboMappings) {
+        qboMappingSet.add(m.journalEntryId);
+      }
 
       const xeroMappings = hasXero && journalIds.length > 0
         ? await this.prisma.xeroJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
         : [];
-      const xeroMappingSet = new Set(xeroMappings.map((m) => m.journalEntryId));
+      const xeroMappingSet = new Set<string>();
+      for (const m of xeroMappings) {
+        xeroMappingSet.add(m.journalEntryId);
+      }
 
       const nsMappings = hasNetsuite && journalIds.length > 0
         ? await this.prisma.netsuiteJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
         : [];
-      const nsMappingSet = new Set(nsMappings.map((m) => m.journalEntryId));
+      const nsMappingSet = new Set<string>();
+      for (const m of nsMappings) {
+        nsMappingSet.add(m.journalEntryId);
+      }
 
       const existingOpenDiscrepancies = journalIds.length > 0
         ? await this.prisma.auditDiscrepancy.findMany({
