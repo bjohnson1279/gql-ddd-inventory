@@ -54,9 +54,10 @@ export class SyncProductFromShopify {
       variantExternalIds,
       ExternalEntityType.Variant
     );
-    const variantMappingMap = new Map(
-      existingVariantMappings.map(m => [m.externalId, m])
-    );
+    const variantMappingMap = new Map<string, ExternalMapping>();
+    for (const m of existingVariantMappings) {
+      variantMappingMap.set(m.externalId, m);
+    }
 
     const newMappings: ExternalMapping[] = [];
     let hasChanges = false;
