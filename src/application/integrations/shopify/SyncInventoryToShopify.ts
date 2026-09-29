@@ -47,8 +47,10 @@ export class SyncInventoryToShopify {
       )
     ]);
 
-    const variantMappingMap = new Map(variantMappings.map(m => [m.integrationId.value, m]));
-    const locationMappingMap = new Map(locationMappings.map(m => [m.integrationId.value, m]));
+    const variantMappingMap = new Map<string, any>();
+    for (const m of variantMappings) variantMappingMap.set(m.integrationId.value, m);
+    const locationMappingMap = new Map<string, any>();
+    for (const m of locationMappings) locationMappingMap.set(m.integrationId.value, m);
 
     // 4. For each connection, find the mapping and push to Shopify
     await Promise.all(

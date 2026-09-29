@@ -39,7 +39,9 @@ export class WebhookDeliveryWorker {
       if (deliveries.length === 0) return;
 
       const deliveryIds = deliveries.map((d: any) => d.id);
-      const subscriptionIds = [...new Set(deliveries.map((d: any) => d.subscriptionId))];
+      const subscriptionIdsSet = new Set<string>();
+      for (const d of deliveries) subscriptionIdsSet.add(d.subscriptionId);
+      const subscriptionIds = Array.from(subscriptionIdsSet);
 
       const [subscriptions] = await Promise.all([
         prisma.webhookSubscription.findMany({
@@ -51,7 +53,8 @@ export class WebhookDeliveryWorker {
         })
       ]);
 
-      const subscriptionMap = new Map(subscriptions.map((s: any) => [s.id, s]));
+      const subscriptionMap = new Map<string, any>();
+      for (const s of subscriptions) subscriptionMap.set(s.id, s);
 
       await Promise.all(deliveries.map(async (delivery: any) => {
         try {
