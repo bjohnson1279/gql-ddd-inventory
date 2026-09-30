@@ -171,3 +171,8 @@ origin/main
 ## 2024-10-18 - Avoid Array allocations when initializing Sets
 **Learning:** Using `Array.from(new Set(array.map(...)))` creates an intermediate array from `.map()`, which degrades performance and increases memory usage for large arrays.
 **Action:** Populate `Set`s using a `for...of` loop directly to avoid the intermediate array allocation, maintaining O(N) complexity with lower memory overhead.
+
+## Additive Documentation & Scratch Cleanliness Directives
+- **Strictly Additive Journal Updates**: When updating `.jules/*.md`, strictly append new dated entries (`## YYYY-MM-DD - Title`). NEVER delete, truncate, or overwrite historical learnings or previous entries.
+- **Substantive Code Diff Requirement**: Pull requests must include substantive code changes in `src/`, `app/`, `lib/`, or `tests/`. Never open PRs that modify only `.jules/*.md` journals or root scratch scripts.
+- **Zero Scratch File Commits**: Never commit `*.diff`, `*.patch`, `test_*.ts`, `test_*.js`, `test.cjs`, `fix_*.php`, or `patch_*.py` files. Always remove temporary debugging or verification scripts prior to committing.

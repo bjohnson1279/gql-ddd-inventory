@@ -39,3 +39,7 @@ scratch_*
 fix_*.cjs
 patch_*.py
 patch_*.sh
+
+*.diff
+*.patch
+patch.diff
