@@ -122,7 +122,12 @@ export class ReceiveRmaUseCase {
     }
 
     // Batch SKU Lookups
-    const variantIds = Array.from(new Set(dto.items.map(item => item.variantId)));
+    // ⚡ Bolt: Single pass loop avoids intermediate array allocation from .map() to improve performance
+    const variantIdsSet = new Set<string>();
+    for (const item of dto.items) {
+      variantIdsSet.add(item.variantId);
+    }
+    const variantIds = Array.from(variantIdsSet);
     const skusByVariant = await this.productRepository.findSkusByVariantIds(variantIds);
 
     // Batch Inventory Item Lookups
