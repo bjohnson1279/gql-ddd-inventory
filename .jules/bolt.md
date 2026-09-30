@@ -167,3 +167,7 @@ origin/main
 ## 2026-09-29 - Surgical Optimization Edits and No Scratch Script Commits
 **Learning:** Running whole-file formatters or regenerating entire components while performing performance optimizations introduces massive whitespace/formatting diffs (1,000+ lines), masking the real optimization, invalidating git blame, and causing painful merge conflicts with concurrent PRs. Additionally, committing scratch benchmark or patch scripts (`patch_*.py`, `test.cjs`) pollutes production repositories and triggers CI guardrail failures.
 **Action:** Restrict all algorithmic and performance optimizations to strictly scoped replacement chunks. Diff size must reflect only the functional optimization. Always clean up temporary benchmark or patch scripts with `git rm -f` before committing.
+
+## 2024-10-18 - Avoid Array allocations when initializing Sets
+**Learning:** Using `Array.from(new Set(array.map(...)))` creates an intermediate array from `.map()`, which degrades performance and increases memory usage for large arrays.
+**Action:** Populate `Set`s using a `for...of` loop directly to avoid the intermediate array allocation, maintaining O(N) complexity with lower memory overhead.
