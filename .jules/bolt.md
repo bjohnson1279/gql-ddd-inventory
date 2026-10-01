@@ -176,3 +176,7 @@ origin/main
 - **Strictly Additive Journal Updates**: When updating `.jules/*.md`, strictly append new dated entries (`## YYYY-MM-DD - Title`). NEVER delete, truncate, or overwrite historical learnings or previous entries.
 - **Substantive Code Diff Requirement**: Pull requests must include substantive code changes in `src/`, `app/`, `lib/`, or `tests/`. Never open PRs that modify only `.jules/*.md` journals or root scratch scripts.
 - **Zero Scratch File Commits**: Never commit `*.diff`, `*.patch`, `test_*.ts`, `test_*.js`, `test.cjs`, `fix_*.php`, or `patch_*.py` files. Always remove temporary debugging or verification scripts prior to committing.
+
+## 2024-10-24 - Avoid Array allocations when using Object methods and Sets
+**Learning:** Using `Object.keys()` or `Object.values()` combined with `.reduce()` or spread operators (`...`) to initialize `Set`s allocates intermediate arrays and causes unnecessary memory overhead. This is especially taxing in CRDT conflict resolution which might execute very frequently.
+**Action:** Consolidate property extraction into a single `for...in` loop to avoid intermediate array allocations, improving iteration performance and reducing GC pressure.
