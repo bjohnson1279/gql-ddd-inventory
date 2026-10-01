@@ -5,6 +5,24 @@ import { parse } from 'graphql';
 import { resolvers } from '../../infrastructure/graphql/resolvers';
 import { reportTypeDefs } from '../../infrastructure/graphql/reportTypeDefs';
 import { reportResolvers } from '../../infrastructure/graphql/reportResolvers';
+import { cycleCountTypeDefs } from '../../infrastructure/graphql/cycleCountTypeDefs';
+import { cycleCountResolvers } from '../../infrastructure/graphql/cycleCountResolvers';
+import { supplierPortalTypeDefs } from '../../infrastructure/graphql/supplierPortalTypeDefs';
+import { supplierPortalResolvers } from '../../infrastructure/graphql/supplierPortalResolvers';
+import { notificationTypeDefs } from '../../infrastructure/graphql/notificationTypeDefs';
+import { notificationResolvers } from '../../infrastructure/graphql/notificationResolvers';
+import { agingTypeDefs } from '../../infrastructure/graphql/agingTypeDefs';
+import { agingResolvers } from '../../infrastructure/graphql/agingResolvers';
+import { intercompanyTypeDefs } from '../../infrastructure/graphql/intercompanyTypeDefs';
+import { intercompanyResolvers } from '../../infrastructure/graphql/intercompanyResolvers';
+import { billingTypeDefs } from '../../infrastructure/graphql/billingTypeDefs';
+import { billingResolvers } from '../../infrastructure/graphql/billingResolvers';
+import { visionTypeDefs } from '../../infrastructure/graphql/visionTypeDefs';
+import { visionResolvers } from '../../infrastructure/graphql/visionResolvers';
+import { yieldTypeDefs } from '../../infrastructure/graphql/yieldTypeDefs';
+import { yieldResolvers } from '../../infrastructure/graphql/yieldResolvers';
+import { laborTypeDefs } from '../../infrastructure/graphql/laborTypeDefs';
+import { laborResolvers } from '../../infrastructure/graphql/laborResolvers';
 import { globalPrisma, getTenantPrisma } from '../../infrastructure/persistence/prismaClient';
 import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
@@ -980,7 +998,19 @@ const inventoryResolvers = {
 };
 
 const server = new ApolloServer({
-  schema: buildSubgraphSchema([{ typeDefs, resolvers: inventoryResolvers as any }, { typeDefs: reportTypeDefs, resolvers: reportResolvers as any }]),
+  schema: buildSubgraphSchema([
+    { typeDefs, resolvers: inventoryResolvers as any }, 
+    { typeDefs: reportTypeDefs, resolvers: reportResolvers as any },
+    { typeDefs: cycleCountTypeDefs, resolvers: cycleCountResolvers as any },
+    { typeDefs: supplierPortalTypeDefs, resolvers: supplierPortalResolvers as any },
+    { typeDefs: notificationTypeDefs, resolvers: notificationResolvers as any },
+    { typeDefs: agingTypeDefs, resolvers: agingResolvers as any },
+    { typeDefs: intercompanyTypeDefs, resolvers: intercompanyResolvers as any },
+    { typeDefs: billingTypeDefs, resolvers: billingResolvers as any },
+    { typeDefs: visionTypeDefs, resolvers: visionResolvers as any },
+    { typeDefs: yieldTypeDefs, resolvers: yieldResolvers as any },
+    { typeDefs: laborTypeDefs, resolvers: laborResolvers as any }
+  ]),
   validationRules: [depthLimitRule(5), complexityLimitRule(100)],
   formatError: (formattedError: any) => {
     if (process.env.NODE_ENV === 'production') {
