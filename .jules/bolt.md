@@ -180,3 +180,8 @@ origin/main
 ## 2024-10-24 - Avoid Array allocations when using Object methods and Sets
 **Learning:** Using `Object.keys()` or `Object.values()` combined with `.reduce()` or spread operators (`...`) to initialize `Set`s allocates intermediate arrays and causes unnecessary memory overhead. This is especially taxing in CRDT conflict resolution which might execute very frequently.
 **Action:** Consolidate property extraction into a single `for...in` loop to avoid intermediate array allocations, improving iteration performance and reducing GC pressure.
+
+## Scope Quarantine, Journaling & Security Test Invariants
+- **Strictly Append-Only Journaling**: When adding learnings to `.jules/*.md`, append strictly at the end of the file. Do not rewrite, deduplicate, or remove lines beginning with `## YYYY-MM-DD`.
+- **Surgical Scope Quarantine**: Modify only the files directly involved in the issue and their corresponding test fixtures. Do not delete, rename, or perform drive-by cleanups of unrelated root-level scripts or legacy files.
+- **Coupled Test Fixture Awareness for Security Invariants**: When changing fail-open fallback behavior (such as hardening decryption to fail closed), always update upstream test mocks that rely on plaintext credentials or mock values.
