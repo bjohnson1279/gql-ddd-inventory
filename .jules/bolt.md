@@ -185,3 +185,7 @@ origin/main
 - **Strictly Append-Only Journaling**: When adding learnings to `.jules/*.md`, append strictly at the end of the file. Do not rewrite, deduplicate, or remove lines beginning with `## YYYY-MM-DD`.
 - **Surgical Scope Quarantine**: Modify only the files directly involved in the issue and their corresponding test fixtures. Do not delete, rename, or perform drive-by cleanups of unrelated root-level scripts or legacy files.
 - **Coupled Test Fixture Awareness for Security Invariants**: When changing fail-open fallback behavior (such as hardening decryption to fail closed), always update upstream test mocks that rely on plaintext credentials or mock values.
+
+## 2024-11-20 - Avoid intermediate array allocations when populating Sets
+**Learning:** Chaining \`.map()\` within \`new Set()\` (e.g., \`new Set(existingItems.map(i => i.id))\`) creates hidden intermediate arrays before constructing the target data structure. In batch persistence operations like \`saveBatch\`, this causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection.
+**Action:** Replace \`new Set(array.map(...))\` with single-pass \`for...of\` loops to directly populate the \`Set\` and eliminate O(N) intermediate array allocations during batch operations.

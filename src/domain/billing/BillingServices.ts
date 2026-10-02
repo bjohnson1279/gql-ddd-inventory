@@ -1,4 +1,5 @@
-import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
+const uuidv4 = () => crypto.randomUUID();
 import { 
   TenantBillingTier, ApiUsageRecord, BillingEvent, BillingEventType 
 } from './BillingEntities';

@@ -1,6 +1,7 @@
 import { NotificationDispatcherService, NotificationInboxService } from '../../../src/domain/notification/NotificationServices';
 import { Notification, NotificationPreference, NotificationCategory, NotificationSeverity, NotificationChannel } from '../../../src/domain/notification/NotificationEntities';
-import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
+const uuidv4 = () => crypto.randomUUID();
 
 describe('Notification Services', () => {
   it('Dispatcher should route based on preferences', () => {
