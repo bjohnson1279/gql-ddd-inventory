@@ -143,7 +143,11 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       select: { id: true }
     });
 
-    const existingIds = new Set(existingItems.map(i => i.id));
+    // ⚡ Bolt: Initialize Set with a single pass to avoid O(N) intermediate array allocation from .map()
+    const existingIds = new Set<string>();
+    for (const item of existingItems) {
+      existingIds.add(item.id);
+    }
 
     await this.prisma.$transaction(async (tx) => {
       const results = [];
@@ -203,7 +207,13 @@ export class PostgresInventoryRepository implements IInventoryRepository {
           RETURNING t.id;
         `;
 
-        const updatedIds = new Set(Array.isArray(result) ? result.map(r => r.id) : []);
+        // ⚡ Bolt: Populate Set with a single pass to avoid O(N) intermediate array allocation from .map()
+        const updatedIds = new Set<string>();
+        if (Array.isArray(result)) {
+          for (const r of result) {
+            updatedIds.add(r.id);
+          }
+        }
 
         for (const item of itemsToUpdate) {
           if (!updatedIds.has(item.id)) {
