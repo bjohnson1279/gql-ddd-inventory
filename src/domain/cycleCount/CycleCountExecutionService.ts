@@ -17,7 +17,11 @@ export class CycleCountExecutionService {
   ): boolean {
     let requiresRecount = false;
     
-    const submittedMap = new Map(submittedCounts.map(s => [s.sku, s.countedQuantity]));
+    // ⚡ Bolt: Single pass loop avoids intermediate array allocation from .map()
+    const submittedMap = new Map<string, number>();
+    for (const s of submittedCounts) {
+      submittedMap.set(s.sku, s.countedQuantity);
+    }
 
     for (const item of items) {
       const counted = submittedMap.get(item.sku);

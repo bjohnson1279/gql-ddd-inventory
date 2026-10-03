@@ -189,3 +189,6 @@ origin/main
 ## 2024-11-20 - Avoid intermediate array allocations when populating Sets
 **Learning:** Chaining \`.map()\` within \`new Set()\` (e.g., \`new Set(existingItems.map(i => i.id))\`) creates hidden intermediate arrays before constructing the target data structure. In batch persistence operations like \`saveBatch\`, this causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection.
 **Action:** Replace \`new Set(array.map(...))\` with single-pass \`for...of\` loops to directly populate the \`Set\` and eliminate O(N) intermediate array allocations during batch operations.
+## 2024-11-20 - Avoid intermediate array allocations when populating Maps
+**Learning:** Chaining `.map()` within `new Map()` (e.g., `new Map(submittedCounts.map(s => [s.sku, s.countedQuantity]))`) creates hidden intermediate array tuples before constructing the target Map structure. This causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection, especially during large batch operations like cycle counting or bulk auditing.
+**Action:** Replace `new Map(array.map(...))` with single-pass `for...of` loops to directly populate the `Map` using `.set()` to eliminate O(N) intermediate array allocations during large processing operations.
