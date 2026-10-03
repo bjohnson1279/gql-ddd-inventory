@@ -252,7 +252,11 @@ export class AuditProcessorService {
             }
           })
         : [];
-      const existingOpenSet = new Set(existingOpenDiscrepancies.map((d) => d.referenceId));
+      // ⚡ Bolt: Single pass loop avoids intermediate array allocation from .map()
+      const existingOpenSet = new Set<string>();
+      for (const d of existingOpenDiscrepancies) {
+        existingOpenSet.add(d.referenceId);
+      }
 
       const accountingDiscrepanciesToCreate = [];
 
