@@ -9,8 +9,12 @@ export class WeightedAverageCostingStrategy implements ICostingStrategy {
     quantity: number,
     variantId: ProductVariantId
   ): CostBreakdown {
-    const totalUnits = layers.reduce((sum, l) => sum + l.remainingQuantity(), 0);
-    const totalValue = layers.reduce((sum, l) => sum + l.remainingCostCents(), 0);
+    let totalUnits = 0;
+    let totalValue = 0;
+    for (let i = 0; i < layers.length; i++) {
+      totalUnits += layers[i].remainingQuantity();
+      totalValue += layers[i].remainingCostCents();
+    }
 
     if (totalUnits === 0 || totalUnits < quantity) {
       throw new Error(`Insufficient inventory for variant ${variantId.value}`);

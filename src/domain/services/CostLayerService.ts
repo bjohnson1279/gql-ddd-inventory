@@ -176,8 +176,12 @@ export class CostLayerService {
   }
 
   calculateWeightedAverageCostSync(activeLayers: InventoryCostLayer[], quantity: number, variantIdValue?: string): CostBreakdown {
-    const totalUnits = activeLayers.reduce((sum, l) => sum + l.remainingQuantity(), 0);
-    const totalValue = activeLayers.reduce((sum, l) => sum + l.remainingCostCents(), 0);
+    let totalUnits = 0;
+    let totalValue = 0;
+    for (let i = 0; i < activeLayers.length; i++) {
+      totalUnits += activeLayers[i].remainingQuantity();
+      totalValue += activeLayers[i].remainingCostCents();
+    }
 
     if (totalUnits === 0) {
       throw new Error(`Insufficient inventory for variant ${variantIdValue || ''}`);

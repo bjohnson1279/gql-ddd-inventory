@@ -104,7 +104,10 @@ export class DemandVelocityCalculator {
 
     const average = totalQuantity / windowDays;
 
-    const varianceSum = dailyQuantities.reduce((sum, qty) => sum + Math.pow(qty - average, 2), 0);
+    let varianceSum = 0;
+    for (let i = 0; i < dailyQuantities.length; i++) {
+      varianceSum += Math.pow(dailyQuantities[i] - average, 2);
+    }
     const stdDev = Math.sqrt(varianceSum / windowDays);
 
     return { average, stdDev };
