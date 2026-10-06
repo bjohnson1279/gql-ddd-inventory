@@ -4,6 +4,7 @@ import { AuditWorker } from './infrastructure/workers/AuditWorker';
 import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 import { ReportGenerationWorker } from './infrastructure/workers/ReportGenerationWorker';
 import { ReportSchedulerWorker } from './infrastructure/workers/ReportSchedulerWorker';
+import { eventBus } from './infrastructure/graphql/resolvers';
 
 console.log('[Worker] Starting gql-ddd-inventory background workers...');
 
@@ -16,7 +17,9 @@ const reportScheduler = new ReportSchedulerWorker();
 reportScheduler.start(60000);
 
 const reportWorker = new ReportGenerationWorker();
-// TODO: Hook up event dispatcher for ReportExecutionRequested
+eventBus.subscribe('ReportExecutionRequested', async (event: any) => {
+  await reportWorker.processEvent(JSON.stringify(event));
+});
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {

@@ -45,11 +45,11 @@ export class ReportSchedulerWorker {
         });
 
         // Queue generation via outbox
-        await tx.outboxEventModel.create({
+        await tx.outboxEvent.create({
           data: {
-            eventName: "ReportExecutionRequested",
+            eventType: "ReportExecutionRequested",
             payload: JSON.stringify({ executionId: execution.id }),
-            occurredOn: new Date()
+            createdAt: new Date()
           }
         });
 
