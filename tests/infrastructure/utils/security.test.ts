@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { hashPassword, verifyPassword } from '../../../src/infrastructure/utils/security';
 
 describe('security utils', () => {
@@ -78,6 +79,16 @@ describe('security utils', () => {
       expect(verifyPassword(password, 123 as any)).toBe(false);
       expect(verifyPassword(password, {} as any)).toBe(false);
       expect(verifyPassword(password, [] as any)).toBe(false);
+    });
+
+    it('should return false when a crypto operation throws an error', () => {
+      const password = 'my-secret-password';
+      const storedHash = hashPassword(password);
+      jest.spyOn(crypto, 'pbkdf2Sync').mockImplementationOnce(() => {
+        throw new Error('Crypto failure');
+      });
+
+      expect(verifyPassword(password, storedHash)).toBe(false);
     });
   });
 });
