@@ -1,4 +1,5 @@
 import { TenantRegistry, TenantRegistryEntry } from '../../../src/infrastructure/persistence/TenantRegistry';
+import { encryptPassword } from '../../../src/infrastructure/utils/security';
 
 describe('TenantRegistry', () => {
   let originalEnv: any;
@@ -132,8 +133,31 @@ describe('TenantRegistry', () => {
       expect(result!.tenantId).toBe('acme-corp');
       expect(result!.dbName).toBe('inventory_tenant_acme_corp');
       expect(result!.dbUser).toBe('inventory_user');
+      expect(result!.dbPassword).toBe('inventory_password');
       expect(result!.status).toBe('ACTIVE');
       expect(result!.migratedVersion).toBe('3');
+    });
+
+    it('should decrypt stored encrypted database passwords upon lookup', async () => {
+      const rawPass = 'secret_pass_123';
+      const encryptedPass = encryptPassword(rawPass);
+      const row = {
+        tenant_id: 'encrypted-tenant',
+        db_host: '127.0.0.1',
+        db_port: 5432,
+        db_name: 'inventory_tenant_encrypted',
+        db_user: 'inventory_user',
+        db_password: encryptedPass,
+        status: 'ACTIVE',
+        provisioned_at: new Date('2026-01-01'),
+        migrated_version: '1',
+      };
+      mockPrisma.$queryRaw.mockResolvedValue([row]);
+
+      const result = await registry.lookupTenant('encrypted-tenant');
+
+      expect(result).not.toBeNull();
+      expect(result!.dbPassword).toBe(rawPass);
     });
   });
 
