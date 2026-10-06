@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import { getCorsAllowedOrigins } from './infrastructure/http/corsConfig';
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/use/ws';
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -162,27 +163,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
-  if (process.env.NODE_ENV === 'production' && (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS === '*')) {
-    throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
-  }
-  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
-  let allowedOrigins: string | string[] = '*';
-  if (allowedOriginsRaw !== '*') {
-    const parts = allowedOriginsRaw.split(',');
-    const origins: string[] = [];
-    // ⚡ Bolt: Consolidated mapping and filtering into a single loop to avoid intermediate array allocations (O(N) overhead reduction)
-    for (let i = 0; i < parts.length; i++) {
-      const trimmed = parts[i].trim();
-      if (trimmed) {
-        try {
-          origins.push(new URL(trimmed).origin);
-        } catch {
-          throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${trimmed}`);
-        }
-      }
-    }
-    allowedOrigins = origins;
-  }
+  const allowedOrigins = getCorsAllowedOrigins();
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,

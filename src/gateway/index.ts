@@ -9,6 +9,7 @@ import bodyParser from 'body-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { depthLimitRule, complexityLimitRule } from '../infrastructure/graphql/guardrails';
+import { getCorsAllowedOrigins } from '../infrastructure/http/corsConfig';
 
 // Gateway routes requests to subgraphs and propagates Authorization header
 class AuthenticatedDataSource extends RemoteGraphQLDataSource {
@@ -20,27 +21,7 @@ class AuthenticatedDataSource extends RemoteGraphQLDataSource {
 }
 
 async function startGateway() {
-  if (process.env.NODE_ENV === 'production' && (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS === '*')) {
-    throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
-  }
-  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
-  let allowedOrigins: string | string[] = '*';
-  if (allowedOriginsRaw !== '*') {
-    const parts = allowedOriginsRaw.split(',');
-    const origins: string[] = [];
-    // ⚡ Bolt: Consolidated mapping and filtering into a single loop to avoid intermediate array allocations (O(N) overhead reduction)
-    for (let i = 0; i < parts.length; i++) {
-      const trimmed = parts[i].trim();
-      if (trimmed) {
-        try {
-          origins.push(new URL(trimmed).origin);
-        } catch {
-          throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${trimmed}`);
-        }
-      }
-    }
-    allowedOrigins = origins;
-  }
+  const allowedOrigins = getCorsAllowedOrigins();
 
   const subgraphs = [
     { name: 'inventory', url: process.env.INVENTORY_SUBGRAPH_URL || 'http://localhost:4001/graphql' },
