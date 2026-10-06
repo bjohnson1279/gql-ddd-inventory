@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { IRmaRepository } from '../../domain/repositories/IRmaRepository';
 import { Rma } from '../../domain/entities/Rma';
 import { RmaItem } from '../../domain/entities/RmaItem';
@@ -93,29 +93,22 @@ export class PostgresRmaRepository implements IRmaRepository {
         },
       });
 
-      // Upsert RMA items concurrently
+      // Batch upsert RMA items in a single query to eliminate N+1 overhead while preserving row identities and foreign key constraints
       if (rma.items.length > 0) {
-        await Promise.all(rma.items.map(async (item) => {
+        const itemValues = rma.items.map((item) => {
           const itemDbId = toUuid(item.id);
-          await (tx as any).rmaItem.upsert({
-            where: { id: itemDbId },
-            update: {
-              receivedQuantity: item.receivedQuantity,
-              status: item.status,
-              disposition: item.disposition,
-            },
-            create: {
-              id: itemDbId,
-              rmaId: dbId,
-              variantId: toUuid(item.variantId.value),
-              quantity: item.quantity,
-              receivedQuantity: item.receivedQuantity,
-              unitCostCents: item.unitCostCents,
-              status: item.status,
-              disposition: item.disposition,
-            },
-          });
-        }));
+          const variantDbId = toUuid(item.variantId.value);
+          return Prisma.sql`(${itemDbId}::uuid, ${dbId}::uuid, ${variantDbId}::uuid, ${item.quantity}, ${item.receivedQuantity}, ${item.unitCostCents}, ${item.status}, ${item.disposition})`;
+        });
+
+        await tx.$executeRaw`
+          INSERT INTO "rma_items" ("id", "rma_id", "variant_id", "quantity", "received_quantity", "unit_cost_cents", "status", "disposition")
+          VALUES ${Prisma.join(itemValues)}
+          ON CONFLICT ("id") DO UPDATE SET
+            "received_quantity" = EXCLUDED."received_quantity",
+            "status" = EXCLUDED."status",
+            "disposition" = EXCLUDED."disposition";
+        `;
       }
     });
   }
