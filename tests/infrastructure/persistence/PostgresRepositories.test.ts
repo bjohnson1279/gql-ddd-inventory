@@ -1,5 +1,10 @@
 import { PostgresInventoryRepository } from "../../../src/infrastructure/persistence/PostgresInventoryRepository";
 import { PostgresLedgerRepository } from "../../../src/infrastructure/persistence/PostgresLedgerRepository";
+import { PostgresProductRepository } from "../../../src/infrastructure/persistence/PostgresProductRepository";
+import { Product } from "../../../src/domain/entities/Product";
+import { ProductId } from "../../../src/domain/valueObjects/ProductId";
+import { ProductVariant } from "../../../src/domain/entities/ProductVariant";
+import { VariantAttribute } from "../../../src/domain/valueObjects/VariantAttribute";
 import { InventoryItem } from "../../../src/domain/entities/InventoryItem";
 import { Sku } from "../../../src/domain/valueObjects/Sku";
 import { LocationId } from "../../../src/domain/valueObjects/LocationId";
@@ -32,6 +37,21 @@ describe("Postgres repositories integration", () => {
       outboxEvent: {
         createMany: jest.fn(),
       },
+      product: {
+        upsert: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
+      productVariant: {
+        findMany: jest.fn(),
+        createMany: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+      variantAttribute: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
+      },
+      $executeRaw: jest.fn(),
       $transaction: jest.fn().mockImplementation(async (callback) => {
         return await callback(mockPrisma);
       }),
@@ -196,6 +216,86 @@ describe("Postgres repositories integration", () => {
       mockPrisma.inventoryItem.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(repo.save(item)).rejects.toThrow(ConcurrencyError);
+    });
+  });
+
+  describe("PostgresProductRepository", () => {
+    let repo: PostgresProductRepository;
+
+    beforeEach(() => {
+      repo = new PostgresProductRepository(mockPrisma);
+    });
+
+    it("should save new product with variants and attributes in batch", async () => {
+      const productId = new ProductId("11111111-1111-1111-1111-111111111111");
+      const product = new Product(productId, "Test Product");
+      const variant = product.addVariant(new Sku("SKU-PROD-1"), [new VariantAttribute("Color", "Red")]);
+
+      mockPrisma.product.upsert.mockResolvedValue({});
+      mockPrisma.variantAttribute.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.productVariant.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.productVariant.findMany.mockResolvedValue([]); // non-existing variant
+      mockPrisma.productVariant.createMany.mockResolvedValue({ count: 1 });
+      mockPrisma.variantAttribute.createMany.mockResolvedValue({ count: 1 });
+
+      await repo.save(product);
+
+      expect(mockPrisma.product.upsert).toHaveBeenCalledWith({
+        where: { id: "11111111-1111-1111-1111-111111111111" },
+        create: {
+          id: "11111111-1111-1111-1111-111111111111",
+          name: "Test Product",
+        },
+        update: {
+          name: "Test Product",
+        },
+      });
+
+      expect(mockPrisma.productVariant.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            id: variant.id.value,
+            productId: "11111111-1111-1111-1111-111111111111",
+            sku: "SKU-PROD-1",
+          }),
+        ],
+      });
+
+      expect(mockPrisma.variantAttribute.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            variantId: variant.id.value,
+            name: "Color",
+            value: "Red",
+          },
+        ],
+      });
+    });
+
+    it("should batch update existing variants using raw SQL", async () => {
+      const productId = new ProductId("11111111-1111-1111-1111-111111111111");
+      const product = new Product(productId, "Test Product");
+      const variant = product.addVariant(new Sku("SKU-PROD-1"), [new VariantAttribute("Size", "Large")]);
+
+      mockPrisma.product.upsert.mockResolvedValue({});
+      mockPrisma.variantAttribute.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.productVariant.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.productVariant.findMany.mockResolvedValue([{ id: variant.id.value }]); // existing variant
+      mockPrisma.$executeRaw.mockResolvedValue(1);
+      mockPrisma.variantAttribute.createMany.mockResolvedValue({ count: 1 });
+
+      await repo.save(product);
+
+      expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+      expect(mockPrisma.variantAttribute.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            variantId: variant.id.value,
+            name: "Size",
+            value: "Large",
+          },
+        ],
+      });
     });
   });
 
