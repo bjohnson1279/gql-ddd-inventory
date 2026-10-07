@@ -25,13 +25,34 @@ export class PostgresJournalRepository implements IJournalRepository {
     }
     const uniqueEntries = Array.from(uniqueEntriesMap.values());
 
-    await this.prisma.$transaction(async (tx) => {
-      await Promise.all(
-        uniqueEntries.map(async (entry) => {
-          const dbId = toUuid(entry.id.value);
+    const entryIds = uniqueEntries.map((e) => toUuid(e.id.value));
 
-          // 1. Upsert entry
-          await tx.journalEntry.upsert({
+    const allLinesData: Array<{
+      entryId: string;
+      accountCode: string;
+      amountCents: number;
+      type: string;
+      memo: string | null;
+    }> = [];
+    for (const entry of uniqueEntries) {
+      const dbId = toUuid(entry.id.value);
+      for (const line of entry.lines) {
+        allLinesData.push({
+          entryId: dbId,
+          accountCode: line.account.code,
+          amountCents: line.amountCents,
+          type: line.type,
+          memo: line.memo || null,
+        });
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Batch upsert journal entries
+      await Promise.all(
+        uniqueEntries.map((entry) => {
+          const dbId = toUuid(entry.id.value);
+          return tx.journalEntry.upsert({
             where: { id: dbId },
             create: {
               id: dbId,
@@ -48,25 +69,20 @@ export class PostgresJournalRepository implements IJournalRepository {
               referenceId: entry.referenceId || null,
             },
           });
-
-          // 2. Re-create journal lines
-          await tx.journalLine.deleteMany({
-            where: { entryId: dbId },
-          });
-
-          if (entry.lines.length > 0) {
-            await tx.journalLine.createMany({
-              data: entry.lines.map((line) => ({
-                entryId: dbId,
-                accountCode: line.account.code,
-                amountCents: line.amountCents,
-                type: line.type,
-                memo: line.memo || null,
-              })),
-            });
-          }
         })
       );
+
+      // 2. Batch delete existing journal lines for all affected entries
+      await tx.journalLine.deleteMany({
+        where: { entryId: { in: entryIds } },
+      });
+
+      // 3. Batch create all new journal lines
+      if (allLinesData.length > 0) {
+        await tx.journalLine.createMany({
+          data: allLinesData,
+        });
+      }
     });
   }
 

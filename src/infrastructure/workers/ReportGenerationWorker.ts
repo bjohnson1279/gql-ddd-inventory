@@ -5,9 +5,10 @@ import { ReportGeneratorService } from "../services/ReportGeneratorService";
 export class ReportGenerationWorker {
   private generator = new ReportGeneratorService();
 
-  public async processEvent(eventPayload: string): Promise<void> {
+  public async processEvent(eventPayload: string | any): Promise<void> {
     try {
-      const { executionId } = JSON.parse(eventPayload);
+      const payload = typeof eventPayload === 'string' ? JSON.parse(eventPayload) : eventPayload;
+      const executionId = payload?.executionId;
       if (!executionId) throw new Error("executionId missing from payload");
 
       const execution = await prisma.reportExecutionModel.findUnique({ where: { id: executionId } });
