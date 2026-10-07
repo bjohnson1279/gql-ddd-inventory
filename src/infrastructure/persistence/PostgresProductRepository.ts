@@ -88,12 +88,26 @@ export class PostgresProductRepository implements IProductRepository {
         },
       });
 
-      // 3. Upsert present variants and attributes concurrently
+      // 3. Batch upsert present variants and attributes
       if (product.variants.length > 0) {
-        await Promise.all(product.variants.map(async (variant) => {
-          await tx.productVariant.upsert({
-            where: { id: variant.id.value },
-            create: {
+        const variantIds = product.variants.map((v) => v.id.value);
+
+        const existingVariants = await tx.productVariant.findMany({
+          where: { id: { in: variantIds } },
+          select: { id: true },
+        });
+
+        const existingIds = new Set<string>();
+        for (const v of existingVariants) {
+          existingIds.add(v.id);
+        }
+
+        const variantsToCreate: any[] = [];
+        const variantsToUpdate: ProductVariant[] = [];
+
+        for (const variant of product.variants) {
+          if (!existingIds.has(variant.id.value)) {
+            variantsToCreate.push({
               id: variant.id.value,
               productId: product.id.value,
               sku: variant.sku.value,
@@ -101,31 +115,59 @@ export class PostgresProductRepository implements IProductRepository {
               costingMethod: variant.costingMethod,
               weightGrams: variant.weightGrams,
               volumeCubicMeters: variant.volumeCubicMeters,
-            },
-            update: {
-              sku: variant.sku.value,
-              trackingMode: variant.trackingMode,
-              costingMethod: variant.costingMethod,
-              weightGrams: variant.weightGrams,
-              volumeCubicMeters: variant.volumeCubicMeters,
-            },
-          });
-
-          // Recreate attributes
-          await tx.variantAttribute.deleteMany({
-            where: { variantId: variant.id.value },
-          });
-
-          if (variant.attributes.all().length > 0) {
-            await tx.variantAttribute.createMany({
-              data: variant.attributes.all().map((attr) => ({
-                variantId: variant.id.value,
-                name: attr.name,
-                value: attr.value,
-              })),
             });
+          } else {
+            variantsToUpdate.push(variant);
           }
-        }));
+        }
+
+        if (variantsToCreate.length > 0) {
+          await tx.productVariant.createMany({
+            data: variantsToCreate,
+          });
+        }
+
+        if (variantsToUpdate.length > 0) {
+          const updateRows = variantsToUpdate.map(
+            (variant) =>
+              Prisma.sql`(${variant.id.value}::uuid, ${product.id.value}::uuid, ${variant.sku.value}::text, ${variant.trackingMode}::text, ${variant.costingMethod}::text, ${variant.weightGrams}::int, ${variant.volumeCubicMeters}::float8)`
+          );
+
+          await tx.$executeRaw`
+            UPDATE product_variants AS t
+            SET
+              product_id = v.product_id::uuid,
+              sku = v.sku::text,
+              tracking_mode = v.tracking_mode::text,
+              costing_method = v.costing_method::text,
+              weight_grams = v.weight_grams::int,
+              volume_cubic_meters = v.volume_cubic_meters::float8
+            FROM (
+              VALUES
+                ${Prisma.join(updateRows)}
+            ) AS v(id, product_id, sku, tracking_mode, costing_method, weight_grams, volume_cubic_meters)
+            WHERE t.id = v.id::uuid;
+          `;
+        }
+
+        // Recreate attributes in batch
+        await tx.variantAttribute.deleteMany({
+          where: { variantId: { in: variantIds } },
+        });
+
+        const allAttributes = product.variants.flatMap((variant) =>
+          variant.attributes.all().map((attr) => ({
+            variantId: variant.id.value,
+            name: attr.name,
+            value: attr.value,
+          }))
+        );
+
+        if (allAttributes.length > 0) {
+          await tx.variantAttribute.createMany({
+            data: allAttributes,
+          });
+        }
       }
     });
   }
