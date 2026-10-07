@@ -192,6 +192,9 @@ origin/main
 ## 2024-11-20 - Avoid intermediate array allocations when populating Maps
 **Learning:** Chaining `.map()` within `new Map()` (e.g., `new Map(submittedCounts.map(s => [s.sku, s.countedQuantity]))`) creates hidden intermediate array tuples before constructing the target Map structure. This causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection, especially during large batch operations like cycle counting or bulk auditing.
 **Action:** Replace `new Map(array.map(...))` with single-pass `for...of` loops to directly populate the `Map` using `.set()` to eliminate O(N) intermediate array allocations during large processing operations.
+## 2026-10-05 - Optimize array reductions
+**Learning:** Consolidating `.reduce()` chains into simple loops avoids unnecessary function closures and intermediate array allocations, improving CPU overhead on hot paths.
+**Action:** Always favor native `for` loops over functional array methods when performing basic aggregations on large datasets or in high-frequency methods.
 
 ## 2026-03-30 - Batch update variant rows and attributes in PostgresProductRepository to eliminate N+1 queries
 **Learning:** Using `Promise.all` with individual `upsert` and attribute `deleteMany`/`createMany` queries in `PostgresProductRepository.save` creates $3N$ database queries for a product with $N$ variants, risking connection pool exhaustion and causing high query latency.
