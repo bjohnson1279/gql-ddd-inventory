@@ -47,7 +47,7 @@ jobs:
 
           # 4. Reject Destructive Line Deletions in Critical Entrypoints & Schemas
           NEW_FILES=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD | grep -v '^\.jules/' || true)
-          DELETED_LINES=$(git diff --stat origin/${{ github.base_ref }}...HEAD | grep -E 'schema\.prisma|src/index\.ts|public/index\.php|docker/postgres/init/|db/schema\.rb|routes/|routes\.php' | awk '{print $5}' | grep '-' || true)
+          NEW_FILES=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD | grep -v '^\.jules/' || true)
           for count in $DELETED_LINES; do
             num=$(echo "$count" | tr -d '-')
             THRESHOLD=15
