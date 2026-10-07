@@ -120,3 +120,8 @@ origin/main
 - **Strictly Append-Only Journaling**: When adding learnings to `.jules/*.md`, append strictly at the end of the file. Do not rewrite, deduplicate, or remove lines beginning with `## YYYY-MM-DD`.
 - **Surgical Scope Quarantine**: Modify only the files directly involved in the issue and their corresponding test fixtures. Do not delete, rename, or perform drive-by cleanups of unrelated root-level scripts or legacy files.
 - **Coupled Test Fixture Awareness for Security Invariants**: When changing fail-open fallback behavior (such as hardening decryption to fail closed), always update upstream test mocks that rely on plaintext credentials or mock values.
+
+## 2026-03-30 - Fix Overly Permissive CORS Policy in Non-Production
+**Vulnerability:** In non-production environments, wildcard CORS (`*`) or unconfigured `ALLOWED_ORIGINS` allowed unrestricted cross-origin requests.
+**Learning:** Defaulting CORS allowed origins to `'*'` in non-production environments exposes applications to unauthorized cross-origin access and potential data leakage.
+**Prevention:** Enforce restrictive fallback origins (e.g., specific localhost ports) instead of wildcard `'*'` when `ALLOWED_ORIGINS` is unset or set to `'*'` in non-production.

@@ -83,6 +83,45 @@ describe('TenantConnectionPool', () => {
     });
   });
 
+  describe('evictLRU', () => {
+    it('should evict the least recently used tenant when capacity is reached', async () => {
+      mockRegistry.lookupTenant.mockImplementation(async (tenantId: string) => ({
+        tenantId,
+        dbHost: '127.0.0.1',
+        dbPort: 5432,
+        dbName: `db_${tenantId}`,
+        dbUser: 'user',
+        dbPassword: 'password',
+        status: 'ACTIVE',
+        provisionedAt: new Date(),
+        migratedVersion: '1',
+      }));
+
+      jest.spyOn(pool as any, 'createClient').mockImplementation(async (entry: any) => ({
+        prisma: { $disconnect: jest.fn().mockResolvedValue(undefined) },
+        pool: { end: jest.fn().mockResolvedValue(undefined) },
+        lastAccessedAt: Date.now(),
+        tenantId: entry.tenantId,
+        dbName: entry.dbName,
+      }));
+
+      await pool.getClient('t1');
+      await pool.getClient('t2');
+      await pool.getClient('t3');
+
+      // Access t1 again to make it MRU (t2 becomes LRU)
+      await pool.getClient('t1');
+
+      // Adding t4 triggers eviction of LRU (t2)
+      await pool.getClient('t4');
+
+      expect(pool.has('t1')).toBe(true);
+      expect(pool.has('t2')).toBe(false);
+      expect(pool.has('t3')).toBe(true);
+      expect(pool.has('t4')).toBe(true);
+    });
+  });
+
   describe('shutdown', () => {
     it('should clear all connections', async () => {
       await pool.shutdown();
