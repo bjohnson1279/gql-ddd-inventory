@@ -17,7 +17,8 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
       webhookSubscription: {
         findUnique: jest.fn(),
         findMany: jest.fn()
-      }
+      },
+      $transaction: jest.fn((ops) => Array.isArray(ops) ? Promise.all(ops) : ops)
     }
   };
 });
@@ -126,6 +127,30 @@ describe('WebhookDeliveryWorker (GraphQL)', () => {
         attempts: 2,
         lastError: 'HTTP Error Status: 500',
         nextAttemptAt: expect.any(Date)
+      })
+    });
+  });
+
+  it('should handle missing or inactive subscriptions gracefully without crashing', async () => {
+    const mockDelivery = {
+      id: 'delivery-3',
+      subscriptionId: 'sub-missing',
+      eventType: 'OrderCreated',
+      payload: JSON.stringify({ id: 100 }),
+      attempts: 0
+    };
+
+    (prisma.webhookDelivery.findMany as jest.Mock).mockResolvedValue([mockDelivery]);
+    (prisma.webhookSubscription.findMany as jest.Mock).mockResolvedValue([]);
+
+    await WebhookDeliveryWorker.processPendingDeliveries();
+
+    expect(prisma.webhookDelivery.update).toHaveBeenCalledWith({
+      where: { id: 'delivery-3' },
+      data: expect.objectContaining({
+        status: 'Pending',
+        attempts: 1,
+        lastError: 'Subscription sub-missing not found or inactive'
       })
     });
   });
