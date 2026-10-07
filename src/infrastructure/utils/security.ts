@@ -27,3 +27,39 @@ export function verifyPassword(password: string, storedHash: string): boolean {
     return false;
   }
 }
+
+function getEncryptionKey(): Buffer {
+  const secret = process.env.TENANT_ENCRYPTION_KEY || process.env.JWT_SECRET || 'fallback-tenant-secret-key-32-bytes!';
+  return crypto.createHash('sha256').update(secret).digest();
+}
+
+export function encryptPassword(text: string): string {
+  if (!text || typeof text !== 'string') return text;
+  if (text.startsWith('enc:')) return text;
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const tag = cipher.getAuthTag();
+  return `enc:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted}`;
+}
+
+export function decryptPassword(text: string): string {
+  if (!text || typeof text !== 'string' || !text.startsWith('enc:')) return text;
+  try {
+    const parts = text.split(':');
+    if (parts.length !== 4) return text;
+    const [, ivHex, tagHex, encryptedHex] = parts;
+    const key = getEncryptionKey();
+    const iv = Buffer.from(ivHex, 'hex');
+    const tag = Buffer.from(tagHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    return text;
+  }
+}
