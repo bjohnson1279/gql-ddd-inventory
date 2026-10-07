@@ -193,6 +193,9 @@ origin/main
 **Learning:** Chaining `.map()` within `new Map()` (e.g., `new Map(submittedCounts.map(s => [s.sku, s.countedQuantity]))`) creates hidden intermediate array tuples before constructing the target Map structure. This causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection, especially during large batch operations like cycle counting or bulk auditing.
 **Action:** Replace `new Map(array.map(...))` with single-pass `for...of` loops to directly populate the `Map` using `.set()` to eliminate O(N) intermediate array allocations during large processing operations.
 
+## 2026-03-30 - Batch update variant rows and attributes in PostgresProductRepository to eliminate N+1 queries
+**Learning:** Using `Promise.all` with individual `upsert` and attribute `deleteMany`/`createMany` queries in `PostgresProductRepository.save` creates $3N$ database queries for a product with $N$ variants, risking connection pool exhaustion and causing high query latency.
+**Action:** Split variant persistence into a single `createMany` for new variants, raw SQL batch `UPDATE` for existing variants, and bulk `deleteMany`/`createMany` queries for attributes to reduce total database queries from $3N+3$ to $7$.
 ## 2025-05-10 - Optimize TenantConnectionPool LRU eviction to O(1) using Map insertion-order
 **Learning:** Native JavaScript `Map` maintains key insertion order. Re-inserting existing keys (`delete` then `set`) on access turns `Map` into an $O(1)$ LRU cache without external dependencies or linear $O(N)$ loops over entries.
 **Action:** Replace $O(N)$ scanning loops over `Map` entries for LRU eviction with Map key re-insertion and head key eviction via `map.keys().next().value`.
