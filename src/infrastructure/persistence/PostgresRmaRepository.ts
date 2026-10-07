@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { IRmaRepository } from '../../domain/repositories/IRmaRepository';
 import { Rma } from '../../domain/entities/Rma';
 import { RmaItem } from '../../domain/entities/RmaItem';
@@ -93,29 +93,38 @@ export class PostgresRmaRepository implements IRmaRepository {
         },
       });
 
-      // Upsert RMA items concurrently
+      // Upsert RMA items in batch
       if (rma.items.length > 0) {
-        await Promise.all(rma.items.map(async (item) => {
-          const itemDbId = toUuid(item.id);
-          await (tx as any).rmaItem.upsert({
-            where: { id: itemDbId },
-            update: {
-              receivedQuantity: item.receivedQuantity,
-              status: item.status,
-              disposition: item.disposition,
-            },
-            create: {
-              id: itemDbId,
-              rmaId: dbId,
-              variantId: toUuid(item.variantId.value),
-              quantity: item.quantity,
-              receivedQuantity: item.receivedQuantity,
-              unitCostCents: item.unitCostCents,
-              status: item.status,
-              disposition: item.disposition,
-            },
-          });
-        }));
+        await (tx as any).rmaItem.createMany({
+          data: rma.items.map((item) => ({
+            id: toUuid(item.id),
+            rmaId: dbId,
+            variantId: toUuid(item.variantId.value),
+            quantity: item.quantity,
+            receivedQuantity: item.receivedQuantity,
+            unitCostCents: item.unitCostCents,
+            status: item.status,
+            disposition: item.disposition,
+          })),
+          skipDuplicates: true,
+        });
+
+        const updateRows = rma.items.map((item) =>
+          Prisma.sql`(${toUuid(item.id)}::uuid, ${item.receivedQuantity}::integer, ${item.status}::text, ${item.disposition}::text)`
+        );
+
+        await (tx as any).$executeRaw`
+          UPDATE rma_items AS i
+          SET
+            received_quantity = v.received_quantity,
+            status = v.status,
+            disposition = v.disposition
+          FROM (
+            VALUES
+              ${Prisma.join(updateRows)}
+          ) AS v(id, received_quantity, status, disposition)
+          WHERE i.id = v.id::uuid;
+        `;
       }
     });
   }

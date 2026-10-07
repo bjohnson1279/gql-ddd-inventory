@@ -195,3 +195,7 @@ origin/main
 ## 2026-10-05 - Optimize array reductions
 **Learning:** Consolidating `.reduce()` chains into simple loops avoids unnecessary function closures and intermediate array allocations, improving CPU overhead on hot paths.
 **Action:** Always favor native `for` loops over functional array methods when performing basic aggregations on large datasets or in high-frequency methods.
+
+## 2025-05-10 - Optimize TenantConnectionPool LRU eviction to O(1) using Map insertion-order
+**Learning:** Native JavaScript `Map` maintains key insertion order. Re-inserting existing keys (`delete` then `set`) on access turns `Map` into an $O(1)$ LRU cache without external dependencies or linear $O(N)$ loops over entries.
+**Action:** Replace $O(N)$ scanning loops over `Map` entries for LRU eviction with Map key re-insertion and head key eviction via `map.keys().next().value`.

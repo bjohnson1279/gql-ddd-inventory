@@ -56,7 +56,7 @@ export class WebhookDeliveryWorker {
       const subscriptionMap = new Map<string, any>();
       for (const s of subscriptions) subscriptionMap.set(s.id, s);
 
-      await Promise.all(deliveries.map(async (delivery: any) => {
+      const results = await Promise.all(deliveries.map(async (delivery: any) => {
         try {
           const subscription: any = subscriptionMap.get(delivery.subscriptionId);
 
@@ -101,16 +101,15 @@ export class WebhookDeliveryWorker {
             throw new Error(`HTTP Error Status: ${response.status}`);
           }
 
-          // Mark as Success
-          await prisma.webhookDelivery.update({
-            where: { id: delivery.id },
+          console.log(`[WebhookDeliveryWorker] Successfully delivered webhook ${delivery.id} to ${subscription.targetUrl}`);
+          return {
+            id: delivery.id,
             data: {
               status: 'Success',
               attempts: delivery.attempts + 1,
               processedAt: new Date()
             }
-          });
-          console.log(`[WebhookDeliveryWorker] Successfully delivered webhook ${delivery.id} to ${subscription.targetUrl}`);
+          };
         } catch (err: any) {
           const nextAttempts = delivery.attempts + 1;
           const backoffMs = Math.min(Math.pow(2, nextAttempts) * 1000, 24 * 60 * 60 * 1000);
@@ -140,17 +139,37 @@ export class WebhookDeliveryWorker {
             console.error('Failed to publish webhook failure to pubsub:', pubSubErr);
           }
 
-          await prisma.webhookDelivery.update({
-            where: { id: delivery.id },
+          return {
+            id: delivery.id,
             data: {
               status: nextStatus,
               attempts: nextAttempts,
               lastError: err.message,
               nextAttemptAt
             }
-          });
+          };
         }
       }));
+
+      const validResults = results.filter((res): res is { id: string; data: any } => Boolean(res && res.id));
+      if (validResults.length > 0) {
+        const updateOps = validResults.map((res) =>
+          prisma.webhookDelivery.update({
+            where: { id: res.id },
+            data: res.data
+          })
+        );
+        try {
+          if (typeof prisma.$transaction === 'function') {
+            await prisma.$transaction(updateOps);
+          } else {
+            await Promise.all(updateOps);
+          }
+        } catch (txErr) {
+          console.error('[WebhookDeliveryWorker] Transaction batch update failed, falling back to individual updates:', txErr);
+          await Promise.all(updateOps);
+        }
+      }
     } catch (error) {
       console.error('[WebhookDeliveryWorker] Error in background worker loop:', error);
     } finally {
