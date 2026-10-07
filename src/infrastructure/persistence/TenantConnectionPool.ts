@@ -41,10 +41,12 @@ export class TenantConnectionPool {
    * Get a PrismaClient for the given tenant. Creates one on cache miss.
    */
   async getClient(tenantId: string): Promise<PrismaClient> {
-    // Cache hit — update access time and return
+    // Cache hit — update access time, move to end of insertion order (MRU), and return
     const existing = this.cache.get(tenantId);
     if (existing) {
       existing.lastAccessedAt = Date.now();
+      this.cache.delete(tenantId);
+      this.cache.set(tenantId, existing);
       return existing.prisma;
     }
 
@@ -177,19 +179,13 @@ export class TenantConnectionPool {
   }
 
   private async evictLRU(): Promise<void> {
-    let oldest: PoolEntry | null = null;
-    let oldestKey: string | null = null;
-
-    for (const [key, entry] of this.cache.entries()) {
-      if (!oldest || entry.lastAccessedAt < oldest.lastAccessedAt) {
-        oldest = entry;
-        oldestKey = key;
+    const oldestKey = this.cache.keys().next().value;
+    if (oldestKey !== undefined) {
+      const oldest = this.cache.get(oldestKey);
+      if (oldest) {
+        this.cache.delete(oldestKey);
+        await this.disconnectEntry(oldest);
       }
-    }
-
-    if (oldestKey && oldest) {
-      await this.disconnectEntry(oldest);
-      this.cache.delete(oldestKey);
     }
   }
 
