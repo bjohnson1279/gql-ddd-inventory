@@ -1,4 +1,4 @@
-import { hashPassword, verifyPassword } from '../../../src/infrastructure/utils/security';
+import { hashPassword, verifyPassword, encryptPassword, decryptPassword } from '../../../src/infrastructure/utils/security';
 
 describe('security utils', () => {
   describe('hashPassword', () => {
@@ -78,6 +78,31 @@ describe('security utils', () => {
       expect(verifyPassword(password, 123 as any)).toBe(false);
       expect(verifyPassword(password, {} as any)).toBe(false);
       expect(verifyPassword(password, [] as any)).toBe(false);
+    });
+  });
+
+  describe('encryptPassword and decryptPassword', () => {
+    it('should encrypt and decrypt a password correctly', () => {
+      const rawPassword = 'super-secret-db-password-123';
+      const encrypted = encryptPassword(rawPassword);
+
+      expect(encrypted).not.toBe(rawPassword);
+      expect(encrypted.startsWith('enc:')).toBe(true);
+
+      const decrypted = decryptPassword(encrypted);
+      expect(decrypted).toBe(rawPassword);
+    });
+
+    it('should return plaintext as-is if text does not start with enc:', () => {
+      const unencrypted = 'legacy-plaintext-password';
+      expect(decryptPassword(unencrypted)).toBe(unencrypted);
+    });
+
+    it('should return input as-is for non-string inputs or empty strings', () => {
+      expect(encryptPassword('')).toBe('');
+      expect(decryptPassword('')).toBe('');
+      expect(encryptPassword(null as any)).toBe(null);
+      expect(decryptPassword(null as any)).toBe(null);
     });
   });
 });
