@@ -217,6 +217,31 @@ describe("Postgres repositories integration", () => {
 
       await expect(repo.save(item)).rejects.toThrow(ConcurrencyError);
     });
+
+    describe("saveBatch", () => {
+      it("should do nothing when passing empty array", async () => {
+        await repo.saveBatch([]);
+        expect(mockPrisma.inventoryItem.findMany).not.toHaveBeenCalled();
+      });
+
+      it("should categorize items to create and items to update without intermediate array allocation", async () => {
+        const item1 = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(10), new Quantity(0), new Quantity(0), 1);
+        const item2 = new InventoryItem("item-2", new Sku("SKU-2"), new LocationId("loc-1"), new Quantity(20), new Quantity(0), new Quantity(0), 2);
+
+        mockPrisma.inventoryItem.findMany.mockResolvedValue([{ id: "item-2" }]);
+        mockPrisma.inventoryItem.createMany = jest.fn().mockResolvedValue({ count: 1 });
+        mockPrisma.$queryRaw = jest.fn().mockResolvedValue([{ id: "item-2" }]);
+
+        await repo.saveBatch([item1, item2]);
+
+        expect(mockPrisma.inventoryItem.createMany).toHaveBeenCalledWith({
+          data: [
+            expect.objectContaining({ id: "item-1", sku: "SKU-1", quantity: 10 }),
+          ],
+        });
+        expect(mockPrisma.$queryRaw).toHaveBeenCalled();
+      });
+    });
   });
 
   describe("PostgresProductRepository", () => {
