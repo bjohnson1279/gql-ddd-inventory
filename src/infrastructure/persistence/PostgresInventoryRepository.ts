@@ -150,8 +150,6 @@ export class PostgresInventoryRepository implements IInventoryRepository {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      const results = [];
-
       // Deduplicate items to prevent concurrency errors if the same item is passed multiple times in the batch
       const uniqueItems = new Map<string, InventoryItem>();
       const allEvents: any[] = [];
@@ -162,12 +160,10 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         uniqueItems.set(item.id, item);
       }
 
-      const deduplicatedItems = Array.from(uniqueItems.values());
+      const itemsToCreate: InventoryItem[] = [];
+      const itemsToUpdate: InventoryItem[] = [];
 
-      const itemsToCreate = [];
-      const itemsToUpdate = [];
-
-      for (const item of deduplicatedItems) {
+      for (const item of uniqueItems.values()) {
         if (!existingIds.has(item.id)) {
           itemsToCreate.push(item);
         } else {
