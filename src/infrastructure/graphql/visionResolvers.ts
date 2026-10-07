@@ -1,6 +1,6 @@
 import { ComputerVisionService, QaGatewayService } from '../../domain/vision/VisionServices';
 import { VisionInspection, InspectionStatus } from '../../domain/vision/VisionEntities';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 
 const cvService = new ComputerVisionService();
 const qaService = new QaGatewayService();
