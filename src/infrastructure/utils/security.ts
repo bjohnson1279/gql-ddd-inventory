@@ -29,7 +29,13 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 }
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.TENANT_ENCRYPTION_KEY || process.env.JWT_SECRET || 'fallback-tenant-secret-key-32-bytes!';
+  const secret = process.env.TENANT_ENCRYPTION_KEY || process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL ERROR: TENANT_ENCRYPTION_KEY or JWT_SECRET must be set.');
+    }
+    return crypto.createHash('sha256').update('fallback-tenant-secret-key-32-bytes!').digest();
+  }
   return crypto.createHash('sha256').update(secret).digest();
 }
 
