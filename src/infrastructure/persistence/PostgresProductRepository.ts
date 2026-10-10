@@ -221,7 +221,11 @@ export class PostgresProductRepository implements IProductRepository {
       where: { sku: { in: skuStrs } },
       select: { productId: true },
     });
-    const productIds = Array.from(new Set(variants.map(v => v.productId)));
+    const uniqueProductIds = new Set<string>();
+    for (const v of variants) {
+      uniqueProductIds.add(v.productId);
+    }
+    const productIds = Array.from(uniqueProductIds);
     return this.findByIds(productIds.map(id => new ProductId(id)));
   }
 

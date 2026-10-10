@@ -19,7 +19,10 @@ export class ManageRolesUseCase {
       where: { id: { in: permissionIds } }
     });
     if (validPermissions.length !== permissionIds.length) {
-      const valid = new Set(validPermissions.map(p => p.id));
+      const valid = new Set<string>();
+      for (const p of validPermissions) {
+        valid.add(p.id);
+      }
       const invalid = permissionIds.filter(id => !valid.has(id));
       throw new Error(`Invalid permission IDs: ${invalid.join(', ')}`);
     }
@@ -147,7 +150,10 @@ export class ManageRolesUseCase {
       where: { id: { in: roleIds } }
     });
     if (validRoles.length !== roleIds.length) {
-      const valid = new Set(validRoles.map(r => r.id));
+      const valid = new Set<string>();
+      for (const r of validRoles) {
+        valid.add(r.id);
+      }
       const invalid = roleIds.filter(id => !valid.has(id));
       throw new Error(`Invalid role IDs: ${invalid.join(', ')}`);
     }

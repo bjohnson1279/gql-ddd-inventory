@@ -38,7 +38,10 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
 
   async currentQuantities(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, number>> {
     const quantities = new Map<string, number>();
-    const variantIdStrs = new Set(variantIds.map(id => id.value));
+    const variantIdStrs = new Set<string>();
+    for (const id of variantIds) {
+      variantIdStrs.add(id.value);
+    }
 
     for (const entry of this.entries) {
       if (entry.locationId.equals(locationId) && variantIdStrs.has(entry.variantId.value)) {
@@ -59,7 +62,10 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
   }
 
   async entriesForBatch(variantIds: ProductVariantId[], locationId?: LocationId): Promise<Map<string, LedgerEntry[]>> {
-    const variantIdStrs = new Set(variantIds.map(id => id.value));
+    const variantIdStrs = new Set<string>();
+    for (const id of variantIds) {
+      variantIdStrs.add(id.value);
+    }
     const map = new Map<string, LedgerEntry[]>();
 
     for (const e of this.entries) {
@@ -85,7 +91,10 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
 
   async hasAnyEntriesBatch(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, boolean>> {
     const result = new Map<string, boolean>();
-    const variantIdStrs = new Set(variantIds.map(id => id.value));
+    const variantIdStrs = new Set<string>();
+    for (const id of variantIds) {
+      variantIdStrs.add(id.value);
+    }
 
     for (const id of variantIds) {
       result.set(id.value, false);

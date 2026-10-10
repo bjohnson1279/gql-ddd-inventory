@@ -215,3 +215,6 @@ origin/main
 - **Strict PSR-4 Isolation in PHP**: In PHP codebases, place every class, interface, and enum in its own file named <ClassName>.php matching its namespace path. Never combine multiple domain classes into a single file.
 - **Domain Contract Verification**: Always inspect entity and aggregate root definitions to verify exact method and property names before writing service logic or test fixtures.
 - **Clean Markdown Formatting**: Always append journal entries using actual newline characters, never literal string escape sequences.
+## 2024-11-20 - Avoid intermediate array allocations when populating Sets with .map()
+**Learning:** Chaining `.map()` within `new Set()` (e.g., `new Set(array.map(i => i.id))`) creates hidden intermediate arrays before constructing the target data structure. In batch persistence operations, this causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection.
+**Action:** Replace `new Set(array.map(...))` with single-pass `for...of` loops to directly populate explicitly typed Sets (e.g., `new Set<string>()`) and eliminate O(N) intermediate array allocations during batch operations.
