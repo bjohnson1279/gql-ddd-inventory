@@ -38,9 +38,13 @@ export class WebhookDeliveryWorker {
 
       if (deliveries.length === 0) return;
 
-      const deliveryIds = deliveries.map((d: any) => d.id);
+      // ⚡ Bolt: Consolidated .map() and new Set() into a single loop to avoid intermediate O(N) array allocation
+      const deliveryIds: Array<typeof deliveries[0]['id']> = [];
       const subscriptionIdsSet = new Set<string>();
-      for (const d of deliveries) subscriptionIdsSet.add(d.subscriptionId);
+      for (const d of deliveries) {
+        deliveryIds.push(d.id);
+        subscriptionIdsSet.add(d.subscriptionId);
+      }
       const subscriptionIds = Array.from(subscriptionIdsSet);
 
       const [subscriptions] = await Promise.all([
