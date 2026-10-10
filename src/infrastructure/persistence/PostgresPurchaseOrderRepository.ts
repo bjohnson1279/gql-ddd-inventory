@@ -24,7 +24,10 @@ export class PostgresPurchaseOrderRepository implements IPurchaseOrderRepository
         where: { id: { in: orderIds } },
         select: { id: true }
       });
-      const existingIds = new Set(existingOrders.map(o => o.id));
+      const existingIds = new Set<string>();
+      for (const o of existingOrders) {
+        existingIds.add(o.id);
+      }
 
       const ordersToCreate: any[] = [];
       const ordersToUpdate: PurchaseOrder[] = [];

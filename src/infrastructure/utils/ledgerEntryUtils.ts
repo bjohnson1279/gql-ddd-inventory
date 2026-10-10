@@ -56,7 +56,11 @@ export async function appendStockLedgerEntries(
 ): Promise<void> {
   if (entriesData.length === 0) return;
 
-  const skus = Array.from(new Set(entriesData.map(e => e.sku))).map(s => new Sku(s));
+  const uniqueSkus = new Set<string>();
+  for (const e of entriesData) {
+    uniqueSkus.add(e.sku);
+  }
+  const skus = Array.from(uniqueSkus).map(s => new Sku(s));
   const products = await productRepository.findBySkus(skus);
 
   const variantIdMap = new Map<string, string>(); // sku string -> variant id string

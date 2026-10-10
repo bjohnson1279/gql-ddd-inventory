@@ -30,7 +30,10 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
         select: { id: true }
       });
 
-      const existingIds = new Set(existingRules.map(r => r.id));
+      const existingIds = new Set<string>();
+      for (const r of existingRules) {
+        existingIds.add(r.id);
+      }
 
       const toCreate = [];
       const toUpdate = [];
