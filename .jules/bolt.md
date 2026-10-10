@@ -192,3 +192,7 @@ origin/main
 ## 2024-11-20 - Avoid intermediate array allocations when populating Maps
 **Learning:** Chaining `.map()` within `new Map()` (e.g., `new Map(submittedCounts.map(s => [s.sku, s.countedQuantity]))`) creates hidden intermediate array tuples before constructing the target Map structure. This causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection, especially during large batch operations like cycle counting or bulk auditing.
 **Action:** Replace `new Map(array.map(...))` with single-pass `for...of` loops to directly populate the `Map` using `.set()` to eliminate O(N) intermediate array allocations during large processing operations.
+
+## 2024-11-20 - Optimize Set initialization
+**Learning:** Using `Array.from(new Set(arr.map(x => x.prop)))` or `new Set(arr.map(x => x.prop))` creates unnecessary intermediate array allocations, reducing performance during large iterations.
+**Action:** Consolidate `.map()` and Set instantiation into a single `for...of` loop to avoid intermediate allocations and improve iteration performance.
