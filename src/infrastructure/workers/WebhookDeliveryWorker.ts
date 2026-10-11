@@ -155,14 +155,20 @@ export class WebhookDeliveryWorker {
         }
       }));
 
-      const validResults = results.filter((res): res is { id: string; data: any } => Boolean(res && res.id));
-      if (validResults.length > 0) {
-        const updateOps = validResults.map((res) =>
-          prisma.webhookDelivery.update({
-            where: { id: res.id },
-            data: res.data
-          })
-        );
+      // ⚡ Bolt: Consolidated .filter() and .map() chains into a single pass
+      const updateOps: Array<ReturnType<typeof prisma.webhookDelivery.update>> = [];
+      for (const res of results) {
+        if (res && res.id) {
+          updateOps.push(
+            prisma.webhookDelivery.update({
+              where: { id: res.id },
+              data: res.data
+            })
+          );
+        }
+      }
+
+      if (updateOps.length > 0) {
         try {
           if (typeof prisma.$transaction === 'function') {
             await prisma.$transaction(updateOps);
