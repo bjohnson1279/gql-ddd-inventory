@@ -1388,7 +1388,116 @@ export const typeDefs = `#graphql
     getNotifications(tenantId: ID!, userId: ID!): [Notification!]!
     generateAgingReport(tenantId: ID!): AgingReport!
   }
+
+  type Dimensions {
+    length: Float!
+    width: Float!
+    height: Float!
+  }
+
+  type InboundScan {
+    id: ID!
+    tenantId: String!
+    purchaseOrderId: String
+    imageUrl: String!
+    dimensions: Dimensions
+    ocrText: String
+    anomalyScore: Float!
+    hasDamage: Boolean!
+    status: String!
+    createdAt: String!
+  }
+
+  extend type Mutation {
+    analyzeInboundImage(base64Image: String!, poId: String): InboundScan!
+    approveInboundScan(id: ID!): InboundScan!
+  }
+
+  type PermissionType {
+    id: ID!
+    resource: String!
+    action: String!
+    description: String!
+  }
+
+  type RoleType {
+    id: ID!
+    name: String!
+    description: String!
+    isCustom: Boolean!
+    permissions: [PermissionType!]!
+  }
+
+  extend type Query {
+    roles(tenantId: ID!): [RoleType!]!
+    permissions: [PermissionType!]!
+    userEffectivePermissions(userId: ID!): [PermissionType!]!
+  }
+
+  extend type Mutation {
+    createCustomRole(tenantId: ID!, name: String!, description: String!, permissionIds: [ID!]!): RoleType!
+    updateRolePermissions(roleId: ID!, permissionIds: [ID!]!): RoleType!
+    deleteCustomRole(roleId: ID!): Boolean!
+    assignRolesToUser(userId: ID!, roleIds: [ID!]!): Boolean!
+    removeRolesFromUser(userId: ID!, roleIds: [ID!]!): Boolean!
+  }
+
+  type ApprovalWorkflowType {
+    id: ID!
+    tenantId: ID!
+    name: String!
+    triggerEvent: String!
+    isActive: Boolean!
+    config: JSON!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type ApprovalDecisionType {
+    id: ID!
+    stepIndex: Int!
+    deciderId: String!
+    decision: String!
+    notes: String
+    decidedAt: String!
+  }
+
+  type ApprovalRequestType {
+    id: ID!
+    tenantId: ID!
+    workflowId: ID!
+    referenceType: String!
+    referenceId: String!
+    requesterId: String!
+    status: String!
+    currentStep: Int!
+    payload: JSON!
+    expiresAt: String
+    createdAt: String!
+    decisions: [ApprovalDecisionType!]!
+  }
+
+  type ApprovalDecisionResult {
+    status: String!
+    referenceType: String!
+    referenceId: String!
+  }
+
+  extend type Query {
+    approvalWorkflows(tenantId: ID!): [ApprovalWorkflowType!]!
+    pendingApprovals(tenantId: ID!, deciderId: ID): [ApprovalRequestType!]!
+    approvalRequest(id: ID!): ApprovalRequestType
+  }
+
+  extend type Mutation {
+    createApprovalWorkflow(tenantId: ID!, name: String!, triggerEvent: String!, config: JSON!): ApprovalWorkflowType!
+    updateApprovalWorkflow(id: ID!, config: JSON!): ApprovalWorkflowType!
+    toggleApprovalWorkflow(id: ID!, isActive: Boolean!): ApprovalWorkflowType!
+    submitApprovalDecision(requestId: ID!, decision: String!, notes: String): ApprovalDecisionResult!
+  }
 `;
+
+
 
 
 
