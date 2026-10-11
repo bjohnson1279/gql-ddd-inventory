@@ -90,10 +90,9 @@
 **Learning:** In TypeScript/Node.js, chaining `.filter()` and `.map()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
 **Action:** Consolidate data filtering and transformation into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N).
 
-## $(date +%Y-%m-%d) - [Optimize PutawaySuggester multi-pass iteration]
+## 2026-09-08 - Optimize PutawaySuggester multi-pass iteration
 **Learning:** In TypeScript/Node.js, chaining `.map()` and `.filter()` over large arrays allocates intermediate arrays and adds unnecessary CPU overhead.
 **Action:** Consolidate data transformations and filtering into a single `for` loop to avoid intermediate allocations and reduce iteration overhead to O(N) when performance is critical.
-origin/main
 
 ## Prevention Directives for Automated Refactoring
 - **Never Overwrite Complete Files**: Always use range-scoped replacement chunks (`StartLine`/`EndLine`) for edits to `schema.prisma`, `index.ts`, `public/index.php`, or DDL SQL scripts.
