@@ -5,6 +5,7 @@ import { IntegrationId } from '../../domain/integrations/valueObjects/Integratio
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { IntegrationPlatform } from '../../domain/integrations/enums/IntegrationEnums';
 import { toUuid } from '../utils/uuid';
+import { encryptString, decryptString } from '../utils/security';
 
 
 export class PostgresIntegrationRepository implements IIntegrationRepository {
@@ -19,12 +20,12 @@ export class PostgresIntegrationRepository implements IIntegrationRepository {
         tenantId: connection.tenantId.value,
         platform: connection.platform,
         storeDomain: connection.storeDomain,
-        accessToken: connection.accessToken,
+        accessToken: encryptString(connection.accessToken),
         isActive: connection.isActive,
       },
       update: {
         isActive: connection.isActive,
-        accessToken: connection.accessToken,
+        accessToken: encryptString(connection.accessToken),
       },
     });
   }
@@ -40,7 +41,7 @@ export class PostgresIntegrationRepository implements IIntegrationRepository {
       new TenantId(model.tenantId),
       model.platform as IntegrationPlatform,
       model.storeDomain,
-      model.accessToken,
+      decryptString(model.accessToken),
       model.isActive ?? true
     );
   }
@@ -56,7 +57,7 @@ export class PostgresIntegrationRepository implements IIntegrationRepository {
           new TenantId(model.tenantId),
           model.platform as IntegrationPlatform,
           model.storeDomain,
-          model.accessToken,
+          decryptString(model.accessToken),
           model.isActive ?? true
         )
     );
@@ -72,7 +73,7 @@ export class PostgresIntegrationRepository implements IIntegrationRepository {
       new TenantId(model.tenantId),
       model.platform as IntegrationPlatform,
       model.storeDomain,
-      model.accessToken,
+      decryptString(model.accessToken),
       model.isActive ?? true
     );
   }

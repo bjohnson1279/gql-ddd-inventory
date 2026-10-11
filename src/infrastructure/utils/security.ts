@@ -40,6 +40,10 @@ function getEncryptionKey(): Buffer {
 }
 
 export function encryptPassword(text: string): string {
+  return encryptString(text);
+}
+
+export function encryptString(text: string): string {
   if (!text || typeof text !== 'string') return text;
   if (text.startsWith('enc:')) return text;
   const key = getEncryptionKey();
@@ -52,6 +56,10 @@ export function encryptPassword(text: string): string {
 }
 
 export function decryptPassword(text: string): string {
+  return decryptString(text);
+}
+
+export function decryptString(text: string): string {
   if (!text || typeof text !== 'string' || !text.startsWith('enc:')) return text;
   try {
     const parts = text.split(':');
@@ -65,7 +73,10 @@ export function decryptPassword(text: string): string {
     let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Unsupported state or unable to authenticate data")) {
+      return text;
+    }
     return text;
   }
 }
