@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { validateOutboundUrl } from '../../utils/urlValidator';
-import { hashPassword, verifyPassword } from '../utils/security';
+import { hashPassword, verifyPassword, encryptString, decryptString } from '../utils/security';
 import { pubsub } from './pubsub';
 import * as crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
@@ -1500,9 +1500,13 @@ export const resolvers = {
     },
     webhookSubscriptions: async (_: any, __: any, context: GraphQLContext) => {
       const auth = enforcePermission(context, 'webhook', 'view');
-      return await prisma.webhookSubscription.findMany({
+      const subs = await prisma.webhookSubscription.findMany({
         where: { tenantId: auth.tenantId }
       });
+      return subs.map((s: any) => ({
+        ...s,
+        secret: decryptString(s.secret)
+      }));
     },
     auditDiscrepancies: async (_: any, { tenantId, status }: { tenantId: string; status?: string }, context: GraphQLContext) => {
       enforcePermission(context, 'compliance', 'view', 'accountant', 'viewer');
@@ -2638,7 +2642,7 @@ export const resolvers = {
             id: crypto.randomUUID(),
             tenantId: auth.tenantId,
             targetUrl,
-            secret,
+            secret: encryptString(secret),
             eventTypes,
             isActive: true
           }
@@ -2671,7 +2675,7 @@ export const resolvers = {
           where: { id },
           data: {
             targetUrl: targetUrl !== undefined ? targetUrl : undefined,
-            secret: secret !== undefined ? secret : undefined,
+            secret: secret !== undefined ? encryptString(secret) : undefined,
             eventTypes: eventTypes !== undefined ? eventTypes : undefined,
             isActive: isActive !== undefined ? isActive : undefined
           }
