@@ -48,12 +48,15 @@ export class OrderRoutingEngine {
       }
     }
 
-    await Promise.all(
-      Array.from(uniqueRateRequests.entries()).map(async ([cacheKey, req]) => {
+    // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+    const ratePromises: Promise<void>[] = [];
+    for (const [cacheKey, req] of uniqueRateRequests.entries()) {
+      ratePromises.push((async () => {
         const rate = await rateCalculator(req.locationId, sku, req.qty);
         rateCache.set(cacheKey, rate);
-      })
-    );
+      })());
+    }
+    await Promise.all(ratePromises);
 
     // ⚡ Bolt: Cache distance lookups to prevent O(N*M) CPU bottlenecks
     const distanceCache = new Map<string, number>();

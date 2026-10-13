@@ -84,6 +84,11 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
   }
 
   async findAll(): Promise<InventoryItem[]> {
-    return Array.from(this.items.values()).map(item => this.cloneItem(item));
+    // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+    const results: InventoryItem[] = [];
+    for (const item of this.items.values()) {
+      results.push(this.cloneItem(item));
+    }
+    return results;
   }
 }

@@ -217,3 +217,6 @@
 ## 2024-11-20 - Avoid intermediate array allocations when populating Sets with .map()
 **Learning:** Chaining `.map()` within `new Set()` (e.g., `new Set(array.map(i => i.id))`) creates hidden intermediate arrays before constructing the target data structure. In batch persistence operations, this causes O(N) unnecessary memory allocations, increasing CPU time spent on garbage collection.
 **Action:** Replace `new Set(array.map(...))` with single-pass `for...of` loops to directly populate explicitly typed Sets (e.g., `new Set<string>()`) and eliminate O(N) intermediate array allocations during batch operations.
+## 2024-10-13 - [Performance/Memory] Optimize Array.from().map() Iterations
+**Learning:** Chaining `.map()` directly onto `Array.from()` across Maps and Sets causes unnecessary intermediate array allocations, increasing garbage collection pressure and degrading performance on hot paths or bulk data operations like report generation and routing evaluation.
+**Action:** Replace `Array.from(setOrMap).map()` chained calls with a native `for...of` loop when extracting properties or transforming elements. This pushes elements directly to the final destination array or evaluates items concurrently, eliminating O(N) intermediate array memory allocations.
