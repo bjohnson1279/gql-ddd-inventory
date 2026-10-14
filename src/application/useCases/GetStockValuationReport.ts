@@ -48,10 +48,14 @@ export class GetStockValuationReportUseCase {
     for (const item of filteredItems) {
       uniqueSkusSet.add(item.sku.value);
     }
-    const uniqueSkus = Array.from(uniqueSkusSet);
+    // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+    const skus: Sku[] = [];
+    for (const skuStr of uniqueSkusSet) {
+      skus.push(new Sku(skuStr));
+    }
 
     // Batch-lookup products to get variant IDs for each SKU
-    const products = await this.productRepo.findBySkus(uniqueSkus.map(s => new Sku(s)));
+    const products = await this.productRepo.findBySkus(skus);
 
     // Build sku → variantId map (use first variant that matches the SKU exactly)
     const skuToVariantId = new Map<string, string>();

@@ -31,7 +31,12 @@ export class InMemoryWarehouseLocationRepository implements IWarehouseLocationRe
   }
 
   async findAll(): Promise<WarehouseLocation[]> {
-    return Array.from(this.locations.values()).map(loc => this.clone(loc));
+    // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+    const results: WarehouseLocation[] = [];
+    for (const loc of this.locations.values()) {
+      results.push(this.clone(loc));
+    }
+    return results;
   }
 
   private clone(loc: WarehouseLocation): WarehouseLocation {

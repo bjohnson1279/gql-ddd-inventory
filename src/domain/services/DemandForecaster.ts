@@ -164,8 +164,11 @@ export class DemandForecaster {
     // Pre-fetch products
     const uniqueSkusSet = new Set<string>();
     for (const item of inventoryItems) uniqueSkusSet.add(item.sku.value);
-    const uniqueSkusArray = Array.from(uniqueSkusSet);
-    const products = await this.productRepo.findBySkus(uniqueSkusArray.map(s => new Sku(s)));
+
+    // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+    const skus: Sku[] = [];
+    for (const s of uniqueSkusSet) skus.push(new Sku(s));
+    const products = await this.productRepo.findBySkus(skus);
     const variantMap = new Map<string, any>();
     for (const product of products) {
       for (const variant of product.variants) {
@@ -176,7 +179,9 @@ export class DemandForecaster {
     }
 
     // Pre-fetch ledger entries
-    const variantIds = Array.from(variantMap.values()).map(v => v.id);
+    // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+    const variantIds: import('../../domain/valueObjects/ProductVariantId').ProductVariantId[] = [];
+    for (const v of variantMap.values()) variantIds.push(v.id);
     const ledgerEntriesBatch = await this.ledgerRepo.entriesForBatch(variantIds, locationId);
 
     const now = new Date();

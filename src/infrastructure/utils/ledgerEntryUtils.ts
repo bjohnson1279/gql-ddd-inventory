@@ -60,7 +60,9 @@ export async function appendStockLedgerEntries(
   for (const e of entriesData) {
     uniqueSkus.add(e.sku);
   }
-  const skus = Array.from(uniqueSkus).map(s => new Sku(s));
+  // ⚡ Bolt: Removed Array.from().map() to avoid intermediate array allocation
+  const skus: Sku[] = [];
+  for (const s of uniqueSkus) skus.push(new Sku(s));
   const products = await productRepository.findBySkus(skus);
 
   const variantIdMap = new Map<string, string>(); // sku string -> variant id string
