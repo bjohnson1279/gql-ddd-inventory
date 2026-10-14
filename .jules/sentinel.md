@@ -143,3 +143,7 @@ origin/main
 **Vulnerability:** External integration credentials (like Shopify access tokens and WooCommerce consumer secrets) were stored as plaintext strings directly in the `tenant_connections` and related persistence layers, exposing them to compromise if the database was breached.
 **Learning:** Symmetric encryption tools like `encryptPassword` existed in `security.ts` but were not uniformly applied across all sensitive domain boundaries (like integrations). Furthermore, retrofitting encryption to existing databases requires ensuring the read path safely falls back or handles legacy plaintext strings to avoid crashing.
 **Prevention:** Always identify which fields represent 'secrets' and ensure data-at-rest encryption is integrated into the persistence repository layer (e.g., `PostgresIntegrationRepository`) during both `create` and `update` paths, with a resilient read path.
+## 2024-05-30 - Encrypt Webhook Subscription Secrets at Rest
+**Vulnerability:** Webhook subscription secrets, used for verifying payloads via HMAC signatures, were stored in plaintext in the database.
+**Learning:** Symmetric encryption capabilities (`encryptString`, `decryptString`) existed in the codebase but were not uniformly applied across all tables storing sensitive credentials or signing keys.
+**Prevention:** Apply data-at-rest encryption to all webhook secrets upon creation and update. Ensure the read path decrypts the secrets before exposing them via the API or utilizing them in worker processes for payload signing.

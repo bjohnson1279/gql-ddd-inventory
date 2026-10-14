@@ -1,6 +1,7 @@
 import { prisma } from '../persistence/prismaClient';
 import crypto from 'crypto';
 import { validateOutboundUrl } from '../../utils/urlValidator';
+import { decryptString } from '../utils/security';
 
 export class WebhookDeliveryWorker {
   private static isRunning = false;
@@ -85,7 +86,7 @@ export class WebhookDeliveryWorker {
           }
 
           // Calculate signature
-          const hmac = crypto.createHmac('sha256', subscription.secret);
+          const hmac = crypto.createHmac('sha256', decryptString(subscription.secret));
           const signature = hmac.update(delivery.payload).digest('hex');
 
           // Send POST request
