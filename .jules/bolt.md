@@ -220,3 +220,6 @@
 ## 2024-10-13 - [Performance/Memory] Optimize Array.from().map() Iterations
 **Learning:** Chaining `.map()` directly onto `Array.from()` across Maps and Sets causes unnecessary intermediate array allocations, increasing garbage collection pressure and degrading performance on hot paths or bulk data operations like report generation and routing evaluation.
 **Action:** Replace `Array.from(setOrMap).map()` chained calls with a native `for...of` loop when extracting properties or transforming elements. This pushes elements directly to the final destination array or evaluates items concurrently, eliminating O(N) intermediate array memory allocations.
+## 2026-10-14 - Avoid intermediate array allocations when retrieving values from Maps
+**Learning:** Using `Array.from(map.values()).find()` or chaining `Array.from(map.values()).filter().map()` forces full O(N) intermediate array allocations in memory. When applied in repository search methods, this bypasses the short-circuiting capability of `find` and significantly increases CPU time spent on Garbage Collection (GC) overhead by instantiating unused structures.
+**Action:** Replace `Array.from(map.values())` chained patterns with single-pass native `for...of` loops over the Map or Set iterable to process elements directly (either returning early or explicitly pushing to a typed array).

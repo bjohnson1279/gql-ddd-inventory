@@ -26,16 +26,22 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
   }
 
   async findBySku(sku: string): Promise<InventoryItem[]> {
-    return Array.from(this.items.values())
-      .filter(item => item.sku.value === sku)
-      .map(item => this.cloneItem(item));
+    const results: InventoryItem[] = [];
+    for (const item of this.items.values()) {
+      if (item.sku.value === sku) {
+        results.push(this.cloneItem(item));
+      }
+    }
+    return results;
   }
 
   async findBySkuAndLocation(sku: string, locationId: string): Promise<InventoryItem | null> {
-    const item = Array.from(this.items.values()).find(
-      item => item.sku.value === sku && item.locationId.value === locationId
-    );
-    return item ? this.cloneItem(item) : null;
+    for (const item of this.items.values()) {
+      if (item.sku.value === sku && item.locationId.value === locationId) {
+        return this.cloneItem(item);
+      }
+    }
+    return null;
   }
 
   async findBySkuAndLocationBatch(pairs: { sku: string; locationId: string }[]): Promise<InventoryItem[]> {
@@ -71,16 +77,24 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
   }
 
   async findByLocation(locationId: string): Promise<InventoryItem[]> {
-    return Array.from(this.items.values())
-      .filter(item => item.locationId.value === locationId)
-      .map(item => this.cloneItem(item));
+    const results: InventoryItem[] = [];
+    for (const item of this.items.values()) {
+      if (item.locationId.value === locationId) {
+        results.push(this.cloneItem(item));
+      }
+    }
+    return results;
   }
 
   async findByLocationsBatch(locationIds: string[]): Promise<InventoryItem[]> {
     const locationSet = new Set(locationIds);
-    return Array.from(this.items.values())
-      .filter(item => locationSet.has(item.locationId.value))
-      .map(item => this.cloneItem(item));
+    const results: InventoryItem[] = [];
+    for (const item of this.items.values()) {
+      if (locationSet.has(item.locationId.value)) {
+        results.push(this.cloneItem(item));
+      }
+    }
+    return results;
   }
 
   async findAll(): Promise<InventoryItem[]> {

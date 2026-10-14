@@ -44,21 +44,31 @@ export class InMemoryReplenishmentRuleRepository implements IReplenishmentRuleRe
   }
 
   async findBySkuAndLocation(sku: Sku, locationId: LocationId): Promise<ReplenishmentRule | null> {
-    const rule = Array.from(this.rules.values()).find(
-      (r) => r.sku.equals(sku) && r.locationId.equals(locationId)
-    );
-    return rule ? this.cloneRule(rule) : null;
+    for (const r of this.rules.values()) {
+      if (r.sku.equals(sku) && r.locationId.equals(locationId)) {
+        return this.cloneRule(r);
+      }
+    }
+    return null;
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<ReplenishmentRule[]> {
-    return Array.from(this.rules.values())
-      .filter((r) => r.tenantId.equals(tenantId))
-      .map((r) => this.cloneRule(r));
+    const results: ReplenishmentRule[] = [];
+    for (const r of this.rules.values()) {
+      if (r.tenantId.equals(tenantId)) {
+        results.push(this.cloneRule(r));
+      }
+    }
+    return results;
   }
 
   async findAllByLocation(locationId: LocationId): Promise<ReplenishmentRule[]> {
-    return Array.from(this.rules.values())
-      .filter((r) => r.locationId.equals(locationId))
-      .map((r) => this.cloneRule(r));
+    const results: ReplenishmentRule[] = [];
+    for (const r of this.rules.values()) {
+      if (r.locationId.equals(locationId)) {
+        results.push(this.cloneRule(r));
+      }
+    }
+    return results;
   }
 }

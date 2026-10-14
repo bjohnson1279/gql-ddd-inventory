@@ -44,13 +44,21 @@ export class InMemoryRmaRepository implements IRmaRepository {
   }
 
   async findByNumber(rmaNumber: string): Promise<Rma | null> {
-    const rma = Array.from(this.rmas.values()).find((r) => r.rmaNumber === rmaNumber);
-    return rma ? this.cloneRma(rma) : null;
+    for (const r of this.rmas.values()) {
+      if (r.rmaNumber === rmaNumber) {
+        return this.cloneRma(r);
+      }
+    }
+    return null;
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<Rma[]> {
-    return Array.from(this.rmas.values())
-      .filter((r) => r.tenantId.equals(tenantId))
-      .map((r) => this.cloneRma(r));
+    const results: Rma[] = [];
+    for (const r of this.rmas.values()) {
+      if (r.tenantId.equals(tenantId)) {
+        results.push(this.cloneRma(r));
+      }
+    }
+    return results;
   }
 }
