@@ -32,8 +32,8 @@ export function verifyShopifyHmac(rawBody: string, hmacHeader: string): boolean 
     .digest('base64');
 
   try {
-    const hashBuffer = Buffer.from(hash);
-    const hmacBuffer = Buffer.from(hmacHeader);
+    const hashBuffer = Buffer.from(hash, 'base64');
+    const hmacBuffer = Buffer.from(hmacHeader, 'base64');
 
     if (hashBuffer.length !== hmacBuffer.length) {
       return false;
