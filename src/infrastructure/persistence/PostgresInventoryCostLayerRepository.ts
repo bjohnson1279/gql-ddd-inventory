@@ -124,7 +124,13 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
           },
     });
 
-    const activeLayers = dbLayers.map((l) => {
+    // ⚡ Bolt: Consolidated .map() and grouping into a single loop to avoid intermediate array allocation
+    const map = new Map<string, InventoryCostLayer[]>();
+    for (const v of variantIdStrs) {
+      map.set(v, []);
+    }
+
+    for (const l of dbLayers) {
       const lot = l.lotNumber && l.expirationDate
         ? new Lot(l.lotNumber, l.expirationDate)
         : undefined;
@@ -138,14 +144,7 @@ export class PostgresInventoryCostLayerRepository implements IInventoryCostLayer
         lot
       );
       (layer as any)._consumedQuantity = l.consumedQuantity;
-      return layer;
-    });
 
-    const map = new Map<string, InventoryCostLayer[]>();
-    for (const v of variantIdStrs) {
-      map.set(v, []);
-    }
-    for (const layer of activeLayers) {
       const arr = map.get(layer.variantId.value);
       if (arr) {
         arr.push(layer);
