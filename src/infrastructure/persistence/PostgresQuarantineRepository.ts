@@ -1,4 +1,4 @@
-import { PrismaClient, QuarantineItem as PrismaQuarantineItem } from '@prisma/client';
+import { PrismaClient, Prisma, QuarantineItem as PrismaQuarantineItem } from '@prisma/client';
 import { IQuarantineRepository } from '../../domain/repositories/IQuarantineRepository';
 import { QuarantineItem } from '../../domain/entities/QuarantineItem';
 import { TenantId } from '../../domain/valueObjects/TenantId';
@@ -76,29 +76,21 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
     const uniqueItems = Array.from(uniqueItemsMap.values());
 
     await this.prisma.$transaction(async (tx) => {
-      await Promise.all(
-        uniqueItems.map((item) => {
-          const dbId = toUuid(item.id);
-          return (tx as any).quarantineItem.upsert({
-            where: { id: dbId },
-            update: {
-              status: item.status,
-              resolvedAt: item.resolvedAt,
-            },
-            create: {
-              id: dbId,
-              variantId: toUuid(item.variantId.value),
-              quantity: item.quantity,
-              reason: item.reason,
-              locationId: item.locationId.value,
-              tenantId: item.tenantId.value,
-              status: item.status,
-              createdAt: item.createdAt,
-              resolvedAt: item.resolvedAt,
-            },
-          });
-        })
-      );
+      const values = uniqueItems.map((item) => {
+        const dbId = toUuid(item.id);
+        const variantId = toUuid(item.variantId.value);
+        return Prisma.sql`(${dbId}::uuid, ${variantId}::uuid, ${item.quantity}::integer, ${item.reason}, ${item.locationId.value}, ${item.tenantId.value}, ${item.status}, ${item.createdAt}::timestamptz, ${item.resolvedAt ? Prisma.sql`${item.resolvedAt}::timestamptz` : Prisma.sql`NULL::timestamptz`})`;
+      });
+
+      if (values.length > 0) {
+        await tx.$executeRaw`
+          INSERT INTO "quarantine_items" ("id", "variant_id", "quantity", "reason", "location_id", "tenant_id", "status", "created_at", "resolved_at")
+          VALUES ${Prisma.join(values)}
+          ON CONFLICT ("id") DO UPDATE SET
+            "status" = EXCLUDED."status",
+            "resolved_at" = EXCLUDED."resolved_at"
+        `;
+      }
     });
   }
 }
