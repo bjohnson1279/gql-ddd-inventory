@@ -147,3 +147,8 @@ origin/main
 **Vulnerability:** Webhook subscription secrets, used for verifying payloads via HMAC signatures, were stored in plaintext in the database.
 **Learning:** Symmetric encryption capabilities (`encryptString`, `decryptString`) existed in the codebase but were not uniformly applied across all tables storing sensitive credentials or signing keys.
 **Prevention:** Apply data-at-rest encryption to all webhook secrets upon creation and update. Ensure the read path decrypts the secrets before exposing them via the API or utilizing them in worker processes for payload signing.
+
+## 2024-10-31 - Fix Denial of Service in Shopify Webhook Verification
+**Vulnerability:** The Shopify Webhook handler previously parsed the HMAC header without specifying the encoding, defaulting to UTF-8 while parsing a base64 string. A base64-encoded string is passed as input from the header, which triggered an unhandled length mismatch or exception if invalid.
+**Learning:** When converting base64-encoded strings (like HMAC headers or computed hashes) to Buffers for cryptographic comparison (e.g., using crypto.timingSafeEqual), omitting the 'base64' encoding parameter causes Node.js to default to utf-8, misinterpreting raw characters and potentially causing length mismatches or Denial of Service.
+**Prevention:** Always explicitly specify the 'base64' encoding parameter (e.g., Buffer.from(hash, 'base64')) when converting base64-encoded strings to Buffers for cryptographic comparison.
