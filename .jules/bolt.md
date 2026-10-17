@@ -223,3 +223,9 @@
 ## 2026-10-14 - Avoid intermediate array allocations when retrieving values from Maps
 **Learning:** Using `Array.from(map.values()).find()` or chaining `Array.from(map.values()).filter().map()` forces full O(N) intermediate array allocations in memory. When applied in repository search methods, this bypasses the short-circuiting capability of `find` and significantly increases CPU time spent on Garbage Collection (GC) overhead by instantiating unused structures.
 **Action:** Replace `Array.from(map.values())` chained patterns with single-pass native `for...of` loops over the Map or Set iterable to process elements directly (either returning early or explicitly pushing to a typed array).
+## 2026-10-17 - Consolidated Array Iteration
+**Learning:** Chaining array methods like `.map()` directly onto `Array.from(map.values())` creates unnecessary intermediate arrays and prevents early short-circuiting.
+**Action:** Replace this pattern with a native `for...of` loop over the Map or Set iterable to process elements directly (pushing to an explicitly typed destination array or returning early), reducing O(N) memory allocation and garbage collection overhead.
+## 2026-10-17 - MapIterator Exhaustion
+**Learning:** Map Iterators (e.g., `map.values()`) can only be consumed once. Attempting to iterate over them a second time in subsequent `for...of` loops will result in silent empty loops and data loss/skipped operations.
+**Action:** When a Map's values need to be iterated multiple times, either use `Array.from(map.values())` to instantiate an array, or explicitly call `map.values()` anew for each `for...of` loop.

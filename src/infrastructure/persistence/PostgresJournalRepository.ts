@@ -23,9 +23,7 @@ export class PostgresJournalRepository implements IJournalRepository {
     for (const entry of entries) {
       uniqueEntriesMap.set(entry.id.value, entry);
     }
-    const uniqueEntries = Array.from(uniqueEntriesMap.values());
-
-    const entryIds = uniqueEntries.map((e) => toUuid(e.id.value));
+    const entryIds: string[] = [];
 
     const allLinesData: Array<{
       entryId: string;
@@ -34,8 +32,9 @@ export class PostgresJournalRepository implements IJournalRepository {
       type: string;
       memo: string | null;
     }> = [];
-    for (const entry of uniqueEntries) {
+    for (const entry of uniqueEntriesMap.values()) {
       const dbId = toUuid(entry.id.value);
+      entryIds.push(dbId);
       for (const line of entry.lines) {
         allLinesData.push({
           entryId: dbId,
@@ -49,28 +48,28 @@ export class PostgresJournalRepository implements IJournalRepository {
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Batch upsert journal entries
-      await Promise.all(
-        uniqueEntries.map((entry) => {
-          const dbId = toUuid(entry.id.value);
-          return tx.journalEntry.upsert({
-            where: { id: dbId },
-            create: {
-              id: dbId,
-              tenantId: entry.tenantId.value,
-              date: entry.date,
-              description: entry.description,
-              method: entry.method,
-              referenceId: entry.referenceId || null,
-            },
-            update: {
-              date: entry.date,
-              description: entry.description,
-              method: entry.method,
-              referenceId: entry.referenceId || null,
-            },
-          });
-        })
-      );
+      const upsertPromises: Array<ReturnType<typeof tx.journalEntry.upsert>> = [];
+      for (const entry of uniqueEntriesMap.values()) {
+        const dbId = toUuid(entry.id.value);
+        upsertPromises.push(tx.journalEntry.upsert({
+          where: { id: dbId },
+          create: {
+            id: dbId,
+            tenantId: entry.tenantId.value,
+            date: entry.date,
+            description: entry.description,
+            method: entry.method,
+            referenceId: entry.referenceId || null,
+          },
+          update: {
+            date: entry.date,
+            description: entry.description,
+            method: entry.method,
+            referenceId: entry.referenceId || null,
+          },
+        }));
+      }
+      await Promise.all(upsertPromises);
 
       // 2. Batch delete existing journal lines for all affected entries
       await tx.journalLine.deleteMany({

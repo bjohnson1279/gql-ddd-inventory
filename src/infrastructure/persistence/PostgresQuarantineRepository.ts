@@ -73,32 +73,30 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
     for (const item of items) {
       uniqueItemsMap.set(item.id, item);
     }
-    const uniqueItems = Array.from(uniqueItemsMap.values());
-
     await this.prisma.$transaction(async (tx) => {
-      await Promise.all(
-        uniqueItems.map((item) => {
-          const dbId = toUuid(item.id);
-          return (tx as any).quarantineItem.upsert({
-            where: { id: dbId },
-            update: {
-              status: item.status,
-              resolvedAt: item.resolvedAt,
-            },
-            create: {
-              id: dbId,
-              variantId: toUuid(item.variantId.value),
-              quantity: item.quantity,
-              reason: item.reason,
-              locationId: item.locationId.value,
-              tenantId: item.tenantId.value,
-              status: item.status,
-              createdAt: item.createdAt,
-              resolvedAt: item.resolvedAt,
-            },
-          });
-        })
-      );
+      const upsertPromises: any[] = [];
+      for (const item of uniqueItemsMap.values()) {
+        const dbId = toUuid(item.id);
+        upsertPromises.push((tx as any).quarantineItem.upsert({
+          where: { id: dbId },
+          update: {
+            status: item.status,
+            resolvedAt: item.resolvedAt,
+          },
+          create: {
+            id: dbId,
+            variantId: toUuid(item.variantId.value),
+            quantity: item.quantity,
+            reason: item.reason,
+            locationId: item.locationId.value,
+            tenantId: item.tenantId.value,
+            status: item.status,
+            createdAt: item.createdAt,
+            resolvedAt: item.resolvedAt,
+          },
+        }));
+      }
+      await Promise.all(upsertPromises);
     });
   }
 }
