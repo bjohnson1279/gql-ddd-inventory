@@ -30,11 +30,11 @@ export function validateOutboundUrl(urlString: string): string {
       hostname === '0.0.0.0' ||
       hostname === '::1' ||
       hostname === '::' ||
-      hostname.startsWith('127.') ||
-      hostname.startsWith('169.254.') ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+      (allNumeric && hostname.startsWith('127.')) ||
+      (allNumeric && hostname.startsWith('169.254.')) ||
+      (allNumeric && hostname.startsWith('10.')) ||
+      (allNumeric && hostname.startsWith('192.168.')) ||
+      (allNumeric && hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) ||
       hostname.toLowerCase().startsWith('::ffff:') ||
       hostname.toLowerCase().startsWith('fe80:') ||
       hostname.toLowerCase().startsWith('fd') ||

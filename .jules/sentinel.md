@@ -152,3 +152,8 @@ origin/main
 **Vulnerability:** The Shopify Webhook handler previously parsed the HMAC header without specifying the encoding, defaulting to UTF-8 while parsing a base64 string. A base64-encoded string is passed as input from the header, which triggered an unhandled length mismatch or exception if invalid.
 **Learning:** When converting base64-encoded strings (like HMAC headers or computed hashes) to Buffers for cryptographic comparison (e.g., using crypto.timingSafeEqual), omitting the 'base64' encoding parameter causes Node.js to default to utf-8, misinterpreting raw characters and potentially causing length mismatches or Denial of Service.
 **Prevention:** Always explicitly specify the 'base64' encoding parameter (e.g., Buffer.from(hash, 'base64')) when converting base64-encoded strings to Buffers for cryptographic comparison.
+
+## 2024-11-20 - Fix SSRF Prevention False Positives
+**Vulnerability:** The SSRF URL validator incorrectly blocked valid external domains containing internal IP prefixes (like `127.0.0.1.domain.com`) due to broad `.startsWith()` checks applied indiscriminately to hostnames.
+**Learning:** Naive prefix matching for SSRF protection blocks valid domain structures that happen to contain IP strings. Prefix checks must be restricted only to hostnames that are strictly IP representations (e.g., all segments are numeric).
+**Prevention:** Always scope and restrict broad format checks. When preventing SSRF via IP prefix checking, first ensure the entire hostname structure constitutes an IP address rather than a domain FQDN.
