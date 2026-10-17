@@ -81,19 +81,20 @@ export class PostgresStockTransferRepository implements IStockTransferRepository
     for (const transfer of transfers) {
       uniqueTransfersMap.set(transfer.id.value, transfer);
     }
-    const uniqueTransfers = Array.from(uniqueTransfersMap.values());
-
-    const values = uniqueTransfers.map((t) => Prisma.sql`(${Prisma.join([
-      toUuid(t.id.value),
-      t.tenantId.value,
-      t.sourceLocationId.value,
-      t.destinationLocationId.value,
-      t.status,
-      t.referenceId,
-      t.dispatchedAt,
-      t.receivedAt,
-      t.createdAt
-    ])})`);
+    const values: ReturnType<typeof Prisma.sql>[] = [];
+    for (const t of uniqueTransfersMap.values()) {
+      values.push(Prisma.sql`(${Prisma.join([
+        toUuid(t.id.value),
+        t.tenantId.value,
+        t.sourceLocationId.value,
+        t.destinationLocationId.value,
+        t.status,
+        t.referenceId,
+        t.dispatchedAt,
+        t.receivedAt,
+        t.createdAt
+      ])})`);
+    }
 
     await this.prisma.$transaction(async (tx) => {
       if (values.length > 0) {
@@ -107,13 +108,10 @@ export class PostgresStockTransferRepository implements IStockTransferRepository
         `;
       }
 
-      const dbIds = uniqueTransfers.map(t => toUuid(t.id.value));
-      await tx.stockTransferItem.deleteMany({
-        where: { transferId: { in: dbIds } },
-      });
-
+      const dbIds: string[] = [];
       const allItems: any[] = [];
-      for (const t of uniqueTransfers) {
+      for (const t of uniqueTransfersMap.values()) {
+        dbIds.push(toUuid(t.id.value));
         for (const item of t.items) {
           allItems.push({
             transferId: toUuid(t.id.value),
@@ -122,6 +120,10 @@ export class PostgresStockTransferRepository implements IStockTransferRepository
           });
         }
       }
+
+      await tx.stockTransferItem.deleteMany({
+        where: { transferId: { in: dbIds } },
+      });
 
       if (allItems.length > 0) {
         await tx.stockTransferItem.createMany({

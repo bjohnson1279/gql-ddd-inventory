@@ -20,12 +20,15 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
     for (const rule of rules) {
       uniqueRulesMap.set(rule.id.value, rule);
     }
-    const uniqueRules = Array.from(uniqueRulesMap.values());
+    const dbIds: string[] = [];
+    for (const rule of uniqueRulesMap.values()) {
+      dbIds.push(toUuid(rule.id.value));
+    }
 
     await this.prisma.$transaction(async (tx) => {
       const existingRules = await tx.replenishmentRule.findMany({
         where: {
-          id: { in: uniqueRules.map(r => toUuid(r.id.value)) }
+          id: { in: dbIds }
         },
         select: { id: true }
       });
@@ -38,7 +41,7 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
       const toCreate = [];
       const toUpdate = [];
 
-      for (const rule of uniqueRules) {
+      for (const rule of uniqueRulesMap.values()) {
         if (existingIds.has(toUuid(rule.id.value))) {
           toUpdate.push(rule);
         } else {
@@ -47,8 +50,9 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
       }
 
       if (toCreate.length > 0) {
-        await tx.replenishmentRule.createMany({
-          data: toCreate.map(rule => ({
+        const createData: any[] = [];
+        for (const rule of toCreate) {
+          createData.push({
             id: toUuid(rule.id.value),
             tenantId: rule.tenantId.value,
             sku: rule.sku.value,
@@ -62,27 +66,30 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
             supplierId: rule.supplierId,
             isActive: rule.isActive,
             dynamicRopEnabled: rule.dynamicRopEnabled,
-          })),
+          });
+        }
+        await tx.replenishmentRule.createMany({
+          data: createData,
           skipDuplicates: true,
         });
       }
 
       if (toUpdate.length > 0) {
-        await Promise.all(
-          toUpdate.map(rule =>
-            tx.replenishmentRule.update({
-              where: { id: toUuid(rule.id.value) },
-              data: {
-                reorderPoint: rule.reorderPoint,
-                reorderQuantity: rule.reorderQuantity,
-                safetyStock: rule.safetyStock,
-                leadTimeDays: rule.leadTimeDays,
-                isActive: rule.isActive,
-                dynamicRopEnabled: rule.dynamicRopEnabled,
-              },
-            })
-          )
-        );
+        const updatePromises: Array<ReturnType<typeof tx.replenishmentRule.update>> = [];
+        for (const rule of toUpdate) {
+          updatePromises.push(tx.replenishmentRule.update({
+            where: { id: toUuid(rule.id.value) },
+            data: {
+              reorderPoint: rule.reorderPoint,
+              reorderQuantity: rule.reorderQuantity,
+              safetyStock: rule.safetyStock,
+              leadTimeDays: rule.leadTimeDays,
+              isActive: rule.isActive,
+              dynamicRopEnabled: rule.dynamicRopEnabled,
+            },
+          }));
+        }
+        await Promise.all(updatePromises);
       }
     });
   }
