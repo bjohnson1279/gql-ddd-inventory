@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { IReplenishmentRuleRepository } from '../../domain/repositories/IReplenishmentRuleRepository';
 import { ReplenishmentRule } from '../../domain/entities/ReplenishmentRule';
 import { ReplenishmentRuleId } from '../../domain/valueObjects/ReplenishmentRuleId';
@@ -68,21 +69,22 @@ export class PostgresReplenishmentRuleRepository implements IReplenishmentRuleRe
       }
 
       if (toUpdate.length > 0) {
-        await Promise.all(
-          toUpdate.map(rule =>
-            tx.replenishmentRule.update({
-              where: { id: toUuid(rule.id.value) },
-              data: {
-                reorderPoint: rule.reorderPoint,
-                reorderQuantity: rule.reorderQuantity,
-                safetyStock: rule.safetyStock,
-                leadTimeDays: rule.leadTimeDays,
-                isActive: rule.isActive,
-                dynamicRopEnabled: rule.dynamicRopEnabled,
-              },
-            })
-          )
+        const updateRows = toUpdate.map(rule =>
+          Prisma.sql`(${toUuid(rule.id.value)}::uuid, ${rule.reorderPoint}::integer, ${rule.reorderQuantity}::integer, ${rule.safetyStock}::integer, ${rule.leadTimeDays}::integer, ${rule.isActive}::boolean, ${rule.dynamicRopEnabled}::boolean)`
         );
+
+        await tx.$executeRaw`
+          UPDATE "replenishment_rules" AS r
+          SET
+            "reorder_point" = v.reorder_point,
+            "reorder_quantity" = v.reorder_quantity,
+            "safety_stock" = v.safety_stock,
+            "lead_time_days" = v.lead_time_days,
+            "is_active" = v.is_active,
+            "dynamic_rop_enabled" = v.dynamic_rop_enabled
+          FROM (VALUES ${Prisma.join(updateRows)}) AS v(id, reorder_point, reorder_quantity, safety_stock, lead_time_days, is_active, dynamic_rop_enabled)
+          WHERE r."id" = v.id;
+        `;
       }
     });
   }

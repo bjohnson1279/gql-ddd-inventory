@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { IJournalRepository } from '../../domain/repositories/IJournalRepository';
 import { JournalEntry } from '../../domain/entities/JournalEntry';
 import { JournalEntryId } from '../../domain/valueObjects/JournalEntryId';
@@ -49,28 +50,22 @@ export class PostgresJournalRepository implements IJournalRepository {
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Batch upsert journal entries
-      await Promise.all(
-        uniqueEntries.map((entry) => {
-          const dbId = toUuid(entry.id.value);
-          return tx.journalEntry.upsert({
-            where: { id: dbId },
-            create: {
-              id: dbId,
-              tenantId: entry.tenantId.value,
-              date: entry.date,
-              description: entry.description,
-              method: entry.method,
-              referenceId: entry.referenceId || null,
-            },
-            update: {
-              date: entry.date,
-              description: entry.description,
-              method: entry.method,
-              referenceId: entry.referenceId || null,
-            },
-          });
-        })
-      );
+      const entryValues = uniqueEntries.map((entry) => {
+        const dbId = toUuid(entry.id.value);
+        return Prisma.sql`(${dbId}::uuid, ${entry.tenantId.value}, ${entry.date}::timestamptz, ${entry.description}, ${entry.method}, ${entry.referenceId || null})`;
+      });
+
+      if (entryValues.length > 0) {
+        await tx.$executeRaw`
+          INSERT INTO "journal_entries" ("id", "tenant_id", "date", "description", "method", "reference_id")
+          VALUES ${Prisma.join(entryValues)}
+          ON CONFLICT ("id") DO UPDATE SET
+            "date" = EXCLUDED."date",
+            "description" = EXCLUDED."description",
+            "method" = EXCLUDED."method",
+            "reference_id" = EXCLUDED."reference_id"
+        `;
+      }
 
       // 2. Batch delete existing journal lines for all affected entries
       await tx.journalLine.deleteMany({

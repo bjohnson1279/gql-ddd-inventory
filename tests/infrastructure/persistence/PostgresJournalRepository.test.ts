@@ -7,6 +7,7 @@ import { AccountingMethod, DebitCredit } from '../../../src/domain/enums/Account
 
 const mockPrisma = {
   $transaction: jest.fn(),
+  $executeRaw: jest.fn().mockResolvedValue(true),
   journalEntry: {
     upsert: jest.fn(),
   },
