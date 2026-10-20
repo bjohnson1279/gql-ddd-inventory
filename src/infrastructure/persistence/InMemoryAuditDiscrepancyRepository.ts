@@ -13,13 +13,21 @@ export class InMemoryAuditDiscrepancyRepository implements IAuditDiscrepancyRepo
   }
 
   async findAll(tenantId: string, status?: string): Promise<AuditDiscrepancy[]> {
-    return Array.from(this.items.values())
-      .filter((item) => item.tenantId === tenantId && (!status || item.status === status))
-      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+    const results: AuditDiscrepancy[] = [];
+    for (const item of this.items.values()) {
+      if (item.tenantId === tenantId && (!status || item.status === status)) {
+        results.push(item);
+      }
+    }
+    return results.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
   }
 
   async findOpen(tenantId: string, type: string, referenceId: string): Promise<AuditDiscrepancy | null> {
-    return Array.from(this.items.values())
-      .find((item) => item.tenantId === tenantId && item.type === type && item.referenceId === referenceId && item.status === 'OPEN') || null;
+    for (const item of this.items.values()) {
+      if (item.tenantId === tenantId && item.type === type && item.referenceId === referenceId && item.status === 'OPEN') {
+        return item;
+      }
+    }
+    return null;
   }
 }
