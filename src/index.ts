@@ -166,8 +166,8 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
     throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
   }
   const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
-  let allowedOrigins: string | string[] = '*';
-  if (allowedOriginsRaw !== '*') {
+  let allowedOrigins: string | string[] = process.env.NODE_ENV === 'production' ? '*' : ['http://localhost:5173', 'http://localhost:4000'];
+  if (allowedOriginsRaw !== '*' && allowedOriginsRaw !== '') {
     const parts = allowedOriginsRaw.split(',');
     const origins: string[] = [];
     // ⚡ Bolt: Consolidated mapping and filtering into a single loop to avoid intermediate array allocations (O(N) overhead reduction)
