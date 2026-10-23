@@ -30,9 +30,13 @@ export class InMemoryStockTransferRepository implements IStockTransferRepository
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<StockTransfer[]> {
-    return Array.from(this.transfers.values())
-      .filter(t => t.tenantId.value === tenantId.value)
-      .map(t => this.cloneTransfer(t));
+    const results: StockTransfer[] = [];
+    for (const transfer of this.transfers.values()) {
+      if (transfer.tenantId.value === tenantId.value) {
+        results.push(this.cloneTransfer(transfer));
+      }
+    }
+    return results;
   }
 
   async save(transfer: StockTransfer): Promise<void> {

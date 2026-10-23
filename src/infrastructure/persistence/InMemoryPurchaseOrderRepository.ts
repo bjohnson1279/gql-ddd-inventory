@@ -38,8 +38,12 @@ export class InMemoryPurchaseOrderRepository implements IPurchaseOrderRepository
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<PurchaseOrder[]> {
-    return Array.from(this.orders.values())
-      .filter((o) => o.tenantId.equals(tenantId))
-      .map((o) => this.cloneOrder(o));
+    const results: PurchaseOrder[] = [];
+    for (const order of this.orders.values()) {
+      if (order.tenantId.equals(tenantId)) {
+        results.push(this.cloneOrder(order));
+      }
+    }
+    return results;
   }
 }

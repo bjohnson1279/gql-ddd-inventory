@@ -36,8 +36,12 @@ export class InMemoryQuarantineRepository implements IQuarantineRepository {
   }
 
   async findAllByTenant(tenantId: TenantId): Promise<QuarantineItem[]> {
-    return Array.from(this.items.values())
-      .filter((i) => i.tenantId.equals(tenantId))
-      .map((i) => this.cloneItem(i));
+    const results: QuarantineItem[] = [];
+    for (const item of this.items.values()) {
+      if (item.tenantId.equals(tenantId)) {
+        results.push(this.cloneItem(item));
+      }
+    }
+    return results;
   }
 }
