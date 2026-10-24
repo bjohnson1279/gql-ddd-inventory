@@ -161,3 +161,8 @@ origin/main
 **Vulnerability:** In non-production environments, the application defaulted to a wildcard CORS policy (`*`) when `ALLOWED_ORIGINS` was unset.
 **Learning:** Defaulting CORS allowed origins to `*` in non-production environments exposes applications to unauthorized cross-origin access and potential data leakage. It's a security anti-pattern to rely on wildcard defaults even in non-production.
 **Prevention:** Enforce restrictive fallback origins (e.g., specific localhost ports) instead of wildcard `*` when `ALLOWED_ORIGINS` is unset in non-production.
+
+## 2026-10-23 - Secure failure fallback handling
+**Vulnerability:** A hardcoded failure on a missing secret (JWT_SECRET) unconditionally crashed the application, breaking non-production environments like testing.
+**Learning:** Enforcing secrets should still allow local development and testing to run properly, requiring conditionally failing only in production.
+**Prevention:** Wrap secure failure logic (e.g., throwing errors or process exits) in an if (process.env.NODE_ENV === 'production') check and provide a secure non-production fallback.
