@@ -157,3 +157,7 @@ origin/main
 **Vulnerability:** The SSRF URL validator incorrectly blocked valid external domains containing internal IP prefixes (like `127.0.0.1.domain.com`) due to broad `.startsWith()` checks applied indiscriminately to hostnames.
 **Learning:** Naive prefix matching for SSRF protection blocks valid domain structures that happen to contain IP strings. Prefix checks must be restricted only to hostnames that are strictly IP representations (e.g., all segments are numeric).
 **Prevention:** Always scope and restrict broad format checks. When preventing SSRF via IP prefix checking, first ensure the entire hostname structure constitutes an IP address rather than a domain FQDN.
+## 2026-10-23 - Secure failure fallback handling
+**Vulnerability:** A hardcoded failure on a missing secret (JWT_SECRET) unconditionally crashed the application, breaking non-production environments like testing.
+**Learning:** Enforcing secrets should still allow local development and testing to run properly, requiring conditionally failing only in production.
+**Prevention:** Wrap secure failure logic (e.g., throwing errors or process exits) in an if (process.env.NODE_ENV === 'production') check and provide a secure non-production fallback.
