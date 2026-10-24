@@ -256,7 +256,7 @@ describe("Postgres repositories integration", () => {
       const product = new Product(productId, "Test Product");
       const variant = product.addVariant(new Sku("SKU-PROD-1"), [new VariantAttribute("Color", "Red")]);
 
-      mockPrisma.product.upsert.mockResolvedValue({});
+      mockPrisma.$executeRaw.mockResolvedValue(1);
       mockPrisma.variantAttribute.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.productVariant.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.productVariant.findMany.mockResolvedValue([]); // non-existing variant
@@ -265,16 +265,11 @@ describe("Postgres repositories integration", () => {
 
       await repo.save(product);
 
-      expect(mockPrisma.product.upsert).toHaveBeenCalledWith({
-        where: { id: "11111111-1111-1111-1111-111111111111" },
-        create: {
-          id: "11111111-1111-1111-1111-111111111111",
-          name: "Test Product",
-        },
-        update: {
-          name: "Test Product",
-        },
-      });
+      // Verify the raw SQL upsert query is executed
+      expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+      const rawCallArg = mockPrisma.$executeRaw.mock.calls[0][0];
+      expect(rawCallArg[0]).toContain('INSERT INTO products (id, name)');
+      expect(rawCallArg[2]).toContain('ON CONFLICT (id) DO UPDATE SET');
 
       expect(mockPrisma.productVariant.createMany).toHaveBeenCalledWith({
         data: [
@@ -302,7 +297,7 @@ describe("Postgres repositories integration", () => {
       const product = new Product(productId, "Test Product");
       const variant = product.addVariant(new Sku("SKU-PROD-1"), [new VariantAttribute("Size", "Large")]);
 
-      mockPrisma.product.upsert.mockResolvedValue({});
+      mockPrisma.$executeRaw.mockResolvedValue(1);
       mockPrisma.variantAttribute.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.productVariant.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.productVariant.findMany.mockResolvedValue([{ id: variant.id.value }]); // existing variant

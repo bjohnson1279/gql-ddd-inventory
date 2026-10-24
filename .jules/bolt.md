@@ -224,3 +224,14 @@
 **Learning:** Using `Array.from(map.values()).find()` or chaining `Array.from(map.values()).filter().map()` forces full O(N) intermediate array allocations in memory. When applied in repository search methods, this bypasses the short-circuiting capability of `find` and significantly increases CPU time spent on Garbage Collection (GC) overhead by instantiating unused structures.
 **Action:** Replace `Array.from(map.values())` chained patterns with single-pass native `for...of` loops over the Map or Set iterable to process elements directly (either returning early or explicitly pushing to a typed array).
 ## 2026-10-15 - Optimize batch updates in Postgres repositories to eliminate N+1 queries\n**Learning:** Executing individual upsert and update queries within Promise.all introduces N+1 database queries, rapidly exhausting connection pools, dramatically increasing overhead, and deteriorating latency for large batch operations.\n**Action:** Consolidate multiple queries into raw SQL batch queries (`INSERT ... ON CONFLICT DO UPDATE` and `UPDATE ... FROM (VALUES ...)`) to execute operations in a single query.
+## 2026-10-19 - Verify Database Table Names Before Writing Raw SQL
+**Learning:** When replacing Prisma ORM operations (like `upsert`) with raw SQL queries using `$executeRaw`, assuming the database table name matches the Prisma model name (e.g., assuming `Product` means table `products`) can lead to runtime `relation does not exist` errors if the table is explicitly mapped differently via `@@map`.
+**Action:** Always inspect `prisma/schema.prisma` to verify the exact `@@map` table name for a model before hardcoding it in a raw SQL query.
+
+## 2026-10-19 - Do not replace single Array.from() calls with manual loops
+**Learning:** Replacing a standalone `Array.from(map.values())` call with a manual `for...of` loop pushing to an array degrades code readability without offering any meaningful or measurable performance gain in memory or speed.
+**Action:** Only refactor to `for...of` loops when collapsing multiple chained array methods (e.g., `.filter().map()`) to prevent multiple O(N) intermediate array allocations.
+
+## 2026-10-19 - Documenting Optimizations
+**Learning:** The prompt strictly requires Bolt to add comments explaining the optimization and measure/document the expected performance impact. Omitting these inline comments violates core constraints and will lead to PR rejection.
+**Action:** Always include inline comments (e.g., `// ⚡ Bolt: ...`) detailing the 'what' and 'why' (expected impact) of the optimization directly in the source code.
