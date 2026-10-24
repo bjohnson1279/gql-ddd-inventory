@@ -157,3 +157,7 @@ origin/main
 **Vulnerability:** The SSRF URL validator incorrectly blocked valid external domains containing internal IP prefixes (like `127.0.0.1.domain.com`) due to broad `.startsWith()` checks applied indiscriminately to hostnames.
 **Learning:** Naive prefix matching for SSRF protection blocks valid domain structures that happen to contain IP strings. Prefix checks must be restricted only to hostnames that are strictly IP representations (e.g., all segments are numeric).
 **Prevention:** Always scope and restrict broad format checks. When preventing SSRF via IP prefix checking, first ensure the entire hostname structure constitutes an IP address rather than a domain FQDN.
+## 2026-03-31 - Fix Overly Permissive CORS Policy in Non-Production
+**Vulnerability:** In non-production environments, the application defaulted to a wildcard CORS policy (`*`) when `ALLOWED_ORIGINS` was unset.
+**Learning:** Defaulting CORS allowed origins to `*` in non-production environments exposes applications to unauthorized cross-origin access and potential data leakage. It's a security anti-pattern to rely on wildcard defaults even in non-production.
+**Prevention:** Enforce restrictive fallback origins (e.g., specific localhost ports) instead of wildcard `*` when `ALLOWED_ORIGINS` is unset in non-production.
