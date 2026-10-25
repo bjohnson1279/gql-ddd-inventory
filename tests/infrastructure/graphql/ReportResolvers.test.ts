@@ -53,4 +53,10 @@ describe('reportResolvers', () => {
     const res = await reportResolvers.Query.dashboardWidgets(null, null, context);
     expect(res).toHaveLength(1);
   });
+
+  it('should throw authentication error when unauthenticated', async () => {
+    await expect(reportResolvers.Query.reports(null, null, { prisma: mockPrisma, auth: null })).rejects.toThrow(
+      'Authentication required: Access token is missing or invalid.'
+    );
+  });
 });

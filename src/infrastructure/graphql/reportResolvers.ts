@@ -1,8 +1,15 @@
 
+function enforceAuthTenant(auth: any): string {
+  if (!auth || !auth.tenantId) {
+    throw new Error("Authentication required: Access token is missing or invalid.");
+  }
+  return auth.tenantId;
+}
+
 export const reportResolvers = {
   Query: {
     reports: async (_: any, __: any, { prisma, auth }: any) => {
-      const tenantId = auth?.tenantId || "tenant-1";
+      const tenantId = enforceAuthTenant(auth);
       return await prisma.reportDefinitionModel.findMany({ where: { tenantId } });
     },
     sharedReportLink: async (_: any, { token }: any, { prisma }: any) => {
@@ -15,13 +22,13 @@ export const reportResolvers = {
       return { fileUrl: link.reportExecution.fileUrl };
     },
     dashboardWidgets: async (_: any, __: any, { prisma, auth }: any) => {
-      const tenantId = auth?.tenantId || "tenant-1";
+      const tenantId = enforceAuthTenant(auth);
       return await prisma.dashboardWidgetModel.findMany({ where: { tenantId } });
     }
   },
   Mutation: {
     createReport: async (_: any, args: any, { prisma, auth }: any) => {
-      const tenantId = auth?.tenantId || "tenant-1";
+      const tenantId = enforceAuthTenant(auth);
       return await prisma.reportDefinitionModel.create({
         data: {
           tenantId,
@@ -30,11 +37,12 @@ export const reportResolvers = {
           type: args.type,
           filters: args.filters || "{}",
           grouping: args.grouping || "{}",
-          createdBy: auth?.userId || "system"
+          createdBy: auth?.userId || auth?.actorId || "system"
         }
       });
     },
-    scheduleReport: async (_: any, args: any, { prisma }: any) => {
+    scheduleReport: async (_: any, args: any, { prisma, auth }: any) => {
+      enforceAuthTenant(auth);
       const nextRunAt = new Date(Date.now() + 60 * 60 * 1000);
       return await prisma.reportScheduleModel.create({
         data: {
@@ -45,7 +53,8 @@ export const reportResolvers = {
         }
       });
     },
-    executeReport: async (_: any, args: any, { prisma }: any) => {
+    executeReport: async (_: any, args: any, { prisma, auth }: any) => {
+      enforceAuthTenant(auth);
       const execution = await prisma.reportExecutionModel.create({
         data: {
           reportDefinitionId: args.id,
@@ -57,7 +66,7 @@ export const reportResolvers = {
       return execution;
     },
     saveDashboardWidget: async (_: any, args: any, { prisma, auth }: any) => {
-      const tenantId = auth?.tenantId || "tenant-1";
+      const tenantId = enforceAuthTenant(auth);
       return await prisma.dashboardWidgetModel.create({
         data: {
           tenantId,
@@ -71,7 +80,7 @@ export const reportResolvers = {
       });
     },
     updateDashboardWidget: async (_: any, args: any, { prisma, auth }: any) => {
-      const tenantId = auth?.tenantId || "tenant-1";
+      const tenantId = enforceAuthTenant(auth);
       const widget = await prisma.dashboardWidgetModel.findUnique({ where: { id: args.id } });
       if (!widget || widget.tenantId !== tenantId) throw new Error("Not found");
       
@@ -89,7 +98,7 @@ export const reportResolvers = {
       });
     },
     deleteDashboardWidget: async (_: any, { id }: any, { prisma, auth }: any) => {
-      const tenantId = auth?.tenantId || "tenant-1";
+      const tenantId = enforceAuthTenant(auth);
       const widget = await prisma.dashboardWidgetModel.findUnique({ where: { id } });
       if (!widget || widget.tenantId !== tenantId) return false;
       await prisma.dashboardWidgetModel.delete({ where: { id } });
