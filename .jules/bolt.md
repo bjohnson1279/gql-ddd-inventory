@@ -228,3 +228,7 @@
 ## 2024-11-20 - Avoid intermediate array allocations when fetching from Map-based memory repositories
 **Learning:** Chaining `.filter()` and `.map()` or `.find()` directly onto `Array.from(this.items.values())` in in-memory repositories creates unnecessary intermediate arrays and prevents short-circuiting.
 **Action:** Replace `Array.from(map.values())` chained patterns with single-pass native `for...of` loops over the `map.values()` iterator directly to reduce memory usage and GC overhead.
+
+## 2026-10-19 - Verify Database Table Names Before Writing Raw SQL
+**Learning:** When replacing Prisma ORM operations (like `upsert`) with raw SQL queries using `$executeRaw`, assuming the database table name matches the Prisma model name (e.g., assuming `Product` means table `products`) can lead to runtime `relation does not exist` errors if the table is explicitly mapped differently via `@@map`.
+**Action:** Always inspect `prisma/schema.prisma` to verify the exact `@@map` table name for a model before hardcoding it in a raw SQL query.
