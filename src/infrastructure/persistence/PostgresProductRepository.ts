@@ -56,16 +56,14 @@ export class PostgresProductRepository implements IProductRepository {
   async save(product: Product): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       // 1. Upsert product
-      await tx.product.upsert({
-        where: { id: product.id.value },
-        create: {
-          id: product.id.value,
-          name: product.name,
-        },
-        update: {
-          name: product.name,
-        },
-      });
+      // ⚡ Bolt: Replaced Prisma's upsert query inside transactions with a raw SQL INSERT ... ON CONFLICT DO UPDATE query.
+      // Expected impact: Eliminates multiple under-the-hood database roundtrips caused by Prisma's default upsert behavior, reducing database latency overhead.
+      await tx.$executeRaw`
+        INSERT INTO products (id, name)
+        VALUES (${product.id.value}::uuid, ${product.name})
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name;
+      `;
 
       // 2. Identify variants to keep
       const variantIds = product.variants.map((v) => v.id.value);
