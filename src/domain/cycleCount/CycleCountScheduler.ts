@@ -1,9 +1,9 @@
-import { CycleCountPlanModel } from '@prisma/client';
 import { randomUUID as uuidv4 } from 'crypto';
 import { CycleCount } from './CycleCount';
+import { CycleCountPlan } from './CycleCountPlan';
 
 export class CycleCountScheduler {
-  public generateAudits(activePlans: CycleCountPlanModel[], lastCountDates: Record<string, Date>): CycleCount[] {
+  public generateAudits(activePlans: CycleCountPlan[], lastCountDates: Record<string, Date>): CycleCount[] {
     const generated: CycleCount[] = [];
     const now = new Date();
 
