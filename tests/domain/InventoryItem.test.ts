@@ -99,7 +99,7 @@ describe('InventoryItem', () => {
     const item = new InventoryItem(id, sku, locationId, quantity);
 
     // Assert
-    expect(item.id).toBe('123');
+    expect(item.id.value).toBe('123');
     expect(item.sku.value).toBe('MACBOOK-PRO');
     expect(item.quantity.value).toBe(10);
     expect(item.version).toBe(1);

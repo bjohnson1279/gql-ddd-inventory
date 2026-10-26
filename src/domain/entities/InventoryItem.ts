@@ -1,3 +1,4 @@
+import { InventoryItemId } from '../valueObjects/InventoryItemId';
 import { Sku } from '../valueObjects/Sku';
 import { Quantity } from '../valueObjects/Quantity';
 import { LocationId } from '../valueObjects/LocationId';
@@ -6,7 +7,7 @@ import { DomainEvent } from '../events/DomainEvent';
 import { LowStockAlertEvent, InventoryReconciledEvent } from '../events/InventoryEvents';
 
 export class InventoryItem {
-  private readonly _id: string; // The aggregate root ID
+  private readonly _id: InventoryItemId; // The aggregate root ID
   private readonly _sku: Sku;
   private readonly _locationId: LocationId;
   private _quantity: Quantity; // Physical On Hand
@@ -16,7 +17,7 @@ export class InventoryItem {
   private _domainEvents: DomainEvent[] = [];
 
   constructor(
-    id: string,
+    id: InventoryItemId | string,
     sku: Sku,
     locationId: LocationId,
     initialQuantity: Quantity,
@@ -24,7 +25,7 @@ export class InventoryItem {
     inTransit: Quantity = new Quantity(0),
     initialVersion: number = 1
   ) {
-    this._id = id;
+    this._id = typeof id === 'string' ? new InventoryItemId(id) : id;
     this._sku = sku;
     this._locationId = locationId;
     this._quantity = initialQuantity;
@@ -33,7 +34,7 @@ export class InventoryItem {
     this._version = initialVersion;
   }
 
-  get id(): string {
+  get id(): InventoryItemId {
     return this._id;
   }
 
@@ -162,9 +163,9 @@ export class InventoryItem {
   }
 
   // Factory method for creating a new item
-  static createNew(id: string, sku: string, locationId: string): InventoryItem {
+  static createNew(id: InventoryItemId | string, sku: string, locationId: string): InventoryItem {
     return new InventoryItem(
-      id,
+      typeof id === 'string' ? new InventoryItemId(id) : id,
       new Sku(sku),
       new LocationId(locationId),
       new Quantity(0),

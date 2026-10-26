@@ -78,13 +78,13 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
     await this.prisma.$transaction(async (tx) => {
       const existing = await tx.inventoryItem.findUnique({
-        where: { id: item.id }
+        where: { id: item.id.value }
       });
 
       if (!existing) {
         await tx.inventoryItem.create({
           data: {
-            id: item.id,
+            id: item.id.value,
             sku: item.sku.value,
             locationId: item.locationId.value,
             quantity: item.quantity.value,
@@ -96,7 +96,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       } else {
         const updateResult = await tx.inventoryItem.updateMany({
           where: {
-            id: item.id,
+            id: item.id.value,
             version: item.version - 1
           },
           data: {
@@ -138,7 +138,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
 
     const existingItems = await this.prisma.inventoryItem.findMany({
       where: {
-        id: { in: items.map(i => i.id) }
+        id: { in: items.map(i => i.id.value) }
       },
       select: { id: true }
     });
@@ -157,14 +157,14 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       for (const item of items) {
         // Collect events from all passed items, even if we deduplicate the save
         allEvents.push(...item.pullDomainEvents());
-        uniqueItems.set(item.id, item);
+        uniqueItems.set(item.id.value, item);
       }
 
       const itemsToCreate: InventoryItem[] = [];
       const itemsToUpdate: InventoryItem[] = [];
 
       for (const item of uniqueItems.values()) {
-        if (!existingIds.has(item.id)) {
+        if (!existingIds.has(item.id.value)) {
           itemsToCreate.push(item);
         } else {
           itemsToUpdate.push(item);
@@ -174,7 +174,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       if (itemsToCreate.length > 0) {
         await tx.inventoryItem.createMany({
           data: itemsToCreate.map(item => ({
-            id: item.id,
+            id: item.id.value,
             sku: item.sku.value,
             locationId: item.locationId.value,
             quantity: item.quantity.value,
@@ -186,7 +186,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
       }
 
       if (itemsToUpdate.length > 0) {
-        const updateRows = itemsToUpdate.map(i => Prisma.sql`(${i.id}::text, ${i.quantity.value}::int, ${i.allocated.value}::int, ${i.inTransit.value}::int, ${i.version}::int)`);
+        const updateRows = itemsToUpdate.map(i => Prisma.sql`(${i.id.value}::text, ${i.quantity.value}::int, ${i.allocated.value}::int, ${i.inTransit.value}::int, ${i.version}::int)`);
 
         const result = await tx.$queryRaw<{id: string}>`
           UPDATE inventory_items AS t
@@ -212,7 +212,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         }
 
         for (const item of itemsToUpdate) {
-          if (!updatedIds.has(item.id)) {
+          if (!updatedIds.has(item.id.value)) {
             throw new ConcurrencyError(item.sku.value, item.locationId.value);
           }
         }
