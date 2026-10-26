@@ -1,11 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { CycleCount } from '../../domain/cycleCount/CycleCount';
-import { CycleCountPlanModel } from '@prisma/client';
+import { CycleCountPlan } from '../../domain/cycleCount/CycleCountPlan';
 
 export class CycleCountPrismaRepository {
   constructor(private prisma: PrismaClient) {}
 
-  public async savePlan(plan: Omit<CycleCountPlanModel, 'createdAt' | 'id'>): Promise<CycleCountPlanModel> {
+  public async savePlan(plan: Omit<CycleCountPlan, 'createdAt' | 'id'>): Promise<CycleCountPlan> {
     return this.prisma.cycleCountPlanModel.create({
       data: {
         tenantId: plan.tenantId,
@@ -18,7 +18,7 @@ export class CycleCountPrismaRepository {
     });
   }
 
-  public async getActivePlans(tenantId: string): Promise<CycleCountPlanModel[]> {
+  public async getActivePlans(tenantId: string): Promise<CycleCountPlan[]> {
     return this.prisma.cycleCountPlanModel.findMany({
       where: {
         tenantId,

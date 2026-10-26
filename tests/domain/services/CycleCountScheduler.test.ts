@@ -1,5 +1,5 @@
-import { CycleCountPlanModel } from '@prisma/client';
 import { CycleCountScheduler } from '../../../src/domain/cycleCount/CycleCountScheduler';
+import { CycleCountPlan } from '../../../src/domain/cycleCount/CycleCountPlan';
 
 describe('CycleCountScheduler', () => {
   let scheduler: CycleCountScheduler;
@@ -12,7 +12,7 @@ describe('CycleCountScheduler', () => {
     const now = new Date();
     const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
 
-    const activePlans: CycleCountPlanModel[] = [
+    const activePlans: CycleCountPlan[] = [
       {
         id: 'plan-1',
         tenantId: 'tenant-1',
@@ -45,7 +45,7 @@ describe('CycleCountScheduler', () => {
   });
 
   it('should generate an audit when plan has no previous count date (Infinity days since last count)', () => {
-    const activePlans: CycleCountPlanModel[] = [
+    const activePlans: CycleCountPlan[] = [
       {
         id: 'plan-2',
         tenantId: 'tenant-1',
@@ -71,7 +71,7 @@ describe('CycleCountScheduler', () => {
     const now = new Date();
     const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
-    const activePlans: CycleCountPlanModel[] = [
+    const activePlans: CycleCountPlan[] = [
       {
         id: 'plan-3',
         tenantId: 'tenant-1',
@@ -98,7 +98,7 @@ describe('CycleCountScheduler', () => {
     const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
     const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
-    const activePlans: CycleCountPlanModel[] = [
+    const activePlans: CycleCountPlan[] = [
       {
         id: 'plan-due',
         tenantId: 'tenant-1',
