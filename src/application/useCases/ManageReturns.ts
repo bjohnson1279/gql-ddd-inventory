@@ -392,7 +392,7 @@ export class ResolveQuarantineItemUseCase {
     invQuarantineItem.dispatchStock(new Quantity(qItem.quantity));
 
     const itemsToSave = new Map<string, InventoryItem>();
-    itemsToSave.set(invQuarantineItem.id, invQuarantineItem);
+    itemsToSave.set(invQuarantineItem.id.value, invQuarantineItem);
 
     const consumeQuarantineLayers = async (qty: number): Promise<number> => {
       const breakdown = await this.costLayerService.consumeFifoLayers(qItem.variantId, qty);
@@ -408,7 +408,7 @@ export class ResolveQuarantineItemUseCase {
         invItem = InventoryItem.createNew(crypto.randomUUID(), skuStr, qItem.locationId.value);
       }
       invItem.receiveStock(new Quantity(qItem.quantity));
-      itemsToSave.set(invItem.id, invItem);
+      itemsToSave.set(invItem.id.value, invItem);
     } else if (dto.resolution === 'SCRAP') {
       qItem.resolveScrap();
 

@@ -60,14 +60,14 @@ export class InMemoryInventoryRepository implements IInventoryRepository {
   }
 
   async save(item: InventoryItem): Promise<void> {
-    const existing = this.items.get(item.id);
+    const existing = this.items.get(item.id.value);
     
     // Optimistic Concurrency Control Check
     if (existing && existing.version !== item.version - 1) {
       throw new ConcurrencyError(item.sku.value, item.locationId.value);
     }
     
-    this.items.set(item.id, item);
+    this.items.set(item.id.value, item);
   }
 
   async saveBatch(items: InventoryItem[]): Promise<void> {
