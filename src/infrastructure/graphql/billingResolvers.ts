@@ -2,6 +2,7 @@ import { RateLimitingService } from '../../domain/billing/BillingServices';
 import { TierName } from '../../domain/billing/BillingEntities';
 
 const rateLimiter = new RateLimitingService();
+const MAX_MEMORY_TOKENS = 10000;
 const memoryTokens = new Map<string, { tokens: number, lastRefill: number }>();
 
 export const billingResolvers = {
@@ -20,6 +21,15 @@ export const billingResolvers = {
 
       const result = rateLimiter.allowRequest(tier, state.tokens, state.lastRefill, now);
       
+      if (memoryTokens.has(args.tenantId)) {
+        memoryTokens.delete(args.tenantId);
+      } else if (memoryTokens.size >= MAX_MEMORY_TOKENS) {
+        const oldestKey = memoryTokens.keys().next().value;
+        if (oldestKey) {
+          memoryTokens.delete(oldestKey);
+        }
+      }
+
       memoryTokens.set(args.tenantId, {
         tokens: result.newTokens,
         lastRefill: result.newLastRefillTime
