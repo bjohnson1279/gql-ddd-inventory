@@ -4,10 +4,11 @@
  * Domain service that resolves a user's effective permissions by loading
  * their assigned roles and the union of all role → permission mappings.
  */
-import { PrismaClient } from '@prisma/client';
+import { IPermissionRepository } from '../repositories/IPermissionRepository';
+import { Permission } from '../entities/Permission';
 
 export class PermissionService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly permissionRepo: IPermissionRepository) {}
 
   /**
    * Checks whether a user has a specific resource:action permission.
@@ -22,25 +23,12 @@ export class PermissionService {
    * This is the format embedded in JWT tokens.
    */
   async getUserPermissionKeys(userId: string): Promise<string[]> {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: {
-        role: {
-          include: {
-            rolePermissions: {
-              include: { permission: true }
-            }
-          }
-        }
-      }
-    });
+    const permissions = await this.permissionRepo.findPermissionsByUserId(userId);
 
     // Compute the union of all permissions across all assigned roles
     const permissionSet = new Set<string>();
-    for (const userRole of userRoles) {
-      for (const rp of userRole.role.rolePermissions) {
-        permissionSet.add(`${rp.permission.resource}:${rp.permission.action}`);
-      }
+    for (const perm of permissions) {
+      permissionSet.add(perm.key);
     }
 
     return Array.from(permissionSet);
@@ -53,14 +41,11 @@ export class PermissionService {
   async getEffectivePermissionKeys(roleIds: string[]): Promise<string[]> {
     if (roleIds.length === 0) return [];
 
-    const rolePermissions = await this.prisma.rolePermission.findMany({
-      where: { roleId: { in: roleIds } },
-      include: { permission: true }
-    });
+    const permissions = await this.permissionRepo.findPermissionsByRoleIds(roleIds);
 
     const permissionSet = new Set<string>();
-    for (const rp of rolePermissions) {
-      permissionSet.add(`${rp.permission.resource}:${rp.permission.action}`);
+    for (const perm of permissions) {
+      permissionSet.add(perm.key);
     }
 
     return Array.from(permissionSet);
@@ -71,30 +56,17 @@ export class PermissionService {
    * Used for the userEffectivePermissions query.
    */
   async getUserPermissions(userId: string): Promise<Array<{ id: string; resource: string; action: string; description: string }>> {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: {
-        role: {
-          include: {
-            rolePermissions: {
-              include: { permission: true }
-            }
-          }
-        }
-      }
-    });
+    const permissions = await this.permissionRepo.findPermissionsByUserId(userId);
 
     const permMap = new Map<string, { id: string; resource: string; action: string; description: string }>();
-    for (const userRole of userRoles) {
-      for (const rp of userRole.role.rolePermissions) {
-        if (!permMap.has(rp.permission.id)) {
-          permMap.set(rp.permission.id, {
-            id: rp.permission.id,
-            resource: rp.permission.resource,
-            action: rp.permission.action,
-            description: rp.permission.description,
-          });
-        }
+    for (const perm of permissions) {
+      if (!permMap.has(perm.id)) {
+        permMap.set(perm.id, {
+          id: perm.id,
+          resource: perm.resource,
+          action: perm.action,
+          description: perm.description,
+        });
       }
     }
 
