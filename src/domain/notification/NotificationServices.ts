@@ -83,6 +83,13 @@ export class NotificationInboxService {
   }
 
   public getUnreadCount(userId: string): number {
-    return this.notifications.filter(n => n.userId === userId && n.status === NotificationStatus.UNREAD).length;
+    // ⚡ Bolt: Prevent intermediate array allocation from .filter()
+    let count = 0;
+    for (const n of this.notifications) {
+      if (n.userId === userId && n.status === NotificationStatus.UNREAD) {
+        count++;
+      }
+    }
+    return count;
   }
 }
