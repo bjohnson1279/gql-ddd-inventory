@@ -78,7 +78,7 @@ describe("Postgres repositories integration", () => {
 
       const result = await repo.findById("item-1");
       expect(result).not.toBeNull();
-      expect(result!.id).toBe("item-1");
+      expect(result!.id.value).toBe("item-1");
       expect(result!.sku.value).toBe("SKU-1");
       expect(result!.locationId.value).toBe("loc-1");
       expect(result!.quantity.value).toBe(10);

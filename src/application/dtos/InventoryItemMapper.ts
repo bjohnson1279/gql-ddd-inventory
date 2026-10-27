@@ -4,7 +4,7 @@ import { InventoryItemDTO } from './InventoryItemDTO';
 export class InventoryItemMapper {
   static toDTO(item: InventoryItem): InventoryItemDTO {
     return {
-      id: item.id,
+      id: item.id.value,
       sku: item.sku.value,
       locationId: item.locationId.value,
       quantity: item.quantity.value,
