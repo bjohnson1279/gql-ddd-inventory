@@ -711,10 +711,12 @@ function getTenantAndActor(context: GraphQLContext, tenantId?: string, actorId?:
 
 import { AnomalyDetectionService } from '../../domain/services/AnomalyDetectionService';
 import { RebalanceOptimizationService } from '../../domain/services/RebalanceOptimizationService';
+import { PostgresPermissionRepository } from '../persistence/PostgresPermissionRepository';
 
 const anomalyDetectionService = new AnomalyDetectionService(prisma);
 const rebalanceOptimizationService = new RebalanceOptimizationService(prisma);
-const permissionService = new PermissionService(prisma);
+const permissionRepository = new PostgresPermissionRepository(prisma);
+const permissionService = new PermissionService(permissionRepository);
 
 export const resolvers = {
   Product: {
