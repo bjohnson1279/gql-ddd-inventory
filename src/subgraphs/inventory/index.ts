@@ -28,12 +28,12 @@ import { createDataLoaders } from '../../infrastructure/graphql/dataloaders';
 import jwt from 'jsonwebtoken';
 import { depthLimitRule, complexityLimitRule } from '../../infrastructure/graphql/guardrails';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-key-123!';
-if (!process.env.JWT_SECRET) {
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
   }
 }
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-key-123!';
 const PYTHON_SIDECAR_URL = process.env.PYTHON_SIDECAR_URL || 'http://python-sidecar:5000/optimize';
 
 const typeDefs = parse(`

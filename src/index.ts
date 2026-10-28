@@ -31,14 +31,11 @@ import { OutboxWorker } from './infrastructure/workers/OutboxWorker';
 import { AuditWorker } from './infrastructure/workers/AuditWorker';
 import { WebhookDeliveryWorker } from './infrastructure/workers/WebhookDeliveryWorker';
 
-// Security fix: Enforce JWT_SECRET in all environments to prevent hardcoded fallback vulnerabilities.
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
-  console.error('CRITICAL: JWT_SECRET environment variable is missing!');
   if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
+    throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
   }
 }
-
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-key-123!';
 
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
