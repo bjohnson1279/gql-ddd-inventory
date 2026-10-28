@@ -1,11 +1,25 @@
-import { PrismaClient, ProductVariant } from '@prisma/client';
 import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
 import crypto from 'crypto';
 import { validateOutboundUrl } from '../../utils/urlValidator';
 import { getTraceId } from '../../infrastructure/telemetry/traceContext';
 
+export interface AuditDataProvider {
+  findActiveIntegrationConnections(tenantId: string): Promise<any[]>;
+  findExternalMappings(tenantId: string, entityType: string): Promise<any[]>;
+  findProductVariants(variantIds: string[]): Promise<any[]>;
+  getLedgerSums(tenantId: string, variantIds: string[], locationIds: string[]): Promise<Array<{ variantId: string; locationId: string; sumQuantity: number }>>;
+  findOpenAuditDiscrepancies(tenantId: string, type: string): Promise<any[]>;
+  createAuditDiscrepancies(discrepancies: any[]): Promise<void>;
+  findRecentJournalEntries(tenantId: string, since: Date): Promise<any[]>;
+  findQuickbooksJournalMappings(journalIds: string[]): Promise<any[]>;
+  findXeroJournalMappings(journalIds: string[]): Promise<any[]>;
+  findNetsuiteJournalMappings(journalIds: string[]): Promise<any[]>;
+  findAuditDiscrepancyById(tenantId: string, id: string): Promise<any | null>;
+  resolveAuditDiscrepancyAndCreateOutboxEvent(tenantId: string, id: string, notes: string, outboxEvent: any): Promise<void>;
+}
+
 export class AuditProcessorService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly dataProvider: AuditDataProvider) {}
 
   async runAudit(tenantId: string): Promise<{ shopifyDiscrepancies: number; accountingDiscrepancies: number }> {
     let shopifyCount = 0;
@@ -13,20 +27,15 @@ export class AuditProcessorService {
 
     // 1. Shopify stock audit
     // Find active shopify connections
-    const connections = await this.prisma.integrationConnection.findMany({
-      where: { tenantId, platform: 'Shopify', isActive: true }
-    });
+    const allConnections = await this.dataProvider.findActiveIntegrationConnections(tenantId);
+    const connections = allConnections.filter((c) => c.platform === 'Shopify' && c.isActive);
 
     if (connections.length > 0) {
       // Find all variant mappings
-      const variantMappings = await this.prisma.externalMapping.findMany({
-        where: { tenantId, entityType: 'VARIANT' }
-      });
+      const variantMappings = await this.dataProvider.findExternalMappings(tenantId, 'VARIANT');
 
       // Find all location mappings
-      const locationMappings = await this.prisma.externalMapping.findMany({
-        where: { tenantId, entityType: 'LOCATION' }
-      });
+      const locationMappings = await this.dataProvider.findExternalMappings(tenantId, 'LOCATION');
 
       for (const conn of connections) {
         const connVariantMappings = variantMappings.filter((m) => m.integrationId === conn.id);
@@ -117,31 +126,19 @@ export class AuditProcessorService {
         const variantIds = connVariantMappings.map((m) => m.internalId);
         const locationIds = connLocationMappings.map((m) => m.internalId);
 
-        const variants = await this.prisma.productVariant.findMany({
-          where: { id: { in: variantIds } }
-        });
+        const variants = await this.dataProvider.findProductVariants(variantIds);
 
         // ⚡ Bolt: Consolidated .map() and new Map() into a single loop
-        const variantMap = new Map<string, ProductVariant>();
+        const variantMap = new Map<string, any>();
         for (const v of variants) variantMap.set(v.id, v);
 
-        const ledgerSums = await this.prisma.ledgerEntry.groupBy({
-          by: ['variantId', 'locationId'],
-          where: {
-            tenantId,
-            variantId: { in: variantIds },
-            locationId: { in: locationIds }
-          },
-          _sum: { quantity: true }
-        });
+        const ledgerSums = await this.dataProvider.getLedgerSums(tenantId, variantIds, locationIds);
         const ledgerSumMap = new Map<string, number>();
         for (const sum of ledgerSums) {
-          ledgerSumMap.set(`${sum.variantId}_${sum.locationId}`, sum._sum.quantity || 0);
+          ledgerSumMap.set(`${sum.variantId}_${sum.locationId}`, sum.sumQuantity || 0);
         }
 
-        const openShopifyDiscrepancies = await this.prisma.auditDiscrepancy.findMany({
-          where: { tenantId, type: 'SHOPIFY_STOCK_MISMATCH', status: 'OPEN' }
-        });
+        const openShopifyDiscrepancies = await this.dataProvider.findOpenAuditDiscrepancies(tenantId, 'SHOPIFY_STOCK_MISMATCH');
 
         // ⚡ Bolt: Consolidated .map() and new Set() into a single loop
         const openShopifySet = new Set<string>();
@@ -190,9 +187,7 @@ export class AuditProcessorService {
         }
 
         if (discrepanciesToCreate.length > 0) {
-          await this.prisma.auditDiscrepancy.createMany({
-            data: discrepanciesToCreate
-          });
+          await this.dataProvider.createAuditDiscrepancies(discrepanciesToCreate);
           shopifyCount += discrepanciesToCreate.length;
         }
       }
@@ -201,9 +196,7 @@ export class AuditProcessorService {
 
     // 2. Accounting sync audit
     // Check if QuickBooks or Xero or NetSuite connections are active
-    const activeIntegrations = await this.prisma.integrationConnection.findMany({
-      where: { tenantId, isActive: true }
-    });
+    const activeIntegrations = await this.dataProvider.findActiveIntegrationConnections(tenantId);
 
     const hasQbo = activeIntegrations.some((c) => c.platform === 'QUICKBOOKS' || c.platform === 'QuickBooks');
     const hasXero = activeIntegrations.some((c) => c.platform === 'XERO' || c.platform === 'Xero');
@@ -212,14 +205,12 @@ export class AuditProcessorService {
     if (hasQbo || hasXero || hasNetsuite) {
       // Fetch journal entries created in the last 7 days
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const journals = await this.prisma.journalEntry.findMany({
-        where: { tenantId, createdAt: { gte: sevenDaysAgo } }
-      });
+      const journals = await this.dataProvider.findRecentJournalEntries(tenantId, sevenDaysAgo);
 
       const journalIds = journals.map((j) => j.id);
 
       const qboMappings = hasQbo && journalIds.length > 0
-        ? await this.prisma.quickbooksJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
+        ? await this.dataProvider.findQuickbooksJournalMappings(journalIds)
         : [];
       const qboMappingSet = new Set<string>();
       for (const m of qboMappings) {
@@ -227,7 +218,7 @@ export class AuditProcessorService {
       }
 
       const xeroMappings = hasXero && journalIds.length > 0
-        ? await this.prisma.xeroJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
+        ? await this.dataProvider.findXeroJournalMappings(journalIds)
         : [];
       const xeroMappingSet = new Set<string>();
       for (const m of xeroMappings) {
@@ -235,7 +226,7 @@ export class AuditProcessorService {
       }
 
       const nsMappings = hasNetsuite && journalIds.length > 0
-        ? await this.prisma.netsuiteJournalMapping.findMany({ where: { journalEntryId: { in: journalIds } } })
+        ? await this.dataProvider.findNetsuiteJournalMappings(journalIds)
         : [];
       const nsMappingSet = new Set<string>();
       for (const m of nsMappings) {
@@ -243,19 +234,14 @@ export class AuditProcessorService {
       }
 
       const existingOpenDiscrepancies = journalIds.length > 0
-        ? await this.prisma.auditDiscrepancy.findMany({
-            where: {
-              tenantId,
-              type: 'ACCOUNTING_JOURNAL_MISSING',
-              referenceId: { in: journalIds },
-              status: 'OPEN'
-            }
-          })
+        ? await this.dataProvider.findOpenAuditDiscrepancies(tenantId, 'ACCOUNTING_JOURNAL_MISSING')
         : [];
       // ⚡ Bolt: Single pass loop avoids intermediate array allocation from .map()
       const existingOpenSet = new Set<string>();
       for (const d of existingOpenDiscrepancies) {
-        existingOpenSet.add(d.referenceId);
+        if (journalIds.includes(d.referenceId)) {
+          existingOpenSet.add(d.referenceId);
+        }
       }
 
       const accountingDiscrepanciesToCreate = [];
@@ -277,9 +263,7 @@ export class AuditProcessorService {
       }
 
       if (accountingDiscrepanciesToCreate.length > 0) {
-        await this.prisma.auditDiscrepancy.createMany({
-          data: accountingDiscrepanciesToCreate
-        });
+        await this.dataProvider.createAuditDiscrepancies(accountingDiscrepanciesToCreate);
         accountingCount += accountingDiscrepanciesToCreate.length;
       }
     }
@@ -288,49 +272,30 @@ export class AuditProcessorService {
   }
 
   async resolveDiscrepancy(tenantId: string, id: string, notes: string): Promise<boolean> {
-    const discrepancy = await this.prisma.auditDiscrepancy.findFirst({
-      where: { id, tenantId }
-    });
+    const discrepancy = await this.dataProvider.findAuditDiscrepancyById(tenantId, id);
     if (!discrepancy || discrepancy.status === 'RESOLVED') return false;
 
-    await this.prisma.$transaction(async (tx) => {
-      // Resolve in DB
-      await tx.auditDiscrepancy.update({
-        where: { id },
-        data: {
-          status: 'RESOLVED',
-          resolvedAt: new Date(),
-          resolutionNotes: notes
-        }
-      });
+    let outboxEvent: any = null;
+    if (discrepancy.type === 'SHOPIFY_STOCK_MISMATCH') {
+      const parts = discrepancy.referenceId.split(':');
+      const sku = parts[0];
+      const locationId = parts[1];
 
-      // If type is Shopify mismatch, trigger stock level push to Shopify via outbox to achieve eventual consistency
-      if (discrepancy.type === 'SHOPIFY_STOCK_MISMATCH') {
-        const parts = discrepancy.referenceId.split(':');
-        const sku = parts[0];
-        const locationId = parts[1];
-
-        // Create the event payload
-        const event = {
+      outboxEvent = {
+        eventType: 'ShopifyStockSyncRequested',
+        payload: JSON.stringify({
           tenantId,
           sku,
           locationId,
           externalRefId: discrepancy.externalRefId || '',
           occurredAt: new Date(),
           traceId: getTraceId()
-        };
+        }),
+        status: 'Pending'
+      };
+    }
 
-        // Write to Outbox table
-        await tx.outboxEvent.create({
-          data: {
-            eventType: 'ShopifyStockSyncRequested',
-            payload: JSON.stringify(event),
-            status: 'Pending'
-          }
-        });
-      }
-    });
-
+    await this.dataProvider.resolveAuditDiscrepancyAndCreateOutboxEvent(tenantId, id, notes, outboxEvent);
     return true;
   }
 }

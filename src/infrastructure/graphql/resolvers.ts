@@ -8,6 +8,7 @@ import { DataLoaders } from './dataloaders';
 import { logisticsService } from '../../domain/shipping/logisticsService';
 import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService';
 import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
+import { PrismaAuditDataProvider } from '../persistence/PrismaAuditDataProvider';
 import { PermissionService } from '../../domain/services/PermissionService';
 import { ApprovalWorkflowService } from '../../domain/services/ApprovalWorkflowService';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
@@ -2704,7 +2705,7 @@ export const resolvers = {
     runAudit: async (_: any, { tenantId }: { tenantId: string }, context: GraphQLContext) => {
       try {
         enforcePermission(context, 'compliance', 'verify', tenantId);
-        const service = new AuditProcessorService(prisma);
+        const service = new AuditProcessorService(new PrismaAuditDataProvider(prisma));
         return await service.runAudit(tenantId);
       } catch (error: any) {
         throw new Error(error.message);
@@ -2713,7 +2714,7 @@ export const resolvers = {
     resolveAuditDiscrepancy: async (_: any, { id, notes }: { id: string; notes: string }, context: GraphQLContext) => {
       try {
         const auth = enforcePermission(context, 'compliance', 'verify');
-        const service = new AuditProcessorService(prisma);
+        const service = new AuditProcessorService(new PrismaAuditDataProvider(prisma));
         return await service.resolveDiscrepancy(auth.tenantId, id, notes);
       } catch (error: any) {
         throw new Error(error.message);

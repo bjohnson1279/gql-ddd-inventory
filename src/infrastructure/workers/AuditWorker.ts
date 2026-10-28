@@ -1,5 +1,6 @@
 import { prisma } from '../persistence/prismaClient';
 import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
+import { PrismaAuditDataProvider } from '../persistence/PrismaAuditDataProvider';
 
 export class AuditWorker {
   private static timer: NodeJS.Timeout | null = null;
@@ -29,7 +30,7 @@ export class AuditWorker {
         select: { id: true }
       });
 
-      const auditService = new AuditProcessorService(prisma);
+      const auditService = new AuditProcessorService(new PrismaAuditDataProvider(prisma));
 
       for (const tenant of tenants) {
         try {
