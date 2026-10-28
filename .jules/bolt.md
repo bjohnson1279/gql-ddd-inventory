@@ -237,3 +237,6 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2026-10-19 - Verify Database Table Names Before Writing Raw SQL
 **Learning:** When replacing Prisma ORM operations (like `upsert`) with raw SQL queries using `$executeRaw`, assuming the database table name matches the Prisma model name (e.g., assuming `Product` means table `products`) can lead to runtime `relation does not exist` errors if the table is explicitly mapped differently via `@@map`.
 **Action:** Always inspect `prisma/schema.prisma` to verify the exact `@@map` table name for a model before hardcoding it in a raw SQL query.
+## 2026-10-28 - Optimize batch upserts in Postgres repositories to eliminate N+1 queries
+**Learning:** Using Promise.all with individual upsert queries inside a transaction creates N+1 database queries, risking connection pool exhaustion and causing high query latency.
+**Action:** Replace Promise.all and individual upserts with a raw SQL batch upsert using $executeRaw to eliminate N+1 queries.
