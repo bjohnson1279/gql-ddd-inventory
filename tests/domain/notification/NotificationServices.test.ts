@@ -26,4 +26,18 @@ describe('Notification Services', () => {
     expect(notif.status).toBe('SNOOZED');
     expect(notif.snoozedUntil).toBeDefined();
   });
+
+  it('getUnreadCount accurately computes unread counts per user without array allocation', () => {
+    const n1 = new Notification(uuidv4(), 't1', 'u1', NotificationCategory.INVENTORY_LEVEL, NotificationSeverity.INFO, 'msg1');
+    const n2 = new Notification(uuidv4(), 't1', 'u1', NotificationCategory.INVENTORY_LEVEL, NotificationSeverity.WARNING, 'msg2');
+    const n3 = new Notification(uuidv4(), 't1', 'u2', NotificationCategory.INVENTORY_LEVEL, NotificationSeverity.INFO, 'msg3');
+    const inbox = new NotificationInboxService([n1, n2, n3]);
+
+    expect(inbox.getUnreadCount('u1')).toBe(2);
+    expect(inbox.getUnreadCount('u2')).toBe(1);
+    expect(inbox.getUnreadCount('u3')).toBe(0);
+
+    inbox.markAsRead(n1.id, 'u1');
+    expect(inbox.getUnreadCount('u1')).toBe(1);
+  });
 });
