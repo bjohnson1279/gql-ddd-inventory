@@ -18,6 +18,7 @@ export interface AuthTokenPayload {
   role: string;
 }
 
+import { getCorsAllowedOrigins } from './infrastructure/http/corsConfig';
 import { typeDefs } from './infrastructure/graphql/typeDefs';
 import { resolvers } from './infrastructure/graphql/resolvers';
 import { shopifyWebhookHandler } from './infrastructure/webhooks/shopifyWebhookHandler';
@@ -161,27 +162,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
 
   // Mount Apollo express middleware
   // Security fix: Securely parse allowed origins from environment variable to prevent overly permissive CORS
-  if (process.env.NODE_ENV === 'production' && (!process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS === '*')) {
-    throw new Error('FATAL ERROR: ALLOWED_ORIGINS must be set to specific origins in production to prevent overly permissive CORS.');
-  }
-  const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
-  let allowedOrigins: string | string[] = process.env.NODE_ENV === 'production' ? '*' : ['http://localhost:5173', 'http://localhost:4000'];
-  if (allowedOriginsRaw !== '*' && allowedOriginsRaw !== '') {
-    const parts = allowedOriginsRaw.split(',');
-    const origins: string[] = [];
-    // ⚡ Bolt: Consolidated mapping and filtering into a single loop to avoid intermediate array allocations (O(N) overhead reduction)
-    for (let i = 0; i < parts.length; i++) {
-      const trimmed = parts[i].trim();
-      if (trimmed) {
-        try {
-          origins.push(new URL(trimmed).origin);
-        } catch {
-          throw new Error(`Invalid origin in ALLOWED_ORIGINS: ${trimmed}`);
-        }
-      }
-    }
-    allowedOrigins = origins;
-  }
+  const allowedOrigins = getCorsAllowedOrigins();
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
