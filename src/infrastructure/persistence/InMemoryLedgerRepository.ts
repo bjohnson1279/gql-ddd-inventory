@@ -108,4 +108,19 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
 
     return result;
   }
+
+  async findRecentEntries(tenantId: string, startDate?: string, endDate?: string, limit: number = 500): Promise<LedgerEntry[]> {
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    const filtered = this.entries.filter((e) => {
+      if (e.tenantId.value !== tenantId) return false;
+      if (start && e.occurredAt < start) return false;
+      if (end && e.occurredAt > end) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+    return filtered.slice(0, limit);
+  }
 }

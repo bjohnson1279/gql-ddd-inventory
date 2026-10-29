@@ -223,4 +223,35 @@ export class PostgresLedgerRepository implements ILedgerRepository {
 
     return count > 0;
   }
+
+  async findRecentEntries(tenantId: string, startDate?: string, endDate?: string, limit: number = 500): Promise<LedgerEntry[]> {
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
+
+    const entries = await this.prisma.ledgerEntry.findMany({
+      where: {
+        tenantId,
+        ...(Object.keys(dateFilter).length ? { occurredAt: dateFilter } : {})
+      },
+      orderBy: { occurredAt: 'desc' },
+      take: limit
+    });
+
+    return entries.map(
+      (e) =>
+        new LedgerEntry(
+          new LedgerEntryId(e.id),
+          new TenantId(e.tenantId),
+          new LocationId(e.locationId),
+          new ProductVariantId(e.variantId),
+          e.quantity,
+          e.reason as ReasonCode,
+          new ActorId(e.actorId),
+          e.occurredAt,
+          e.referenceId || undefined,
+          (e.metadata as Record<string, any>) || undefined
+        )
+    );
+  }
 }

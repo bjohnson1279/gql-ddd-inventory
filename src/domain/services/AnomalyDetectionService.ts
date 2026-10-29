@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { ILedgerRepository } from '../repositories/ILedgerRepository';
 
 export interface AnomalyAlert {
   alertType: string;
@@ -23,32 +23,21 @@ export interface AnomalySummary {
 }
 
 export class AnomalyDetectionService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly ledgerRepository: ILedgerRepository) {}
 
   async analyzeAnomalies(tenantId: string, startDate?: string, endDate?: string): Promise<AnomalySummary> {
-    // 1. Query ledger entries with optional date range
-    const dateFilter: any = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
-
-    const ledgerEntries = await this.prisma.ledgerEntry.findMany({
-      where: {
-        tenantId,
-        ...(Object.keys(dateFilter).length ? { occurredAt: dateFilter } : {})
-      },
-      orderBy: { occurredAt: 'desc' },
-      take: 500
-    });
+    // 1. Query ledger entries using domain repository abstraction
+    const ledgerEntries = await this.ledgerRepository.findRecentEntries?.(tenantId, startDate, endDate, 500) || [];
 
     // 2 & 3. ⚡ Bolt: Consolidated .filter() and .map() chains into a single pass
     const cycleCounts: any[] = [];
     const sidecarLedger: any[] = [];
 
     for (const e of ledgerEntries) {
-      const sku = e.variantId || '';
-      const location_id = e.locationId || '';
+      const sku = typeof e.variantId === 'string' ? e.variantId : e.variantId?.value || '';
+      const location_id = typeof e.locationId === 'string' ? e.locationId : e.locationId?.value || '';
       const occurred_at = (e.occurredAt || new Date()).toISOString();
-      const actor_id = e.actorId || 'system';
+      const actor_id = typeof (e as any).actorId === 'string' ? (e as any).actorId : e.actor?.value || 'system';
 
       if (e.reason === 'count_adjustment') {
         cycleCounts.push({
@@ -127,7 +116,7 @@ export class AnomalyDetectionService {
     // ⚡ Bolt: Consolidated .filter() and reduction into a single loop to avoid intermediate O(N) allocation
     for (const e of entries) {
       if (e.reason === 'shrinkage' || e.reason === 'write_off' || e.reason === 'damage') {
-        const actor = e.actorId || 'unknown';
+        const actor = typeof (e as any).actorId === 'string' ? (e as any).actorId : e.actor?.value || 'unknown';
         actorCounts.set(actor, (actorCounts.get(actor) || 0) + 1);
       }
     }

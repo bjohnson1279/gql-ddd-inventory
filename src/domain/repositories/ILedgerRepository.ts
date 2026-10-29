@@ -13,4 +13,5 @@ export interface ILedgerRepository {
   currentQuantityAt(variantId: ProductVariantId, locationId: LocationId, timestamp: Date): Promise<number>;
   hasAnyEntries(variantId: ProductVariantId, locationId: LocationId): Promise<boolean>;
   hasAnyEntriesBatch(variantIds: ProductVariantId[], locationId: LocationId): Promise<Map<string, boolean>>;
+  findRecentEntries?(tenantId: string, startDate?: string, endDate?: string, limit?: number): Promise<LedgerEntry[]>;
 }

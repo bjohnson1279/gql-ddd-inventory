@@ -714,7 +714,7 @@ import { AnomalyDetectionService } from '../../domain/services/AnomalyDetectionS
 import { RebalanceOptimizationService } from '../../domain/services/RebalanceOptimizationService';
 import { PostgresPermissionRepository } from '../persistence/PostgresPermissionRepository';
 
-const anomalyDetectionService = new AnomalyDetectionService(prisma);
+const anomalyDetectionService = new AnomalyDetectionService(ledgerRepository);
 const rebalanceOptimizationService = new RebalanceOptimizationService(prisma);
 const permissionRepository = new PostgresPermissionRepository(prisma);
 const permissionService = new PermissionService(permissionRepository);

@@ -1,11 +1,9 @@
-import { PrismaClient } from '@prisma/client';
 import { AnomalyDetectionService } from '../../../src/domain/services/AnomalyDetectionService';
+import { ILedgerRepository } from '../../../src/domain/repositories/ILedgerRepository';
 
-const prismaMock = {
-  ledgerEntry: {
-    findMany: jest.fn(),
-  },
-} as unknown as PrismaClient;
+const ledgerRepoMock = {
+  findRecentEntries: jest.fn(),
+} as unknown as ILedgerRepository;
 
 const originalFetch = global.fetch;
 const originalWarn = console.warn;
@@ -17,7 +15,7 @@ describe('AnomalyDetectionService', () => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
     console.warn = jest.fn();
-    service = new AnomalyDetectionService(prismaMock);
+    service = new AnomalyDetectionService(ledgerRepoMock);
   });
 
   afterEach(() => {
@@ -29,7 +27,7 @@ describe('AnomalyDetectionService', () => {
     const mockEntries = [
       { variantId: 'sku1', locationId: 'loc1', quantity: 10, reason: 'receipt', actorId: 'user1', occurredAt: new Date() }
     ];
-    (prismaMock.ledgerEntry.findMany as jest.Mock).mockResolvedValue(mockEntries);
+    (ledgerRepoMock.findRecentEntries as jest.Mock).mockResolvedValue(mockEntries);
 
     const sidecarResponse = {
       alerts: [{
@@ -55,9 +53,7 @@ describe('AnomalyDetectionService', () => {
     expect(result.alerts[0].alertType).toBe('SPIKE');
     expect(result.totalHigh).toBe(1);
     expect(global.fetch).toHaveBeenCalled();
-    expect(prismaMock.ledgerEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ tenantId: 'tenant-1' })
-    }));
+    expect(ledgerRepoMock.findRecentEntries).toHaveBeenCalledWith('tenant-1', '2023-01-01', '2023-01-31', 500);
   });
 
   it('should fallback to local heuristic if fetch fails (network error)', async () => {
@@ -73,7 +69,7 @@ describe('AnomalyDetectionService', () => {
       ...Array(2).fill({ reason: 'damage', actorId: 'user3', occurredAt: new Date() }),
       ...Array(2).fill({ reason: 'shrinkage', actorId: 'user4', occurredAt: new Date() })
     ];
-    (prismaMock.ledgerEntry.findMany as jest.Mock).mockResolvedValue(mockEntries);
+    (ledgerRepoMock.findRecentEntries as jest.Mock).mockResolvedValue(mockEntries);
 
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
@@ -92,7 +88,7 @@ describe('AnomalyDetectionService', () => {
       { reason: 'shrinkage', actorId: 'user1', occurredAt: new Date() },
       { reason: 'shrinkage', actorId: 'user2', occurredAt: new Date() }
     ];
-    (prismaMock.ledgerEntry.findMany as jest.Mock).mockResolvedValue(mockEntries);
+    (ledgerRepoMock.findRecentEntries as jest.Mock).mockResolvedValue(mockEntries);
 
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false
@@ -109,7 +105,7 @@ describe('AnomalyDetectionService', () => {
   it('should fallback to local heuristic if fetch throws synchronously', async () => {
      // Mock no alerts (low variance)
      const mockEntries: any[] = [];
-    (prismaMock.ledgerEntry.findMany as jest.Mock).mockResolvedValue(mockEntries);
+    (ledgerRepoMock.findRecentEntries as jest.Mock).mockResolvedValue(mockEntries);
 
     (global.fetch as jest.Mock).mockImplementation(() => { throw new Error('Sync error'); });
 
