@@ -37,7 +37,7 @@ describe('ReceivingService', () => {
       );
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://127.0.0.1:8000/cv/analyze-inbound',
+        'http://ai-sidecar:8000/cv/analyze-inbound',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -60,8 +60,8 @@ describe('ReceivingService', () => {
       expect(result.ocrText).toBe('BOX-1234');
     });
 
-    it('should use AI_SIDECAR_HOST environment variable if provided', async () => {
-      process.env.AI_SIDECAR_HOST = 'http://ai-service.internal:9000';
+    it('should use AI_SIDECAR_HOST environment variable if provided and valid', async () => {
+      process.env.AI_SIDECAR_HOST = 'http://ai-service.example.com:9000';
 
       const mockResponseData = {
         dimensions: { length: 5, width: 5, height: 5 },
@@ -78,9 +78,17 @@ describe('ReceivingService', () => {
       await receivingService.analyzeInboundImage('tenant-1', 'img-data');
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://ai-service.internal:9000/cv/analyze-inbound',
+        'http://ai-service.example.com:9000/cv/analyze-inbound',
         expect.anything()
       );
+    });
+
+    it('should throw an error when AI_SIDECAR_HOST points to a blocked internal or reserved IP', async () => {
+      process.env.AI_SIDECAR_HOST = 'http://169.254.169.254';
+
+      await expect(
+        receivingService.analyzeInboundImage('tenant-1', 'img-data')
+      ).rejects.toThrow('Internal or reserved IP address blocked to prevent SSRF');
     });
 
     it('should set po_id to null when purchaseOrderId is not provided', async () => {

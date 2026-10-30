@@ -1,3 +1,4 @@
+import { validateOutboundUrl } from '../../utils/urlValidator';
 import { InboundScan, Dimensions } from '../../domain/receiving/InboundScan';
 import crypto from 'crypto';
 
@@ -10,7 +11,8 @@ export class ReceivingService {
     base64Image: string,
     purchaseOrderId?: string
   ): Promise<InboundScan> {
-    const aiHost = process.env.AI_SIDECAR_HOST || 'http://127.0.0.1:8000';
+    const aiHost = process.env.AI_SIDECAR_HOST || 'http://ai-sidecar:8000';
+    validateOutboundUrl(`${aiHost}/cv/analyze-inbound`);
     
     // Call the Python Sidecar
     const response = await fetch(`${aiHost}/cv/analyze-inbound`, {
