@@ -46,12 +46,28 @@ export const cycleCountResolvers = {
       // In a real app we'd filter by context.tenantId as well
       const assigned = mockCycleCounts.filter(c => c.assignedTo === operatorId);
       
+      // ⚡ Bolt: Group line items by cycleCountId in a single pass to eliminate O(N*M) nested iterations
+      const itemsByCountId = new Map<string, typeof mockLineItems>();
+      for (let i = 0; i < mockLineItems.length; i++) {
+        const li = mockLineItems[i];
+        let items = itemsByCountId.get(li.cycleCountId);
+        if (!items) {
+          items = [];
+          itemsByCountId.set(li.cycleCountId, items);
+        }
+        items.push(li);
+      }
+
       // Mask expectedQuantity if it's a blind count
       return assigned.map(cc => {
-        const items = mockLineItems.filter(li => li.cycleCountId === cc.id).map(li => ({
-          ...li,
-          expectedQuantity: cc.isBlindCount ? null : li.expectedQuantity
-        }));
+        const rawItems = itemsByCountId.get(cc.id) || [];
+        const items = new Array(rawItems.length);
+        for (let i = 0; i < rawItems.length; i++) {
+          items[i] = {
+            ...rawItems[i],
+            expectedQuantity: cc.isBlindCount ? null : rawItems[i].expectedQuantity
+          };
+        }
         
         return {
           ...cc,
