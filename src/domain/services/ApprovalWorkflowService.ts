@@ -7,9 +7,10 @@
  * 3. Processes approval/rejection decisions and advances the workflow
  * 4. Handles escalation and expiration of stale requests
  */
-import { PrismaClient } from '@prisma/client';
 import { ApprovalWorkflow, ApprovalWorkflowConfig } from '../entities/ApprovalWorkflow';
 import { ApprovalRequest, ApprovalRequestStatus, ApprovalDecisionRecord } from '../entities/ApprovalRequest';
+import { IApprovalWorkflowRepository } from '../repositories/IApprovalWorkflowRepository';
+import { ApprovalRequestApprovedEvent, ApprovalRequestRejectedEvent } from '../events/ApprovalEvents';
 import crypto from 'node:crypto';
 
 export interface InterceptResult {
@@ -19,13 +20,14 @@ export interface InterceptResult {
   requestId?: string;
 }
 
-import { DomainEventDispatcher } from '../../application/services/DomainEventDispatcher';
-import { ApprovalRequestApprovedEvent, ApprovalRequestRejectedEvent } from '../events/ApprovalEvents';
+export interface IEventDispatcher {
+  dispatch(events: any[]): void;
+}
 
 export class ApprovalWorkflowService {
   constructor(
-    private readonly prisma: PrismaClient,
-    private readonly eventDispatcher?: DomainEventDispatcher
+    private readonly repository: IApprovalWorkflowRepository,
+    private readonly eventDispatcher?: IEventDispatcher
   ) {}
 
   /**
@@ -42,11 +44,7 @@ export class ApprovalWorkflowService {
     payload: Record<string, any>
   ): Promise<InterceptResult> {
     // Look up active workflow for this tenant + trigger event
-    const workflowRecord = await this.prisma.approvalWorkflow.findUnique({
-      where: {
-        tenantId_triggerEvent: { tenantId, triggerEvent }
-      }
-    });
+    const workflowRecord = await this.repository.findWorkflowByTrigger(tenantId, triggerEvent);
 
     if (!workflowRecord || !workflowRecord.isActive) {
       return { intercepted: false };
@@ -76,19 +74,17 @@ export class ApprovalWorkflowService {
 
     // Create the approval request
     const requestId = crypto.randomUUID();
-    await this.prisma.approvalRequest.create({
-      data: {
-        id: requestId,
-        tenantId,
-        workflowId: workflowRecord.id,
-        referenceType,
-        referenceId,
-        requesterId,
-        status: 'PENDING',
-        currentStep: 0,
-        payload: payload as any,
-        expiresAt,
-      }
+    await this.repository.createApprovalRequest({
+      id: requestId,
+      tenantId,
+      workflowId: workflowRecord.id,
+      referenceType,
+      referenceId,
+      requesterId,
+      status: 'PENDING',
+      currentStep: 0,
+      payload,
+      expiresAt,
     });
 
     return { intercepted: true, requestId };
@@ -105,26 +101,20 @@ export class ApprovalWorkflowService {
     notes?: string
   ): Promise<{ status: ApprovalRequestStatus; referenceType: string; referenceId: string }> {
     // Load the request and its workflow
-    const requestRecord = await this.prisma.approvalRequest.findUnique({
-      where: { id: requestId },
-      include: {
-        workflow: true,
-        decisions: true,
-      }
-    });
+    const requestRecord = await this.repository.findApprovalRequestById(requestId);
 
-    if (!requestRecord) {
+    if (!requestRecord || !requestRecord.workflow) {
       throw new Error(`Approval request ${requestId} not found.`);
     }
 
     const config = requestRecord.workflow.config as unknown as ApprovalWorkflowConfig;
-    const existingDecisions: ApprovalDecisionRecord[] = requestRecord.decisions.map(d => ({
+    const existingDecisions: ApprovalDecisionRecord[] = (requestRecord.decisions || []).map(d => ({
       id: d.id,
       stepIndex: d.stepIndex,
       deciderId: d.deciderId,
       decision: d.decision as 'APPROVED' | 'REJECTED',
       notes: d.notes ?? undefined,
-      decidedAt: d.decidedAt,
+      decidedAt: d.decidedAt ?? new Date(),
     }));
 
     const request = ApprovalRequest.reconstruct(
@@ -162,25 +152,14 @@ export class ApprovalWorkflowService {
     }
 
     // Persist the decision and update the request
-    await this.prisma.$transaction([
-      this.prisma.approvalDecision.create({
-        data: {
-          id: decisionId,
-          requestId,
-          stepIndex: decisionRecord.stepIndex,
-          deciderId,
-          decision,
-          notes: notes ?? null,
-        }
-      }),
-      this.prisma.approvalRequest.update({
-        where: { id: requestId },
-        data: {
-          status: request.status,
-          currentStep: request.currentStep,
-        }
-      })
-    ]);
+    await this.repository.saveDecisionAndUpdateRequest(
+      decisionRecord,
+      requestId,
+      {
+        status: request.status,
+        currentStep: request.currentStep,
+      }
+    );
 
     if (this.eventDispatcher) {
       if (request.status === ApprovalRequestStatus.Approved) {
@@ -219,17 +198,12 @@ export class ApprovalWorkflowService {
    */
   async checkExpiredRequests(): Promise<number> {
     const now = new Date();
-    const staleRequests = await this.prisma.approvalRequest.findMany({
-      where: {
-        status: { in: ['PENDING', 'ESCALATED'] },
-        expiresAt: { lte: now },
-      },
-      include: { workflow: true }
-    });
+    const staleRequests = await this.repository.findStaleRequests(now);
 
     let processedCount = 0;
 
     for (const record of staleRequests) {
+      if (!record.workflow) continue;
       const config = record.workflow.config as unknown as ApprovalWorkflowConfig;
       const request = ApprovalRequest.reconstruct(
         record.id, record.tenantId, record.workflowId,
@@ -253,13 +227,10 @@ export class ApprovalWorkflowService {
         }
       }
 
-      await this.prisma.approvalRequest.update({
-        where: { id: record.id },
-        data: {
-          status: request.status,
-          currentStep: request.currentStep,
-          expiresAt: newExpiresAt,
-        }
+      await this.repository.updateApprovalRequest(record.id, {
+        status: request.status,
+        currentStep: request.currentStep,
+        expiresAt: newExpiresAt,
       });
 
       processedCount++;
@@ -276,17 +247,7 @@ export class ApprovalWorkflowService {
     tenantId: string,
     deciderRoleIds?: string[]
   ): Promise<any[]> {
-    const requests = await this.prisma.approvalRequest.findMany({
-      where: {
-        tenantId,
-        status: { in: ['PENDING', 'ESCALATED'] },
-      },
-      include: {
-        workflow: true,
-        decisions: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const requests = await this.repository.findPendingRequests(tenantId);
 
     if (!deciderRoleIds || deciderRoleIds.length === 0) {
       return requests;
@@ -294,6 +255,7 @@ export class ApprovalWorkflowService {
 
     // Filter to requests where current step's approverRoles overlap with decider's roles
     return requests.filter(req => {
+      if (!req.workflow) return false;
       const config = req.workflow.config as any as ApprovalWorkflowConfig;
       const currentStep = config.steps[req.currentStep];
       if (!currentStep) return false;

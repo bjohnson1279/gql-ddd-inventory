@@ -11,6 +11,7 @@ import { AuditProcessorService } from '../../domain/services/AuditProcessorServi
 import { PrismaAuditDataProvider } from '../persistence/PrismaAuditDataProvider';
 import { PermissionService } from '../../domain/services/PermissionService';
 import { ApprovalWorkflowService } from '../../domain/services/ApprovalWorkflowService';
+import { PostgresApprovalWorkflowRepository } from '../persistence/PostgresApprovalWorkflowRepository';
 const BARCODE_SCANNED_TOPIC = 'BARCODE_SCANNED';
 const STOCK_CHANGED_TOPIC = 'STOCK_CHANGED';
 const WEBHOOK_FAILED_TOPIC = 'WEBHOOK_FAILED';
@@ -305,7 +306,8 @@ eventBus.subscribe('ShopifyStockSyncRequested', shopifySyncHandler.handle.bind(s
 
 const eventDispatcher = new DomainEventDispatcher(eventBus);
 
-const approvalWorkflowService = new (require('../../domain/services/ApprovalWorkflowService').ApprovalWorkflowService)(prisma, eventDispatcher);
+const approvalWorkflowRepository = new PostgresApprovalWorkflowRepository(prisma);
+const approvalWorkflowService = new ApprovalWorkflowService(approvalWorkflowRepository, eventDispatcher);
 
 // Accounting Sync Initialization
 const netsuiteSync = new NetSuiteJournalSync(process.env.NETSUITE_ACCOUNT_ID || 'mock', process.env.NETSUITE_TOKEN || 'mock');
@@ -1642,22 +1644,22 @@ export const resolvers = {
     },
     createApprovalWorkflow: async (_: any, { tenantId, name, triggerEvent, config }: any, context: GraphQLContext) => {
       enforcePermission(context, 'approval', 'configure', tenantId);
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
+      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, approvalWorkflowService);
       return await manageApprovalWorkflowsUseCase.createWorkflow(tenantId, name, triggerEvent, config);
     },
     updateApprovalWorkflow: async (_: any, { id, config }: any, context: GraphQLContext) => {
       enforcePermission(context, 'approval', 'configure');
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
+      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, approvalWorkflowService);
       return await manageApprovalWorkflowsUseCase.updateWorkflow(id, config);
     },
     toggleApprovalWorkflow: async (_: any, { id, isActive }: any, context: GraphQLContext) => {
       enforcePermission(context, 'approval', 'configure');
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
+      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, approvalWorkflowService);
       return await manageApprovalWorkflowsUseCase.toggleWorkflow(id, isActive);
     },
     submitApprovalDecision: async (_: any, { requestId, decision, notes }: any, context: GraphQLContext) => {
       const auth = enforcePermission(context, 'approval', 'approve');
-      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, require('../../domain/services/ApprovalWorkflowService').approvalWorkflowService);
+      const manageApprovalWorkflowsUseCase = new (require('../../application/useCases/ManageApprovalWorkflows').ManageApprovalWorkflowsUseCase)(context.prisma || prisma, approvalWorkflowService);
       
       const result = await manageApprovalWorkflowsUseCase.submitDecision(requestId, auth.actorId, decision, notes);
       
