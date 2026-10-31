@@ -1,19 +1,19 @@
 # GraphQL DDD Inventory System
 
-A production-ready, multi-tenant inventory control system built in TypeScript utilizing **Domain-Driven Design (DDD)** principles. The application exposes a unified GraphQL API (with queries, mutations, and real-time subscription capabilities) and is paired with a React administration dashboard.
+A production-ready, multi-tenant inventory control system built in TypeScript utilizing **Domain-Driven Design (DDD)** principles. The application exposes a unified GraphQL API with queries, mutations, and real-time subscription capabilities.
 
 ---
 
 ## 🏗️ Bounded Contexts & Specs
 
-The system is split into distinct domain-driven bounded contexts. Technical specs for each module can be reviewed in the [plan/](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan) directory:
+The system is split into distinct domain-driven bounded contexts. Technical specs for each module can be reviewed in the `plan/` directory:
 
-*   **Stock Onboarding**: [opening-balance-ddd.md](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan/opening-balance-ddd.md) — Opening balances, batch sheets, and ledger onboarding state-machines.
-*   **SKU Variance & Kitting**: [sku-variance-kitting-ddd.md](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan/sku-variance-kitting-ddd.md) — Item variants, bundle assemblies, and Component BOM deductions.
-*   **Unit of Measure (UOM)**: [uom-conversions-ddd.md](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan/uom-conversions-ddd.md) — Conversions between continuous/discrete purchasing and sale units.
-*   **Serial Number Tracking**: [serial-number-tracking-ddd.md](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan/serial-number-tracking-ddd.md) — Lifecycle tracking of serialized components (InStock, Dispatched, Quarantined, Returned).
-*   **Accrual & Cash Accounting**: [accounting-methods-ddd.md](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan/accounting-methods-ddd.md) — cost layers (FIFO/LIFO) depletion and general ledger journal postings.
-*   **Barcode Modeling**: [barcode-modeling-ddd.md](file:///C:/Users/johns/DEV/gql-ddd-inventory/plan/barcode-modeling-ddd.md) — validation patterns and real-time scanning event dispatcher pipelines.
+*   **Stock Onboarding**: [opening-balance-ddd.md](plan/opening-balance-ddd.md) — Opening balances, batch sheets, and ledger onboarding state-machines.
+*   **SKU Variance & Kitting**: [sku-variance-kitting-ddd.md](plan/sku-variance-kitting-ddd.md) — Item variants, bundle assemblies, and Component BOM deductions.
+*   **Unit of Measure (UOM)**: [uom-conversions-ddd.md](plan/uom-conversions-ddd.md) — Conversions between continuous/discrete purchasing and sale units.
+*   **Serial Number Tracking**: [serial-number-tracking-ddd.md](plan/serial-number-tracking-ddd.md) — Lifecycle tracking of serialized components (InStock, Dispatched, Quarantined, Returned).
+*   **Accrual & Cash Accounting**: [accounting-methods-ddd.md](plan/accounting-methods-ddd.md) — cost layers (FIFO/LIFO) depletion and general ledger journal postings.
+*   **Barcode Modeling**: [barcode-modeling-ddd.md](plan/barcode-modeling-ddd.md) — validation patterns and real-time scanning event dispatcher pipelines.
 
 ---
 
@@ -36,30 +36,26 @@ JWT_SECRET="your-secure-random-secret"
 ```
 
 ### 2. Install Dependencies & Generate Prisma Client
-Install NPM packages in both root and web workspace, then sync database schema maps:
+Install packages and sync database schema maps:
 ```bash
-# Install root packages
-npm install
+# Install dependencies
+pnpm install
 
 # Generate Prisma Client classes
-npx prisma generate
+pnpm exec prisma generate
 
 # Sync schema to target Postgres instance
-npx prisma db push
+pnpm exec prisma db push
 ```
-*(The schema definitions are stored in [schema.prisma](file:///C:/Users/johns/DEV/gql-ddd-inventory/prisma/schema.prisma))*
+*(The schema definitions are stored in [schema.prisma](prisma/schema.prisma))*
 
-### 3. Run Servers
-Boot the GraphQL API and React Web Client simultaneously:
+### 3. Run Server
+Boot the GraphQL API server:
 ```bash
 # Run Backend GraphQL Server (in project root)
-npm run dev
-
-# Run React Client (in a separate terminal inside /web)
-cd web
-npm run dev
+pnpm run dev
 ```
-The React frontend dashboard will boot at `http://localhost:5173/`, connecting directly to the GraphQL server on `http://localhost:4000/graphql`.
+The GraphQL server will boot at `http://localhost:4000/graphql`.
 
 ---
 
@@ -70,13 +66,13 @@ You can run the entire environment (API backend, React frontend on Nginx, Postgr
 # Launch all services
 docker compose up -d --build
 ```
-Refer to the [docker-compose.yml](file:///C:/Users/johns/DEV/gql-ddd-inventory/docker-compose.yml) configuration for service port mappings (`5433` for DB, `4000` for GraphQL API, `80` for Frontend Web). The database service runs the TimescaleDB image (`timescale/timescaledb:latest-pg15`), converting `ledger_entries` into a hypertable partitioned by `occurred_at`.
+Refer to the [docker-compose.yml](docker-compose.yml) configuration for service port mappings (`5433` for DB, `4000` for GraphQL API). The database service runs the TimescaleDB image (`timescale/timescaledb:latest-pg15`), converting `ledger_entries` into a hypertable partitioned by `occurred_at`.
 
 ---
 
 ## 🔐 Role-Based Access Control (RBAC)
 
-The GraphQL API is authenticated using JSON Web Tokens (JWT) and authorization rules mapped within the resolvers ([resolvers.ts](file:///C:/Users/johns/DEV/gql-ddd-inventory/src/infrastructure/graphql/resolvers.ts)). 
+The GraphQL API is authenticated using JSON Web Tokens (JWT) and authorization rules mapped within the resolvers ([resolvers.ts](src/infrastructure/graphql/resolvers.ts)).
 
 ### Supported Roles
 1.  **Admin (`admin`)**: Access to all operations, catalog mutations, and Shopify credentials setup.
@@ -123,17 +119,6 @@ Automated database snapshots are scheduled daily using a dedicated cron containe
 ### Unit & Integration Tests (Jest)
 Runs the backend unit tests using mocked repositories:
 ```bash
-# Unix / Linux
-npm test
-
-# Windows (Bypassing PowerShell Script policy)
-powershell -ExecutionPolicy Bypass -Command "npm test"
+pnpm test
 ```
-
-### End-To-End Browser Tests (Playwright)
-Executes Chrome automated browser tests inside the web project workspace:
-```bash
-cd web
-npm run test:e2e
-```
-All testing workflows, including database pushes and mock runs, are verified inside the [ci.yml](file:///C:/Users/johns/DEV/gql-ddd-inventory/.github/workflows/ci.yml) GitHub Actions automation.
+All testing workflows, including database pushes and mock runs, are verified inside the [ci.yml](.github/workflows/ci.yml) GitHub Actions automation.
