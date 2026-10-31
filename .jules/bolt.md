@@ -240,3 +240,7 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2026-10-28 - Optimize batch upserts in Postgres repositories to eliminate N+1 queries
 **Learning:** Using Promise.all with individual upsert queries inside a transaction creates N+1 database queries, risking connection pool exhaustion and causing high query latency.
 **Action:** Replace Promise.all and individual upserts with a raw SQL batch upsert using $executeRaw to eliminate N+1 queries.
+
+## 2024-11-25 - Use groupBy to consolidate multiple count queries
+**Learning:** Using `Promise.all` to execute multiple `prisma.count` queries for different statuses creates unnecessary N database connections and query roundtrips. In dashboards or stats endpoints, this causes high query latency and connection pool pressure.
+**Action:** Replace multiple `Promise.all` count queries with a single `prisma.groupBy` query filtering by the required field (e.g., `status`) to eliminate N database queries and compute counts in a single database roundtrip.

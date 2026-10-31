@@ -6,6 +6,7 @@ jest.mock('../../../src/infrastructure/persistence/prismaClient', () => {
     prisma: {
       outboxEvent: {
         count: jest.fn(),
+        groupBy: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
@@ -26,16 +27,17 @@ describe('GraphQL Outbox Management Resolvers', () => {
       prisma
     };
 
-    const countMock = prisma.outboxEvent.count as jest.Mock;
+    const groupByMock = prisma.outboxEvent.groupBy as jest.Mock;
     const findManyMock = prisma.outboxEvent.findMany as jest.Mock;
     const findUniqueMock = prisma.outboxEvent.findUnique as jest.Mock;
     const updateMock = prisma.outboxEvent.update as jest.Mock;
 
-    // Mock count calls for pending, processing, processed, failed
-    countMock.mockResolvedValueOnce(1); // pending
-    countMock.mockResolvedValueOnce(0); // processing
-    countMock.mockResolvedValueOnce(5); // processed
-    countMock.mockResolvedValueOnce(1); // failed
+    // Mock groupBy calls for statuses
+    groupByMock.mockResolvedValueOnce([
+      { status: 'Pending', _count: { _all: 1 } },
+      { status: 'Processed', _count: { _all: 5 } },
+      { status: 'Failed', _count: { _all: 1 } }
+    ]);
 
     // 1. Query outboxStats
     const stats = await resolvers.Query.outboxStats(null, {}, context);
