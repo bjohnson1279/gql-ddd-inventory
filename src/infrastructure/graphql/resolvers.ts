@@ -1476,12 +1476,21 @@ export const resolvers = {
     // G5 — Outbox stats and dead-letter events
     outboxStats: async (_: any, __: any, context: GraphQLContext) => {
       enforcePermission(context, 'webhook', 'view');
-      const [pending, processing, processed, failed] = await Promise.all([
-        prisma.outboxEvent.count({ where: { status: 'Pending' } }),
-        prisma.outboxEvent.count({ where: { status: 'Processing' } }),
-        prisma.outboxEvent.count({ where: { status: 'Processed' } }),
-        prisma.outboxEvent.count({ where: { status: 'Failed' } }),
-      ]);
+
+      // ⚡ Bolt: Replaced multiple Promise.all count queries with a single groupBy query to eliminate N+1 database queries
+      const counts = await prisma.outboxEvent.groupBy({
+        by: ['status'],
+        _count: { _all: true }
+      });
+
+      let pending = 0, processing = 0, processed = 0, failed = 0;
+      for (const c of counts) {
+        if (c.status === 'Pending') pending = c._count._all;
+        else if (c.status === 'Processing') processing = c._count._all;
+        else if (c.status === 'Processed') processed = c._count._all;
+        else if (c.status === 'Failed') failed = c._count._all;
+      }
+
       return { pending, processing, processed, failed, total: pending + processing + processed + failed };
     },
     deadLetterEvents: async (_: any, { limit }: { limit?: number }, context: GraphQLContext) => {
