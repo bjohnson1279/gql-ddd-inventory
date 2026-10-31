@@ -5,7 +5,7 @@ export class InMemoryAuditDiscrepancyRepository implements IAuditDiscrepancyRepo
   private readonly items = new Map<string, AuditDiscrepancy>();
 
   async save(discrepancy: AuditDiscrepancy): Promise<void> {
-    this.items.set(discrepancy.id, discrepancy);
+    this.items.set(discrepancy.id.value, discrepancy);
   }
 
   async findById(id: string): Promise<AuditDiscrepancy | null> {

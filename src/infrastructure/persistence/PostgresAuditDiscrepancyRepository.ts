@@ -7,9 +7,9 @@ export class PostgresAuditDiscrepancyRepository implements IAuditDiscrepancyRepo
 
   async save(discrepancy: AuditDiscrepancy): Promise<void> {
     await this.prisma.auditDiscrepancy.upsert({
-      where: { id: discrepancy.id },
+      where: { id: discrepancy.id.value },
       create: {
-        id: discrepancy.id,
+        id: discrepancy.id.value,
         tenantId: discrepancy.tenantId,
         type: discrepancy.type,
         referenceId: discrepancy.referenceId,
