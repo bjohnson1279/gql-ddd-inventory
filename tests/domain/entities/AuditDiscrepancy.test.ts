@@ -15,7 +15,7 @@ describe('AuditDiscrepancy', () => {
   });
 
   it('should initialize with default values correctly', () => {
-    expect(discrepancy.id).toBe('id-123');
+    expect(discrepancy.id.value).toBe('id-123');
     expect(discrepancy.tenantId).toBe('tenant-456');
     expect(discrepancy.type).toBe('SHOPIFY_STOCK_MISMATCH');
     expect(discrepancy.referenceId).toBe('sku-789');
