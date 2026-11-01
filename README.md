@@ -111,6 +111,7 @@ Automated database snapshots are scheduled daily using a dedicated cron containe
 
 *   **Shopify Integration Webhooks**: The `/webhooks/shopify` POST endpoint processes HMAC-signed payloads from Shopify to sync inventory items and customer orders in real-time.
 *   **Live Scanning Subscriptions**: The GraphQL engine hosts a WebSocket server under `ws://localhost:4000/graphql`. Clients can subscribe to `barcodeScanned(tenantId: ID!)` to stream physical scanner readings immediately onto dashboards.
+*   **HTTP & REST API Reference**: Complete documentation of all HTTP endpoints (including healthcheck probes and webhook handlers) is available in [docs/api/endpoints.md](docs/api/endpoints.md).
 
 ---
 
