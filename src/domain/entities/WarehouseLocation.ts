@@ -1,9 +1,12 @@
 import { LocationId } from '../valueObjects/LocationId';
+import { WarehouseId } from '../valueObjects/WarehouseId';
 
 export class WarehouseLocation {
+  public readonly warehouseId: WarehouseId;
+
   constructor(
     public readonly id: LocationId,
-    public readonly warehouseId: string,
+    warehouseId: WarehouseId | string,
     public readonly zone: string,
     public readonly aisle: string,
     public readonly rack: string,
@@ -12,9 +15,7 @@ export class WarehouseLocation {
     public readonly maxWeightGrams: number,
     public readonly maxVolumeCubicMeters: number
   ) {
-    if (!warehouseId || warehouseId.trim().length === 0) {
-      throw new Error("Warehouse ID cannot be empty.");
-    }
+    this.warehouseId = typeof warehouseId === 'string' ? new WarehouseId(warehouseId) : warehouseId;
     if (!zone || zone.trim().length === 0) {
       throw new Error("Zone cannot be empty.");
     }

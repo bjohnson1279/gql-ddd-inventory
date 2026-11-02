@@ -53,7 +53,7 @@ export class PickingRouteOptimizer {
         sku: item.sku,
         locationId: item.locationId,
         quantity: item.quantity,
-        warehouseId: loc.warehouseId,
+        warehouseId: loc.warehouseId.value,
         zone: loc.zone,
         aisle: loc.aisle,
         rack: loc.rack,

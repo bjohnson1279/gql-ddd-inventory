@@ -1090,7 +1090,7 @@ export const resolvers = {
       if (!loc) return null;
       return {
         id: loc.id.value,
-        warehouseId: loc.warehouseId,
+        warehouseId: loc.warehouseId.value,
         zone: loc.zone,
         aisle: loc.aisle,
         rack: loc.rack,
@@ -1105,7 +1105,7 @@ export const resolvers = {
       const list = await warehouseLocationRepository.findAll();
       return list.map(loc => ({
         id: loc.id.value,
-        warehouseId: loc.warehouseId,
+        warehouseId: loc.warehouseId.value,
         zone: loc.zone,
         aisle: loc.aisle,
         rack: loc.rack,
@@ -2189,7 +2189,7 @@ export const resolvers = {
         await warehouseLocationRepository.save(loc);
         return {
           id: loc.id.value,
-          warehouseId: loc.warehouseId,
+          warehouseId: loc.warehouseId.value,
           zone: loc.zone,
           aisle: loc.aisle,
           rack: loc.rack,

@@ -38,7 +38,7 @@ describe('Warehouse Location WMS & Capacity Service', () => {
   describe('WarehouseLocation Entity', () => {
     it('should parse coordinate paths successfully', () => {
       const loc = WarehouseLocation.parsePath('WH1-ZONEA-A03-R02-S01-B10', 50000, 2.5);
-      expect(loc.warehouseId).toBe('WH1');
+      expect(loc.warehouseId.value).toBe('WH1');
       expect(loc.zone).toBe('ZONEA');
       expect(loc.aisle).toBe('A03');
       expect(loc.rack).toBe('R02');
