@@ -11,7 +11,7 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
       where: { id: location.id.value },
       create: {
         id: location.id.value,
-        warehouseId: location.warehouseId,
+        warehouseId: location.warehouseId.value,
         zone: location.zone,
         aisle: location.aisle,
         rack: location.rack,
@@ -21,7 +21,7 @@ export class PostgresWarehouseLocationRepository implements IWarehouseLocationRe
         maxVolumeCubicMeters: location.maxVolumeCubicMeters,
       },
       update: {
-        warehouseId: location.warehouseId,
+        warehouseId: location.warehouseId.value,
         zone: location.zone,
         aisle: location.aisle,
         rack: location.rack,
