@@ -4,6 +4,7 @@ import { ExternalMapping } from '../../domain/integrations/entities/ExternalMapp
 import { IntegrationId } from '../../domain/integrations/valueObjects/IntegrationId';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { ExternalEntityType } from '../../domain/integrations/enums/IntegrationEnums';
+import { Prisma } from '@prisma/client';
 import { toUuid } from '../utils/uuid';
 
 
@@ -49,33 +50,20 @@ export class PostgresExternalMappingRepository implements IExternalMappingReposi
   async saveBatch(mappings: ExternalMapping[]): Promise<void> {
     if (mappings.length === 0) return;
 
-    await this.prisma.$transaction(
-      mappings.map((mapping) => {
-        const dbIntegrationId = toUuid(mapping.integrationId.value);
-        return this.prisma.externalMapping.upsert({
-          where: {
-            integrationId_entityType_internalId: {
-              integrationId: dbIntegrationId,
-              entityType: mapping.entityType,
-              internalId: mapping.internalId,
-            },
-          },
-          update: {
-            tenantId: mapping.tenantId.value,
-            externalId: mapping.externalId,
-            externalSecondaryId: mapping.externalSecondaryId || null,
-          },
-          create: {
-            tenantId: mapping.tenantId.value,
-            integrationId: dbIntegrationId,
-            entityType: mapping.entityType,
-            internalId: mapping.internalId,
-            externalId: mapping.externalId,
-            externalSecondaryId: mapping.externalSecondaryId || null,
-          },
-        });
-      })
-    );
+    // ⚡ Bolt: Replaced individual upserts in a transaction with a raw SQL batch upsert to eliminate N+1 queries
+    const insertRows = mappings.map((mapping) => {
+      const dbIntegrationId = toUuid(mapping.integrationId.value);
+      return Prisma.sql`(${mapping.tenantId.value}, ${dbIntegrationId}::uuid, ${mapping.entityType}, ${mapping.internalId}, ${mapping.externalId}, ${mapping.externalSecondaryId || null})`;
+    });
+
+    await this.prisma.$executeRaw`
+      INSERT INTO external_mappings (tenant_id, integration_id, entity_type, internal_id, external_id, external_secondary_id)
+      VALUES ${Prisma.join(insertRows)}
+      ON CONFLICT (integration_id, entity_type, internal_id) DO UPDATE SET
+        tenant_id = EXCLUDED.tenant_id,
+        external_id = EXCLUDED.external_id,
+        external_secondary_id = EXCLUDED.external_secondary_id;
+    `;
   }
 
   async findByInternalId(
