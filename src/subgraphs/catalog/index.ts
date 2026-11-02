@@ -244,7 +244,8 @@ async function start() {
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          auth = jwt.verify(token, JWT_SECRET as string) as any;
+          // Security fix: explicitly restrict allowed algorithms to prevent algorithm confusion attacks
+          auth = jwt.verify(token, JWT_SECRET as string, { algorithms: ['HS256'] }) as any;
         } catch (err) {}
       }
       const tenantId = auth?.tenantId;
