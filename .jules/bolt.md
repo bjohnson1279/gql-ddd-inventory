@@ -244,3 +244,6 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2024-11-25 - Use groupBy to consolidate multiple count queries
 **Learning:** Using `Promise.all` to execute multiple `prisma.count` queries for different statuses creates unnecessary N database connections and query roundtrips. In dashboards or stats endpoints, this causes high query latency and connection pool pressure.
 **Action:** Replace multiple `Promise.all` count queries with a single `prisma.groupBy` query filtering by the required field (e.g., `status`) to eliminate N database queries and compute counts in a single database roundtrip.
+## 2024-05-24 - Batch Upsert Optimization for External Mappings
+**Learning:** Performing Prisma upserts individually inside a transaction via `.map` leads to significant N+1 database roundtrips, causing major bottlenecks for bulk sync operations.
+**Action:** Replace looped individual upserts with `$executeRaw` and `Prisma.join(insertRows)` to execute a single, highly efficient SQL batch upsert.
