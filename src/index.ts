@@ -64,7 +64,8 @@ function setupWebSocketServer(httpServer: any, schema: any) {
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            auth = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
+            // Security fix: Enforce allowed algorithms to prevent algorithm confusion attacks
+            auth = jwt.verify(token, JWT_SECRET as string, { algorithms: ['HS256'] }) as AuthTokenPayload;
           } catch (err) {
             // Invalid token
           }
@@ -187,7 +188,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         try {
-          const decoded = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
+          const decoded = jwt.verify(token, JWT_SECRET as string, { algorithms: ['HS256'] }) as AuthTokenPayload;
           tenantId = decoded.tenantId;
         } catch (err) {}
       }
@@ -203,7 +204,7 @@ function applyExpressMiddleware(app: express.Express, server: ApolloServer) {
         if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           try {
-            auth = jwt.verify(token, JWT_SECRET as string) as AuthTokenPayload;
+            auth = jwt.verify(token, JWT_SECRET as string, { algorithms: ['HS256'] }) as AuthTokenPayload;
           } catch (err) {
             // Invalid token or expired
           }
