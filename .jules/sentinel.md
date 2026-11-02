@@ -166,3 +166,8 @@ origin/main
 **Vulnerability:** A hardcoded failure on a missing secret (JWT_SECRET) unconditionally crashed the application, breaking non-production environments like testing.
 **Learning:** Enforcing secrets should still allow local development and testing to run properly, requiring conditionally failing only in production.
 **Prevention:** Wrap secure failure logic (e.g., throwing errors or process exits) in an if (process.env.NODE_ENV === 'production') check and provide a secure non-production fallback.
+
+## 2026-11-02 - Enforce Explicit JWT Verification Algorithms
+**Vulnerability:** JWT verification calls lacked explicit algorithm restrictions, which could allow algorithm confusion attacks or signature bypass.
+**Learning:** `jwt.verify` without an explicit `algorithms: ['HS256']` option defaults to accepting any algorithm specified in the token header, leaving the door open to algorithm confusion or downgrade attacks.
+**Prevention:** Always supply `{ algorithms: ['HS256'] }` to `jwt.verify()` when using symmetric shared secret keys.
