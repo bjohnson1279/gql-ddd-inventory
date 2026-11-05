@@ -1,8 +1,12 @@
+import { LotBatchId } from '../valueObjects/LotBatchId';
+
 export type LotStatus = 'ACTIVE' | 'QUARANTINED' | 'RECALLED' | 'EXPIRED';
 
 export class LotBatch {
+  public readonly id: LotBatchId;
+
   constructor(
-    public readonly id: string,
+    id: LotBatchId | string,
     public readonly tenantId: string,
     public readonly lotNumber: string,
     public readonly variantId: string,
@@ -14,7 +18,9 @@ export class LotBatch {
     public quarantineReason?: string,
     public recalledAt?: Date,
     public readonly createdAt: Date = new Date()
-  ) {}
+  ) {
+    this.id = typeof id === 'string' ? new LotBatchId(id) : id;
+  }
 
   public isAvailable(): boolean {
     if (this.status !== 'ACTIVE') {
