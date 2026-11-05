@@ -42,7 +42,12 @@ export const reportResolvers = {
       });
     },
     scheduleReport: async (_: any, args: any, { prisma, auth }: any) => {
-      enforceAuthTenant(auth);
+      const tenantId = enforceAuthTenant(auth);
+      // Security fix: Verify report definition exists and belongs to the authenticated tenant to prevent IDOR
+      const reportDef = await prisma.reportDefinitionModel.findUnique({ where: { id: args.id } });
+      if (!reportDef || reportDef.tenantId !== tenantId) {
+        throw new Error("Report definition not found or access denied.");
+      }
       const nextRunAt = new Date(Date.now() + 60 * 60 * 1000);
       return await prisma.reportScheduleModel.create({
         data: {
@@ -54,7 +59,12 @@ export const reportResolvers = {
       });
     },
     executeReport: async (_: any, args: any, { prisma, auth }: any) => {
-      enforceAuthTenant(auth);
+      const tenantId = enforceAuthTenant(auth);
+      // Security fix: Verify report definition exists and belongs to the authenticated tenant to prevent IDOR
+      const reportDef = await prisma.reportDefinitionModel.findUnique({ where: { id: args.id } });
+      if (!reportDef || reportDef.tenantId !== tenantId) {
+        throw new Error("Report definition not found or access denied.");
+      }
       const execution = await prisma.reportExecutionModel.create({
         data: {
           reportDefinitionId: args.id,

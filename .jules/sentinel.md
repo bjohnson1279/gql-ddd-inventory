@@ -171,3 +171,8 @@ origin/main
 **Vulnerability:** JWT verification calls lacked explicit algorithm restrictions, which could allow algorithm confusion attacks or signature bypass.
 **Learning:** `jwt.verify` without an explicit `algorithms: ['HS256']` option defaults to accepting any algorithm specified in the token header, leaving the door open to algorithm confusion or downgrade attacks.
 **Prevention:** Always supply `{ algorithms: ['HS256'] }` to `jwt.verify()` when using symmetric shared secret keys.
+
+## 2026-11-04 - Fix IDOR in Report Execution and Scheduling
+**Vulnerability:** In `src/infrastructure/graphql/reportResolvers.ts`, mutations `executeReport` and `scheduleReport` verified that the request had an authenticated tenant ID via `enforceAuthTenant(auth)` but failed to verify that the target `ReportDefinition` record actually belonged to the authenticated tenant. This allowed authenticated users of one tenant to execute or schedule reports defined by other tenants (Insecure Direct Object Reference / IDOR).
+**Learning:** Checking for authentication (`enforceAuthTenant`) verifies tenant identity but does not enforce tenant boundary authorization on referenced entity IDs. Every resource ID passed by a client in mutations must be validated against the active tenant ownership before triggering processing.
+**Prevention:** Always verify entity ownership against the authenticated `tenantId` (e.g. `reportDef.tenantId !== tenantId`) before performing executions, updates, deletions, or scheduling operations.

@@ -1,4 +1,4 @@
-import { RebalanceOptimizationService } from '../../../src/domain/services/RebalanceOptimizationService';
+import { RebalanceOptimizationService } from '../../../src/application/services/RebalanceOptimizationService';
 import { PrismaClient } from '@prisma/client';
 
 describe('RebalanceOptimizationService', () => {
