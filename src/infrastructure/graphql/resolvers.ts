@@ -713,7 +713,7 @@ function getTenantAndActor(context: GraphQLContext, tenantId?: string, actorId?:
 }
 
 import { AnomalyDetectionService } from '../../domain/services/AnomalyDetectionService';
-import { RebalanceOptimizationService } from '../../domain/services/RebalanceOptimizationService';
+import { RebalanceOptimizationService } from '../../application/services/RebalanceOptimizationService';
 import { PostgresPermissionRepository } from '../persistence/PostgresPermissionRepository';
 
 const anomalyDetectionService = new AnomalyDetectionService(ledgerRepository);
