@@ -1,34 +1,48 @@
 import { reportResolvers } from '../../../src/infrastructure/graphql/reportResolvers';
 
 describe('reportResolvers', () => {
-  const mockPrisma = {
-    reportDefinitionModel: {
-      findMany: jest.fn().mockResolvedValue([{ id: 'r1', name: 'Stock Report' }]),
-      create: jest.fn().mockResolvedValue({ id: 'r2', name: 'New Report' })
-    },
-    sharedReportLinkModel: {
-      findUnique: jest.fn().mockResolvedValue({ 
-        token: 'valid-token', 
-        expiresAt: new Date(Date.now() + 10000),
-        reportExecution: { fileUrl: 'https://cdn.example.com/report.csv' } 
-      })
-    },
-    reportScheduleModel: {
-      create: jest.fn().mockResolvedValue({ id: 's1', cronExpression: '0 0 * * *' })
-    },
-    reportExecutionModel: {
-      create: jest.fn().mockResolvedValue({ id: 'e1', status: 'PENDING' })
-    },
-    dashboardWidgetModel: {
-      findMany: jest.fn().mockResolvedValue([{ id: 'w1', type: 'CHART' }]),
-      create: jest.fn().mockResolvedValue({ id: 'w2' }),
-      update: jest.fn().mockResolvedValue({ id: 'w1', width: 2 }),
-      delete: jest.fn().mockResolvedValue(true),
-      findUnique: jest.fn().mockResolvedValue({ id: 'w1', tenantId: 'tenant-1' })
-    }
-  };
+  let mockPrisma: any;
+  let context: any;
 
-  const context = { prisma: mockPrisma, auth: { tenantId: 'tenant-1', userId: 'user-1' } };
+  beforeEach(() => {
+    mockPrisma = {
+      reportDefinitionModel: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'r1', name: 'Stock Report' }]),
+        findUnique: jest.fn().mockImplementation(({ where }: { where: { id: string } }) => {
+          if (where.id === 'r1') {
+            return Promise.resolve({ id: 'r1', tenantId: 'tenant-1', name: 'Stock Report' });
+          }
+          if (where.id === 'r-tenant-2') {
+            return Promise.resolve({ id: 'r-tenant-2', tenantId: 'tenant-2', name: 'Other Tenant Report' });
+          }
+          return Promise.resolve(null);
+        }),
+        create: jest.fn().mockResolvedValue({ id: 'r2', name: 'New Report' })
+      },
+      sharedReportLinkModel: {
+        findUnique: jest.fn().mockResolvedValue({
+          token: 'valid-token',
+          expiresAt: new Date(Date.now() + 10000),
+          reportExecution: { fileUrl: 'https://cdn.example.com/report.csv' }
+        })
+      },
+      reportScheduleModel: {
+        create: jest.fn().mockResolvedValue({ id: 's1', cronExpression: '0 0 * * *' })
+      },
+      reportExecutionModel: {
+        create: jest.fn().mockResolvedValue({ id: 'e1', status: 'PENDING' })
+      },
+      dashboardWidgetModel: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'w1', type: 'CHART' }]),
+        create: jest.fn().mockResolvedValue({ id: 'w2' }),
+        update: jest.fn().mockResolvedValue({ id: 'w1', width: 2 }),
+        delete: jest.fn().mockResolvedValue(true),
+        findUnique: jest.fn().mockResolvedValue({ id: 'w1', tenantId: 'tenant-1' })
+      }
+    };
+
+    context = { prisma: mockPrisma, auth: { tenantId: 'tenant-1', userId: 'user-1' } };
+  });
 
   it('should list reports', async () => {
     const res = await reportResolvers.Query.reports(null, null, context);
@@ -41,12 +55,41 @@ describe('reportResolvers', () => {
     expect(res.fileUrl).toBe('https://cdn.example.com/report.csv');
   });
 
-  it('should execute report', async () => {
+  it('should execute report for authorized tenant', async () => {
     const res = await reportResolvers.Mutation.executeReport(null, { id: 'r1', format: 'pdf' }, context);
     expect(res.status).toBe('PENDING');
+    expect(mockPrisma.reportDefinitionModel.findUnique).toHaveBeenCalledWith({ where: { id: 'r1' } });
     expect(mockPrisma.reportExecutionModel.create).toHaveBeenCalledWith({
       data: { reportDefinitionId: 'r1', format: 'pdf', status: 'PENDING' }
     });
+  });
+
+  it('should reject executing report belonging to another tenant (IDOR prevention)', async () => {
+    await expect(
+      reportResolvers.Mutation.executeReport(null, { id: 'r-tenant-2', format: 'pdf' }, context)
+    ).rejects.toThrow('Report definition not found or access denied.');
+    expect(mockPrisma.reportExecutionModel.create).not.toHaveBeenCalled();
+  });
+
+  it('should reject executing non-existent report definition', async () => {
+    await expect(
+      reportResolvers.Mutation.executeReport(null, { id: 'non-existent', format: 'pdf' }, context)
+    ).rejects.toThrow('Report definition not found or access denied.');
+    expect(mockPrisma.reportExecutionModel.create).not.toHaveBeenCalled();
+  });
+
+  it('should schedule report for authorized tenant', async () => {
+    const res = await reportResolvers.Mutation.scheduleReport(null, { id: 'r1', cronExpression: '0 0 * * *' }, context);
+    expect(res.id).toBe('s1');
+    expect(mockPrisma.reportDefinitionModel.findUnique).toHaveBeenCalledWith({ where: { id: 'r1' } });
+    expect(mockPrisma.reportScheduleModel.create).toHaveBeenCalled();
+  });
+
+  it('should reject scheduling report belonging to another tenant (IDOR prevention)', async () => {
+    await expect(
+      reportResolvers.Mutation.scheduleReport(null, { id: 'r-tenant-2', cronExpression: '0 0 * * *' }, context)
+    ).rejects.toThrow('Report definition not found or access denied.');
+    expect(mockPrisma.reportScheduleModel.create).not.toHaveBeenCalled();
   });
 
   it('should list widgets', async () => {
