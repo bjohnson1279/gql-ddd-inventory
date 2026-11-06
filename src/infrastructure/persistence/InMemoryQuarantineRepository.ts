@@ -2,6 +2,7 @@ import { IQuarantineRepository } from '../../domain/repositories/IQuarantineRepo
 import { QuarantineItem } from '../../domain/entities/QuarantineItem';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
+import { QuarantineItemId } from '../../domain/valueObjects/QuarantineItemId';
 
 export class InMemoryQuarantineRepository implements IQuarantineRepository {
   private readonly items: Map<string, QuarantineItem> = new Map();
@@ -21,7 +22,7 @@ export class InMemoryQuarantineRepository implements IQuarantineRepository {
   }
 
   async save(item: QuarantineItem): Promise<void> {
-    this.items.set(item.id, this.cloneItem(item));
+    this.items.set(item.id.value, this.cloneItem(item));
   }
 
   async saveBatch(items: QuarantineItem[]): Promise<void> {
@@ -30,8 +31,9 @@ export class InMemoryQuarantineRepository implements IQuarantineRepository {
     }
   }
 
-  async findById(id: string): Promise<QuarantineItem | null> {
-    const record = this.items.get(id);
+  async findById(id: QuarantineItemId | string): Promise<QuarantineItem | null> {
+    const key = typeof id === 'string' ? id : id.value;
+    const record = this.items.get(key);
     return record ? this.cloneItem(record) : null;
   }
 
