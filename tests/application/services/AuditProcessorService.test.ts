@@ -1,4 +1,4 @@
-import { AuditProcessorService, AuditDataProvider } from '../../src/domain/services/AuditProcessorService';
+import { AuditProcessorService, AuditDataProvider } from '../../../src/application/services/AuditProcessorService';
 
 describe('AuditProcessorService', () => {
   let mockDataProvider: jest.Mocked<AuditDataProvider>;

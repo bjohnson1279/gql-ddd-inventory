@@ -1,4 +1,4 @@
-import { AuditDiscrepancy } from '../entities/AuditDiscrepancy';
+import { AuditDiscrepancy } from '../../domain/entities/AuditDiscrepancy';
 import crypto from 'crypto';
 import { validateOutboundUrl } from '../../utils/urlValidator';
 import { getTraceId } from '../../infrastructure/telemetry/traceContext';

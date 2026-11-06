@@ -1,5 +1,5 @@
 import { prisma } from '../persistence/prismaClient';
-import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
+import { AuditProcessorService } from '../../application/services/AuditProcessorService';
 import { PrismaAuditDataProvider } from '../persistence/PrismaAuditDataProvider';
 
 export class AuditWorker {
