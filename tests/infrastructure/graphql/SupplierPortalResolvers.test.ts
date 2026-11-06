@@ -2,21 +2,21 @@ import { supplierPortalResolvers } from '../../../src/infrastructure/graphql/sup
 
 describe('supplierPortalResolvers', () => {
   it('should list supplier POs', () => {
-    const context = { auth: { supplierId: 'supplier-1', roles: ['SUPPLIER_USER'] } };
+    const context = { auth: { supplierId: 'supplier-1', tenantId: 'tenant-1', roles: ['SUPPLIER_USER'] } };
     const pos = supplierPortalResolvers.Query.getSupplierPOs(null, null, context);
     expect(pos).toHaveLength(1);
     expect(pos[0].supplierId).toBe('supplier-1');
   });
 
   it('should get supplier performance', () => {
-    const context = { auth: { supplierId: 'supplier-1', roles: ['SUPPLIER_USER'] } };
+    const context = { auth: { supplierId: 'supplier-1', tenantId: 'tenant-1', roles: ['SUPPLIER_USER'] } };
     const perf = supplierPortalResolvers.Query.getSupplierPerformance(null, null, context);
     expect(perf.supplierId).toBe('supplier-1');
     expect(perf.otifPercentage).toBe(98.5);
   });
 
   it('should acknowledge PO', () => {
-    const context = { auth: { supplierId: 'supplier-1', roles: ['SUPPLIER_USER'] } };
+    const context = { auth: { supplierId: 'supplier-1', tenantId: 'tenant-1', roles: ['SUPPLIER_USER'] } };
     const date = new Date().toISOString();
     const result = supplierPortalResolvers.Mutation.acknowledgePO(null, { poId: 'po-123', expectedDeliveryDate: date }, context);
     
@@ -25,7 +25,7 @@ describe('supplierPortalResolvers', () => {
   });
 
   it('should submit ASN', () => {
-    const context = { auth: { supplierId: 'supplier-1', roles: ['SUPPLIER_USER'] } };
+    const context = { auth: { supplierId: 'supplier-1', tenantId: 'tenant-1', roles: ['SUPPLIER_USER'] } };
     const date = new Date().toISOString();
     
     const result = supplierPortalResolvers.Mutation.submitASN(null, { 
@@ -46,6 +46,12 @@ describe('supplierPortalResolvers', () => {
     expect(() => {
       supplierPortalResolvers.Query.getSupplierPOs(null, null, {});
     }).toThrow('Authentication required: Access token is missing or invalid.');
+  });
+
+  it('should throw unauthorized error when supplierId or tenantId is missing from auth context', () => {
+    expect(() => {
+      supplierPortalResolvers.Query.getSupplierPOs(null, null, { auth: { supplierId: 'supplier-1' } });
+    }).toThrow('Unauthorized: Supplier identification or tenant missing from context.');
   });
 
   it('should reject acknowledgePO for a PO belonging to another tenant (IDOR prevention)', () => {
