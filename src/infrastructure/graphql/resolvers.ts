@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { DataLoaders } from './dataloaders';
 import { logisticsService } from '../../domain/shipping/logisticsService';
 import { erpIntegrationService } from '../../domain/integrations/erpIntegrationService';
-import { AuditProcessorService } from '../../domain/services/AuditProcessorService';
+import { AuditProcessorService } from '../../application/services/AuditProcessorService';
 import { PrismaAuditDataProvider } from '../persistence/PrismaAuditDataProvider';
 import { PermissionService } from '../../domain/services/PermissionService';
 import { ApprovalWorkflowService } from '../../domain/services/ApprovalWorkflowService';

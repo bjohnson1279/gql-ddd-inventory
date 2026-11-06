@@ -41,4 +41,33 @@ describe('supplierPortalResolvers', () => {
     expect(result.trackingNumber).toBe('TRK-999');
     expect(result.items).toHaveLength(1);
   });
+
+  it('should throw authentication error when auth context is missing', () => {
+    expect(() => {
+      supplierPortalResolvers.Query.getSupplierPOs(null, null, {});
+    }).toThrow('Authentication required: Access token is missing or invalid.');
+  });
+
+  it('should reject acknowledgePO for a PO belonging to another tenant (IDOR prevention)', () => {
+    const context = { auth: { supplierId: 'supplier-1', tenantId: 'tenant-2', roles: ['SUPPLIER_USER'] } };
+    const date = new Date().toISOString();
+    expect(() => {
+      supplierPortalResolvers.Mutation.acknowledgePO(null, { poId: 'po-123', expectedDeliveryDate: date }, context);
+    }).toThrow('PO not found or access denied');
+  });
+
+  it('should reject submitASN for a PO belonging to another tenant (IDOR prevention)', () => {
+    const context = { auth: { supplierId: 'supplier-1', tenantId: 'tenant-2', roles: ['SUPPLIER_USER'] } };
+    const date = new Date().toISOString();
+    expect(() => {
+      supplierPortalResolvers.Mutation.submitASN(null, {
+        input: {
+          poId: 'po-123',
+          trackingNumber: 'TRK-999',
+          estimatedDeliveryDate: date,
+          items: [{ sku: 'SKU1', shippedQuantity: 100 }]
+        }
+      }, context);
+    }).toThrow('PO not found or access denied');
+  });
 });

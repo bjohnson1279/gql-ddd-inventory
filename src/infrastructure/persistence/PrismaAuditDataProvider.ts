@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { AuditDataProvider } from '../../domain/services/AuditProcessorService';
+import { AuditDataProvider } from '../../application/services/AuditProcessorService';
 
 export class PrismaAuditDataProvider implements AuditDataProvider {
   constructor(private readonly prisma: PrismaClient) {}
