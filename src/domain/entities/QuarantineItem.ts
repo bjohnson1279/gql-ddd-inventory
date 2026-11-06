@@ -2,13 +2,15 @@ import { QuarantineStatus } from '../enums/ReturnEnums';
 import { ProductVariantId } from '../valueObjects/ProductVariantId';
 import { LocationId } from '../valueObjects/LocationId';
 import { TenantId } from '../valueObjects/TenantId';
+import { QuarantineItemId } from '../valueObjects/QuarantineItemId';
 
 export class QuarantineItem {
+  public readonly id: QuarantineItemId;
   private _status: QuarantineStatus;
   private _resolvedAt: Date | null;
 
   constructor(
-    public readonly id: string,
+    id: QuarantineItemId | string,
     public readonly variantId: ProductVariantId,
     public readonly quantity: number,
     public readonly reason: string,
@@ -18,6 +20,7 @@ export class QuarantineItem {
     public readonly createdAt: Date = new Date(),
     resolvedAt: Date | null = null
   ) {
+    this.id = typeof id === 'string' ? new QuarantineItemId(id) : id;
     if (quantity <= 0) {
       throw new Error('Quantity must be greater than zero.');
     }

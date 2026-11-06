@@ -372,7 +372,7 @@ export class ResolveQuarantineItemUseCase {
         tenantId,
         'inventory.write_off',
         'QuarantineItem',
-        qItem.id,
+        qItem.id.value,
         actorId,
         { totalCostCents: estTotalCostCents, resolution: dto.resolution, quantity: qItem.quantity }
       );
@@ -415,7 +415,7 @@ export class ResolveQuarantineItemUseCase {
       const totalCostCents = await consumeQuarantineLayers(qItem.quantity);
 
       await this.journalService.onInventoryWriteOff(
-        qItem.id,
+        qItem.id.value,
         totalCostCents,
         new Date(),
         qItem.tenantId.value
@@ -426,7 +426,7 @@ export class ResolveQuarantineItemUseCase {
       const totalCostCents = await consumeQuarantineLayers(qItem.quantity);
 
       await this.journalService.onReturnToVendor(
-        qItem.id,
+        qItem.id.value,
         totalCostCents,
         new Date(),
         qItem.tenantId.value

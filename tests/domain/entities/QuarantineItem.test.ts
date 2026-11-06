@@ -3,6 +3,7 @@ import { QuarantineStatus } from '../../../src/domain/enums/ReturnEnums';
 import { ProductVariantId } from '../../../src/domain/valueObjects/ProductVariantId';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { TenantId } from '../../../src/domain/valueObjects/TenantId';
+import { QuarantineItemId } from '../../../src/domain/valueObjects/QuarantineItemId';
 
 describe('QuarantineItem', () => {
   let item: QuarantineItem;
@@ -20,7 +21,8 @@ describe('QuarantineItem', () => {
 
   describe('constructor', () => {
     it('should create a QuarantineItem with correct initial values', () => {
-      expect(item.id).toBe('q-123');
+      expect(item.id).toBeInstanceOf(QuarantineItemId);
+      expect(item.id.value).toBe('q-123');
       expect(item.variantId.value).toBe('v-123');
       expect(item.quantity).toBe(5);
       expect(item.reason).toBe('Damaged packaging');

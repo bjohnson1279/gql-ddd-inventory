@@ -4,6 +4,7 @@ import { QuarantineItem } from '../../domain/entities/QuarantineItem';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
+import { QuarantineItemId } from '../../domain/valueObjects/QuarantineItemId';
 import { QuarantineStatus } from '../../domain/enums/ReturnEnums';
 import { toUuid } from '../utils/uuid';
 
@@ -25,8 +26,9 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
     );
   }
 
-  async findById(id: string): Promise<QuarantineItem | null> {
-    const dbId = toUuid(id);
+  async findById(id: QuarantineItemId | string): Promise<QuarantineItem | null> {
+    const rawId = typeof id === 'string' ? id : id.value;
+    const dbId = toUuid(rawId);
     const record = await (this.prisma as any).quarantineItem.findUnique({
       where: { id: dbId },
     });
@@ -44,7 +46,7 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
   }
 
   async save(item: QuarantineItem): Promise<void> {
-    const dbId = toUuid(item.id);
+    const dbId = toUuid(item.id.value);
     await (this.prisma as any).quarantineItem.upsert({
       where: { id: dbId },
       update: {
@@ -71,13 +73,13 @@ export class PostgresQuarantineRepository implements IQuarantineRepository {
     // Deduplicate items, keeping the last occurrence of each ID to avoid race conditions
     const uniqueItemsMap = new Map<string, QuarantineItem>();
     for (const item of items) {
-      uniqueItemsMap.set(item.id, item);
+      uniqueItemsMap.set(item.id.value, item);
     }
     const uniqueItems = Array.from(uniqueItemsMap.values());
 
     await this.prisma.$transaction(async (tx) => {
       const values = uniqueItems.map((item) => {
-        const dbId = toUuid(item.id);
+        const dbId = toUuid(item.id.value);
         const variantId = toUuid(item.variantId.value);
         return Prisma.sql`(${dbId}::uuid, ${variantId}::uuid, ${item.quantity}::integer, ${item.reason}, ${item.locationId.value}, ${item.tenantId.value}, ${item.status}, ${item.createdAt}::timestamptz, ${item.resolvedAt ? Prisma.sql`${item.resolvedAt}::timestamptz` : Prisma.sql`NULL::timestamptz`})`;
       });
