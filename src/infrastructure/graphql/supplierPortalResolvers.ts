@@ -19,8 +19,9 @@ function getSupplierAuth(context: any): { supplierId: string; tenantId: string }
   if (!auth) {
     throw new Error('Authentication required: Access token is missing or invalid.');
   }
-  const supplierId = auth.supplierId || (process.env.NODE_ENV === 'test' ? 'supplier-1' : undefined);
-  const tenantId = auth.tenantId || (process.env.NODE_ENV === 'test' ? 'tenant-1' : undefined);
+  // Security fix: Enforce explicit supplierId and tenantId across all environments to prevent test mode bypass
+  const supplierId = auth.supplierId;
+  const tenantId = auth.tenantId;
   if (!supplierId || !tenantId) {
     throw new Error('Unauthorized: Supplier identification or tenant missing from context.');
   }

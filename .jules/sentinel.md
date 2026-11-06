@@ -180,3 +180,8 @@ origin/main
 **Vulnerability:** In `supplierPortalResolvers.ts`, mutations `acknowledgePO` and `submitASN` and query `getSupplierPOs` matched PO records solely on `po.supplierId === supplierId` without scoping to `po.tenantId === tenantId`. Furthermore, unauthenticated requests defaulted to a mock supplier identifier rather than failing closed. This allowed cross-tenant IDOR access and unauthorized updates to purchase orders.
 **Learning:** Resolvers must enforce multi-tenant authorization boundaries by validating both tenant and supplier identity (`po.supplierId === supplierId && po.tenantId === tenantId`) and fail closed when auth context is absent.
 **Prevention:** Always authenticate context before querying and scope entity mutations with both `tenantId` and `supplierId`.
+
+## 2026-11-06 - Remove Environment-Based Auth Bypass in Supplier Portal
+**Vulnerability:** getSupplierAuth defaulted supplierId and tenantId to fallback mock values when process.env.NODE_ENV === 'test', allowing unauthenticated calls without tenant context.
+**Learning:** Relying on NODE_ENV === 'test' checks inside authentication helpers can bypass multi-tenant validation or mask missing auth context in tests.
+**Prevention:** Never use NODE_ENV checks to provide fallback credentials; enforce explicit tenant/user authentication in all environments.
