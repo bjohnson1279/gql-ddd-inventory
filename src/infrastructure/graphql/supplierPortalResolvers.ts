@@ -14,18 +14,25 @@ let mockPOs: PurchaseOrder[] = [
 
 let mockASNs: AdvanceShippingNotice[] = [];
 
-function getSupplierId(context: any): string {
-  // In real app, we verify the SUPPLIER_USER role in context.auth.roles and return context.auth.supplierId
-  // For test scaffolding:
-  return context?.auth?.supplierId || 'supplier-1';
+function getSupplierAuth(context: any): { supplierId: string; tenantId: string } {
+  const auth = context?.auth;
+  if (!auth) {
+    throw new Error('Authentication required: Access token is missing or invalid.');
+  }
+  const supplierId = auth.supplierId || (process.env.NODE_ENV === 'test' ? 'supplier-1' : undefined);
+  const tenantId = auth.tenantId || (process.env.NODE_ENV === 'test' ? 'tenant-1' : undefined);
+  if (!supplierId || !tenantId) {
+    throw new Error('Unauthorized: Supplier identification or tenant missing from context.');
+  }
+  return { supplierId, tenantId };
 }
 
 export const supplierPortalResolvers = {
   Query: {
     getSupplierPOs: (_: any, __: any, context: any) => {
-      const supplierId = getSupplierId(context);
+      const { supplierId, tenantId } = getSupplierAuth(context);
       return mockPOs
-        .filter(po => po.supplierId === supplierId)
+        .filter(po => po.supplierId === supplierId && po.tenantId === tenantId)
         .map(po => ({
           ...po,
           issuedAt: po.issuedAt.toISOString(),
@@ -34,7 +41,7 @@ export const supplierPortalResolvers = {
         }));
     },
     getSupplierPerformance: (_: any, __: any, context: any) => {
-      const supplierId = getSupplierId(context);
+      const { supplierId } = getSupplierAuth(context);
       return {
         supplierId,
         otifPercentage: 98.5,
@@ -46,10 +53,11 @@ export const supplierPortalResolvers = {
   },
   Mutation: {
     acknowledgePO: (_: any, { poId, expectedDeliveryDate }: { poId: string, expectedDeliveryDate: string }, context: any) => {
-      const supplierId = getSupplierId(context);
-      const po = mockPOs.find(p => p.id === poId && p.supplierId === supplierId);
+      const { supplierId, tenantId } = getSupplierAuth(context);
+      // Security fix: verify po belongs to authenticated tenant and supplier to prevent IDOR
+      const po = mockPOs.find(p => p.id === poId && p.supplierId === supplierId && p.tenantId === tenantId);
       
-      if (!po) throw new Error('PO not found');
+      if (!po) throw new Error('PO not found or access denied');
       
       po.status = 'ACKNOWLEDGED';
       po.expectedDeliveryDate = new Date(expectedDeliveryDate);
@@ -63,10 +71,11 @@ export const supplierPortalResolvers = {
       };
     },
     submitASN: (_: any, { input }: { input: any }, context: any) => {
-      const supplierId = getSupplierId(context);
-      const po = mockPOs.find(p => p.id === input.poId && p.supplierId === supplierId);
+      const { supplierId, tenantId } = getSupplierAuth(context);
+      // Security fix: verify po belongs to authenticated tenant and supplier to prevent IDOR
+      const po = mockPOs.find(p => p.id === input.poId && p.supplierId === supplierId && p.tenantId === tenantId);
       
-      if (!po) throw new Error('PO not found');
+      if (!po) throw new Error('PO not found or access denied');
       
       const service = new ASNSubmissionService();
       
