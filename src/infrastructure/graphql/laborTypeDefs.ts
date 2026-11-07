@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const laborTypeDefs = gql`
+export const laborTypeDefs = parse(`
   enum ScheduleStatus {
     DRAFT
     PUBLISHED
@@ -26,4 +26,4 @@ export const laborTypeDefs = gql`
   extend type Query {
     predictStaffing(targetDate: String!, inboundVol: Int!, outboundVol: Int!, avgPicks: Float!): PredictiveStaffingSchedule!
   }
-`;
+`);

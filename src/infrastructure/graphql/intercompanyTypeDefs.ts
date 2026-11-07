@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const intercompanyTypeDefs = gql`
+export const intercompanyTypeDefs = parse(`
   enum TransferStatus {
     DRAFT
     SHIPPED
@@ -25,4 +25,4 @@ export const intercompanyTypeDefs = gql`
   extend type Query {
     intercompanyConsolidatedRevenue(tenantId: String!): Int!
   }
-`;
+`);

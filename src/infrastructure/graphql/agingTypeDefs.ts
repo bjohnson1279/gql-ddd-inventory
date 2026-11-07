@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const agingTypeDefs = gql`
+export const agingTypeDefs = parse(`
   enum AgingBucket {
     DAYS_0_30
     DAYS_31_60
@@ -33,4 +33,4 @@ export const agingTypeDefs = gql`
   extend type Query {
     analyzeAging(sku: String!, locationId: String!, tenantId: String!): DeadStockAnalysis!
   }
-`;
+`);

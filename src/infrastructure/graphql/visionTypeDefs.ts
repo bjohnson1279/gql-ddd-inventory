@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const visionTypeDefs = gql`
+export const visionTypeDefs = parse(`
   enum InspectionStatus {
     PENDING
     ANALYZED
@@ -40,4 +40,4 @@ export const visionTypeDefs = gql`
   extend type Mutation {
     processDockImage(imageUrl: String!, dockStationId: String!): VisionInspection!
   }
-`;
+`);

@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const notificationTypeDefs = gql`
+export const notificationTypeDefs = parse(`
   enum NotificationCategory {
     INVENTORY_LEVEL
     SYSTEM_ANOMALY
@@ -42,4 +42,4 @@ export const notificationTypeDefs = gql`
     snoozeNotification(notificationId: ID!, userId: ID!, hours: Int!): Boolean!
     escalateNotification(notificationId: ID!, userId: ID!, targetManagerId: ID!): Notification
   }
-`;
+`);

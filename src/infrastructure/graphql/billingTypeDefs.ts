@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const billingTypeDefs = gql`
+export const billingTypeDefs = parse(`
   enum TierName {
     FREE
     PRO
@@ -32,4 +32,4 @@ export const billingTypeDefs = gql`
   extend type Query {
     checkRateLimit(tenantId: String!): Boolean!
   }
-`;
+`);

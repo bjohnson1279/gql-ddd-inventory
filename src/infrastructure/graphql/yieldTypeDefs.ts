@@ -1,6 +1,6 @@
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 
-export const yieldTypeDefs = gql`
+export const yieldTypeDefs = parse(`
   enum MarkdownStatus {
     PROPOSED
     APPROVED
@@ -33,4 +33,4 @@ export const yieldTypeDefs = gql`
   extend type Query {
     recommendMarkdown(metrics: InventoryYieldMetricsInput!, profile: LiquidationProfileInput!): PriceMarkdownRecommendation
   }
-`;
+`);
