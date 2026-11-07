@@ -35,7 +35,7 @@ export class InMemoryRmaRepository implements IRmaRepository {
   }
 
   async save(rma: Rma): Promise<void> {
-    this.rmas.set(rma.id, this.cloneRma(rma));
+    this.rmas.set(rma.id.value, this.cloneRma(rma));
   }
 
   async findById(id: string): Promise<Rma | null> {

@@ -69,7 +69,7 @@ export class PostgresRmaRepository implements IRmaRepository {
   }
 
   async save(rma: Rma): Promise<void> {
-    const dbId = toUuid(rma.id);
+    const dbId = toUuid(rma.id.value);
     await this.prisma.$transaction(async (tx) => {
       // Upsert RMA aggregate root
       await (tx as any).rma.upsert({
