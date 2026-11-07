@@ -1294,7 +1294,7 @@ export const resolvers = {
         const rma = await rmaRepository.findById(id);
         if (!rma) return null;
         return {
-          id: rma.id,
+          id: rma.id.value,
           rmaNumber: rma.rmaNumber,
           tenantId: rma.tenantId.value,
           customerId: rma.customerId,
@@ -1321,7 +1321,7 @@ export const resolvers = {
         const auth = enforcePermission(context, 'rma', 'view', 'warehouse_operator', 'accountant');
         const rmas = await rmaRepository.findAllByTenant(new TenantId(auth.tenantId));
         return rmas.map(rma => ({
-          id: rma.id,
+          id: rma.id.value,
           rmaNumber: rma.rmaNumber,
           tenantId: rma.tenantId.value,
           customerId: rma.customerId,
@@ -2348,7 +2348,7 @@ export const resolvers = {
         enforcePermission(context, 'rma', 'create', 'warehouse_operator');
         const rma = await createRmaUseCase.execute(input);
         return {
-          id: rma.id,
+          id: rma.id.value,
           rmaNumber: rma.rmaNumber,
           tenantId: rma.tenantId.value,
           customerId: rma.customerId,

@@ -19,7 +19,7 @@ describe('Rma', () => {
     it('should initialize with default values when optional parameters are omitted', () => {
       const rma = new Rma('rma-1', 'RMA-100', tenantId, 'cust-1', locationId);
 
-      expect(rma.id).toBe('rma-1');
+      expect(rma.id.value).toBe('rma-1');
       expect(rma.rmaNumber).toBe('RMA-100');
       expect(rma.tenantId).toBe(tenantId);
       expect(rma.customerId).toBe('cust-1');

@@ -1,14 +1,16 @@
 import { RMAStatus, RMADisposition } from '../enums/ReturnEnums';
 import { RmaItem } from './RmaItem';
+import { RmaId } from '../valueObjects/RmaId';
 import { TenantId } from '../valueObjects/TenantId';
 import { LocationId } from '../valueObjects/LocationId';
 
 export class Rma {
+  public readonly id: RmaId;
   private _status: RMAStatus;
   private readonly _items: RmaItem[];
 
   constructor(
-    public readonly id: string,
+    id: RmaId | string,
     public readonly rmaNumber: string,
     public readonly tenantId: TenantId,
     public readonly customerId: string,
@@ -18,6 +20,7 @@ export class Rma {
     public readonly createdAt: Date = new Date(),
     public readonly updatedAt: Date = new Date()
   ) {
+    this.id = typeof id === 'string' ? new RmaId(id) : id;
     this._status = status;
     this._items = [...items];
   }

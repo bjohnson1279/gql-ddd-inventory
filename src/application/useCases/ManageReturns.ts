@@ -15,6 +15,7 @@ import { InventoryItem } from '../../domain/entities/InventoryItem';
 import { TenantId } from '../../domain/valueObjects/TenantId';
 import { LocationId } from '../../domain/valueObjects/LocationId';
 import { ProductVariantId } from '../../domain/valueObjects/ProductVariantId';
+import { RmaId } from '../../domain/valueObjects/RmaId';
 import { Quantity } from '../../domain/valueObjects/Quantity';
 import { SerialNumber } from '../../domain/valueObjects/SerialNumber';
 import { ActorId } from '../../domain/valueObjects/ActorId';
@@ -58,7 +59,7 @@ export class CreateRmaUseCase {
     );
 
     const rma = new Rma(
-      crypto.randomUUID(),
+      new RmaId(crypto.randomUUID()),
       dto.rmaNumber,
       new TenantId(dto.tenantId),
       dto.customerId,
@@ -235,7 +236,7 @@ export class ReceiveRmaUseCase {
       const returnedEntry = this.journalService.buildStockReturned(
         item.variantId,
         totalCostCents,
-        rma.id,
+        rma.id.value,
         new Date(),
         rma.tenantId.value
       );
@@ -250,7 +251,7 @@ export class ReceiveRmaUseCase {
 
         // Post write-off journal entry
         const writeOffEntry = this.journalService.buildInventoryWriteOff(
-          rma.id,
+          rma.id.value,
           totalCostCents,
           new Date(),
           rma.tenantId.value
@@ -264,7 +265,7 @@ export class ReceiveRmaUseCase {
           const serialItem = existingSerialItems.get(`${item.variantId}_${sn}`);
           if (serialItem) {
             const actor = new ActorId('system');
-            const refId = `RMA-${rma.id}`;
+            const refId = `RMA-${rma.id.value}`;
             
             // First transition to Returned
             serialItem.transitionTo(SerializedItemStatus.Returned, 'RMA return receipt', actor, refId);
