@@ -32,7 +32,14 @@ export class InMemorySerializedItemRepository implements ISerializedItemReposito
   }
 
   async countByStatus(variantId: ProductVariantId, status: SerializedItemStatus): Promise<number> {
-    return this.items.filter(i => i.variantId.equals(variantId) && i.status === status).length;
+    // ⚡ Bolt: Replaced .filter().length with a for...of loop to eliminate unnecessary intermediate array allocations
+    let count = 0;
+    for (const i of this.items) {
+      if (i.variantId.equals(variantId) && i.status === status) {
+        count++;
+      }
+    }
+    return count;
   }
 
   async findBySerialsAndVariantsBatch(pairs: { serialNumber: SerialNumber; variantId: ProductVariantId }[]): Promise<SerializedItem[]> {
@@ -54,9 +61,15 @@ export class InMemorySerializedItemRepository implements ISerializedItemReposito
   }
 
   async countAllStatuses(variantId: ProductVariantId): Promise<Record<SerializedItemStatus, number>> {
+    // ⚡ Bolt: Replaced .filter().length with a for...of loop to eliminate unnecessary intermediate array allocations
     const result = {} as Record<SerializedItemStatus, number>;
     for (const status of Object.values(SerializedItemStatus)) {
-      result[status] = this.items.filter(i => i.variantId.equals(variantId) && i.status === status).length;
+      result[status] = 0;
+    }
+    for (const i of this.items) {
+      if (i.variantId.equals(variantId)) {
+        result[i.status]++;
+      }
     }
     return result;
   }
