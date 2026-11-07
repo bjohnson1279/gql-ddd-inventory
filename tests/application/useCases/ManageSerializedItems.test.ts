@@ -1,15 +1,31 @@
-import { GetSerializedItemBySerialUseCase, ReceiveSerializedItemUseCase } from '../../../src/application/useCases/ManageSerializedItems';
+import {
+  GetSerializedItemBySerialUseCase,
+  ReceiveSerializedItemUseCase,
+  SellSerializedItemUseCase,
+  ReturnSerializedItemUseCase,
+  RestockSerializedItemUseCase,
+  WriteOffSerializedItemUseCase,
+  ListSerializedItemsByVariantUseCase,
+  CountSerializedItemsByStatusUseCase,
+} from '../../../src/application/useCases/ManageSerializedItems';
 import { SerializedInventoryService } from '../../../src/domain/services/SerializedInventoryService';
 import { ISerializedItemRepository } from '../../../src/domain/repositories/ISerializedItemRepository';
+import { IInventoryCostLayerRepository } from '../../../src/domain/repositories/IInventoryCostLayerRepository';
+import { IJournalRepository } from '../../../src/domain/repositories/IJournalRepository';
 import { SerialNumber } from '../../../src/domain/valueObjects/SerialNumber';
 import { TenantId } from '../../../src/domain/valueObjects/TenantId';
 import { ProductVariantId } from '../../../src/domain/valueObjects/ProductVariantId';
 import { LocationId } from '../../../src/domain/valueObjects/LocationId';
 import { ActorId } from '../../../src/domain/valueObjects/ActorId';
+import { SerializedItemId } from '../../../src/domain/valueObjects/SerializedItemId';
+import { SerializedItem } from '../../../src/domain/entities/SerializedItem';
+import { SerializedItemStatus } from '../../../src/domain/enums/SerializedItemStatus';
 
 describe('ManageSerializedItems', () => {
   let mockSerializedInventoryService: jest.Mocked<SerializedInventoryService>;
   let mockSerialsRepo: jest.Mocked<ISerializedItemRepository>;
+  let mockCostLayerRepo: jest.Mocked<IInventoryCostLayerRepository>;
+  let mockJournalRepo: jest.Mocked<IJournalRepository>;
 
   beforeEach(() => {
     mockSerializedInventoryService = {
@@ -23,6 +39,24 @@ describe('ManageSerializedItems', () => {
       save: jest.fn(),
       findBySerial: jest.fn(),
       findByVariant: jest.fn(),
+      findByVariantId: jest.fn(),
+      countAllStatuses: jest.fn(),
+    } as any;
+
+    mockCostLayerRepo = {
+      save: jest.fn(),
+      saveBatch: jest.fn(),
+      getActiveLayers: jest.fn(),
+      getActiveLayersBatch: jest.fn(),
+      findBySerial: jest.fn(),
+    } as any;
+
+    mockJournalRepo = {
+      save: jest.fn(),
+      findById: jest.fn(),
+      findByReference: jest.fn(),
+      entriesForAccount: jest.fn(),
+      allEntries: jest.fn(),
     } as any;
   });
 
@@ -363,6 +397,252 @@ describe('ManageSerializedItems', () => {
 
       const useCase = new GetSerializedItemBySerialUseCase(mockSerialsRepo);
       await expect(useCase.execute('SN-UNKNOWN', 'tenant-1')).rejects.toThrow('Repository error');
+    });
+  });
+
+  describe('SellSerializedItemUseCase', () => {
+    it('should delegate sell to SerializedInventoryService and return true', async () => {
+      mockSerializedInventoryService.sell.mockResolvedValue();
+
+      const useCase = new SellSerializedItemUseCase(mockSerializedInventoryService);
+      const result = await useCase.execute({
+        serialNumber: 'SN-100',
+        tenantId: 'tenant-1',
+        saleId: 'SALE-123',
+        actorId: 'actor-1',
+      });
+
+      expect(result).toBe(true);
+      expect(mockSerializedInventoryService.sell).toHaveBeenCalledWith(
+        new SerialNumber('SN-100'),
+        new TenantId('tenant-1'),
+        'SALE-123',
+        new ActorId('actor-1')
+      );
+    });
+
+    it('should propagate errors from SerializedInventoryService.sell', async () => {
+      mockSerializedInventoryService.sell.mockRejectedValue(new Error('Item not in stock'));
+
+      const useCase = new SellSerializedItemUseCase(mockSerializedInventoryService);
+      await expect(
+        useCase.execute({
+          serialNumber: 'SN-100',
+          tenantId: 'tenant-1',
+          saleId: 'SALE-123',
+          actorId: 'actor-1',
+        })
+      ).rejects.toThrow('Item not in stock');
+    });
+  });
+
+  describe('ReturnSerializedItemUseCase', () => {
+    it('should transition item to Returned, save it to repository, and return true', async () => {
+      const item = new SerializedItem(
+        new SerializedItemId('item-1'),
+        new ProductVariantId('var-1'),
+        new SerialNumber('SN-100'),
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        SerializedItemStatus.Sold
+      );
+      mockSerialsRepo.findBySerial.mockResolvedValue(item);
+      mockSerialsRepo.save.mockResolvedValue();
+
+      const useCase = new ReturnSerializedItemUseCase(mockSerialsRepo);
+      const result = await useCase.execute({
+        serialNumber: 'SN-100',
+        tenantId: 'tenant-1',
+        referenceId: 'RET-001',
+        actorId: 'actor-1',
+      });
+
+      expect(result).toBe(true);
+      expect(item.status).toBe(SerializedItemStatus.Returned);
+      expect(mockSerialsRepo.save).toHaveBeenCalledWith(item);
+    });
+
+    it('should throw an error when serialized item is not found', async () => {
+      mockSerialsRepo.findBySerial.mockResolvedValue(null);
+
+      const useCase = new ReturnSerializedItemUseCase(mockSerialsRepo);
+      await expect(
+        useCase.execute({
+          serialNumber: 'SN-NONEXISTENT',
+          tenantId: 'tenant-1',
+          referenceId: 'RET-001',
+          actorId: 'actor-1',
+        })
+      ).rejects.toThrow('Serial number SN-NONEXISTENT not found for tenant tenant-1.');
+    });
+  });
+
+  describe('RestockSerializedItemUseCase', () => {
+    it('should transition item to InStock, save it to repository, and return true', async () => {
+      const item = new SerializedItem(
+        new SerializedItemId('item-1'),
+        new ProductVariantId('var-1'),
+        new SerialNumber('SN-100'),
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        SerializedItemStatus.Returned
+      );
+      mockSerialsRepo.findBySerial.mockResolvedValue(item);
+      mockSerialsRepo.save.mockResolvedValue();
+
+      const useCase = new RestockSerializedItemUseCase(mockSerialsRepo);
+      const result = await useCase.execute({
+        serialNumber: 'SN-100',
+        tenantId: 'tenant-1',
+        locationId: 'loc-2',
+        referenceId: 'RESTOCK-001',
+        actorId: 'actor-1',
+      });
+
+      expect(result).toBe(true);
+      expect(item.status).toBe(SerializedItemStatus.InStock);
+      expect(mockSerialsRepo.save).toHaveBeenCalledWith(item);
+    });
+
+    it('should throw an error when serialized item is not found', async () => {
+      mockSerialsRepo.findBySerial.mockResolvedValue(null);
+
+      const useCase = new RestockSerializedItemUseCase(mockSerialsRepo);
+      await expect(
+        useCase.execute({
+          serialNumber: 'SN-NONEXISTENT',
+          tenantId: 'tenant-1',
+          locationId: 'loc-1',
+          referenceId: 'RESTOCK-001',
+          actorId: 'actor-1',
+        })
+      ).rejects.toThrow('Serial number SN-NONEXISTENT not found for tenant tenant-1.');
+    });
+  });
+
+  describe('WriteOffSerializedItemUseCase', () => {
+    it('should transition item to WrittenOff, consume cost layers, post journal entry, and return true', async () => {
+      const item = new SerializedItem(
+        new SerializedItemId('item-1'),
+        new ProductVariantId('var-1'),
+        new SerialNumber('SN-100'),
+        new TenantId('tenant-1'),
+        new LocationId('loc-1'),
+        SerializedItemStatus.InStock
+      );
+      mockSerialsRepo.findBySerial.mockResolvedValue(item);
+      mockSerialsRepo.save.mockResolvedValue();
+      const mockLayer = {
+        id: { value: 'layer-1' },
+        variantId: new ProductVariantId('var-1'),
+        lotBatchId: null,
+        serialNumber: new SerialNumber('SN-100'),
+        unitCostCents: 2500,
+        remainingQuantity: 1,
+        consume: jest.fn().mockReturnValue(1),
+      } as any;
+      mockCostLayerRepo.findBySerial.mockResolvedValue(mockLayer);
+      mockCostLayerRepo.getActiveLayers.mockResolvedValue([mockLayer]);
+      mockJournalRepo.save.mockResolvedValue();
+
+      const useCase = new WriteOffSerializedItemUseCase(
+        mockSerialsRepo,
+        mockCostLayerRepo,
+        mockJournalRepo
+      );
+
+      const result = await useCase.execute({
+        serialNumber: 'SN-100',
+        variantId: 'var-1',
+        tenantId: 'tenant-1',
+        reason: 'Damaged beyond repair',
+        actorId: 'actor-1',
+      });
+
+      expect(result).toBe(true);
+      expect(item.status).toBe(SerializedItemStatus.WrittenOff);
+      expect(mockSerialsRepo.save).toHaveBeenCalledWith(item);
+      expect(mockJournalRepo.save).toHaveBeenCalled();
+    });
+
+    it('should throw an error when serialized item is not found for write-off', async () => {
+      mockSerialsRepo.findBySerial.mockResolvedValue(null);
+
+      const useCase = new WriteOffSerializedItemUseCase(
+        mockSerialsRepo,
+        mockCostLayerRepo,
+        mockJournalRepo
+      );
+
+      await expect(
+        useCase.execute({
+          serialNumber: 'SN-UNKNOWN',
+          variantId: 'var-1',
+          tenantId: 'tenant-1',
+          reason: 'Damaged',
+          actorId: 'actor-1',
+        })
+      ).rejects.toThrow('Serial number SN-UNKNOWN not found for tenant tenant-1.');
+    });
+  });
+
+  describe('ListSerializedItemsByVariantUseCase', () => {
+    it('should query repository by variant and tenant, returning list of items', async () => {
+      const items = [
+        new SerializedItem(
+          new SerializedItemId('item-1'),
+          new ProductVariantId('var-1'),
+          new SerialNumber('SN-100'),
+          new TenantId('tenant-1'),
+          new LocationId('loc-1'),
+          SerializedItemStatus.InStock
+        ),
+      ];
+      mockSerialsRepo.findByVariantId.mockResolvedValue(items);
+
+      const useCase = new ListSerializedItemsByVariantUseCase(mockSerialsRepo);
+      const result = await useCase.execute('var-1', 'tenant-1');
+
+      expect(result).toEqual(items);
+      expect(mockSerialsRepo.findByVariantId).toHaveBeenCalledWith(
+        new ProductVariantId('var-1'),
+        new TenantId('tenant-1')
+      );
+    });
+
+    it('should return empty array when no items exist for variant', async () => {
+      mockSerialsRepo.findByVariantId.mockResolvedValue([]);
+
+      const useCase = new ListSerializedItemsByVariantUseCase(mockSerialsRepo);
+      const result = await useCase.execute('var-empty', 'tenant-1');
+
+      expect(result).toEqual([]);
+      expect(mockSerialsRepo.findByVariantId).toHaveBeenCalledWith(
+        new ProductVariantId('var-empty'),
+        new TenantId('tenant-1')
+      );
+    });
+  });
+
+  describe('CountSerializedItemsByStatusUseCase', () => {
+    it('should delegate status counting to repository', async () => {
+      const mockCounts = {
+        [SerializedItemStatus.Pending]: 2,
+        [SerializedItemStatus.InStock]: 10,
+        [SerializedItemStatus.Sold]: 5,
+        [SerializedItemStatus.Returned]: 0,
+        [SerializedItemStatus.Quarantined]: 0,
+        [SerializedItemStatus.Transferred]: 0,
+        [SerializedItemStatus.Damaged]: 0,
+        [SerializedItemStatus.WrittenOff]: 1,
+      } as Record<SerializedItemStatus, number>;
+      mockSerialsRepo.countAllStatuses.mockResolvedValue(mockCounts);
+
+      const useCase = new CountSerializedItemsByStatusUseCase(mockSerialsRepo);
+      const result = await useCase.execute('var-1');
+
+      expect(result).toEqual(mockCounts);
+      expect(mockSerialsRepo.countAllStatuses).toHaveBeenCalledWith(new ProductVariantId('var-1'));
     });
   });
 });
