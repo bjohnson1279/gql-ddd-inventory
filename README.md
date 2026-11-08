@@ -34,6 +34,7 @@ PORT=4000
 DATABASE_URL="postgresql://inventory_user:inventory_password@localhost:5433/inventory_db?schema=public"
 JWT_SECRET="your-secure-random-secret"
 ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3006"
+SHOPIFY_WEBHOOK_SECRET="your-shopify-webhook-secret"
 ```
 
 ### 2. Install Dependencies & Generate Prisma Client
@@ -110,6 +111,7 @@ Automated database snapshots are scheduled daily using a dedicated cron containe
 
 ## 🔌 Webhooks & Live Subscriptions
 
+*   **GraphQL API & WebSocket Subscriptions**: The primary GraphQL execution endpoint is available at `http://localhost:4000/graphql` and real-time event streaming at `ws://localhost:4000/graphql`. See the comprehensive [GraphQL API & WebSocket Reference](docs/api/graphql-endpoint.md) for headers, parameters, rate limits, guardrails, and usage workflows.
 *   **Shopify Integration Webhooks**: The `/webhooks/shopify` POST endpoint processes HMAC-signed payloads from Shopify to sync inventory items and customer orders in real-time. See the complete [REST & Webhook API Reference](docs/api/rest-endpoints.md) for parameter details, security verification, and sample payloads.
 *   **Live Scanning Subscriptions**: The GraphQL engine hosts a WebSocket server under `ws://localhost:4000/graphql`. Clients can subscribe to `barcodeScanned(tenantId: ID!)` to stream physical scanner readings immediately onto dashboards.
 
