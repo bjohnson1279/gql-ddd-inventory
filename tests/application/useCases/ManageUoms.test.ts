@@ -1,4 +1,12 @@
-import { ConfigureProductUomUseCase, GetProductUomConfigurationUseCase, ConfigureUomInput } from '../../../src/application/useCases/ManageUoms';
+import {
+  ConfigureProductUomUseCase,
+  GetProductUomConfigurationUseCase,
+  GetProductUomConfigurationByIdUseCase,
+  AddUomConversionRuleUseCase,
+  RemoveUomConversionRuleUseCase,
+  SetUomUnitsUseCase,
+  ConfigureUomInput
+} from '../../../src/application/useCases/ManageUoms';
 import { IProductUomConfigurationRepository } from '../../../src/domain/repositories/IProductUomConfigurationRepository';
 import { UomCategory } from '../../../src/domain/enums/UomCategory';
 import { ProductUomConfiguration } from '../../../src/domain/entities/ProductUomConfiguration';
@@ -160,6 +168,212 @@ describe('ManageUoms Use Cases', () => {
 
       expect(result).toBe(config);
       expect(mockUomRepo.findBySku).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('GetProductUomConfigurationByIdUseCase', () => {
+    it('should return null if no config is found by ID', async () => {
+      mockUomRepo.findById.mockResolvedValue(null);
+      const useCase = new GetProductUomConfigurationByIdUseCase(mockUomRepo);
+
+      const result = await useCase.execute('config-id-123');
+
+      expect(result).toBeNull();
+      expect(mockUomRepo.findById).toHaveBeenCalledWith('config-id-123');
+    });
+
+    it('should return the config if found by ID', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      mockUomRepo.findById.mockResolvedValue(config);
+      const useCase = new GetProductUomConfigurationByIdUseCase(mockUomRepo);
+
+      const result = await useCase.execute('config-id-123');
+
+      expect(result).toBe(config);
+      expect(mockUomRepo.findById).toHaveBeenCalledWith('config-id-123');
+    });
+  });
+
+  describe('AddUomConversionRuleUseCase', () => {
+    it('should throw an error if UOM configuration is not found', async () => {
+      mockUomRepo.findBySku.mockResolvedValue(null);
+      const useCase = new AddUomConversionRuleUseCase(mockUomRepo);
+
+      await expect(
+        useCase.execute({
+          sku: 'SKU-UNKNOWN',
+          unit: { name: 'Box', abbreviation: 'bx', category: UomCategory.Discrete },
+          factorToBase: 10
+        })
+      ).rejects.toThrow("UOM configuration for SKU 'SKU-UNKNOWN' not found.");
+      expect(mockUomRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should add a conversion rule and save configuration', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      mockUomRepo.findBySku.mockResolvedValue(config);
+      const useCase = new AddUomConversionRuleUseCase(mockUomRepo);
+
+      const result = await useCase.execute({
+        sku: 'SKU-123',
+        unit: { name: 'Box', abbreviation: 'bx', category: UomCategory.Discrete },
+        factorToBase: 10,
+        label: 'A Box of 10'
+      });
+
+      expect(result).toBe(true);
+      expect(mockUomRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockUomRepo.save).toHaveBeenCalledWith(config);
+      expect(config.conversionRules).toHaveLength(1);
+      expect(config.conversionRules[0].unit.name).toBe('Box');
+      expect(config.conversionRules[0].factorToBase).toBe(10);
+      expect(config.conversionRules[0].label).toBe('A Box of 10');
+    });
+  });
+
+  describe('RemoveUomConversionRuleUseCase', () => {
+    it('should throw an error if UOM configuration is not found', async () => {
+      mockUomRepo.findBySku.mockResolvedValue(null);
+      const useCase = new RemoveUomConversionRuleUseCase(mockUomRepo);
+
+      await expect(
+        useCase.execute({
+          sku: 'SKU-UNKNOWN',
+          unitName: 'Box'
+        })
+      ).rejects.toThrow("UOM configuration for SKU 'SKU-UNKNOWN' not found.");
+      expect(mockUomRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error if conversion rule for unit name does not exist', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      mockUomRepo.findBySku.mockResolvedValue(config);
+      const useCase = new RemoveUomConversionRuleUseCase(mockUomRepo);
+
+      await expect(
+        useCase.execute({
+          sku: 'SKU-123',
+          unitName: 'NonExistent'
+        })
+      ).rejects.toThrow("No conversion rule found for unit 'NonExistent'.");
+      expect(mockUomRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should remove conversion rule and save configuration', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      const boxUnit = new UnitOfMeasure('Box', 'bx', UomCategory.Discrete);
+      config.addConversionRule(boxUnit, 10);
+      expect(config.conversionRules).toHaveLength(1);
+
+      mockUomRepo.findBySku.mockResolvedValue(config);
+      const useCase = new RemoveUomConversionRuleUseCase(mockUomRepo);
+
+      const result = await useCase.execute({
+        sku: 'SKU-123',
+        unitName: 'Box'
+      });
+
+      expect(result).toBe(true);
+      expect(mockUomRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockUomRepo.save).toHaveBeenCalledWith(config);
+      expect(config.conversionRules).toHaveLength(0);
+    });
+  });
+
+  describe('SetUomUnitsUseCase', () => {
+    it('should throw an error if UOM configuration is not found', async () => {
+      mockUomRepo.findBySku.mockResolvedValue(null);
+      const useCase = new SetUomUnitsUseCase(mockUomRepo);
+
+      await expect(
+        useCase.execute({
+          sku: 'SKU-UNKNOWN',
+          purchaseUnit: { name: 'Box', abbreviation: 'bx', category: UomCategory.Discrete }
+        })
+      ).rejects.toThrow("UOM configuration for SKU 'SKU-UNKNOWN' not found.");
+      expect(mockUomRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should update purchaseUnit and saleUnit and save configuration', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      const boxUnit = new UnitOfMeasure('Box', 'bx', UomCategory.Discrete);
+      const packUnit = new UnitOfMeasure('Pack', 'pk', UomCategory.Discrete);
+      config.addConversionRule(boxUnit, 100);
+      config.addConversionRule(packUnit, 10);
+
+      mockUomRepo.findBySku.mockResolvedValue(config);
+      const useCase = new SetUomUnitsUseCase(mockUomRepo);
+
+      const result = await useCase.execute({
+        sku: 'SKU-123',
+        purchaseUnit: { name: 'Box', abbreviation: 'bx', category: UomCategory.Discrete },
+        saleUnit: { name: 'Pack', abbreviation: 'pk', category: UomCategory.Discrete }
+      });
+
+      expect(result).toBe(true);
+      expect(mockUomRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockUomRepo.save).toHaveBeenCalledWith(config);
+      expect(config.purchaseUnit.name).toBe('Box');
+      expect(config.saleUnit.name).toBe('Pack');
+    });
+
+    it('should update only purchaseUnit when saleUnit is omitted', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      const boxUnit = new UnitOfMeasure('Box', 'bx', UomCategory.Discrete);
+      config.addConversionRule(boxUnit, 100);
+
+      mockUomRepo.findBySku.mockResolvedValue(config);
+      const useCase = new SetUomUnitsUseCase(mockUomRepo);
+
+      const result = await useCase.execute({
+        sku: 'SKU-123',
+        purchaseUnit: { name: 'Box', abbreviation: 'bx', category: UomCategory.Discrete }
+      });
+
+      expect(result).toBe(true);
+      expect(mockUomRepo.save).toHaveBeenCalledTimes(1);
+      expect(config.purchaseUnit.name).toBe('Box');
+      expect(config.saleUnit.name).toBe('Each');
+    });
+
+    it('should update only saleUnit when purchaseUnit is omitted', async () => {
+      const config = new ProductUomConfiguration(
+        new Sku('SKU-123'),
+        new UnitOfMeasure('Each', 'ea', UomCategory.Discrete)
+      );
+      const packUnit = new UnitOfMeasure('Pack', 'pk', UomCategory.Discrete);
+      config.addConversionRule(packUnit, 10);
+
+      mockUomRepo.findBySku.mockResolvedValue(config);
+      const useCase = new SetUomUnitsUseCase(mockUomRepo);
+
+      const result = await useCase.execute({
+        sku: 'SKU-123',
+        saleUnit: { name: 'Pack', abbreviation: 'pk', category: UomCategory.Discrete }
+      });
+
+      expect(result).toBe(true);
+      expect(mockUomRepo.save).toHaveBeenCalledTimes(1);
+      expect(config.purchaseUnit.name).toBe('Each');
+      expect(config.saleUnit.name).toBe('Pack');
     });
   });
 });
