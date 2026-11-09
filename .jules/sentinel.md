@@ -185,3 +185,8 @@ origin/main
 **Vulnerability:** getSupplierAuth defaulted supplierId and tenantId to fallback mock values when process.env.NODE_ENV === 'test', allowing unauthenticated calls without tenant context.
 **Learning:** Relying on NODE_ENV === 'test' checks inside authentication helpers can bypass multi-tenant validation or mask missing auth context in tests.
 **Prevention:** Never use NODE_ENV checks to provide fallback credentials; enforce explicit tenant/user authentication in all environments.
+
+## 2026-11-07 - Fix IDOR in Cycle Count Operations
+**Vulnerability:** In `cycleCountResolvers.ts`, query `getAssignedCycleCounts` and mutations `submitCycleCount` and `syncOfflineCycleCounts` accepted operations on cycle counts without requiring authentication or scoping by `tenantId`. This allowed unauthenticated requests and cross-tenant access to inspect and modify cycle count records (IDOR).
+**Learning:** Resolvers operating on tenant-scoped resources must enforce request authentication and scope record lookups by `tenantId` to uphold multi-tenant boundary isolation.
+**Prevention:** Implement an authentication helper `getCycleCountAuth` that fails closed if authentication or `tenantId` is absent, and match target records on both record ID and `tenantId`.

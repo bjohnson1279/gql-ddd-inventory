@@ -40,11 +40,24 @@ let mockCycleCounts: CycleCount[] = [
   }
 ];
 
+function getCycleCountAuth(context: any): { operatorId?: string; tenantId: string } {
+  const auth = context?.auth;
+  if (!auth) {
+    throw new Error('Authentication required: Access token is missing or invalid.');
+  }
+  const tenantId = auth.tenantId;
+  if (!tenantId) {
+    throw new Error('Unauthorized: Tenant identification missing from context.');
+  }
+  const operatorId = auth.actorId || auth.userId || auth.operatorId;
+  return { operatorId, tenantId };
+}
+
 export const cycleCountResolvers = {
   Query: {
     getAssignedCycleCounts: (_: any, { operatorId }: { operatorId: string }, context: any) => {
-      // In a real app we'd filter by context.tenantId as well
-      const assigned = mockCycleCounts.filter(c => c.assignedTo === operatorId);
+      const { tenantId } = getCycleCountAuth(context);
+      const assigned = mockCycleCounts.filter(c => c.assignedTo === operatorId && c.tenantId === tenantId);
       
       // ⚡ Bolt: Group line items by cycleCountId in a single pass to eliminate O(N*M) nested iterations
       const itemsByCountId = new Map<string, typeof mockLineItems>();
@@ -78,9 +91,10 @@ export const cycleCountResolvers = {
     }
   },
   Mutation: {
-    submitCycleCount: (_: any, { cycleCountId, items }: { cycleCountId: string, items: { sku: string, countedQuantity: number }[] }) => {
-      const cc = mockCycleCounts.find(c => c.id === cycleCountId);
-      if (!cc) throw new Error('Cycle count not found');
+    submitCycleCount: (_: any, { cycleCountId, items }: { cycleCountId: string, items: { sku: string, countedQuantity: number }[] }, context: any) => {
+      const { tenantId } = getCycleCountAuth(context);
+      const cc = mockCycleCounts.find(c => c.id === cycleCountId && c.tenantId === tenantId);
+      if (!cc) throw new Error('Cycle count not found or access denied');
       
       const ccItems = mockLineItems.filter(li => li.cycleCountId === cycleCountId);
       const service = new CycleCountExecutionService();
@@ -99,12 +113,13 @@ export const cycleCountResolvers = {
         items: ccItems
       };
     },
-    syncOfflineCycleCounts: (_: any, { submissions }: { submissions: { cycleCountId: string, items: { sku: string, countedQuantity: number }[] }[] }) => {
+    syncOfflineCycleCounts: (_: any, { submissions }: { submissions: { cycleCountId: string, items: { sku: string, countedQuantity: number }[] }[] }, context: any) => {
+      const { tenantId } = getCycleCountAuth(context);
       const service = new CycleCountExecutionService();
       const results = [];
       
       for (const sub of submissions) {
-        const cc = mockCycleCounts.find(c => c.id === sub.cycleCountId);
+        const cc = mockCycleCounts.find(c => c.id === sub.cycleCountId && c.tenantId === tenantId);
         if (!cc) {
           results.push({ cycleCountId: sub.cycleCountId, success: false, status: 'NOT_FOUND' });
           continue;
