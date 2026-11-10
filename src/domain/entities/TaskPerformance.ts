@@ -1,6 +1,10 @@
+import { TaskPerformanceId } from '../valueObjects/TaskPerformanceId';
+
 export class TaskPerformance {
+  public readonly id: TaskPerformanceId;
+
   constructor(
-    public readonly id: string,
+    id: TaskPerformanceId | string,
     public readonly operatorId: string,
     public readonly tenantId: string,
     public readonly taskType: string,
@@ -9,5 +13,7 @@ export class TaskPerformance {
     public readonly durationSeconds: number,
     public readonly accuracyScore: number,
     public readonly occurredAt: Date
-  ) {}
+  ) {
+    this.id = typeof id === 'string' ? new TaskPerformanceId(id) : id;
+  }
 }
