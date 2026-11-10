@@ -205,4 +205,26 @@ describe('ManageFefoAndRecall Use Cases', () => {
     expect(dispatches[0].quantity).toBe(10);
     expect(dispatches[0].locationId).toBe('LOC-A');
   });
+
+  it('should reject suggest picking when active cost layers collection is empty', async () => {
+    const product = new Product(new ProductId('prod-empty-lots'), 'Empty Lots Product');
+    product.addVariant(new Sku('SKU-EMPTY'), [new VariantAttribute('size', 'standard')]);
+    await productRepo.save(product);
+
+    const picker = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+    const pickingUseCase = new SuggestFefoPickingUseCase(picker);
+
+    await expect(pickingUseCase.execute('SKU-EMPTY', 10)).rejects.toThrow(
+      'No lot-controlled inventory layers found for SKU SKU-EMPTY.'
+    );
+  });
+
+  it('should return an empty collection when tracing recall for a lot with no dispatches', async () => {
+    const recallService = new ProductRecallService(ledgerRepo);
+    const recallUseCase = new TraceProductRecallUseCase(recallService);
+
+    const dispatches = await recallUseCase.execute('LOT-NONEXISTENT');
+    expect(dispatches).toEqual([]);
+    expect(dispatches).toHaveLength(0);
+  });
 });
