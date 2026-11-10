@@ -2,23 +2,58 @@ import { NotificationInboxService } from '../../domain/notification/Notification
 import { Notification } from '../../domain/notification/NotificationEntities';
 
 // Mock instance
-const inboxService = new NotificationInboxService([]);
+export const notificationInboxService = new NotificationInboxService([]);
+
+function getNotificationAuth(context: any): { userId?: string; tenantId: string } {
+  const auth = context?.auth;
+  if (!auth) {
+    throw new Error('Authentication required: Access token is missing or invalid.');
+  }
+  const tenantId = auth.tenantId;
+  if (!tenantId) {
+    throw new Error('Unauthorized: Tenant identification missing from context.');
+  }
+  const userId = auth.userId || auth.actorId;
+  return { userId, tenantId };
+}
 
 export const notificationResolvers = {
   Query: {
-    unreadNotificationCount: (_: any, args: { userId: string }) => {
-      return inboxService.getUnreadCount(args.userId);
+    unreadNotificationCount: (_: any, args: { userId: string }, context: any) => {
+      const { tenantId } = getNotificationAuth(context);
+      let count = 0;
+      for (const n of notificationInboxService.notifications) {
+        if (n.tenantId === tenantId && n.userId === args.userId && n.status === 'UNREAD') {
+          count++;
+        }
+      }
+      return count;
     }
   },
   Mutation: {
-    markNotificationRead: (_: any, args: { notificationId: string, userId: string }) => {
-      return inboxService.markAsRead(args.notificationId, args.userId);
+    markNotificationRead: (_: any, args: { notificationId: string, userId: string }, context: any) => {
+      const { tenantId } = getNotificationAuth(context);
+      const notif = notificationInboxService.notifications.find(
+        n => n.id === args.notificationId && n.userId === args.userId && n.tenantId === tenantId
+      );
+      if (!notif) throw new Error('Notification not found or access denied');
+      return notificationInboxService.markAsRead(args.notificationId, args.userId);
     },
-    snoozeNotification: (_: any, args: { notificationId: string, userId: string, hours: number }) => {
-      return inboxService.snooze(args.notificationId, args.userId, args.hours);
+    snoozeNotification: (_: any, args: { notificationId: string, userId: string, hours: number }, context: any) => {
+      const { tenantId } = getNotificationAuth(context);
+      const notif = notificationInboxService.notifications.find(
+        n => n.id === args.notificationId && n.userId === args.userId && n.tenantId === tenantId
+      );
+      if (!notif) throw new Error('Notification not found or access denied');
+      return notificationInboxService.snooze(args.notificationId, args.userId, args.hours);
     },
-    escalateNotification: (_: any, args: { notificationId: string, userId: string, targetManagerId: string }) => {
-      return inboxService.escalate(args.notificationId, args.userId, args.targetManagerId);
+    escalateNotification: (_: any, args: { notificationId: string, userId: string, targetManagerId: string }, context: any) => {
+      const { tenantId } = getNotificationAuth(context);
+      const notif = notificationInboxService.notifications.find(
+        n => n.id === args.notificationId && n.userId === args.userId && n.tenantId === tenantId
+      );
+      if (!notif) throw new Error('Notification not found or access denied');
+      return notificationInboxService.escalate(args.notificationId, args.userId, args.targetManagerId);
     }
   },
   Notification: {

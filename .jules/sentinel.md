@@ -190,3 +190,8 @@ origin/main
 **Vulnerability:** In `cycleCountResolvers.ts`, query `getAssignedCycleCounts` and mutations `submitCycleCount` and `syncOfflineCycleCounts` accepted operations on cycle counts without requiring authentication or scoping by `tenantId`. This allowed unauthenticated requests and cross-tenant access to inspect and modify cycle count records (IDOR).
 **Learning:** Resolvers operating on tenant-scoped resources must enforce request authentication and scope record lookups by `tenantId` to uphold multi-tenant boundary isolation.
 **Prevention:** Implement an authentication helper `getCycleCountAuth` that fails closed if authentication or `tenantId` is absent, and match target records on both record ID and `tenantId`.
+
+## 2026-11-08 - Fix IDOR in Notification Resolvers
+**Vulnerability:** In `notificationResolvers.ts`, query `unreadNotificationCount` and mutations `markNotificationRead`, `snoozeNotification`, and `escalateNotification` executed operations without requiring authentication or verifying `tenantId` boundaries. This allowed unauthenticated callers and cross-tenant users to inspect and mutate notification states across tenants (IDOR).
+**Learning:** In a multi-tenant GraphQL architecture, notification management endpoints must validate authentication context and match notifications by both notification ID and active `tenantId` to enforce isolation boundaries.
+**Prevention:** Use an authentication helper (`getNotificationAuth`) to ensure callers are authenticated with a valid `tenantId`, and scope all queries and state mutations to notifications belonging to that tenant.
