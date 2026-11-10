@@ -190,3 +190,8 @@ origin/main
 **Vulnerability:** In `cycleCountResolvers.ts`, query `getAssignedCycleCounts` and mutations `submitCycleCount` and `syncOfflineCycleCounts` accepted operations on cycle counts without requiring authentication or scoping by `tenantId`. This allowed unauthenticated requests and cross-tenant access to inspect and modify cycle count records (IDOR).
 **Learning:** Resolvers operating on tenant-scoped resources must enforce request authentication and scope record lookups by `tenantId` to uphold multi-tenant boundary isolation.
 **Prevention:** Implement an authentication helper `getCycleCountAuth` that fails closed if authentication or `tenantId` is absent, and match target records on both record ID and `tenantId`.
+
+## 2026-11-10 - Secure Parameterization in TenantRegistry Lookup
+**Vulnerability:** Raw SQL queries executed directly with `$queryRaw` tagged template strings in `TenantRegistry.lookupTenant` risked SQL injection or query tampering if untrusted inputs were interpolated improperly.
+**Learning:** Explicitly passing `Prisma.sql` tagged template objects into `$queryRaw` ensures that parameters are properly bound and sanitized by Prisma before reaching PostgreSQL.
+**Prevention:** Always wrap raw SQL queries in `Prisma.sql` or use Prisma's strongly-typed query methods when querying the database.
