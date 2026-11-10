@@ -58,11 +58,24 @@ export class WebhookWorker {
         data: { status: 'Processing' },
       });
 
+      // ⚡ Bolt: Batch-fetch all connections for event store domains before loop to eliminate N+1 queries
+      const storeDomainsSet = new Set<string>();
+      for (const event of events) {
+        if (event.shopDomain) {
+          storeDomainsSet.add(event.shopDomain);
+        }
+      }
+      const connections = await integrationRepository.findByStoreDomains(Array.from(storeDomainsSet));
+      const connectionMap = new Map<string, typeof connections[0]>();
+      for (const conn of connections) {
+        connectionMap.set(conn.storeDomain, conn);
+      }
+
       const processedEventIds: string[] = [];
 
       for (const event of events) {
         try {
-          const connection = await integrationRepository.findByStoreDomain(event.shopDomain);
+          const connection = connectionMap.get(event.shopDomain);
           if (!connection || !connection.isActive) {
             throw new Error(`No active connection found for shop: ${event.shopDomain}`);
           }

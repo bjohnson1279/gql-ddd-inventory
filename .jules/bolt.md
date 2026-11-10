@@ -247,3 +247,7 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2024-05-24 - Batch Upsert Optimization for External Mappings
 **Learning:** Performing Prisma upserts individually inside a transaction via `.map` leads to significant N+1 database roundtrips, causing major bottlenecks for bulk sync operations.
 **Action:** Replace looped individual upserts with `$executeRaw` and `Prisma.join(insertRows)` to execute a single, highly efficient SQL batch upsert.
+
+## 2026-10-30 - Batch Fetch Connections in WebhookWorker to Eliminate N+1 Queries
+**Learning:** Calling findByStoreDomain sequentially inside the event processing loop in WebhookWorker triggers N database queries for N events per batch.
+**Action:** Batch-fetch all integration connections for unique shop domains in a single query via findByStoreDomains and index them in an O(1) Map before looping over events.
