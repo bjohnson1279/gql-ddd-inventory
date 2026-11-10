@@ -190,3 +190,8 @@ origin/main
 **Vulnerability:** In `cycleCountResolvers.ts`, query `getAssignedCycleCounts` and mutations `submitCycleCount` and `syncOfflineCycleCounts` accepted operations on cycle counts without requiring authentication or scoping by `tenantId`. This allowed unauthenticated requests and cross-tenant access to inspect and modify cycle count records (IDOR).
 **Learning:** Resolvers operating on tenant-scoped resources must enforce request authentication and scope record lookups by `tenantId` to uphold multi-tenant boundary isolation.
 **Prevention:** Implement an authentication helper `getCycleCountAuth` that fails closed if authentication or `tenantId` is absent, and match target records on both record ID and `tenantId`.
+
+## 2026-11-10 - Remove Hardcoded JWT Secret Fallback in Resolvers
+**Vulnerability:** In `src/infrastructure/graphql/resolvers.ts`, `JWT_SECRET` fell back to a hardcoded string `'fallback-jwt-secret-key-123!'` in non-production environments when `process.env.JWT_SECRET` was unset.
+**Learning:** Having static or hardcoded fallback secrets in resolver files poses a security risk if deployed misconfigured or tested in shared environments, allowing token forging.
+**Prevention:** Enforce environment variable presence dynamically at point of token issuance, failing closed if `JWT_SECRET` is unset or blank.
