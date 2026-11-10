@@ -247,3 +247,7 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2024-05-24 - Batch Upsert Optimization for External Mappings
 **Learning:** Performing Prisma upserts individually inside a transaction via `.map` leads to significant N+1 database roundtrips, causing major bottlenecks for bulk sync operations.
 **Action:** Replace looped individual upserts with `$executeRaw` and `Prisma.join(insertRows)` to execute a single, highly efficient SQL batch upsert.
+
+## 2026-10-28 - Consolidate Looped Transactions in ReportSchedulerWorker
+**Learning:** Opening individual `prisma.$transaction` calls per item in worker polling loops introduces N+1 transaction roundtrips and connection pool contention when multiple schedules are due simultaneously.
+**Action:** Wrap the processing loop for due schedules in a single batch `prisma.$transaction` and short-circuit when no schedules are due, reducing transaction overhead from N transactions to 1.
