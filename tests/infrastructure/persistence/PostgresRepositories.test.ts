@@ -218,6 +218,23 @@ describe("Postgres repositories integration", () => {
       await expect(repo.save(item)).rejects.toThrow(ConcurrencyError);
     });
 
+    it("should save pulled domain events to outbox without chunking", async () => {
+      const item = new InventoryItem("item-1", new Sku("SKU-1"), new LocationId("loc-1"), new Quantity(10), new Quantity(0), new Quantity(0), 1);
+      item.reconcileStock(new Quantity(15));
+      mockPrisma.inventoryItem.findUnique.mockResolvedValue(null);
+
+      await repo.save(item);
+
+      expect(mockPrisma.outboxEvent.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            eventType: "InventoryReconciledEvent",
+            status: "Pending",
+          }),
+        ],
+      });
+    });
+
     describe("saveBatch", () => {
       it("should do nothing when passing empty array", async () => {
         await repo.saveBatch([]);
