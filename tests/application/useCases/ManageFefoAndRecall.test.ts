@@ -205,4 +205,55 @@ describe('ManageFefoAndRecall Use Cases', () => {
     expect(dispatches[0].quantity).toBe(10);
     expect(dispatches[0].locationId).toBe('LOC-A');
   });
+
+  it('should throw an error if product is not found when receiving stock with lot', async () => {
+    const useCase = new ReceiveStockWithLotUseCase(
+      inventoryRepo,
+      productRepo,
+      ledgerRepo,
+      costLayerRepo
+    );
+
+    await expect(
+      useCase.execute({
+        sku: 'NON-EXISTENT',
+        locationId: 'LOC-A',
+        quantity: 10,
+        unitCostCents: 100,
+        lotNumber: 'LOT-1',
+        expirationDate: new Date(),
+        tenantId: 'tenant-1',
+        actorId: 'user-1'
+      })
+    ).rejects.toThrow('Product variant with SKU NON-EXISTENT not found.');
+  });
+
+  it('should throw an error if variant is not found on product when receiving stock with lot', async () => {
+    const product = new Product(new ProductId('prod-1'), 'Product A');
+    product.addVariant(new Sku('SKU-1'), [new VariantAttribute('size', 'standard')]);
+    await productRepo.save(product);
+
+    // Mock findBySku to return product, but variant lookup for SKU-2 on that product returns undefined
+    jest.spyOn(productRepo, 'findBySku').mockResolvedValueOnce(product);
+
+    const useCase = new ReceiveStockWithLotUseCase(
+      inventoryRepo,
+      productRepo,
+      ledgerRepo,
+      costLayerRepo
+    );
+
+    await expect(
+      useCase.execute({
+        sku: 'SKU-2',
+        locationId: 'LOC-A',
+        quantity: 10,
+        unitCostCents: 100,
+        lotNumber: 'LOT-1',
+        expirationDate: new Date(),
+        tenantId: 'tenant-1',
+        actorId: 'user-1'
+      })
+    ).rejects.toThrow('Product variant with SKU SKU-2 not found.');
+  });
 });
