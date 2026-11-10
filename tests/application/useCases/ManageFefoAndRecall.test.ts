@@ -95,6 +95,23 @@ describe('ManageFefoAndRecall Use Cases', () => {
     expect(reloadedProduct?.variants[0].costingMethod).toBe(CostingMethod.FEFO);
   });
 
+  it('should throw an error when product is not found in UpdateVariantCostingMethodUseCase', async () => {
+    const useCase = new UpdateVariantCostingMethodUseCase(productRepo);
+    await expect(useCase.execute('NON-EXISTENT', CostingMethod.FEFO)).rejects.toThrow(
+      'Product with SKU NON-EXISTENT not found.'
+    );
+  });
+
+  it('should throw an error when variant is not found on product in UpdateVariantCostingMethodUseCase', async () => {
+    const product = new Product(new ProductId('prod-1'), 'Product A');
+    jest.spyOn(productRepo, 'findBySku').mockResolvedValue(product);
+
+    const useCase = new UpdateVariantCostingMethodUseCase(productRepo);
+    await expect(useCase.execute('SKU-MISSING', CostingMethod.FEFO)).rejects.toThrow(
+      'Variant with SKU SKU-MISSING not found.'
+    );
+  });
+
   it('should receive stock with a lot and generate a cost layer and ledger entry', async () => {
     const product = new Product(new ProductId('prod-1'), 'Product A');
     const variant = product.addVariant(new Sku('SKU-1'), [new VariantAttribute('size', 'standard')]);
