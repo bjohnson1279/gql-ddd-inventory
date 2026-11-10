@@ -205,4 +205,59 @@ describe('ManageFefoAndRecall Use Cases', () => {
     expect(dispatches[0].quantity).toBe(10);
     expect(dispatches[0].locationId).toBe('LOC-A');
   });
+
+  it('should return an empty collection when tracing recall for a lot with no deduction or dispatch entries', async () => {
+    const product = new Product(new ProductId('prod-empty'), 'Product Empty');
+    const variant = product.addVariant(new Sku('SKU-EMPTY'), [new VariantAttribute('size', 'standard')]);
+    await productRepo.save(product);
+
+    const { LedgerEntry } = require('../../../src/domain/entities/LedgerEntry');
+    const { LedgerEntryId } = require('../../../src/domain/valueObjects/LedgerEntryId');
+    const { TenantId } = require('../../../src/domain/valueObjects/TenantId');
+    const { LocationId } = require('../../../src/domain/valueObjects/LocationId');
+    const { ActorId } = require('../../../src/domain/valueObjects/ActorId');
+    const { ReasonCode } = require('../../../src/domain/enums/ReasonCode');
+
+    await ledgerRepo.append(new LedgerEntry(
+      new LedgerEntryId('l-receipt-only'),
+      new TenantId('tenant-1'),
+      new LocationId('LOC-A'),
+      variant.id,
+      50,
+      ReasonCode.PurchaseReceipt,
+      new ActorId('user-1'),
+      new Date(),
+      'REC-001',
+      { lotNumber: 'LOT-CLEAN' }
+    ));
+
+    const recallService = new ProductRecallService(ledgerRepo);
+    const recallUseCase = new TraceProductRecallUseCase(recallService);
+
+    const dispatches = await recallUseCase.execute('LOT-CLEAN');
+    expect(dispatches).toEqual([]);
+    expect(dispatches).toHaveLength(0);
+  });
+
+  it('should return an empty collection when tracing recall for a non-existent lot', async () => {
+    const recallService = new ProductRecallService(ledgerRepo);
+    const recallUseCase = new TraceProductRecallUseCase(recallService);
+
+    const dispatches = await recallUseCase.execute('LOT-NONEXISTENT');
+    expect(dispatches).toEqual([]);
+    expect(dispatches).toHaveLength(0);
+  });
+
+  it('should throw error when suggesting FEFO picking if variant has empty lot-controlled layers', async () => {
+    const product = new Product(new ProductId('prod-no-lot'), 'Product Without Lots');
+    product.addVariant(new Sku('SKU-NO-LOT'), [new VariantAttribute('size', 'standard')]);
+    await productRepo.save(product);
+
+    const picker = new FEFOPickingSuggester(costLayerRepo, ledgerRepo, productRepo);
+    const pickingUseCase = new SuggestFefoPickingUseCase(picker);
+
+    await expect(pickingUseCase.execute('SKU-NO-LOT', 10)).rejects.toThrow(
+      'No lot-controlled inventory layers found for SKU SKU-NO-LOT.'
+    );
+  });
 });
