@@ -247,3 +247,7 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2024-05-24 - Batch Upsert Optimization for External Mappings
 **Learning:** Performing Prisma upserts individually inside a transaction via `.map` leads to significant N+1 database roundtrips, causing major bottlenecks for bulk sync operations.
 **Action:** Replace looped individual upserts with `$executeRaw` and `Prisma.join(insertRows)` to execute a single, highly efficient SQL batch upsert.
+
+## 2026-11-10 - Batch Upsert Conversion Rules in PostgresProductUomConfigurationRepository
+**Learning:** Sequential Prisma upserts inside a loop in `PostgresProductUomConfigurationRepository.save` introduced N+1 database roundtrips within a database transaction, adding latency and connection holding time proportional to the number of conversion rules.
+**Action:** Consolidate individual conversion rule upserts into a single raw SQL batch upsert using `$executeRaw` and `Prisma.join(insertRows)` with `INSERT ... ON CONFLICT (id) DO UPDATE SET`.

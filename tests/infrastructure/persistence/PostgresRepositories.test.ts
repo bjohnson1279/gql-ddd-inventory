@@ -16,6 +16,10 @@ import { TenantId } from "../../../src/domain/valueObjects/TenantId";
 import { ActorId } from "../../../src/domain/valueObjects/ActorId";
 import { ReasonCode } from "../../../src/domain/enums/ReasonCode";
 import { ConcurrencyError } from "../../../src/domain/exceptions/DomainErrors";
+import { PostgresProductUomConfigurationRepository } from "../../../src/infrastructure/persistence/PostgresProductUomConfigurationRepository";
+import { ProductUomConfiguration } from "../../../src/domain/entities/ProductUomConfiguration";
+import { UnitOfMeasure } from "../../../src/domain/valueObjects/UnitOfMeasure";
+import { UomCategory } from "../../../src/domain/enums/UomCategory";
 
 describe("Postgres repositories integration", () => {
   let mockPrisma: any;
@@ -418,6 +422,55 @@ describe("Postgres repositories integration", () => {
 
       expect(map.get("var-1")).toBe(5);
       expect(map.get("var-2")).toBe(12);
+    });
+  });
+
+  describe("PostgresProductUomConfigurationRepository", () => {
+    let repo: PostgresProductUomConfigurationRepository;
+
+    beforeEach(() => {
+      mockPrisma.productUomConfiguration = {
+        upsert: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn(),
+      };
+      mockPrisma.conversionRule = {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      };
+      repo = new PostgresProductUomConfigurationRepository(mockPrisma);
+    });
+
+    it("should save configuration and batch upsert conversion rules using raw SQL", async () => {
+      const baseUnit = new UnitOfMeasure("Each", "ea", UomCategory.Discrete);
+      const config = new ProductUomConfiguration(new Sku("SKU-UOM-1"), baseUnit);
+      const boxUnit = new UnitOfMeasure("Box", "bx", UomCategory.Discrete);
+      config.addConversionRule(boxUnit, 10, "Box of 10");
+
+      await repo.save(config);
+
+      expect(mockPrisma.productUomConfiguration.upsert).toHaveBeenCalled();
+      expect(mockPrisma.conversionRule.deleteMany).toHaveBeenCalledWith({
+        where: {
+          productUomSku: "SKU-UOM-1",
+          id: { notIn: [config.conversionRules[0].id.value] },
+        },
+      });
+      expect(mockPrisma.$executeRaw).toHaveBeenCalled();
+    });
+
+    it("should handle configuration without conversion rules without executing raw SQL upsert", async () => {
+      const baseUnit = new UnitOfMeasure("Each", "ea", UomCategory.Discrete);
+      const config = new ProductUomConfiguration(new Sku("SKU-UOM-2"), baseUnit);
+
+      await repo.save(config);
+
+      expect(mockPrisma.productUomConfiguration.upsert).toHaveBeenCalled();
+      expect(mockPrisma.conversionRule.deleteMany).toHaveBeenCalledWith({
+        where: {
+          productUomSku: "SKU-UOM-2",
+          id: { notIn: [] },
+        },
+      });
+      expect(mockPrisma.$executeRaw).not.toHaveBeenCalled();
     });
   });
 });

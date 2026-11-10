@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { IProductUomConfigurationRepository } from '../../domain/repositories/IProductUomConfigurationRepository';
 import { ProductUomConfiguration } from '../../domain/entities/ProductUomConfiguration';
 import { ConversionRule } from '../../domain/entities/ConversionRule';
@@ -51,27 +51,24 @@ export class PostgresProductUomConfigurationRepository implements IProductUomCon
         },
       });
 
-      // Upsert present rules
-      for (const rule of config.conversionRules) {
-        await tx.conversionRule.upsert({
-          where: { id: rule.id.value },
-          create: {
-            id: rule.id.value,
-            productUomSku: config.sku.value,
-            unitName: rule.unit.name,
-            unitAbbreviation: rule.unit.abbreviation,
-            unitCategory: rule.unit.category,
-            factorToBase: rule.factorToBase,
-            label: rule.label || null,
-          },
-          update: {
-            unitName: rule.unit.name,
-            unitAbbreviation: rule.unit.abbreviation,
-            unitCategory: rule.unit.category,
-            factorToBase: rule.factorToBase,
-            label: rule.label || null,
-          },
-        });
+      // ⚡ Bolt: Replace N+1 individual upserts inside transaction with a raw SQL batch upsert to eliminate N database roundtrips
+      if (config.conversionRules.length > 0) {
+        const insertRows = config.conversionRules.map(
+          (rule) =>
+            Prisma.sql`(${rule.id.value}::uuid, ${config.sku.value}::text, ${rule.unit.name}::text, ${rule.unit.abbreviation}::text, ${rule.unit.category}::text, ${rule.factorToBase}::float8, ${rule.label || null}::text)`
+        );
+
+        await tx.$executeRaw`
+          INSERT INTO conversion_rules (id, product_uom_sku, unit_name, unit_abbreviation, unit_category, factor_to_base, label)
+          VALUES ${Prisma.join(insertRows)}
+          ON CONFLICT (id) DO UPDATE SET
+            product_uom_sku = EXCLUDED.product_uom_sku,
+            unit_name = EXCLUDED.unit_name,
+            unit_abbreviation = EXCLUDED.unit_abbreviation,
+            unit_category = EXCLUDED.unit_category,
+            factor_to_base = EXCLUDED.factor_to_base,
+            label = EXCLUDED.label;
+        `;
       }
     });
   }
