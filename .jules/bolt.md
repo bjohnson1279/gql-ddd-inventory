@@ -247,3 +247,7 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2024-05-24 - Batch Upsert Optimization for External Mappings
 **Learning:** Performing Prisma upserts individually inside a transaction via `.map` leads to significant N+1 database roundtrips, causing major bottlenecks for bulk sync operations.
 **Action:** Replace looped individual upserts with `$executeRaw` and `Prisma.join(insertRows)` to execute a single, highly efficient SQL batch upsert.
+
+## 2026-11-10 - Batch variant price updates and markdown events in YieldManagementService
+**Learning:** Updating variant prices and persisting markdown events individually inside a loop introduces 2N database roundtrips for N expiring lots, causing high I/O latency and query overhead during yield optimization cycles.
+**Action:** Add optional batch operations (`updateVariantPrices` and `saveMarkdownEvents`) to `YieldManagementRepository` and batch database operations outside the loop in `YieldManagementService`, eliminating 2N queries down to 2 batch calls while maintaining backward compatibility.
