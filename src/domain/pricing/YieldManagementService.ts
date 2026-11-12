@@ -4,7 +4,9 @@ import { MarkdownEvent } from './MarkdownEvent';
 export interface YieldManagementRepository {
   getActiveRules(tenantId: string): Promise<LiquidationRule[]>;
   saveMarkdownEvent(event: MarkdownEvent): Promise<void>;
+  saveMarkdownEvents?(events: MarkdownEvent[]): Promise<void>;
   updateVariantPrice(tenantId: string, variantId: string, newPriceCents: number): Promise<void>;
+  updateVariantPrices?(tenantId: string, updates: { variantId: string; newPriceCents: number }[]): Promise<void>;
   // Fetch expiring lots
   getLotsExpiringWithin(tenantId: string, days: number): Promise<any[]>;
 }
@@ -23,6 +25,7 @@ export class YieldManagementService {
     // Call python sidecar to optimize yield
     // Mocking sidecar response for MVP
     const events: MarkdownEvent[] = [];
+    const priceUpdates: { variantId: string; newPriceCents: number }[] = [];
     
     for (const lot of expiringLots) {
       // Stub: in a real implementation, we send these to the sidecar via HTTP
@@ -42,9 +45,24 @@ export class YieldManagementService {
       );
       
       events.push(event);
-      
-      await this.repo.updateVariantPrice(tenantId, lot.variantId, newPrice);
-      await this.repo.saveMarkdownEvent(event);
+      priceUpdates.push({ variantId: lot.variantId, newPriceCents: newPrice });
+    }
+
+    // ⚡ Bolt: Batch variant price updates and markdown events outside the loop to eliminate N+1 database queries
+    if (this.repo.updateVariantPrices) {
+      await this.repo.updateVariantPrices(tenantId, priceUpdates);
+    } else {
+      for (const update of priceUpdates) {
+        await this.repo.updateVariantPrice(tenantId, update.variantId, update.newPriceCents);
+      }
+    }
+
+    if (this.repo.saveMarkdownEvents) {
+      await this.repo.saveMarkdownEvents(events);
+    } else {
+      for (const event of events) {
+        await this.repo.saveMarkdownEvent(event);
+      }
     }
 
     return events;

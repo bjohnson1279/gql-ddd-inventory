@@ -95,11 +95,11 @@ export class TenantRegistry {
    * Look up a tenant's registry entry by tenant ID.
    */
   async lookupTenant(tenantId: string): Promise<TenantRegistryEntry | null> {
-    const results: any[] = await this.controlPrisma.$queryRaw`
+    const results: any[] = await this.controlPrisma.$queryRaw(Prisma.sql`
       SELECT tenant_id, db_host, db_port, db_name, db_user, db_password, status, provisioned_at, migrated_version
       FROM tenant_registry
       WHERE tenant_id = ${tenantId};
-    `;
+    `);
 
     if (results.length === 0) return null;
 

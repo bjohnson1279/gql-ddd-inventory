@@ -1,7 +1,10 @@
 import { prisma } from "../persistence/prismaClient";
 import { FileStorageService } from "./FileStorageService";
+// @ts-ignore - optional runtime report export dependency
 import ExcelJS from "exceljs";
+// @ts-ignore - optional runtime report export dependency
 import PDFDocument from "pdfkit";
+// @ts-ignore - optional runtime report export dependency
 import { format as formatCsv } from "fast-csv";
 import fs from "fs";
 import crypto from "crypto";

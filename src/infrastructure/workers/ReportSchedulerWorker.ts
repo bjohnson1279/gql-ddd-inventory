@@ -33,8 +33,13 @@ export class ReportSchedulerWorker {
       take: 50
     });
 
-    for (const schedule of dueSchedules) {
-      await prisma.$transaction(async (tx: any) => {
+    if (dueSchedules.length === 0) {
+      return;
+    }
+
+    // ⚡ Bolt: Batch all scheduled reports into a single database transaction to eliminate N+1 transactions per poll cycle
+    await prisma.$transaction(async (tx: any) => {
+      for (const schedule of dueSchedules) {
         // Create execution record
         const execution = await tx.reportExecutionModel.create({
           data: {
@@ -63,7 +68,10 @@ export class ReportSchedulerWorker {
             nextRunAt: nextDate
           }
         });
-      });
+      }
+    });
+
+    for (const schedule of dueSchedules) {
       console.log({ context: "ReportSchedulerWorker", message: `Scheduled report ${schedule.reportDefinitionId} queued for execution.` });
     }
   }
