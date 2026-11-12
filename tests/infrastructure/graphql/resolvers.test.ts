@@ -1288,8 +1288,28 @@ describe('GraphQL Resolvers', () => {
         adminPassword: 'Password123!'
       });
 
+      // Login throws error if JWT_SECRET is missing or empty
+      const originalJwtSecret = process.env.JWT_SECRET;
+      delete process.env.JWT_SECRET;
+      await expect(
+        (resolvers.Mutation as any).login(null, {
+          tenantId: 'tenant-acme',
+          email: 'alice@acme.com',
+          password: 'Password123!'
+        })
+      ).rejects.toThrow('FATAL ERROR: JWT_SECRET environment variable is not set.');
+
+      process.env.JWT_SECRET = '   ';
+      await expect(
+        (resolvers.Mutation as any).login(null, {
+          tenantId: 'tenant-acme',
+          email: 'alice@acme.com',
+          password: 'Password123!'
+        })
+      ).rejects.toThrow('FATAL ERROR: JWT_SECRET environment variable is not set.');
+
       // Login success
-      process.env.JWT_SECRET = 'test-secret';
+      process.env.JWT_SECRET = originalJwtSecret || 'test-secret';
       const token = await (resolvers.Mutation as any).login(null, {
         tenantId: 'tenant-acme',
         email: 'alice@acme.com',

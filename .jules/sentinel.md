@@ -195,3 +195,8 @@ origin/main
 **Vulnerability:** Raw SQL queries executed directly with `$queryRaw` tagged template strings in `TenantRegistry.lookupTenant` risked SQL injection or query tampering if untrusted inputs were interpolated improperly.
 **Learning:** Explicitly passing `Prisma.sql` tagged template objects into `$queryRaw` ensures that parameters are properly bound and sanitized by Prisma before reaching PostgreSQL.
 **Prevention:** Always wrap raw SQL queries in `Prisma.sql` or use Prisma's strongly-typed query methods when querying the database.
+
+## 2026-11-10 - Remove Hardcoded JWT Secret Fallback in Resolvers
+**Vulnerability:** In `src/infrastructure/graphql/resolvers.ts`, `JWT_SECRET` fell back to a hardcoded string `'fallback-jwt-secret-key-123!'` in non-production environments when `process.env.JWT_SECRET` was unset.
+**Learning:** Having static or hardcoded fallback secrets in resolver files poses a security risk if deployed misconfigured or tested in shared environments, allowing token forging.
+**Prevention:** Enforce environment variable presence dynamically at point of token issuance, failing closed if `JWT_SECRET` is unset or blank.
