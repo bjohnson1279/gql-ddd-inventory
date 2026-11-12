@@ -7,4 +7,5 @@ export interface IIntegrationRepository {
   findById(id: IntegrationId): Promise<IntegrationConnection | null>;
   findAllByTenant(tenantId: TenantId): Promise<IntegrationConnection[]>;
   findByStoreDomain(storeDomain: string): Promise<IntegrationConnection | null>;
+  findByStoreDomains(storeDomains: string[]): Promise<IntegrationConnection[]>;
 }

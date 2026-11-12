@@ -248,6 +248,14 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 **Learning:** Performing Prisma upserts individually inside a transaction via `.map` leads to significant N+1 database roundtrips, causing major bottlenecks for bulk sync operations.
 **Action:** Replace looped individual upserts with `$executeRaw` and `Prisma.join(insertRows)` to execute a single, highly efficient SQL batch upsert.
 
+## 2026-10-30 - Batch Fetch Connections in WebhookWorker to Eliminate N+1 Queries
+**Learning:** Calling findByStoreDomain sequentially inside the event processing loop in WebhookWorker triggers N database queries for N events per batch.
+**Action:** Batch-fetch all integration connections for unique shop domains in a single query via findByStoreDomains and index them in an O(1) Map before looping over events.
+
+## 2026-11-10 - Batch variant price updates and markdown events in YieldManagementService
+**Learning:** Updating variant prices and persisting markdown events individually inside a loop introduces 2N database roundtrips for N expiring lots, causing high I/O latency and query overhead during yield optimization cycles.
+**Action:** Add optional batch operations (`updateVariantPrices` and `saveMarkdownEvents`) to `YieldManagementRepository` and batch database operations outside the loop in `YieldManagementService`, eliminating 2N queries down to 2 batch calls while maintaining backward compatibility.
+
 ## 2026-11-10 - Batch conversion rule persistence in PostgresProductUomConfigurationRepository
 **Learning:** Iterating over collection items in an aggregate root (such as UOM conversion rules) and performing individual `upsert` queries inside a database transaction creates an N+1 query problem, multiplying database roundtrips and degrading write latency.
 **Action:** Replace per-rule upserts inside loops with a single batch `deleteMany` for the aggregate and a single `createMany` operation to persist all child items in O(1) database operations.
