@@ -5,6 +5,8 @@
  * (e.g., PO placement) when threshold conditions are met.
  */
 
+import { ApprovalWorkflowId } from '../valueObjects/ApprovalWorkflowId';
+
 export interface ApprovalStepConfig {
   /** Roles that can approve at this step */
   approverRoles: string[];
@@ -31,8 +33,10 @@ export interface ApprovalWorkflowConfig {
 }
 
 export class ApprovalWorkflow {
+  public readonly id: ApprovalWorkflowId;
+
   constructor(
-    public readonly id: string,
+    id: ApprovalWorkflowId | string,
     public readonly tenantId: string,
     public readonly name: string,
     public readonly triggerEvent: string,
@@ -41,6 +45,7 @@ export class ApprovalWorkflow {
     public readonly createdAt: Date = new Date(),
     public readonly updatedAt: Date = new Date()
   ) {
+    this.id = typeof id === 'string' ? new ApprovalWorkflowId(id) : id;
     if (!triggerEvent || triggerEvent.trim().length === 0) {
       throw new Error('Approval workflow trigger event cannot be empty.');
     }
