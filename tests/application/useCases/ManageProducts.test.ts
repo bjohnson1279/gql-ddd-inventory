@@ -199,6 +199,16 @@ describe('ManageProducts Use Cases', () => {
       expect(productRepo.findAll).toHaveBeenCalledTimes(1);
       expect(result).toEqual([product1, product2]);
     });
+
+    it('should return an empty array when the repository has no products', async () => {
+      productRepo.findAll.mockResolvedValue([]);
+
+      const useCase = new GetProductsUseCase(productRepo);
+      const result = await useCase.execute();
+
+      expect(productRepo.findAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([]);
+    });
   });
 
   describe('GetProductByIdUseCase', () => {
