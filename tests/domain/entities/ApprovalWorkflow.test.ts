@@ -1,4 +1,5 @@
 import { ApprovalWorkflow, ApprovalWorkflowConfig } from '../../../src/domain/entities/ApprovalWorkflow';
+import { ApprovalWorkflowId } from '../../../src/domain/valueObjects/ApprovalWorkflowId';
 
 describe('ApprovalWorkflow Domain Entity', () => {
   const defaultConfig: ApprovalWorkflowConfig = {
@@ -22,6 +23,23 @@ describe('ApprovalWorkflow Domain Entity', () => {
       expect(() => {
         new ApprovalWorkflow('id', 'tenant', 'name', 'event', true, configNoSteps);
       }).toThrow('Approval workflow must define at least one approval step.');
+    });
+
+    it('accepts string id or ApprovalWorkflowId and initializes id as ApprovalWorkflowId', () => {
+      const wf1 = new ApprovalWorkflow('wf-str', 'tenant', 'name', 'event', true, defaultConfig);
+      expect(wf1.id).toBeInstanceOf(ApprovalWorkflowId);
+      expect(wf1.id.value).toBe('wf-str');
+
+      const voId = new ApprovalWorkflowId('wf-vo');
+      const wf2 = new ApprovalWorkflow(voId, 'tenant', 'name', 'event', true, defaultConfig);
+      expect(wf2.id).toBe(voId);
+      expect(wf2.id.value).toBe('wf-vo');
+    });
+
+    it('throws on empty or whitespace string id', () => {
+      expect(() => {
+        new ApprovalWorkflow('', 'tenant', 'name', 'event', true, defaultConfig);
+      }).toThrow('ApprovalWorkflowId cannot be empty.');
     });
   });
 

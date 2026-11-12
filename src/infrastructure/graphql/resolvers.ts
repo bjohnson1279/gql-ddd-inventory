@@ -536,12 +536,13 @@ const saveTenantAccountingConfigUseCase = new SaveTenantAccountingConfigUseCase(
 // G3 — Stock valuation report
 const getStockValuationReportUseCase = new GetStockValuationReportUseCase(inventoryRepository, costLayerRepository, productRepository);
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
-  if (process.env.NODE_ENV === 'production') {
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.trim() === '') {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not set.');
   }
+  return secret;
 }
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-key-123!';
 
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
 if (!SHOPIFY_WEBHOOK_SECRET && process.env.NODE_ENV === 'production') {
@@ -2468,7 +2469,7 @@ export const resolvers = {
         const permissions = await permissionService.getEffectivePermissionKeys(roleIds);
         return jwt.sign(
           { tenantId, actorId: user.id, role: primaryRole, roles: roleIds, permissions },
-          JWT_SECRET as string,
+          getJwtSecret(),
           { expiresIn: '24h' }
         );
       }
