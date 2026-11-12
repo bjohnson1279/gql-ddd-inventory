@@ -20,6 +20,7 @@ describe('ProcessShopifyOrder', () => {
       findById: jest.fn(),
       findAllByTenant: jest.fn(),
       findByStoreDomain: jest.fn(),
+      findByStoreDomains: jest.fn(),
     };
     mappingRepo = {
       save: jest.fn(),

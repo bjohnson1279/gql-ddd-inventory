@@ -14,6 +14,7 @@ describe('ManageAmazonConnections Use Cases', () => {
       findById: jest.fn(),
       findAllByTenant: jest.fn(),
       findByStoreDomain: jest.fn(),
+      findByStoreDomains: jest.fn(),
     };
   });
 

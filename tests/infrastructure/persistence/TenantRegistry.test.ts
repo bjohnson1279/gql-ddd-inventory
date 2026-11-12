@@ -111,6 +111,7 @@ describe('TenantRegistry', () => {
 
       const result = await registry.lookupTenant('nonexistent');
       expect(result).toBeNull();
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledWith(expect.objectContaining({ values: ['nonexistent'] }));
     });
 
     it('should return the registry entry when found', async () => {
