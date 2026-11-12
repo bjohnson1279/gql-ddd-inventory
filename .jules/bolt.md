@@ -259,3 +259,7 @@ otifications in NotificationInboxService.getUnreadCount) allocates an unnecessar
 ## 2026-11-10 - Batch conversion rule persistence in PostgresProductUomConfigurationRepository
 **Learning:** Iterating over collection items in an aggregate root (such as UOM conversion rules) and performing individual `upsert` queries inside a database transaction creates an N+1 query problem, multiplying database roundtrips and degrading write latency.
 **Action:** Replace per-rule upserts inside loops with a single batch `deleteMany` for the aggregate and a single `createMany` operation to persist all child items in O(1) database operations.
+
+## 2026-10-28 - Consolidate Looped Transactions in ReportSchedulerWorker
+**Learning:** Opening individual `prisma.$transaction` calls per item in worker polling loops introduces N+1 transaction roundtrips and connection pool contention when multiple schedules are due simultaneously.
+**Action:** Wrap the processing loop for due schedules in a single batch `prisma.$transaction` and short-circuit when no schedules are due, reducing transaction overhead from N transactions to 1.
