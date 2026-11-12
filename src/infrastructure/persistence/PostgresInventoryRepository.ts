@@ -112,24 +112,7 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         }
       }
 
-      // Save pulled events to OutboxEvent table
-      if (events.length > 0) {
-        // chunk logic for single item save isn't really necessary, but we can do it for consistency
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < events.length; i += BATCH_SIZE) {
-          const chunk = events.slice(i, i + BATCH_SIZE);
-          await tx.outboxEvent.createMany({
-            data: chunk.map(event => ({
-              eventType: event.constructor.name,
-              payload: JSON.stringify({
-                ...event,
-                traceId: (event as any).traceId || getTraceId()
-              }),
-              status: 'Pending'
-            }))
-          });
-        }
-      }
+      await this.saveOutboxEvents(tx, events);
     });
   }
 
@@ -218,23 +201,26 @@ export class PostgresInventoryRepository implements IInventoryRepository {
         }
       }
 
-      if (allEvents.length > 0) {
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < allEvents.length; i += BATCH_SIZE) {
-          const chunk = allEvents.slice(i, i + BATCH_SIZE);
-          await tx.outboxEvent.createMany({
-            data: chunk.map(event => ({
-              eventType: event.constructor.name,
-              payload: JSON.stringify({
-                ...event,
-                traceId: (event as any).traceId || getTraceId()
-              }),
-              status: 'Pending'
-            }))
-          });
-        }
-      }
-
+      await this.saveOutboxEvents(tx, allEvents);
     });
+  }
+
+  private async saveOutboxEvents(tx: Prisma.TransactionClient, events: any[]): Promise<void> {
+    if (events.length === 0) return;
+
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < events.length; i += BATCH_SIZE) {
+      const chunk = events.slice(i, i + BATCH_SIZE);
+      await tx.outboxEvent.createMany({
+        data: chunk.map(event => ({
+          eventType: event.constructor.name,
+          payload: JSON.stringify({
+            ...event,
+            traceId: (event as any).traceId || getTraceId()
+          }),
+          status: 'Pending'
+        }))
+      });
+    }
   }
 }
