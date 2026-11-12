@@ -156,6 +156,26 @@ describe('ManageReplenishment Use Cases', () => {
       const disabled = await toggleRuleUseCase.execute(created.id, false);
       expect(disabled.isActive).toBe(false);
     });
+
+    it('should throw an error when toggling a non-existent replenishment rule', async () => {
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
+      await expect(toggleRuleUseCase.execute(nonExistentId, true)).rejects.toThrow(
+        `Replenishment rule ${nonExistentId} not found.`
+      );
+    });
+
+    it('should throw an error when updating a non-existent replenishment rule', async () => {
+      const nonExistentId = '00000000-0000-0000-0000-000000000000';
+      await expect(
+        updateRuleUseCase.execute({
+          id: nonExistentId,
+          reorderQuantity: 50,
+          safetyStock: 5,
+          leadTimeDays: 5,
+          dynamicRopEnabled: false,
+        })
+      ).rejects.toThrow(`Replenishment rule ${nonExistentId} not found.`);
+    });
   });
 
   describe('Replenishment Evaluation & Triggering', () => {
