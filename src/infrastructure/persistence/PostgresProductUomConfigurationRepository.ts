@@ -40,22 +40,27 @@ export class PostgresProductUomConfigurationRepository implements IProductUomCon
         },
       });
 
-      // 2. Identify conversion rules to keep
-      const ruleIds = config.conversionRules.map((r) => r.id.value);
-
-      // Delete removed rules
+      // 2. Replace conversion rules in batch to eliminate N+1 queries
+      // ⚡ Bolt: Replace per-rule upsert queries inside loop with a single deleteMany and batch createMany to eliminate N+1 queries
       await tx.conversionRule.deleteMany({
         where: {
           productUomSku: config.sku.value,
-          id: { notIn: ruleIds },
         },
       });
 
-      // Upsert present rules
-      for (const rule of config.conversionRules) {
-        await tx.conversionRule.upsert({
-          where: { id: rule.id.value },
-          create: {
+      if (config.conversionRules.length > 0) {
+        const rulesData: Array<{
+          id: string;
+          productUomSku: string;
+          unitName: string;
+          unitAbbreviation: string;
+          unitCategory: string;
+          factorToBase: number;
+          label: string | null;
+        }> = [];
+
+        for (const rule of config.conversionRules) {
+          rulesData.push({
             id: rule.id.value,
             productUomSku: config.sku.value,
             unitName: rule.unit.name,
@@ -63,14 +68,11 @@ export class PostgresProductUomConfigurationRepository implements IProductUomCon
             unitCategory: rule.unit.category,
             factorToBase: rule.factorToBase,
             label: rule.label || null,
-          },
-          update: {
-            unitName: rule.unit.name,
-            unitAbbreviation: rule.unit.abbreviation,
-            unitCategory: rule.unit.category,
-            factorToBase: rule.factorToBase,
-            label: rule.label || null,
-          },
+          });
+        }
+
+        await tx.conversionRule.createMany({
+          data: rulesData,
         });
       }
     });

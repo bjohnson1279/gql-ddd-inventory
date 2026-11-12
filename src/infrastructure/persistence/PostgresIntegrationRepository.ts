@@ -77,4 +77,25 @@ export class PostgresIntegrationRepository implements IIntegrationRepository {
       model.isActive ?? true
     );
   }
+
+  async findByStoreDomains(storeDomains: string[]): Promise<IntegrationConnection[]> {
+    if (storeDomains.length === 0) return [];
+    const models = await this.prisma.integrationConnection.findMany({
+      where: { storeDomain: { in: storeDomains } },
+    });
+    const connections: IntegrationConnection[] = [];
+    for (const model of models) {
+      connections.push(
+        new IntegrationConnection(
+          new IntegrationId(model.id),
+          new TenantId(model.tenantId),
+          model.platform as IntegrationPlatform,
+          model.storeDomain,
+          decryptString(model.accessToken),
+          model.isActive ?? true
+        )
+      );
+    }
+    return connections;
+  }
 }

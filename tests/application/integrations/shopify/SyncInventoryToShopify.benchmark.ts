@@ -15,6 +15,7 @@ async function runBenchmark() {
     findById: async () => null,
     findAllByTenant: async () => [],
     findByStoreDomain: async () => null,
+    findByStoreDomains: async () => [],
   } as unknown as IIntegrationRepository;
 
   let queries = 0;

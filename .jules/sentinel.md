@@ -190,3 +190,18 @@ origin/main
 **Vulnerability:** In `cycleCountResolvers.ts`, query `getAssignedCycleCounts` and mutations `submitCycleCount` and `syncOfflineCycleCounts` accepted operations on cycle counts without requiring authentication or scoping by `tenantId`. This allowed unauthenticated requests and cross-tenant access to inspect and modify cycle count records (IDOR).
 **Learning:** Resolvers operating on tenant-scoped resources must enforce request authentication and scope record lookups by `tenantId` to uphold multi-tenant boundary isolation.
 **Prevention:** Implement an authentication helper `getCycleCountAuth` that fails closed if authentication or `tenantId` is absent, and match target records on both record ID and `tenantId`.
+
+## 2026-11-10 - Secure Parameterization in TenantRegistry Lookup
+**Vulnerability:** Raw SQL queries executed directly with `$queryRaw` tagged template strings in `TenantRegistry.lookupTenant` risked SQL injection or query tampering if untrusted inputs were interpolated improperly.
+**Learning:** Explicitly passing `Prisma.sql` tagged template objects into `$queryRaw` ensures that parameters are properly bound and sanitized by Prisma before reaching PostgreSQL.
+**Prevention:** Always wrap raw SQL queries in `Prisma.sql` or use Prisma's strongly-typed query methods when querying the database.
+
+## 2026-11-10 - Remove Hardcoded JWT Secret Fallback in Resolvers
+**Vulnerability:** In `src/infrastructure/graphql/resolvers.ts`, `JWT_SECRET` fell back to a hardcoded string `'fallback-jwt-secret-key-123!'` in non-production environments when `process.env.JWT_SECRET` was unset.
+**Learning:** Having static or hardcoded fallback secrets in resolver files poses a security risk if deployed misconfigured or tested in shared environments, allowing token forging.
+**Prevention:** Enforce environment variable presence dynamically at point of token issuance, failing closed if `JWT_SECRET` is unset or blank.
+
+## 2026-11-08 - Fix IDOR in Notification Resolvers
+**Vulnerability:** In `notificationResolvers.ts`, query `unreadNotificationCount` and mutations `markNotificationRead`, `snoozeNotification`, and `escalateNotification` executed operations without requiring authentication or verifying `tenantId` boundaries. This allowed unauthenticated callers and cross-tenant users to inspect and mutate notification states across tenants (IDOR).
+**Learning:** In a multi-tenant GraphQL architecture, notification management endpoints must validate authentication context and match notifications by both notification ID and active `tenantId` to enforce isolation boundaries.
+**Prevention:** Use an authentication helper (`getNotificationAuth`) to ensure callers are authenticated with a valid `tenantId`, and scope all queries and state mutations to notifications belonging to that tenant.

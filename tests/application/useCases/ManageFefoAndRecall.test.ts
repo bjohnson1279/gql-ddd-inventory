@@ -1,9 +1,13 @@
 import {
   UpdateVariantCostingMethodUseCase,
   ReceiveStockWithLotUseCase,
+  ReceiveStockWithLotInput,
   SuggestFefoPickingUseCase,
   TraceProductRecallUseCase
 } from '../../../src/application/useCases/ManageFefoAndRecall';
+import { WMSCapacityService } from '../../../src/domain/services/WMSCapacityService';
+import { InventoryItem } from '../../../src/domain/entities/InventoryItem';
+import { Quantity } from '../../../src/domain/valueObjects/Quantity';
 import { FEFOPickingSuggester } from '../../../src/domain/services/FEFOPickingSuggester';
 import { ProductRecallService } from '../../../src/domain/services/ProductRecallService';
 import { InMemoryInventoryRepository } from '../../../src/infrastructure/persistence/InMemoryInventoryRepository';
@@ -204,6 +208,130 @@ describe('ManageFefoAndRecall Use Cases', () => {
     expect(dispatches).toHaveLength(1);
     expect(dispatches[0].quantity).toBe(10);
     expect(dispatches[0].locationId).toBe('LOC-A');
+  });
+
+  it('should throw an error when receiving stock for non-existent product', async () => {
+    const useCase = new ReceiveStockWithLotUseCase(
+      inventoryRepo,
+      productRepo,
+      ledgerRepo,
+      costLayerRepo
+    );
+
+    const input: ReceiveStockWithLotInput = {
+      sku: 'NON-EXISTENT-SKU',
+      locationId: 'LOC-A',
+      quantity: 50,
+      unitCostCents: 1500,
+      lotNumber: 'LOT-XYZ',
+      expirationDate: new Date('2026-12-31T00:00:00Z'),
+      tenantId: 'tenant-1',
+      actorId: 'user-1'
+    };
+
+    await expect(useCase.execute(input)).rejects.toThrow('Product variant with SKU NON-EXISTENT-SKU not found.');
+  });
+
+  it('should throw an error when receiving stock if product variant does not exist on product', async () => {
+    const product = new Product(new ProductId('prod-1'), 'Product A');
+    jest.spyOn(productRepo, 'findBySku').mockResolvedValueOnce(product);
+
+    const useCase = new ReceiveStockWithLotUseCase(
+      inventoryRepo,
+      productRepo,
+      ledgerRepo,
+      costLayerRepo
+    );
+
+    const input: ReceiveStockWithLotInput = {
+      sku: 'SKU-MISSING-VARIANT',
+      locationId: 'LOC-A',
+      quantity: 50,
+      unitCostCents: 1500,
+      lotNumber: 'LOT-XYZ',
+      expirationDate: new Date('2026-12-31T00:00:00Z'),
+      tenantId: 'tenant-1',
+      actorId: 'user-1'
+    };
+
+    await expect(useCase.execute(input)).rejects.toThrow('Product variant with SKU SKU-MISSING-VARIANT not found.');
+  });
+
+  it('should validate capacity when capacityService is provided', async () => {
+    const product = new Product(new ProductId('prod-1'), 'Product A');
+    product.addVariant(new Sku('SKU-1'), [new VariantAttribute('size', 'standard')]);
+    await productRepo.save(product);
+
+    const mockCapacityService = {
+      validateCapacity: jest.fn().mockResolvedValue(undefined)
+    } as unknown as WMSCapacityService;
+
+    const useCase = new ReceiveStockWithLotUseCase(
+      inventoryRepo,
+      productRepo,
+      ledgerRepo,
+      costLayerRepo,
+      mockCapacityService
+    );
+
+    await useCase.execute({
+      sku: 'SKU-1',
+      locationId: 'LOC-A',
+      quantity: 25,
+      unitCostCents: 1000,
+      lotNumber: 'LOT-123',
+      expirationDate: new Date('2026-12-31T00:00:00Z'),
+      tenantId: 'tenant-1',
+      actorId: 'user-1'
+    });
+
+    expect(mockCapacityService.validateCapacity).toHaveBeenCalledWith('LOC-A', [
+      { sku: 'SKU-1', mode: 'relative', quantity: 25 }
+    ]);
+  });
+
+  it('should update existing inventory item when receiving stock', async () => {
+    const product = new Product(new ProductId('prod-1'), 'Product A');
+    product.addVariant(new Sku('SKU-1'), [new VariantAttribute('size', 'standard')]);
+    await productRepo.save(product);
+
+    const existingItem = InventoryItem.createNew('inv-1', 'SKU-1', 'LOC-A');
+    existingItem.receiveStock(new Quantity(20));
+    await inventoryRepo.save(existingItem);
+
+    const useCase = new ReceiveStockWithLotUseCase(
+      inventoryRepo,
+      productRepo,
+      ledgerRepo,
+      costLayerRepo
+    );
+
+    await useCase.execute({
+      sku: 'SKU-1',
+      locationId: 'LOC-A',
+      quantity: 30,
+      unitCostCents: 1200,
+      lotNumber: 'LOT-ABC',
+      expirationDate: new Date('2026-12-31T00:00:00Z'),
+      tenantId: 'tenant-1',
+      actorId: 'user-1'
+    });
+
+    const updatedItem = await inventoryRepo.findBySkuAndLocation('SKU-1', 'LOC-A');
+    expect(updatedItem?.quantity.value).toBe(50);
+  });
+
+  it('should throw error when updating costing method for non-existent product', async () => {
+    const useCase = new UpdateVariantCostingMethodUseCase(productRepo);
+    await expect(useCase.execute('NON-EXISTENT-SKU', CostingMethod.FEFO)).rejects.toThrow('Product with SKU NON-EXISTENT-SKU not found.');
+  });
+
+  it('should throw error when updating costing method if variant is not found on product', async () => {
+    const product = new Product(new ProductId('prod-1'), 'Product A');
+    jest.spyOn(productRepo, 'findBySku').mockResolvedValueOnce(product);
+
+    const useCase = new UpdateVariantCostingMethodUseCase(productRepo);
+    await expect(useCase.execute('SKU-MISSING', CostingMethod.FEFO)).rejects.toThrow('Variant with SKU SKU-MISSING not found.');
   });
 
   it('should return an empty collection when tracing recall for a lot with no deduction or dispatch entries', async () => {

@@ -45,9 +45,74 @@ describe('InventoryReconciledHandler', () => {
     await handler.handle(event);
 
     expect(consoleLogSpy).toHaveBeenCalledWith('[InventoryReconciledHandler] 📊 ACCOUNTING NOTIFIED: Variance of -2 recorded for SKU SKU-1.');
-    expect(prisma.ledgerEntry.findFirst).toHaveBeenCalled();
-    expect(prisma.notification.create).toHaveBeenCalled();
-    expect(pubsub.publish).toHaveBeenCalled();
+    expect(prisma.ledgerEntry.findFirst).toHaveBeenCalledWith({
+      where: {
+        variant: {
+          sku: 'SKU-1'
+        }
+      }
+    });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-123',
+        title: 'Inventory Reconciled',
+        message: 'Variance of -2 recorded for SKU SKU-1.',
+        type: 'info',
+        isRead: false
+      })
+    });
+    expect(pubsub.publish).toHaveBeenCalledWith(
+      'NOTIFICATION_CREATED_tenant-123',
+      expect.objectContaining({
+        notificationCreated: expect.objectContaining({
+          tenantId: 'tenant-123',
+          title: 'Inventory Reconciled',
+          message: 'Variance of -2 recorded for SKU SKU-1.',
+          type: 'info',
+          isRead: false
+        })
+      })
+    );
+  });
+
+  it('should fall back to default tenant-1 when ledger entry is not found', async () => {
+    (prisma.ledgerEntry.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.notification.create as jest.Mock).mockResolvedValue({});
+    (pubsub.publish as jest.Mock).mockResolvedValue(undefined);
+
+    const handler = new InventoryReconciledHandler();
+    const event = new InventoryReconciledEvent('SKU-2', 'LOC-2', 5, 10, 5);
+    await handler.handle(event);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith('[InventoryReconciledHandler] 📊 ACCOUNTING NOTIFIED: Variance of 5 recorded for SKU SKU-2.');
+    expect(prisma.ledgerEntry.findFirst).toHaveBeenCalledWith({
+      where: {
+        variant: {
+          sku: 'SKU-2'
+        }
+      }
+    });
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: 'tenant-1',
+        title: 'Inventory Reconciled',
+        message: 'Variance of 5 recorded for SKU SKU-2.',
+        type: 'info',
+        isRead: false
+      })
+    });
+    expect(pubsub.publish).toHaveBeenCalledWith(
+      'NOTIFICATION_CREATED_tenant-1',
+      expect.objectContaining({
+        notificationCreated: expect.objectContaining({
+          tenantId: 'tenant-1',
+          title: 'Inventory Reconciled',
+          message: 'Variance of 5 recorded for SKU SKU-2.',
+          type: 'info',
+          isRead: false
+        })
+      })
+    );
   });
 
   it('should log an error if ledger entry fetch fails', async () => {
