@@ -20,7 +20,7 @@ const WEBHOOK_FAILED_TOPIC = 'WEBHOOK_FAILED';
 const loginAttempts = new Map<string, { count: number; firstAttemptAt: number; lastAttemptAt: number }>();
 
 // Periodic cleanup of expired entries (every 15 minutes) to prevent memory leaks
-setInterval(() => {
+const loginCleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of loginAttempts.entries()) {
     if ((now - record.firstAttemptAt) >= 15 * 60 * 1000) {
@@ -28,6 +28,8 @@ setInterval(() => {
     }
   }
 }, 15 * 60 * 1000);
+// Cache maintenance must not keep an otherwise idle process (or test runner) alive.
+loginCleanupTimer.unref();
 
 import { ReceiveStockUseCase } from '../../application/useCases/ReceiveStock';
 import { DispatchStockUseCase } from '../../application/useCases/DispatchStock';
