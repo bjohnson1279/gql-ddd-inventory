@@ -95,9 +95,9 @@ export async function recordStockComplianceAndEvents(
   const payloadObj = { sku, locationId, quantity, operation, actorId };
   const payloadStr = JSON.stringify(payloadObj);
 
-  // Skip real Prisma network calls in in-memory unit tests (unless Prisma is mocked)
+  // Skip real Prisma network calls in Jest unit tests (unless Prisma is mocked)
   const isMockedPrisma = typeof (prisma as any)?.complianceLedgerModel?.create?.mock !== 'undefined';
-  if (process.env.USE_POSTGRES !== 'true' && !isMockedPrisma) {
+  if (process.env.NODE_ENV === 'test' && !isMockedPrisma) {
     return;
   }
 
@@ -179,7 +179,7 @@ export async function validateAndConsumeCostLayersForDispatch(
   amount: number
 ): Promise<string | undefined> {
   const isMockedPrisma = typeof (prisma as any)?.productVariant?.findUnique?.mock !== 'undefined';
-  if (process.env.USE_POSTGRES !== 'true' && !isMockedPrisma) {
+  if (process.env.NODE_ENV === 'test' && !isMockedPrisma) {
     return undefined;
   }
   try {
