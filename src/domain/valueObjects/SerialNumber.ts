@@ -2,7 +2,7 @@ export class SerialNumber {
   public readonly value: string;
 
   constructor(raw: string) {
-    const normalized = raw.trim().toUpperCase();
+    const normalized = raw.trim();
 
     if (!normalized) {
       throw new Error('Serial number cannot be empty.');
@@ -12,7 +12,7 @@ export class SerialNumber {
       throw new Error('Serial number cannot exceed 100 characters.');
     }
 
-    if (!/^[A-Z0-9\-\.\/]+$/.test(normalized)) {
+    if (!/^[A-Za-z0-9\-\.\/]+$/.test(normalized)) {
       throw new Error(`Serial number contains invalid characters: ${normalized}`);
     }
 

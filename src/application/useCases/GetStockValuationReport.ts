@@ -108,7 +108,9 @@ export class GetStockValuationReportUseCase {
 
       if (costBreakdown && costBreakdown.totalCostCents > 0) {
         const unitCostCents = Math.round(costBreakdown.totalCostCents / totalVariantQty);
-        const itemTotalCents = Math.round(unitCostCents * qtyOnHand);
+        const itemTotalCents = qtyOnHand === totalVariantQty
+          ? costBreakdown.totalCostCents
+          : Math.round((costBreakdown.totalCostCents * qtyOnHand) / totalVariantQty);
 
         lineItems.push({
           sku: invItem.sku.value,
