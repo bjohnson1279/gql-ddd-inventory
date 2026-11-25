@@ -386,8 +386,13 @@ export const typeDefs = `#graphql
     conversionRules: [ConversionRule!]!
   }
 
+  type Account {
+    code: String!
+  }
+
   type JournalLine {
     accountCode: String!
+    account: Account!
     amountCents: Int!
     type: DebitCredit!
     memo: String
@@ -921,11 +926,11 @@ export const typeDefs = `#graphql
     receiveRma(input: ReceiveRmaInput!): Boolean!
     resolveQuarantineItem(id: ID!, resolution: String!): Boolean!
 
-    receiveStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
-    dispatchStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
-    allocateStock(sku: String!, locationId: String!, amount: Int!): InventoryItem!
-    releaseAllocation(sku: String!, locationId: String!, amount: Int!): InventoryItem!
-    fulfillAllocation(sku: String!, locationId: String!, amount: Int!): InventoryItem!
+    receiveStock(sku: String!, locationId: String!, amount: Int!, expectedVersion: Int): InventoryItem!
+    dispatchStock(sku: String!, locationId: String!, amount: Int!, expectedVersion: Int): InventoryItem!
+    allocateStock(sku: String!, locationId: String!, amount: Int!, expectedVersion: Int): InventoryItem!
+    releaseAllocation(sku: String!, locationId: String!, amount: Int!, expectedVersion: Int): InventoryItem!
+    fulfillAllocation(sku: String!, locationId: String!, amount: Int!, expectedVersion: Int): InventoryItem!
     createInTransit(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     receiveInTransit(sku: String!, locationId: String!, amount: Int!): InventoryItem!
     submitInventoryCount(counts: [InventoryCountInput!]!): [InventoryCountResult!]!
@@ -1087,6 +1092,9 @@ export const typeDefs = `#graphql
     averageDailySales7d: Float!
     averageDailySales30d: Float!
     averageDailySales90d: Float!
+    salesVelocity7d: Float!
+    salesVelocity30d: Float!
+    salesVelocity90d: Float!
     daysOfCover: Float
     runOutDate: String
     reorderPoint: Int!
@@ -1414,6 +1422,72 @@ export const typeDefs = `#graphql
   extend type Mutation {
     analyzeInboundImage(base64Image: String!, poId: String): InboundScan!
     approveInboundScan(id: ID!): InboundScan!
+    assignRfidTag(epc: String!, sku: String!, serialNumber: String!): Boolean!
+    clearCache(tenantId: String): Boolean!
+  }
+
+  type RfidTag {
+    epc: String!
+    sku: String!
+    serialNumber: String!
+    status: String!
+  }
+
+  type CacheStats {
+    hits: Int!
+    misses: Int!
+    hitRatio: Float!
+    invalidations: Int!
+    activeKeysCount: Int!
+  }
+
+  type ComplianceLedgerEntry {
+    id: ID!
+    tenantId: String!
+    sequenceNumber: Int!
+    eventType: String!
+    timestamp: String!
+    hash: String!
+    previousHash: String!
+    payload: String!
+  }
+
+  type ComplianceVerificationResult {
+    isValid: Boolean!
+    failedSequenceNumber: Int
+    reason: String
+  }
+
+  type ReconstructedStockLevel {
+    sku: String!
+    locationId: String!
+    quantity: Int!
+  }
+
+  type ReconstructedState {
+    tenantId: String!
+    timestamp: String!
+    eventsReplayedCount: Int!
+    stockLevels: [ReconstructedStockLevel!]!
+  }
+
+  type SlottingSuggestion {
+    sku: String!
+    currentLocationId: String!
+    recommendedLocationId: String!
+    reason: String
+    estimatedSavings: Float!
+  }
+
+  extend type Query {
+    rfidTags(tenantId: ID!): [RfidTag!]!
+    cacheStats: CacheStats!
+    complianceLedger(tenantId: String!): [ComplianceLedgerEntry!]!
+    verifyComplianceLedger(tenantId: String!): ComplianceVerificationResult!
+    reconstructState(tenantId: String!, timestamp: String): ReconstructedState!
+    replayAudit(tenantId: String!, upToTimestamp: String): [ComplianceLedgerEntry!]!
+    slottingSuggestions: [SlottingSuggestion!]!
+    webhookDeliveries: [WebhookDelivery!]!
   }
 `;
 

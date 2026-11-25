@@ -124,9 +124,11 @@ function createSharedModeTenantPrisma(basePrisma: PrismaClient, tenantId: string
               const customArgs = (args || {}) as any;
               args = customArgs;
 
-              // 1. Enforce query/read filtering via 'where'
-              customArgs.where = customArgs.where || {};
-              customArgs.where.tenantId = tenantId;
+              // 1. Enforce query/read filtering via 'where' (only on operations that accept 'where')
+              if (operation !== 'create' && operation !== 'createMany' && operation !== 'createManyAndReturn') {
+                customArgs.where = customArgs.where || {};
+                customArgs.where.tenantId = tenantId;
+              }
 
               // 2. Enforce write/mutation data injection
               if (operation === 'create') {
